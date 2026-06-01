@@ -1,0 +1,60 @@
+import { StyleSheet } from 'react-native';
+import { AppTheme } from '@/common/theme';
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
+  back: { padding: 12, alignSelf: 'flex-start' },
+  scroll: { paddingHorizontal: 24, paddingBottom: 32 },
+  title: { fontSize: 30, fontWeight: '700', color: AppTheme.textPrimary },
+  subtitle: { fontSize: 18, color: AppTheme.textSecondary, marginTop: 8, marginBottom: 40 },
+  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
+  label: { fontSize: 18, fontWeight: '500', color: AppTheme.textPrimary },
+  input: {
+    height: 64,
+    borderWidth: 2,
+    borderColor: AppTheme.inputBorderColor,
+    borderRadius: AppTheme.radiusLarge,
+    paddingHorizontal: 20,
+    fontSize: 20,
+    backgroundColor: '#fff',
+    color: AppTheme.textPrimary,
+    marginBottom: 24,
+  },
+  codeRow: { flexDirection: 'row', gap: 12, marginBottom: 24 },
+  codeBtn: {
+    width: 120,
+    height: 64,
+    borderWidth: 2,
+    borderColor: AppTheme.primaryColor,
+    borderRadius: AppTheme.radiusLarge,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+  },
+  codeBtnDisabled: { borderColor: AppTheme.borderColor, backgroundColor: '#F5EDE5' },
+  codeBtnText: { fontSize: 16, fontWeight: '500', color: AppTheme.primaryColor },
+  codeBtnTextMuted: { color: AppTheme.textSecondary },
+  primaryBtn: {
+    height: 64,
+    backgroundColor: AppTheme.primaryColor,
+    borderRadius: AppTheme.radiusLarge,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  primaryBtnDisabled: { opacity: 0.5 },
+  primaryBtnText: { fontSize: 20, fontWeight: '600', color: '#fff' },
+  link: { textAlign: 'center', fontSize: 18, color: AppTheme.primaryColor, fontWeight: '600' },
+  tipBox: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 32,
+    padding: 20,
+    backgroundColor: '#F5EDE580',
+    borderRadius: AppTheme.radiusLarge,
+  },
+  tipText: { flex: 1, fontSize: 16, color: '#6D5E50', lineHeight: 22 },
+  tipPhone: { fontWeight: '600', color: AppTheme.primaryColor },
+});
+
+export default styles;
