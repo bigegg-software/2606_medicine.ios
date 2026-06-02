@@ -76,7 +76,7 @@ export default function LoginPage() {
         if (data.refresh_token) await saveRefreshToken(data.refresh_token);
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       } else {
         Alert.alert('登录失败', res.msg ?? res.message ?? '请检查验证码');
       }

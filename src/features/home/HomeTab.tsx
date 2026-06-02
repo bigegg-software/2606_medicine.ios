@@ -16,6 +16,10 @@ import { getActivities } from '@/api/community';
 import { getUserBaseInfo } from '@/api/patient';
 import styles from '@/css/home/home';
 import BloodPressureChart from './components/BloodPressureChart';
+import BloodGlucoseChart from './components/BloodGlucoseChart';
+import HeartRateChart from './components/HeartRateChart';
+import BloodOxygenChart from './components/BloodOxygenChart';
+import BodyTemperatureChart from './components/BodyTemperatureChart';
 import { parseHealthMetrics, type HealthMetricModel, type ScheduleItem, type ActivityItem } from '@/common/models';
 import { AppTheme } from '@/common/theme';
 import { isApiOk, isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -25,8 +29,6 @@ type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
-
-const AI_TIP = '今天天气晴朗，适合外出散步15分钟，记得带上水杯补充水分哦！';
 
 type SportPrescription = {
   icon: ImageSourcePropType;
@@ -48,24 +50,6 @@ function greeting(): string {
   if (h >= 5 && h < 12) return '早上好';
   if (h >= 12 && h < 18) return '下午好';
   return '晚上好';
-}
-
-function metricByType(metrics: HealthMetricModel[], ...keys: string[]): HealthMetricModel | undefined {
-  const lower = keys.map(k => k.toLowerCase());
-  const found = metrics.filter(m => {
-    const t = m.type.toLowerCase();
-    return lower.some(k => t === k || t.includes(k));
-  });
-  if (!found.length) return undefined;
-  return found.sort((a, b) => b.recordedAt.localeCompare(a.recordedAt))[0];
-}
-
-function formatMetric(m: HealthMetricModel | undefined, suffix: string, loading: boolean): string {
-  if (loading && !m) return '加载中';
-  const raw = m?.value?.trim() ?? '';
-  if (!raw) return `--${suffix}`;
-  const n = parseFloat(raw);
-  return `${Number.isFinite(n) ? Math.round(n) : raw}${suffix}`;
 }
 
 export default function HomeTab() {
@@ -193,9 +177,53 @@ export default function HomeTab() {
               </View>
               <BloodPressureChart />
             </Flex>
-            <Flex style={styles.healthSlide}>
+            <Flex style={styles.healthSlide} justify="between" align="center">
+              <View>
+                <Flex>
+                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Text style={styles.healthSlideLabel}>血糖</Text>
+                </Flex>
+                <Text style={styles.healthSlideValue}>6.8</Text>
+                <Text style={styles.healthSlideUnit}>mmol/L</Text>
+                <Text style={styles.healthSlideStatus}>・偏高</Text>
+              </View>
+              <BloodGlucoseChart />
             </Flex>
-            <Flex style={styles.healthSlide}>
+            <Flex style={styles.healthSlide} justify="between" align="center">
+              <View>
+                <Flex>
+                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Text style={styles.healthSlideLabel}>心率</Text>
+                </Flex>
+                <Text style={styles.healthSlideValue}>72</Text>
+                <Text style={styles.healthSlideUnit}>次/分钟</Text>
+                <Text style={styles.healthSlideStatus}>・正常</Text>
+              </View>
+              <HeartRateChart />
+            </Flex>
+            <Flex style={styles.healthSlide} justify="between" align="center">
+              <View>
+                <Flex>
+                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Text style={styles.healthSlideLabel}>血氧</Text>
+                </Flex>
+                <Text style={styles.healthSlideValue}>98%</Text>
+                <Text style={styles.healthSlideUnit}>百分比</Text>
+                <Text style={styles.healthSlideStatus}>・正常</Text>
+              </View>
+              <BloodOxygenChart />
+            </Flex>
+            <Flex style={styles.healthSlide} justify="between" align="center">
+              <View>
+                <Flex>
+                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Text style={styles.healthSlideLabel}>体温</Text>
+                </Flex>
+                <Text style={styles.healthSlideValue}>36.5</Text>
+                <Text style={styles.healthSlideUnit}>℃</Text>
+                <Text style={styles.healthSlideStatus}>・正常</Text>
+              </View>
+              <BodyTemperatureChart />
             </Flex>
           </Carousel>
         </View>
@@ -360,8 +388,8 @@ export default function HomeTab() {
           </TouchableOpacity>
         ))}
         {activities.length === 0 ? <Text style={styles.emptyLine}>暂无社区活动</Text> : null} */}
-      </ScrollView>
-    </SafeAreaView>
+      </ScrollView >
+    </SafeAreaView >
   );
 }
 

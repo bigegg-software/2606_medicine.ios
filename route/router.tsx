@@ -1,7 +1,10 @@
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { View } from 'react-native';
+import { createNativeStackNavigator, type NativeStackHeaderProps } from '@react-navigation/native-stack';
+import { getHeaderTitle, Header } from '@react-navigation/elements';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
+import { AppTheme } from '@/common/theme';
 
 import WelcomePage from '@/src/features/auth/WelcomePage';
 import LoginPage from '@/src/features/auth/LoginPage';
@@ -11,6 +14,10 @@ import ScheduleAddPage from '@/src/features/schedule/ScheduleAddPage';
 import ScheduleCalendarPage from '@/src/features/schedule/ScheduleCalendarPage';
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
 import ProfileEditPage from '@/src/features/profile/ProfileEditPage';
+import HealthRecord from '@/src/features/profile/healthRecord';
+import Emergency from '@/src/features/profile/emergency';
+import CaseNotes from '@/src/features/profile/caseNotes';
+import CaseAdd from '@/src/features/profile/caseAdd';
 import FamilyBindPage from '@/src/features/profile/FamilyBindPage';
 import MyBedPage from '@/src/features/profile/MyBedPage';
 import HealthPage from '@/src/features/health/HealthPage';
@@ -32,11 +39,15 @@ export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
-  MainTabs: undefined;
+  Home: undefined;
   ScheduleAdd: undefined;
   ScheduleCalendar: undefined;
   ActivityDetail: { id: number | string };
   ProfileEdit: undefined;
+  HealthRecord: undefined;
+  Emergency: undefined;
+  CaseNotes: undefined;
+  CaseAdd: undefined;
   FamilyBind: undefined;
   MyBed: undefined;
   Health: undefined;
@@ -64,23 +75,51 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+function StackHeader({ route, options, back }: NativeStackHeaderProps) {
+  return (
+    <View style={{ backgroundColor: AppTheme.backgroundColor }}>
+      <Header
+        title={getHeaderTitle(options, route.name)}
+        headerTintColor={AppTheme.primaryColor}
+        headerTitleStyle={{ color: AppTheme.textPrimary, fontWeight: '600' }}
+        headerStyle={{ backgroundColor: AppTheme.backgroundColor }}
+        headerShadowVisible={false}
+        back={back}
+      />
+      <View style={{ height: 1, marginTop: 10, backgroundColor: "rgba(5,58,147,0.06)" }} />
+    </View>
+  );
+}
+
 export default function RootStack() {
   const isLogin = useSelector((s: RootState) => s.login.isLogin);
 
   return (
     <Stack.Navigator
-      screenOptions={{ headerShown: false, animation: 'slide_from_right' }}
-      initialRouteName={isLogin ? 'MainTabs' : 'Welcome'}>
-      <Stack.Screen name="Welcome" component={WelcomePage} />
+      screenOptions={{
+        animation: 'slide_from_right',
+        header: StackHeader,
+        headerStyle: { backgroundColor: AppTheme.backgroundColor },
+        headerShadowVisible: false,
+        headerTintColor: AppTheme.primaryColor,
+        headerTitleStyle: { color: AppTheme.textPrimary, fontWeight: '600' },
+        contentStyle: { backgroundColor: AppTheme.backgroundColor },
+      }}
+      initialRouteName={isLogin ? 'Home' : 'Welcome'}>
+      <Stack.Screen name="Welcome" component={WelcomePage} options={{ headerShown: false }} />
       <Stack.Screen name="Login" component={LoginPage} />
       <Stack.Screen name="Register" component={RegisterPage} />
-      <Stack.Screen name="MainTabs" component={MainTabs} />
+      <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false }} />
       <Stack.Screen name="ScheduleAdd" component={ScheduleAddPage} />
       <Stack.Screen name="ScheduleCalendar" component={ScheduleCalendarPage} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
       <Stack.Screen name="ProfileEdit" component={ProfileEditPage} />
+      <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
+      <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
+      <Stack.Screen name="CaseNotes" component={CaseNotes} options={{ title: "病例记录" }} />
+      <Stack.Screen name="CaseAdd" component={CaseAdd} options={{ title: "添加病例" }} />
       <Stack.Screen name="FamilyBind" component={FamilyBindPage} />
-      <Stack.Screen name="MyBed" component={MyBedPage} />
+      <Stack.Screen name="MyBed" component={MyBedPage} options={{ title: "我的" }} />
       <Stack.Screen name="Health" component={HealthPage} />
       <Stack.Screen name="Vitals" component={VitalsPage} />
       <Stack.Screen name="Medication" component={MedicationPage} />

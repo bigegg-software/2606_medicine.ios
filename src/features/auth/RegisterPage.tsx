@@ -97,7 +97,7 @@ export default function RegisterPage() {
         if (res.data.userId) await saveUserId(res.data.userId);
         dispatch({ type: SET_LOGIN, payload: true });
         Alert.alert('成功', '注册成功！', [
-          { text: '确定', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] }) },
+          { text: '确定', onPress: () => navigation.reset({ index: 0, routes: [{ name: 'Home' }] }) },
         ]);
       } else {
         Alert.alert('注册失败', res.message ?? '请稍后重试');

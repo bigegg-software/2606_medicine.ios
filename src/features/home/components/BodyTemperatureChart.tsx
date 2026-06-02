@@ -6,21 +6,21 @@ import { GridComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
 
-export type BloodPressurePoint = { high: number; low: number };
+export type BodyTemperaturePoint = { hour: string; value: number };
 
-const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
+const HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
 echarts.use([SkiaRenderer, LineChart, GridComponent]);
 
 type Props = {
-  data?: BloodPressurePoint[];
+  data?: BodyTemperaturePoint[];
 };
 
-function buildOption(points: BloodPressurePoint[]) {
-  const highData = points.map(p => p.high);
-  const lowData = points.map(p => p.low);
+function buildOption(points: BodyTemperaturePoint[]) {
+  const labels = points.map(p => p.hour);
+  const values = points.map(p => p.value);
 
   return {
     animation: false,
@@ -33,7 +33,7 @@ function buildOption(points: BloodPressurePoint[]) {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: WEEK_LABELS,
+      data: labels,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: {
@@ -47,6 +47,8 @@ function buildOption(points: BloodPressurePoint[]) {
     },
     yAxis: {
       type: 'value',
+      min: 36,
+      max: 37.5,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: { show: false },
@@ -54,47 +56,24 @@ function buildOption(points: BloodPressurePoint[]) {
     },
     series: [
       {
-        name: 'low',
         type: 'line',
         smooth: true,
         showSymbol: false,
-        data: lowData,
-        lineStyle: { color: '#06BDFF', width: 2 },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#06BDFF' },
-            { offset: 1, color: 'rgba(6,189,255,0)' },
-          ]),
-        },
-      },
-      {
-        name: 'high',
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        data: highData,
-        lineStyle: { color: '#FF8B07', width: 2 },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#FF8B07' },
-            { offset: 1, color: 'rgba(255,139,7,0)' },
-          ]),
-        },
+        data: values,
+        lineStyle: { color: '#FD9A00', width: 2 },
       },
     ],
   };
 }
 
-export default function BloodPressureChart({ data }: Props) {
+export default function BodyTemperatureChart({ data }: Props) {
   const skiaRef = useRef<any>(null);
   const points = data ?? [
-    { high: 142, low: 92 },
-    { high: 138, low: 88 },
-    { high: 145, low: 94 },
-    { high: 140, low: 90 },
-    { high: 136, low: 86 },
-    { high: 143, low: 91 },
-    { high: 142, low: 92 },
+    { hour: '01:00', value: 36.3 },
+    { hour: '07:00', value: 36.4 },
+    { hour: '12:00', value: 36.5 },
+    { hour: '18:00', value: 36.6 },
+    { hour: '24:00', value: 36.5 },
   ];
 
   const option = useMemo(() => buildOption(points), [points]);
@@ -124,3 +103,5 @@ export default function BloodPressureChart({ data }: Props) {
     </View>
   );
 }
+
+export { HOUR_LABELS };

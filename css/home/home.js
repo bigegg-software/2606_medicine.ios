@@ -94,9 +94,11 @@ const styles = StyleSheet.create({
         opacity: 0.06
     },
     healthSwiper: {
+        height: 110,
         marginTop: 12,
     },
     healthSlide: {
+        height: 86,
         paddingHorizontal: 12,
     },
     swiperIcon: {
