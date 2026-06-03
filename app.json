@@ -9,8 +9,21 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bigegg.medicine",
-      "deploymentTarget": "16.4"
+      "deploymentTarget": "16.4",
+      "infoPlist": {
+        "NSCameraUsageDescription": "用于拍摄病例照片并进行识别",
+        "NSPhotoLibraryUsageDescription": "用于从相册选择病例照片并进行识别"
+      }
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "用于拍摄病例照片并进行识别",
+          "photosPermission": "用于从相册选择病例照片并进行识别"
+        }
+      ]
+    ],
     "android": {
       "package": "com.bigegg.medicine",
       "adaptiveIcon": {

@@ -3,7 +3,10 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
-    body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
+    body: { paddingHorizontal: 18, paddingTop: 2, paddingBottom: 14,},
+    bodyEmpty: { flexGrow: 1, paddingHorizontal: 18, paddingTop: 2, paddingBottom: 40 },
+    center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyText: { textAlign: 'center', color: '#999999', marginTop: 40, fontSize: 14 },
     avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: AppTheme.primaryColor, alignItems: 'center', justifyContent: 'center' },
     avatarImg: { width: 64, height: 64, borderRadius: 32, marginRight: 12 },
     avatarText: { fontSize: 28, fontWeight: '700', color: '#fff' },
@@ -94,15 +97,44 @@ const styles = StyleSheet.create({
         width: 34,
         height: 10,
     },
-    caseBox: {
-        padding: 12,
-        backgroundColor: "#FFF",
-        borderRadius: 16,
+    swipeRow: {
         marginTop: 12,
+        borderRadius: 16,
+        overflow: 'hidden',
         shadowColor: AppTheme.primaryColor,
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
+        elevation: 3,
+    },
+    swipeAction: {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 72,
+        zIndex: 0,
+    },
+    swipeForeground: {
+        width: '100%',
+        zIndex: 1,
+        backgroundColor: '#FFF',
+        borderRadius: 16,
+    },
+    swipeDeleteBtn: {
+        flex: 1,
+        width: 72,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    swipeDeleteText: {
+        color: '#FFFFFF',
+        fontSize: 15,
+        fontWeight: '500',
+    },
+    caseBox: {
+        padding: 12,
+        backgroundColor: '#FFF',
     },
     caseTopBox: {
         paddingTop: 3,

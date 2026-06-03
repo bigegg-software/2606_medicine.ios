@@ -17,26 +17,32 @@ import { LinearGradient } from 'expo-linear-gradient';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 
-const navList = [{
-  img: require('@/assets/images/user/img1.png'),
-  label: '积分商城',
-  route: 'ProfileEdit'
-},
-{
-  img: require('@/assets/images/user/img2.png'),
-  label: '健康档案',
-  route: 'HealthRecord'
-},
-{
-  img: require('@/assets/images/user/img3.png'),
-  label: '体征数据',
-  route: 'Vitals'
-},
-{
-  img: require('@/assets/images/user/img4.png'),
-  label: '用药记录',
-  route: 'Medication'
-}]
+const navList = [
+  {
+    img: require('@/assets/images/user/img2.png'),
+    label: '健康档案',
+    route: 'HealthRecord'
+  },
+  {
+    img: require('@/assets/images/user/img3.png'),
+    label: '体征数据',
+    route: 'Vitals'
+  },
+  {
+    img: require('@/assets/images/user/img4.png'),
+    label: '用药记录',
+    route: 'Medication'
+  },
+  {
+    img: require('@/assets/images/user/img5.png'),
+    label: '慢病管理',
+    route: 'Medication'
+  },
+  {
+    img: require('@/assets/images/user/img6.png'),
+    label: '评估问卷',
+    route: 'Medication'
+  }]
 
 
 const MENU = [

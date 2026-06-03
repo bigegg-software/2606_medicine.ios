@@ -23,6 +23,11 @@ export function apiData<T>(res: ApiResult<T>): T | undefined {
   return res.data;
 }
 
+export function apiResourceData<T>(res: ApiResult<T> | null | undefined): T | undefined {
+  if (!isResourceApiOk(res)) return undefined;
+  return (res as ApiResult<T>).data;
+}
+
 /** 病历列表等分页接口：成功时顶层含 rows */
 export function getResourceRows<T>(
   res: (ApiResult & { rows?: T[] }) | null | undefined,

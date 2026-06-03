@@ -9,7 +9,7 @@ const styles = StyleSheet.create({
     cameraBox: { flex: 1, height: 90, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, borderRadius: 8 },
     cameraIcon: { width: 42, height: 42 },
     cameraBoxText: { height: 19, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary },
-    addBtn: { marginTop: 12, height: 45, backgroundColor: "#053A93", borderRadius: 8 },
+    addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: "#053A93", borderRadius: 8 },
     addText: { height: 19, fontWeight: 500, fontSize: 16, color: "#FFFFFF" },
     rowBox: { paddingHorizontal: 14, paddingVertical: 2, borderRadius: 8, marginTop: 12, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1 },
     rowTitle: { marginTop: 12, marginBottom: 10, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
@@ -23,9 +23,12 @@ const styles = StyleSheet.create({
     inputBox: { height: 32, borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textSecondary },
     ksList: { marginTop: 12 },
     ksItem: { marginRight: 12, paddingHorizontal: 13, height: 25, backgroundColor: 'rgba(5,58,147,0.13)', borderRadius: 16 },
+    ksItemActive: { backgroundColor: AppTheme.primaryColor },
     ksItemText: { fontWeight: 400, fontSize: 12, color: "#053A93" },
-    uploadIcon: { width: 60, height: 60, borderRadius: 8, borderWidth: 1, borderColor: "#DFE6F1",marginBottom:12 },
-
+    ksItemTextActive: { color: '#FFFFFF' },
+    uploadIcon: { width: 60, height: 60, borderRadius: 8, borderWidth: 1, borderColor: "#DFE6F1", marginBottom: 12 },
+    uploadHint: { fontSize: 14, color: AppTheme.textSecondary, marginBottom: 8 },
+    dateInput: { minWidth: 120, textAlign: 'right', fontSize: 14, color: '#999999' },
 
 
 
