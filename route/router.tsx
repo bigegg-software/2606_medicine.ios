@@ -5,6 +5,7 @@ import { getHeaderTitle, Header } from '@react-navigation/elements';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { AppTheme } from '@/common/theme';
+import type { QuestionnaireType } from '@/api/questionTemplate';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import WelcomePage from '@/src/features/auth/WelcomePage';
@@ -13,38 +14,50 @@ import RegisterPage from '@/src/features/auth/RegisterPage';
 import MainTabs from '@/src/features/home/MainTabs';
 
 // 健康档案
-import HealthRecord from '@/src/features/healthRecord/index';
-import CaseNotes from '@/src/features/healthRecord/caseNotes';
-import CaseAdd from '@/src/features/healthRecord/caseAdd';
-import CaseDetail from '@/src/features/healthRecord/caseDetail';
-import CaseCameraPage from '@/src/features/CaseCameraPage';
-import CaseAlbumPage from '@/src/features/CaseAlbumPage';
-import Allergies from "@/src/features/healthRecord/allergies"
-import AllergiesAdd from "@/src/features/healthRecord/allergiesAdd"
-import FamilyHistory from "@/src/features/healthRecord/familyHistory"
-import FamilyHistoryAdd from "@/src/features/healthRecord/familyHistoryAdd"
-import ProfileEditPage from '@/src/features/healthRecord/ProfileEditPage';
+import HealthRecord from '@/src/features/profile/healthRecord';
+import CaseNotes from '@/src/features/profile/healthRecord/caseNotes';
+import CaseAdd from '@/src/features/profile/healthRecord/caseAdd';
+import CaseDetail from '@/src/features/profile/healthRecord/caseDetail';
+import CaseCameraPage from '@/src/features/media/CaseCameraPage';
+import CaseAlbumPage from '@/src/features/media/CaseAlbumPage';
+import Allergies from "@/src/features/profile/healthRecord/allergies"
+import AllergiesAdd from "@/src/features/profile/healthRecord/allergiesAdd"
+import FamilyHistory from "@/src/features/profile/healthRecord/familyHistory"
+import FamilyHistoryAdd from "@/src/features/profile/healthRecord/familyHistoryAdd"
+import ProfileEditPage from '@/src/features/profile/healthRecord/ProfileEditPage';
 
+// 用药记录
+import MedicationPage from '@/src/features/profile/medication';
+import MedicationAddPage from '@/src/features/profile/medication/add';
 
 // 慢病管理
-import ChronicDiseasePage from '@/src/features/chronicDisease';
+import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
+import ChronicDiseaseAddPage from '@/src/features/profile/chronicDisease/add';
 
 // 紧急联系人
 import Emergency from '@/src/features/profile/emergency';
 
+// 体征数据
+import VitalsPage from '@/src/features/profile/vitals/VitalsPage';
+
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
+
+// 评估问卷
+import QuestionnairePage from '@/src/features/profile/questionnaire';
+import QuestionnaireList from '@/src/features/profile/questionnaire/list';
+import QuestionnaireDetail from '@/src/features/profile/questionnaire/detail';
+import QuestionnaireResult from '@/src/features/profile/questionnaire/result';
+import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
+
+
 import ScheduleAddPage from '@/src/features/schedule/ScheduleAddPage';
 import ScheduleCalendarPage from '@/src/features/schedule/ScheduleCalendarPage';
 import FamilyBindPage from '@/src/features/profile/FamilyBindPage';
 import MyBedPage from '@/src/features/profile/MyBedPage';
 import HealthPage from '@/src/features/health/HealthPage';
-import VitalsPage from '@/src/features/Vitals/VitalsPage';
-import MedicationPage from '@/src/features/health/MedicationPage';
 import MedicalRecordsPage from '@/src/features/health/MedicalRecordsPage';
 import MedicalRecordDetailPage from '@/src/features/health/MedicalRecordDetailPage';
-import AllergyPage from '@/src/features/health/AllergyPage';
-import EmergencyContactsPage from '@/src/features/health/EmergencyContactsPage';
 import HealthProfilePage from '@/src/features/health/HealthProfilePage';
 import TrainingPage from '@/src/features/training/TrainingPage';
 import TrainingExecutionPage from '@/src/features/training/TrainingExecutionPage';
@@ -65,9 +78,14 @@ export type RootStackParamList = {
   Emergency: undefined;
   CaseNotes: undefined;
   CaseAdd: undefined;
-  CaseCameraPage: undefined;
-  CaseAlbumPage: undefined;
+  CaseCameraPage: { mode?: 'attach' | 'identify' } | undefined;
+  CaseAlbumPage: { mode?: 'attach' | 'identify' } | undefined;
   CaseDetail: { id: number };
+  QuestionnairePage: { type: QuestionnaireType };
+  QuestionnaireList: undefined;
+  QuestionnaireDetail: { id: string }
+  QuestionnaireResult: { id: string; type: QuestionnaireType };
+  QuestionnaireHistory: undefined;
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };
   FamilyHistory: undefined;
@@ -76,8 +94,10 @@ export type RootStackParamList = {
   MyBed: undefined;
   Health: undefined;
   ChronicDisease: undefined;
-  Vitals: undefined;
+  ChronicDiseaseAddPage: undefined;
+  VitalsPage: undefined;
   Medication: undefined;
+  MedicationAddPage: undefined;
   MedicalRecords: undefined;
   MedicalRecordDetail: { id: number };
   Allergy: undefined;
@@ -199,8 +219,8 @@ export default function RootStack() {
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
       <Stack.Screen name="CaseNotes" component={CaseNotes} options={{ title: "病例记录" }} />
       <Stack.Screen name="CaseAdd" component={CaseAdd} options={{ title: "添加病例" }} />
-      <Stack.Screen  name="CaseCameraPage"  component={CaseCameraPage}  options={{ title: '拍照', ...darkMediaScreenOptions }}/>
-      <Stack.Screen    name="CaseAlbumPage"    component={CaseAlbumPage}    options={{ title: '相册', ...darkMediaScreenOptions }}  />
+      <Stack.Screen name="CaseCameraPage" component={CaseCameraPage} options={{ title: '拍照', ...darkMediaScreenOptions }} />
+      <Stack.Screen name="CaseAlbumPage" component={CaseAlbumPage} options={{ title: '相册', ...darkMediaScreenOptions }} />
       <Stack.Screen name="CaseDetail" component={CaseDetail} options={{ title: "病例详情" }} />
       <Stack.Screen name="Allergies" component={Allergies} options={{ title: "过敏记录" }} />
       <Stack.Screen name="AllergiesAdd" component={AllergiesAdd} options={{ title: "添加过敏史" }} />
@@ -209,13 +229,18 @@ export default function RootStack() {
       <Stack.Screen name="FamilyBind" component={FamilyBindPage} />
       <Stack.Screen name="MyBed" component={MyBedPage} options={{ title: "我的" }} />
       <Stack.Screen name="ChronicDisease" component={ChronicDiseasePage} options={{ title: "慢病管理" }} />
+      <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
       <Stack.Screen name="Health" component={HealthPage} />
-      <Stack.Screen name="Vitals" component={VitalsPage} options={{ title: "体征监测" }} />
-      <Stack.Screen name="Medication" component={MedicationPage} />
+      <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
+      <Stack.Screen name="Medication" component={MedicationPage} options={{ title: "用药记录" }} />
+      <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: "添加用药记录" }} />
+      <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: "评估问卷" }} />
+      <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />
+      <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
+      <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
+      <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
       <Stack.Screen name="MedicalRecords" component={MedicalRecordsPage} />
       <Stack.Screen name="MedicalRecordDetail" component={MedicalRecordDetailPage} />
-      <Stack.Screen name="Allergy" component={AllergyPage} />
-      <Stack.Screen name="EmergencyContacts" component={EmergencyContactsPage} />
       <Stack.Screen name="HealthProfile" component={HealthProfilePage} />
       <Stack.Screen name="Training" component={TrainingPage} />
       <Stack.Screen name="TrainingExecution" component={TrainingExecutionPage} />

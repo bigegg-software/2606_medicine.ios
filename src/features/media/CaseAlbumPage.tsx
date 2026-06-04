@@ -14,7 +14,7 @@ import {
   InteractionManager,
   ScrollView,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NoticeBar from '@ant-design/react-native/lib/notice-bar';
 import Modal from '@ant-design/react-native/lib/modal';
@@ -25,7 +25,11 @@ import * as MediaLibrary from 'expo-media-library/legacy';
 import * as FileSystem from 'expo-file-system/legacy';
 import styles from '@/css/profile/camera';
 import { pushPendingAttachments } from '@/src/utils/attachmentUploadSession';
+import { pushPendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
+import { aiIdentifyMedicalRecords, type MedicalRecord } from '@/api/medicalRecord';
+import { apiResourceData } from '@/src/utils/apiHelpers';
+import type { RootStackParamList } from '@/route/router';
 
 type ImageItem = {
   id: string;
@@ -164,6 +168,8 @@ function SelectedPhotoThumbnail({ item }: SelectedPhotoThumbnailProps) {
 
 export default function CaseAlbumPage() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'CaseAlbumPage'>>();
+  const identifyMode = route.params?.mode === 'identify';
   const [photos, setPhotos] = useState<MediaLibrary.Asset[]>([]);
   const [totalSize, setTotalSize] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -475,8 +481,28 @@ export default function CaseAlbumPage() {
     if (isUploading) return;
 
     setIsUploading(true);
-    const loadingKey = Toast.loading('上传中', 120);
+    const loadingKey = Toast.loading(identifyMode ? '病例识别中' : '上传中', 120);
     try {
+      if (identifyMode) {
+        const files = selectedPhotos.map((img, index) => ({
+          uri: img.uri,
+          name: lowercaseExtensionPath(img.filename || `photo_${Date.now()}_${index}.jpg`),
+          type: 'image/jpeg',
+        }));
+        const res = await aiIdentifyMedicalRecords(files);
+        const data = apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord });
+        if (data) {
+          pushPendingIdentifyRecord(data);
+          Toast.show('识别成功');
+          setSelectedPhotos([]);
+          setTotalSize(0);
+          navigation.goBack();
+          return;
+        }
+        Toast.show('识别失败');
+        return;
+      }
+
       const uploaded = [];
       for (const img of selectedPhotos) {
         const item = await uploadFileToAttachment({
@@ -589,7 +615,7 @@ export default function CaseAlbumPage() {
               <ActivityIndicator color="#FFF" />
             ) : (
               <Text style={styles.uploadButtonText}>
-                完成 ({selectedPhotos.length}, {totalSize.toFixed(1)}MB)
+                {identifyMode ? '识别' : '完成'} ({selectedPhotos.length}, {totalSize.toFixed(1)}MB)
               </Text>
             )}
           </TouchableOpacity>

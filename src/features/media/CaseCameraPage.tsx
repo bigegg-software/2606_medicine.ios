@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Modal from '@ant-design/react-native/lib/modal';
@@ -23,7 +23,11 @@ import { CameraView, useCameraPermissions, FlashMode } from 'expo-camera';
 import * as FileSystem from 'expo-file-system/legacy';
 import styles from '@/css/profile/camera';
 import { pushPendingAttachments } from '@/src/utils/attachmentUploadSession';
+import { pushPendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
+import { aiIdentifyMedicalRecords, type MedicalRecord } from '@/api/medicalRecord';
+import { apiResourceData } from '@/src/utils/apiHelpers';
+import type { RootStackParamList } from '@/route/router';
 
 type ImageItem = {
   uri: string;
@@ -36,6 +40,8 @@ const THUMBNAIL_MARGIN = 8;
 
 export default function CaseCameraPage() {
   const navigation = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'CaseCameraPage'>>();
+  const identifyMode = route.params?.mode === 'identify';
   const cameraRef = useRef<CameraView>(null);
   const [permission, requestPermission] = useCameraPermissions();
   const [imgList, setImgList] = useState<ImageItem[]>([]);
@@ -145,8 +151,27 @@ export default function CaseCameraPage() {
     if (isUploading || imgList.length === 0) return;
 
     setIsUploading(true);
-    const loadingKey = Toast.loading('上传中', 120);
+    const loadingKey = Toast.loading(identifyMode ? '病例识别中' : '上传中', 120);
     try {
+      if (identifyMode) {
+        const files = imgList.map((img, index) => ({
+          uri: img.uri,
+          name: `image_${Date.now()}_${index}.jpg`,
+          type: 'image/jpeg',
+        }));
+        const res = await aiIdentifyMedicalRecords(files);
+        const data = apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord });
+        if (data) {
+          pushPendingIdentifyRecord(data);
+          Toast.show('识别成功');
+          setImgList([]);
+          navigation.goBack();
+          return;
+        }
+        Toast.show('识别失败');
+        return;
+      }
+
       const uploaded = [];
       for (let i = 0; i < imgList.length; i++) {
         const img = imgList[i];
@@ -257,7 +282,7 @@ export default function CaseCameraPage() {
               <ActivityIndicator color="#FFF" />
             ) : (
               <Text style={styles.uploadButtonText}>
-                完成 ({imgList.length}, {totalSize.toFixed(1)}MB)
+                {identifyMode ? '识别' : '完成'} ({imgList.length}, {totalSize.toFixed(1)}MB)
               </Text>
             )}
           </TouchableOpacity>

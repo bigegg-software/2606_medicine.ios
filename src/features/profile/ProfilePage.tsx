@@ -26,7 +26,7 @@ const navList = [
   {
     img: require('@/assets/images/user/img3.png'),
     label: '体征数据',
-    route: 'Vitals'
+    route: 'VitalsPage'
   },
   {
     img: require('@/assets/images/user/img4.png'),
@@ -41,7 +41,7 @@ const navList = [
   {
     img: require('@/assets/images/user/img6.png'),
     label: '评估问卷',
-    route: 'Medication'
+    route: 'QuestionnaireList'
   }]
 
 

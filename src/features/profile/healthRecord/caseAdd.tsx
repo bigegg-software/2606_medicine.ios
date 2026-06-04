@@ -3,7 +3,6 @@ import { Text, Image, View, ScrollView, TextInput, TouchableOpacity, Alert, Acti
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flex, Toast, Modal } from '@ant-design/react-native';
 import * as DocumentPicker from 'expo-document-picker';
-import * as ImagePicker from 'expo-image-picker';
 import moment from 'moment';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,10 +10,11 @@ import { MaterialIcons } from '@expo/vector-icons';
 import styles from '@/css/profile/caseAdd';
 import DashedBorderBox from './components/DashedBorderBox';
 import { AppTheme } from '@/common/theme';
-import { addMedicalRecord, aiIdentifyMedicalRecord, type MedicalRecord, type MedicalRecordAttachment } from '@/api/medicalRecord';
+import { addMedicalRecord, aiIdentifyMedicalRecords, type MedicalRecord, type MedicalRecordAttachment } from '@/api/medicalRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { consumePendingAttachments } from '@/src/utils/attachmentUploadSession';
+import { consumePendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -93,31 +93,38 @@ function applyRecordToForm(record: MedicalRecord, setters: FormSetters) {
     if (record.physicalExamination) setters.setPhysicalExamination(record.physicalExamination);
     if (record.previousExaminationResults) setters.setPreviousExaminationResults(record.previousExaminationResults);
     if (record.medicalSummary) setters.setMedicalSummary(record.medicalSummary);
-    if (record.attachmentList?.length) setters.setAttachments(record.attachmentList);
 }
 
-async function pickImage(source: 'camera' | 'library') {
-    const permission =
-        source === 'camera'
-            ? await ImagePicker.requestCameraPermissionsAsync()
-            : await ImagePicker.requestMediaLibraryPermissionsAsync();
+async function pickDocumentForIdentify(
+    onSuccess: (record: MedicalRecord) => void,
+    onError: (message: string) => void,
+) {
+    try {
+        const result = await DocumentPicker.getDocumentAsync({
+            type: DOCUMENT_TYPES,
+            copyToCacheDirectory: true,
+            multiple: true,
+        });
+        if (result.canceled || !result.assets?.length) {
+            return;
+        }
 
-    if (!permission.granted) {
-        Alert.alert('提示', source === 'camera' ? '需要相机权限' : '需要相册权限');
-        return null;
+        const files = result.assets.map((asset, index) => ({
+            uri: asset.uri,
+            name: sanitizeFileName(asset.name ?? `document_${Date.now()}_${index}`),
+            type: asset.mimeType ?? 'application/octet-stream',
+        }));
+        const res = await aiIdentifyMedicalRecords(files);
+        const data = apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord });
+        if (data) {
+            onSuccess(data);
+            return;
+        }
+        const r = res as { msg?: string; message?: string };
+        onError(r.msg ?? r.message ?? '请手动填写');
+    } catch {
+        onError('识别失败，请稍后重试');
     }
-
-    const result =
-        source === 'camera'
-            ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.8 })
-            : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
-
-    if (result.canceled || !result.assets[0]) return null;
-
-    const asset = result.assets[0];
-    const name = asset.fileName ?? `medical_${Date.now()}.jpg`;
-    const type = asset.mimeType ?? 'image/jpeg';
-    return { uri: asset.uri, name, type };
 }
 
 type TextareaFieldProps = {
@@ -171,6 +178,11 @@ export default function CaseAddPage() {
 
     useFocusEffect(
         useCallback(() => {
+            const record = consumePendingIdentifyRecord();
+            if (record) {
+                applyRecordToForm(record, formSetters);
+                Alert.alert('识别成功', '已自动填充病例信息，请核对后保存');
+            }
             const items = consumePendingAttachments();
             if (items.length) {
                 setAttachments(prev => [...prev, ...items]);
@@ -195,24 +207,17 @@ export default function CaseAddPage() {
         setAttachments,
     };
 
-    const identifyFromImage = async (source: 'camera' | 'library') => {
-        const file = await pickImage(source);
-        if (!file) return;
-
+    const identifyFromDocuments = async () => {
         setIdentifying(true);
         const loadingKey = Toast.loading('病例识别中', 0);
         try {
-            const res = await aiIdentifyMedicalRecord(file);
-            const data = apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord });
-            if (data) {
-                applyRecordToForm(data, formSetters);
-                Alert.alert('识别成功', '已自动填充病例信息，请核对后保存');
-            } else {
-                const r = res as { msg?: string; message?: string };
-                Alert.alert('识别失败', r.msg ?? r.message ?? '请手动填写');
-            }
-        } catch {
-            Alert.alert('错误', '识别失败，请稍后重试');
+            await pickDocumentForIdentify(
+                data => {
+                    applyRecordToForm(data, formSetters);
+                    Alert.alert('识别成功', '已自动填充病例信息，请核对后保存');
+                },
+                message => Alert.alert('识别失败', message),
+            );
         } finally {
             Toast.remove(loadingKey);
             setIdentifying(false);
@@ -307,22 +312,28 @@ export default function CaseAddPage() {
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Text style={styles.sectionTitle}>拍照识别</Text>
                 <Flex justify="between" style={styles.cameraBoxRow}>
-                    <TouchableOpacity style={styles.cameraBox} onPress={() => identifyFromImage('camera')} disabled={identifying}>
+                    <TouchableOpacity
+                        style={styles.cameraBox}
+                        onPress={() => navigation.navigate('CaseCameraPage', { mode: 'identify' })}
+                        disabled={identifying}>
                         <DashedBorderBox style={{ flex: 1 }}>
                             <Image source={require('@/assets/images/user/camera.png')} style={styles.cameraIcon} />
                             <Text style={styles.cameraBoxText}>拍照识别</Text>
                         </DashedBorderBox>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.cameraBox} onPress={() => identifyFromImage('library')} disabled={identifying}>
+                    <TouchableOpacity
+                        style={styles.cameraBox}
+                        onPress={() => navigation.navigate('CaseAlbumPage', { mode: 'identify' })}
+                        disabled={identifying}>
                         <DashedBorderBox style={{ flex: 1 }}>
                             <Image source={require('@/assets/images/user/upload.png')} style={styles.cameraIcon} />
                             <Text style={styles.cameraBoxText}>上传照片</Text>
                         </DashedBorderBox>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.cameraBox} onPress={() => identifyFromImage('library')} disabled={identifying}>
+                    <TouchableOpacity style={styles.cameraBox} onPress={identifyFromDocuments} disabled={identifying}>
                         <DashedBorderBox style={{ flex: 1 }}>
                             <Image source={require('@/assets/images/user/file-upload.png')} style={styles.cameraIcon} />
-                            <Text style={styles.cameraBoxText}>上传照片</Text>
+                            <Text style={styles.cameraBoxText}>上传文件</Text>
                         </DashedBorderBox>
                     </TouchableOpacity>
                 </Flex>

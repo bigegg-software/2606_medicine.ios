@@ -70,3 +70,13 @@ export const aiIdentifyMedicalRecord = (file: { uri: string; name: string; type:
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+
+export const aiIdentifyMedicalRecords = (files: { uri: string; name: string; type: string }[]) => {
+  const form = new FormData();
+  files.forEach(file => {
+    form.append('files', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  });
+  return request.post('/patient/medicalRecord/aiIdentifyMedicalRecords', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};

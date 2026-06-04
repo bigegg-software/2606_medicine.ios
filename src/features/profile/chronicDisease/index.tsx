@@ -15,7 +15,7 @@ import moment from 'moment';
 
 
 export default function AllergiesPage() {
-    const navigation = useNavigation();
+    const navigation: any = useNavigation();
     const user = useSelector((state: RootState) => state.user.info);
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -50,7 +50,7 @@ export default function AllergiesPage() {
     useEffect(() => {
         navigation.setOptions({
             headerRight: () => (
-                <TouchableOpacity onPress={() => { }} style={{ marginRight: 16 }}>
+                <TouchableOpacity onPress={() => navigation.navigate('ChronicDiseaseAddPage')} style={{ marginRight: 16 }}>
                     <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>添加</Text>
                 </TouchableOpacity>
             ),
