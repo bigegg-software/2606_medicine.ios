@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator, type NativeStackHeaderProps } from '@react-navigation/native-stack';
 import { getHeaderTitle, Header } from '@react-navigation/elements';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { AppTheme } from '@/common/theme';
+import { useFontSize } from '@/common/FontSizeContext';
 import type { QuestionnaireType } from '@/api/questionTemplate';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -50,6 +51,8 @@ import QuestionnaireDetail from '@/src/features/profile/questionnaire/detail';
 import QuestionnaireResult from '@/src/features/profile/questionnaire/result';
 import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 
+//设置 
+import SettingsPage from '@/src/features/profile/settings';
 
 import ScheduleAddPage from '@/src/features/schedule/ScheduleAddPage';
 import ScheduleCalendarPage from '@/src/features/schedule/ScheduleCalendarPage';
@@ -86,6 +89,7 @@ export type RootStackParamList = {
   QuestionnaireDetail: { id: string }
   QuestionnaireResult: { id: string; type: QuestionnaireType };
   QuestionnaireHistory: undefined;
+  SettingsPage: undefined;
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };
   FamilyHistory: undefined;
@@ -120,6 +124,12 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 function StackHeader({ route, options, back }: NativeStackHeaderProps) {
+  const { scaleSize } = useFontSize();
+  const headerTitleStyle = useMemo(
+    () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),
+    [scaleSize],
+  );
+
   return (
     <View style={styles.stackHeader}>
       <LinearGradient
@@ -133,7 +143,7 @@ function StackHeader({ route, options, back }: NativeStackHeaderProps) {
         title={getHeaderTitle(options, route.name)}
         headerTransparent
         headerTintColor={AppTheme.primaryColor}
-        headerTitleStyle={{ color: AppTheme.textPrimary, fontWeight: '600' }}
+        headerTitleStyle={headerTitleStyle}
         headerStyle={{ backgroundColor: 'transparent' }}
         headerShadowVisible={false}
         back={back}
@@ -144,13 +154,19 @@ function StackHeader({ route, options, back }: NativeStackHeaderProps) {
 }
 
 function DarkStackHeader({ route, options, back }: NativeStackHeaderProps) {
+  const { scaleSize } = useFontSize();
+  const headerTitleStyle = useMemo(
+    () => ({ color: '#FFFFFF', fontWeight: '600' as const, fontSize: scaleSize(17) }),
+    [scaleSize],
+  );
+
   return (
     <View style={styles.darkStackHeader}>
       <Header
         {...options}
         title={getHeaderTitle(options, route.name)}
         headerTintColor="#FFFFFF"
-        headerTitleStyle={{ color: '#FFFFFF', fontWeight: '600' }}
+        headerTitleStyle={headerTitleStyle}
         headerStyle={{ backgroundColor: '#191926' }}
         headerShadowVisible={false}
         back={back}
@@ -193,6 +209,11 @@ const styles = StyleSheet.create({
 
 export default function RootStack() {
   const isLogin = useSelector((s: RootState) => s.login.isLogin);
+  const { scaleSize } = useFontSize();
+  const headerTitleStyle = useMemo(
+    () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),
+    [scaleSize],
+  );
 
   return (
     <Stack.Navigator
@@ -202,7 +223,7 @@ export default function RootStack() {
         headerStyle: { backgroundColor: AppTheme.backgroundColor },
         headerShadowVisible: false,
         headerTintColor: AppTheme.primaryColor,
-        headerTitleStyle: { color: AppTheme.textPrimary, fontWeight: '600' },
+        headerTitleStyle,
         contentStyle: { backgroundColor: AppTheme.backgroundColor },
         statusBarStyle: 'dark',
       }}
@@ -239,6 +260,7 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
+      <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: "设置" }} />
       <Stack.Screen name="MedicalRecords" component={MedicalRecordsPage} />
       <Stack.Screen name="MedicalRecordDetail" component={MedicalRecordDetailPage} />
       <Stack.Screen name="HealthProfile" component={HealthProfilePage} />

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Switch } from 'react-native';
+import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Flex, DatePicker, Picker } from '@ant-design/react-native';
+import { Flex, DatePicker, Picker, Switch } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import moment from 'moment';
 import styles from '@/css/medication/add';
@@ -312,10 +312,9 @@ export default function MedicationAddPage() {
                         <Text style={styles.rowTitle}>持续用药</Text>
                         <Switch
                             style={styles.switch}
-                            value={continuousMedication}
-                            onValueChange={setContinuousMedication}
-                            trackColor={{ false: '#E8DED2', true: 'rgba(5,58,147,0.35)' }}
-                            thumbColor={continuousMedication ? AppTheme.primaryColor : '#FFFFFF'}
+                            checked={continuousMedication}
+                            onChange={setContinuousMedication}
+                            color={AppTheme.primaryColor}
                         />
                     </Flex>
                 </View>
@@ -369,10 +368,9 @@ export default function MedicationAddPage() {
                         <Text style={styles.rowTitle}>开启用药提醒</Text>
                         <Switch
                             style={styles.switch}
-                            value={reminderEnabled}
-                            onValueChange={setReminderEnabled}
-                            trackColor={{ false: '#E8DED2', true: 'rgba(5,58,147,0.35)' }}
-                            thumbColor={reminderEnabled ? AppTheme.primaryColor : '#FFFFFF'}
+                            checked={reminderEnabled}
+                            onChange={setReminderEnabled}
+                            color={AppTheme.primaryColor}
                         />
                     </Flex>
                     {reminderEnabled ? (
@@ -401,10 +399,9 @@ export default function MedicationAddPage() {
                                 </View>
                                 <Switch
                                     style={styles.switch}
-                                    value={reminderEnabled}
-                                    onValueChange={setReminderEnabled}
-                                    trackColor={{ false: '#E8DED2', true: 'rgba(5,58,147,0.35)' }}
-                                    thumbColor={reminderEnabled ? AppTheme.primaryColor : '#FFFFFF'}
+                                    checked={reminderEnabled}
+                                    onChange={setReminderEnabled}
+                                    color={AppTheme.primaryColor}
                                 />
                             </Flex>
                         </>

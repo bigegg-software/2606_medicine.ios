@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as AntdProvider } from '@ant-design/react-native';
@@ -12,8 +12,26 @@ import { navigationRef } from '@/utils/navigationRef';
 import RootStack from '@/route/router';
 import { getToken } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
-import { antdTheme } from '@/common/antdTheme';
+import { buildScaledAntdTheme } from '@/common/antdTheme';
+import { FontSizeProvider, useFontSize } from '@/common/FontSizeContext';
 import { AppTheme } from '@/common/theme';
+
+function AppShell() {
+  const { option } = useFontSize();
+  const theme = useMemo(() => buildScaledAntdTheme(option), [option]);
+
+  return (
+    <AntdProvider locale={zhCN} theme={theme}>
+      <Provider store={store}>
+        <SafeAreaProvider>
+          <NavigationContainer ref={navigationRef}>
+            <RootStack />
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </Provider>
+    </AntdProvider>
+  );
+}
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -39,15 +57,9 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AntdProvider locale={zhCN} theme={antdTheme}>
-        <Provider store={store}>
-          <SafeAreaProvider>
-            <NavigationContainer ref={navigationRef}>
-              <RootStack />
-            </NavigationContainer>
-          </SafeAreaProvider>
-        </Provider>
-      </AntdProvider>
+      <FontSizeProvider>
+        <AppShell />
+      </FontSizeProvider>
     </GestureHandlerRootView>
   );
 }

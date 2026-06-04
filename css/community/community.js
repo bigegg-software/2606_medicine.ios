@@ -30,7 +30,6 @@ const styles = StyleSheet.create({
     },
     sectionTitle: {
         marginTop: 16,
-        height: 24,
         fontWeight: 500,
         fontSize: 18,
         color: AppTheme.textPrimary,

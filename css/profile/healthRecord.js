@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
     avatarText: { fontSize: 28, fontWeight: '700', color: '#fff' },
     name: { marginTop: 8, width: "100%", height: 27, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 27, textAlign: "center" },
     sectionBox: { marginTop: 12 },
-    sectionTitle: { height: 19, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 19 },
+    sectionTitle: { fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary },
     more: { height: 20, fontWeight: 400, fontSize: 14, color: AppTheme.primaryColor, lineHeight: 20 },
     editIcon: { width: 24, height: 24 },
     infoBox: {
@@ -40,7 +40,7 @@ const styles = StyleSheet.create({
         paddingBottom: 3,
     },
     infoItem: { height: 43, borderBottomWidth: 1, borderBottomColor: AppTheme.borderRgbColor },
-    infoItemLabel: { height: 19, fontWeight: 400, infoBoxfontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    infoItemLabel: { height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
     infoItemValue: { height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary, lineHeight: 19 },
     infoInput: { flex: 1, marginLeft: 12, textAlign: 'right', fontSize: 14, color: AppTheme.textPrimary, paddingVertical: 0 },
     infoPlaceholder: { color: AppTheme.textSecondary },

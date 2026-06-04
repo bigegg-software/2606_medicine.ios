@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Switch } from 'react-native';
+import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Flex, DatePicker } from '@ant-design/react-native';
+import { Flex, DatePicker, Switch } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import moment from 'moment';
 import styles from '@/css/chronicDisease/add';
@@ -131,10 +131,9 @@ export default function ChronicDiseaseAddPage() {
                         <Text style={styles.rowTitle}>是否长期管理</Text>
                         <Switch
                             style={styles.switch}
-                            value={longTermManagement}
-                            onValueChange={setLongTermManagement}
-                            trackColor={{ false: '#E8DED2', true: 'rgba(5,58,147,0.35)' }}
-                            thumbColor={longTermManagement ? AppTheme.primaryColor : '#FFFFFF'}
+                            checked={longTermManagement}
+                            onChange={setLongTermManagement}
+                            color={AppTheme.primaryColor}
                         />
                     </Flex>
                 </View>

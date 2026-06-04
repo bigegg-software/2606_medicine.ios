@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
     body: { paddingHorizontal: 18, paddingTop: 2, paddingBottom: 14, },
     sectionBox: { marginTop: 12 },
-    sectionTitle: { marginLeft: 6, height: 19, fontWeight: 500, fontSize: 18, color: "#333333", lineHeight: 19 },
+    sectionTitle: { marginLeft: 6, fontWeight: 500, fontSize: 18, color: "#333333" },
     more: { height: 20, fontWeight: 400, fontSize: 14, color: AppTheme.primaryColor, lineHeight: 20 },
     delIcon: { width: 24, height: 24 },
     imgItem: { width: 20, height: 20 },

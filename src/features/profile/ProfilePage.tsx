@@ -14,6 +14,7 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
 import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFontSize } from '@/common/FontSizeContext';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 
@@ -44,22 +45,12 @@ const navList = [
     route: 'QuestionnaireList'
   }]
 
-
-const MENU = [
-  { icon: 'edit' as const, label: '编辑资料', route: 'ProfileEditPage' as const },
-  { icon: 'family-restroom' as const, label: '家属绑定', route: 'FamilyBind' as const },
-  { icon: 'hotel' as const, label: '我的床位', route: 'MyBed' as const },
-  { icon: 'favorite' as const, label: '体征监测', route: 'Vitals' as const },
-  { icon: 'medication' as const, label: '用药记录', route: 'Medication' as const },
-  { icon: 'assignment' as const, label: '康复处方', route: 'PrescriptionList' as const },
-  { icon: 'history' as const, label: '训练历史', route: 'TrainingHistory' as const },
-];
-
 export default function ProfilePage() {
   const navigation: any = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.user.info);
   const loading = useSelector((s: RootState) => s.user.loading);
+  const { label: fontSizeLabel } = useFontSize();
 
   useEffect(() => {
     dispatch(fetchUserBaseInfo());
@@ -198,45 +189,64 @@ export default function ProfilePage() {
 
         <Text style={styles.modelTitle}>设置</Text>
         <View style={styles.familyBox}>
-          <Flex justify='between' style={styles.familyItem}>
-            <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
+          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+            <Flex justify='between' style={styles.familyItem}>
+              <Flex>
+                <Flex justify='center' align='center' style={styles.imgBox}>
+                  <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
+                </Flex>
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>字体大小</Text>
+                  <Text style={styles.familyItemRelation}>当前：{fontSizeLabel}</Text>
+                </View>
               </Flex>
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>字体大小</Text>
-                <Text style={styles.familyItemRelation}>当前：大</Text>
-              </View>
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-          </Flex>
-          <Flex justify='between' style={styles.familyItem}>
-            <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/ys.png')} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+            <Flex justify='between' style={styles.familyItem}>
+              <Flex>
+                <Flex justify='center' align='center' style={styles.imgBox}>
+                  <Image style={styles.imgItem} source={require('@/assets/images/user/ys.png')} />
+                </Flex>
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>语音语速</Text>
+                  <Text style={styles.familyItemRelation}>当前：正常</Text>
+                </View>
               </Flex>
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>语音语速</Text>
-                <Text style={styles.familyItemRelation}>当前：正常</Text>
-              </View>
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-          </Flex>
-          <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-            <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+            <Flex justify='between' style={styles.familyItem}>
+              <Flex>
+                <Flex justify='center' align='center' style={styles.imgBox}>
+                  <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
+                </Flex>
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>消息通知</Text>
+                  <Text style={styles.familyItemRelation}>已开启</Text>
+                </View>
               </Flex>
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>消息通知</Text>
-                <Text style={styles.familyItemRelation}>已开启</Text>
-              </View>
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-          </Flex>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+            <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+              <Flex>
+                <Flex justify='center' align='center' style={styles.imgBox}>
+                  <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
+                </Flex>
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>数据管理</Text>
+                  <Text style={styles.familyItemRelation}>手动同步・7天</Text>
+                </View>
+              </Flex>
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            </Flex>
+          </TouchableOpacity>
         </View>
 
-        <Text style={styles.modelTitle}>设置</Text>
         <View style={styles.familyBox}>
           <Flex justify='between' style={styles.familyItem}>
             <Flex>
@@ -261,14 +271,31 @@ export default function ProfilePage() {
             <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
           </Flex>
         </View>
-        {/* 
-        {MENU.map(item => (
-          <TouchableOpacity key={item.route} style={styles.menuRow} onPress={() => navigation.navigate(item.route)}>
-            <MaterialIcons name={item.icon} size={24} color={AppTheme.primaryColor} />
-            <Text style={styles.menuLabel}>{item.label}</Text>
+        <Text style={styles.modelTitle}>隐私设置</Text>
+        <View style={styles.familyBox}>
+          <Flex justify='between' style={styles.familyItem}>
+            <Flex>
+              <Flex justify='center' align='center' style={styles.imgBox}>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/sz.png')} />
+              </Flex>
+              <View style={styles.familyItemContent}>
+                <Text style={styles.familyItemName}>修改密码</Text>
+              </View>
+            </Flex>
             <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-          </TouchableOpacity>
-        ))} */}
+          </Flex>
+          <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+            <Flex>
+              <Flex justify='center' align='center' style={styles.imgBox}>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/eye.png')} />
+              </Flex>
+              <View style={styles.familyItemContent}>
+                <Text style={styles.familyItemName}>个人信息可见性</Text>
+              </View>
+            </Flex>
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+          </Flex>
+        </View>
         <TouchableOpacity style={styles.logout} onPress={logout}>
           <Flex justify='center' style={{ flex: 1 }}>
             <Text style={styles.logoutText}>退出登录</Text>

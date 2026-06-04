@@ -4,7 +4,7 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
     body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
-    sectionTitle: { marginTop: 16, height: 19, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 19 },
+    sectionTitle: { marginTop: 16, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary },
     cameraBoxRow: { marginTop: 12, gap: 20 },
     cameraBox: { flex: 1, height: 75, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, borderRadius: 8 },
     cameraIcon: { width: 42, height: 42 },

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { Image, View, type ImageSourcePropType } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeTab from '@/src/features/home/HomeTab';
@@ -7,6 +7,7 @@ import AssistantPage from '@/src/features/assistant/AssistantPage';
 import CommunityPage from '@/src/features/community/CommunityPage';
 import ProfilePage from '@/src/features/profile/ProfilePage';
 import { AppTheme } from '@/common/theme';
+import { useFontSize } from '@/common/FontSizeContext';
 export type MainTabParamList = {
   Home: undefined;
   Schedule: undefined;
@@ -43,13 +44,19 @@ function TabIcon({ focused, source, focusedMarginLeft }: {
 }
 
 export default function MainTabs() {
+  const { scaleSize } = useFontSize();
+  const tabBarLabelStyle = useMemo(
+    () => ({ fontSize: scaleSize(14), fontWeight: '600' as const }),
+    [scaleSize],
+  );
+
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: AppTheme.primaryColor,
         tabBarInactiveTintColor: AppTheme.textSecondary,
-        tabBarLabelStyle: { fontSize: 14, fontWeight: '600' },
+        tabBarLabelStyle,
       }}>
       <Tab.Screen
         name="Home"
