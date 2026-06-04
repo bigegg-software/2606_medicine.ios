@@ -5,6 +5,7 @@ import { LineChart } from 'echarts/charts';
 import { GridComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
+import { buildCategoryAxisLabel } from './chartAxis';
 
 export type BloodPressurePoint = { high: number; low: number };
 
@@ -16,9 +17,10 @@ echarts.use([SkiaRenderer, LineChart, GridComponent]);
 
 type Props = {
   data?: BloodPressurePoint[];
+  labels?: string[];
 };
 
-function buildOption(points: BloodPressurePoint[]) {
+function buildOption(points: BloodPressurePoint[], labels: string[]) {
   const highData = points.map(p => p.high);
   const lowData = points.map(p => p.low);
 
@@ -33,16 +35,10 @@ function buildOption(points: BloodPressurePoint[]) {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: WEEK_LABELS,
+      data: labels,
       axisTick: { show: false },
       axisLine: { show: false },
-      axisLabel: {
-        show: true,
-        fontSize: 10,
-        color: '#999999',
-        margin: 4,
-        interval: 0,
-      },
+      axisLabel: buildCategoryAxisLabel(labels),
       splitLine: { show: false },
     },
     yAxis: {
@@ -85,7 +81,7 @@ function buildOption(points: BloodPressurePoint[]) {
   };
 }
 
-export default function BloodPressureChart({ data }: Props) {
+export default function BloodPressureChart({ data, labels }: Props) {
   const skiaRef = useRef<any>(null);
   const points = data ?? [
     { high: 142, low: 92 },
@@ -96,8 +92,9 @@ export default function BloodPressureChart({ data }: Props) {
     { high: 143, low: 91 },
     { high: 142, low: 92 },
   ];
+  const xLabels = labels ?? WEEK_LABELS.slice(0, points.length);
 
-  const option = useMemo(() => buildOption(points), [points]);
+  const option = useMemo(() => buildOption(points, xLabels), [points, xLabels]);
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

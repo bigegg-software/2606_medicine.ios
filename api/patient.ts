@@ -2,7 +2,7 @@ import request from '@/utils/axios';
 
 export type UserBaseInfo = {
   userId?: number;
-  avatarOssId?: number;
+  avatarOssId?: string;
   avatarOssUrl?: string;
   name?: string;
   gender?: string;
@@ -13,7 +13,7 @@ export type UserBaseInfo = {
 };
 
 export type UpdateUserBaseInfoParams = {
-  avatarOssId?: number;
+  avatarOssId?: string;
   name?: string;
   gender?: string;
   birthDate?: string;

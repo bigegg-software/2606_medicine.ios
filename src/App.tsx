@@ -7,7 +7,6 @@ import { useFonts } from 'expo-font';
 import { Provider } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { StatusBar } from 'expo-status-bar';
 import store from '@/store/store';
 import { navigationRef } from '@/utils/navigationRef';
 import RootStack from '@/route/router';
@@ -43,7 +42,6 @@ export default function App() {
       <AntdProvider locale={zhCN} theme={antdTheme}>
         <Provider store={store}>
           <SafeAreaProvider>
-            <StatusBar style="dark" />
             <NavigationContainer ref={navigationRef}>
               <RootStack />
             </NavigationContainer>

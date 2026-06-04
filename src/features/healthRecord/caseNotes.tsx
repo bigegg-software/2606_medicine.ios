@@ -19,7 +19,7 @@ import styles from '@/css/profile/healthRecord';
 import { getMedicalRecordFrontList, removeMedicalRecord, type MedicalRecord } from '@/api/medicalRecord';
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import SwipeDeleteRow, { closeActiveSwipeRow } from '../components/SwipeDeleteRow';
+import SwipeDeleteRow, { closeActiveSwipeRow } from './components/SwipeDeleteRow';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,8 +30,9 @@ const NAV_LIST = [
 ] as const;
 
 function CaseNoteCard({ item }: { item: MedicalRecord }) {
+    const navigation = useNavigation<Nav>();
     return (
-        <View style={styles.caseBox}>
+        <TouchableOpacity style={styles.caseBox} key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
             <Flex justify="between" style={styles.caseTopBox}>
                 <Text style={styles.caseTitle} numberOfLines={1}>
                     {item.diagnosticResult || '未填写诊断'}
@@ -57,7 +58,7 @@ function CaseNoteCard({ item }: { item: MedicalRecord }) {
                     </Text>
                 </Flex>
             </View>
-        </View>
+        </TouchableOpacity>
     );
 }
 

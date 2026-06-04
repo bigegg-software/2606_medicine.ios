@@ -36,7 +36,7 @@ const navList = [
   {
     img: require('@/assets/images/user/img5.png'),
     label: '慢病管理',
-    route: 'Medication'
+    route: 'ChronicDisease'
   },
   {
     img: require('@/assets/images/user/img6.png'),
@@ -46,7 +46,7 @@ const navList = [
 
 
 const MENU = [
-  { icon: 'edit' as const, label: '编辑资料', route: 'ProfileEdit' as const },
+  { icon: 'edit' as const, label: '编辑资料', route: 'ProfileEditPage' as const },
   { icon: 'family-restroom' as const, label: '家属绑定', route: 'FamilyBind' as const },
   { icon: 'hotel' as const, label: '我的床位', route: 'MyBed' as const },
   { icon: 'favorite' as const, label: '体征监测', route: 'Vitals' as const },

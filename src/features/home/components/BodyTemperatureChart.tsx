@@ -5,6 +5,7 @@ import { LineChart } from 'echarts/charts';
 import { GridComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
+import { buildCategoryAxisLabel } from './chartAxis';
 
 export type BodyTemperaturePoint = { hour: string; value: number };
 
@@ -36,13 +37,7 @@ function buildOption(points: BodyTemperaturePoint[]) {
       data: labels,
       axisTick: { show: false },
       axisLine: { show: false },
-      axisLabel: {
-        show: true,
-        fontSize: 10,
-        color: '#999999',
-        margin: 4,
-        interval: 0,
-      },
+      axisLabel: buildCategoryAxisLabel(labels),
       splitLine: { show: false },
     },
     yAxis: {

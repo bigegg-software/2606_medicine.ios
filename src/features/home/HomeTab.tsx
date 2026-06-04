@@ -180,7 +180,7 @@ export default function HomeTab() {
             <Flex style={styles.healthSlide} justify="between" align="center">
               <View>
                 <Flex>
-                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Image source={require('@/assets/images/home/xt.png')} style={styles.swiperIcon} />
                   <Text style={styles.healthSlideLabel}>血糖</Text>
                 </Flex>
                 <Text style={styles.healthSlideValue}>6.8</Text>
@@ -192,7 +192,7 @@ export default function HomeTab() {
             <Flex style={styles.healthSlide} justify="between" align="center">
               <View>
                 <Flex>
-                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Image source={require('@/assets/images/home/xl.png')} style={styles.swiperIcon} />
                   <Text style={styles.healthSlideLabel}>心率</Text>
                 </Flex>
                 <Text style={styles.healthSlideValue}>72</Text>
@@ -204,7 +204,7 @@ export default function HomeTab() {
             <Flex style={styles.healthSlide} justify="between" align="center">
               <View>
                 <Flex>
-                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Image source={require('@/assets/images/home/xy.png')} style={styles.swiperIcon} />
                   <Text style={styles.healthSlideLabel}>血氧</Text>
                 </Flex>
                 <Text style={styles.healthSlideValue}>98%</Text>
@@ -216,7 +216,7 @@ export default function HomeTab() {
             <Flex style={styles.healthSlide} justify="between" align="center">
               <View>
                 <Flex>
-                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
+                  <Image source={require('@/assets/images/home/tw.png')} style={styles.swiperIcon} />
                   <Text style={styles.healthSlideLabel}>体温</Text>
                 </Flex>
                 <Text style={styles.healthSlideValue}>36.5</Text>

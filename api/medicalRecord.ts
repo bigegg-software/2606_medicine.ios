@@ -1,7 +1,7 @@
 import request from '@/utils/axios';
 
 export type MedicalRecordAttachment = {
-  ossId?: number;
+  ossId?: string;
   ossUrl?: string;
   originalName?: string;
 };
@@ -45,8 +45,14 @@ export type MedicalRecordPayload = Omit<MedicalRecord, 'userId'>;
 export const getMedicalRecordFrontList = (params?: MedicalRecordListParams) =>
   request.get<MedicalRecordListResult>('/patient/medicalRecord/frontList', { params });
 
+export type MedicalRecordInfoResult = {
+  code?: number;
+  msg?: string;
+  data?: MedicalRecord;
+};
+
 export const getMedicalRecordInfo = (medicalRecordId: number) =>
-  request.get('/patient/medicalRecord/getInfo', { params: { medicalRecordId } });
+  request.get<MedicalRecordInfoResult>('/patient/medicalRecord/getInfo', { params: { medicalRecordId } });
 
 export const addMedicalRecord = (data: MedicalRecordPayload) =>
   request.post('/patient/medicalRecord/add', data);

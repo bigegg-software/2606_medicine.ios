@@ -4,12 +4,14 @@ import { Flex } from '@ant-design/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { getAllergyInfo, type AllergyItem } from '@/api/allergy';
+import { getFamilyMedicalInfo, type FamilyMedicalItem } from '@/api/familyMedical';
 import { getMedicalRecordFrontList, type MedicalRecord } from '@/api/medicalRecord';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
-import { getResourceRows } from '@/src/utils/apiHelpers';
+import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
 import moment from 'moment';
@@ -28,10 +30,39 @@ function recordIcon(type?: string) {
         : require('@/assets/images/user/hospital.png');
 }
 
+const ALLERGY_SECTIONS = [
+    { type: '药物过敏', title: '药物过敏', icon: require('@/assets/images/user/icon1.png') },
+    { type: '食物过敏', title: '食物过敏', icon: require('@/assets/images/user/icon2.png') },
+    { type: '其他', title: '其他过敏', icon: require('@/assets/images/user/icon3.png') },
+] as const;
+
+function formatAllergySummary(list: AllergyItem[], type: string) {
+    const names = list
+        .filter(item => item.allergyType === type)
+        .map(item => item.allergenName)
+        .filter(Boolean);
+    return names.length ? names.join('、') : '无';
+}
+
+function formatFamilyPreviewLabel(item: FamilyMedicalItem) {
+    const relation = item.familyRelationships || '—';
+    const status = item.status ? `（${item.status}）` : '';
+    return `${relation}${status}`;
+}
+
+function formatFamilyPreviewValue(item: FamilyMedicalItem) {
+    if (!item.medicalCondition) {
+        return '—';
+    }
+    return item.medicalCondition.replace(/,/g, '、');
+}
+
 export default function HealthRecordPage() {
     const navigation = useNavigation<Nav>();
     const user = useSelector((state: RootState) => state.user.info);
     const [records, setRecords] = useState<MedicalRecord[]>([]);
+    const [allergyList, setAllergyList] = useState<AllergyItem[]>([]);
+    const [familyList, setFamilyList] = useState<FamilyMedicalItem[]>([]);
 
     const loadRecords = useCallback(async () => {
         try {
@@ -42,13 +73,43 @@ export default function HealthRecordPage() {
         }
     }, []);
 
+    const loadAllergies = useCallback(async () => {
+        try {
+            const res = await getAllergyInfo();
+            const data = apiResourceData<{ allergyList?: AllergyItem[] }>(
+                res as { code?: number; data?: { allergyList?: AllergyItem[] } },
+            );
+            setAllergyList(Array.isArray(data?.allergyList) ? data!.allergyList! : []);
+        } catch {
+            setAllergyList([]);
+        }
+    }, []);
+
+    const loadFamilyMedical = useCallback(async () => {
+        try {
+            const res = await getFamilyMedicalInfo();
+            const data = apiResourceData<{ familyMedicalList?: FamilyMedicalItem[] }>(
+                res as { code?: number; data?: { familyMedicalList?: FamilyMedicalItem[] } },
+            );
+            setFamilyList(Array.isArray(data?.familyMedicalList) ? data!.familyMedicalList! : []);
+        } catch {
+            setFamilyList([]);
+        }
+    }, []);
+
     const loadRecordsRef = useRef(loadRecords);
     loadRecordsRef.current = loadRecords;
+    const loadAllergiesRef = useRef(loadAllergies);
+    loadAllergiesRef.current = loadAllergies;
+    const loadFamilyMedicalRef = useRef(loadFamilyMedical);
+    loadFamilyMedicalRef.current = loadFamilyMedical;
 
     const hasMountedRef = useRef(false);
 
     useEffect(() => {
         loadRecordsRef.current();
+        loadAllergiesRef.current();
+        loadFamilyMedicalRef.current();
     }, []);
 
     useFocusEffect(
@@ -58,6 +119,8 @@ export default function HealthRecordPage() {
                 return;
             }
             loadRecordsRef.current();
+            loadAllergiesRef.current();
+            loadFamilyMedicalRef.current();
         }, []),
     );
 
@@ -65,7 +128,7 @@ export default function HealthRecordPage() {
     const avatarOssUrl = String(user?.avatarOssUrl ?? '');
     const name = user?.name ?? '';
 
-    const birthMoment = moment(user?.birthDate, 'YYYYMMDD', true);
+    const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
     const birthDate = birthMoment.isValid() ? birthMoment.format('YYYY-MM-DD') : '--';
     const age = birthMoment.isValid() ? moment().diff(birthMoment, 'years') : '--';
     return (
@@ -84,7 +147,7 @@ export default function HealthRecordPage() {
 
                 <Flex justify='between' style={styles.sectionBox}>
                     <Text style={styles.sectionTitle}>个人信息</Text>
-                    <TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate('ProfileEditPage')}>
                         <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
                     </TouchableOpacity>
                 </Flex>
@@ -162,25 +225,27 @@ export default function HealthRecordPage() {
 
                 <View style={styles.infoBox}>
                     {records.map((item, index) => (
-                        <Flex
-                            key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
-                            justify="between"
-                            style={[styles.familyItem, index == records.length - 1 && { borderBottomWidth: 0 }]}>
-                            <Flex>
-                                <Flex justify="center" align="center" style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={recordIcon(item.medicalRecordType)} />
+                        <TouchableOpacity key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
+                            <Flex
+                                key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
+                                justify="between"
+                                style={[styles.familyItem, index == records.length - 1 && { borderBottomWidth: 0 }]}>
+                                <Flex>
+                                    <Flex justify="center" align="center" style={styles.imgBox}>
+                                        <Image style={styles.imgItem} source={recordIcon(item.medicalRecordType)} />
+                                    </Flex>
+                                    <View style={styles.familyItemContent}>
+                                        <Text style={styles.familyItemName} numberOfLines={1}>
+                                            {formatRecordTitle(item)}
+                                        </Text>
+                                        <Text style={styles.familyItemRelation} numberOfLines={1}>
+                                            {item.hospital || '—'}
+                                        </Text>
+                                    </View>
                                 </Flex>
-                                <View style={styles.familyItemContent}>
-                                    <Text style={styles.familyItemName} numberOfLines={1}>
-                                        {formatRecordTitle(item)}
-                                    </Text>
-                                    <Text style={styles.familyItemRelation} numberOfLines={1}>
-                                        {item.hospital || '—'}
-                                    </Text>
-                                </View>
+                                <Text style={styles.familyItemRelation}>{item.recordDate || '—'}</Text>
                             </Flex>
-                            <Text style={styles.familyItemRelation}>{item.recordDate || '—'}</Text>
-                        </Flex>
+                        </TouchableOpacity>
                     ))}
                     {records.length == 0 && <TouchableOpacity onPress={() => navigation.navigate('CaseAdd')}>
                         <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
@@ -198,54 +263,59 @@ export default function HealthRecordPage() {
                 </View>
                 <Flex justify='between' style={styles.sectionBox}>
                     <Text style={styles.sectionTitle}>过敏史</Text>
-                    <TouchableOpacity onPress={()=>navigation.navigate('Allergies')}>
+                    <TouchableOpacity onPress={() => navigation.navigate('Allergies')}>
                         <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
                     </TouchableOpacity>
                 </Flex>
                 <View style={styles.infoBox}>
-                    <Flex justify='between' style={styles.familyItem}>
-                        <Flex>
-                            <Image style={styles.imgItem} source={require('@/assets/images/user/icon1.png')} />
-                            <View style={styles.familyItemContent}>
-                                <Text style={styles.familyItemName}>药物过敏</Text>
-                            </View>
+                    {ALLERGY_SECTIONS.map((section, index) => (
+                        <Flex
+                            key={section.type}
+                            justify="between"
+                            style={[
+                                styles.familyItem,
+                                index === ALLERGY_SECTIONS.length - 1 && { borderBottomWidth: 0 },
+                            ]}>
+                            <Flex>
+                                <Image style={styles.imgItem} source={section.icon} />
+                                <View style={styles.familyItemContent}>
+                                    <Text style={styles.familyItemName}>{section.title}</Text>
+                                </View>
+                            </Flex>
+                            <Text style={styles.infoItemValue} numberOfLines={1}>
+                                {formatAllergySummary(allergyList, section.type)}
+                            </Text>
                         </Flex>
-                        <Text style={styles.infoItemValue}>青霉素</Text>
-                    </Flex>
-                    <Flex justify='between' style={styles.familyItem}>
-                        <Flex>
-                            <Image style={styles.imgItem} source={require('@/assets/images/user/icon2.png')} />
-                            <View style={styles.familyItemContent}>
-                                <Text style={styles.familyItemName}>食物过敏</Text>
-                            </View>
-                        </Flex>
-                        <Text style={styles.infoItemValue}>无</Text>
-                    </Flex>
-                    <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                        <Flex>
-                            <Image style={styles.imgItem} source={require('@/assets/images/user/icon3.png')} />
-                            <View style={styles.familyItemContent}>
-                                <Text style={styles.familyItemName}>其他过敏</Text>
-                            </View>
-                        </Flex>
-                        <Text style={styles.infoItemValue}>花粉</Text>
-                    </Flex>
+                    ))}
                 </View>
                 <Flex justify='between' style={styles.sectionBox}>
                     <Text style={styles.sectionTitle}>家族病史</Text>
-                    <TouchableOpacity onPress={()=>navigation.navigate('FamilyHistory')}>
+                    <TouchableOpacity onPress={() => navigation.navigate('FamilyHistory')}>
                         <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
                     </TouchableOpacity>
                 </Flex>
                 <View style={styles.infoBox}>
-                    <Flex justify='between' style={styles.familyItem}>
-                        <Text style={styles.familyItemName}>父亲（在世）</Text>
-                        <Text style={styles.infoItemValue}>高血压、冠心病</Text>
-                    </Flex>
-                    <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                        <Text style={styles.familyItemName}>母亲（在世）</Text>
-                        <Text style={styles.infoItemValue}>糖尿病</Text>
-                    </Flex>
+                    {familyList.length === 0 ? (
+                        <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                            <Text style={styles.familyItemName}>暂无记录</Text>
+                            <Text style={styles.infoItemValue}>—</Text>
+                        </Flex>
+                    ) : (
+                        familyList.map((item, index) => (
+                            <Flex
+                                key={`${index}-${item.familyRelationships}`}
+                                justify="between"
+                                style={[
+                                    styles.familyItem,
+                                    index === familyList.length - 1 && { borderBottomWidth: 0 },
+                                ]}>
+                                <Text style={styles.familyItemName}>{formatFamilyPreviewLabel(item)}</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {formatFamilyPreviewValue(item)}
+                                </Text>
+                            </Flex>
+                        ))
+                    )}
                 </View>
             </ScrollView>
         </SafeAreaView>

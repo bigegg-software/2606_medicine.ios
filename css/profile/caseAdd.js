@@ -6,7 +6,7 @@ const styles = StyleSheet.create({
     body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
     sectionTitle: { marginTop: 16, height: 19, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 19 },
     cameraBoxRow: { marginTop: 12, gap: 20 },
-    cameraBox: { flex: 1, height: 90, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, borderRadius: 8 },
+    cameraBox: { flex: 1, height: 75, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8, borderRadius: 8 },
     cameraIcon: { width: 42, height: 42 },
     cameraBoxText: { height: 19, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary },
     addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: "#053A93", borderRadius: 8 },
@@ -20,7 +20,16 @@ const styles = StyleSheet.create({
     typeItemTextActive: { color: AppTheme.primaryColor },
     tqText: { height: 19, fontWeight: 400, fontSize: 14, color: "#999999", lineHeight: 19, },
     arrowIcon: { width: 18, height: 18, marginLeft: 16 },
-    inputBox: { height: 32, borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textSecondary },
+    inputBox: { height: 32, borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textPrimary },
+    textareaBox: {
+        minHeight: 88,
+        paddingVertical: 8,
+        borderRadius: 8,
+        backgroundColor: '#FFF',
+        fontSize: 14,
+        color: AppTheme.textPrimary,
+        textAlignVertical: 'top',
+    },
     ksList: { marginTop: 12 },
     ksItem: { marginRight: 12, paddingHorizontal: 13, height: 25, backgroundColor: 'rgba(5,58,147,0.13)', borderRadius: 16 },
     ksItemActive: { backgroundColor: AppTheme.primaryColor },
@@ -28,12 +37,91 @@ const styles = StyleSheet.create({
     ksItemTextActive: { color: '#FFFFFF' },
     uploadIcon: { width: 60, height: 60, borderRadius: 8, borderWidth: 1, borderColor: "#DFE6F1", marginBottom: 12 },
     uploadHint: { fontSize: 14, color: AppTheme.textSecondary, marginBottom: 8 },
+    attachmentList: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 12 },
+    attachmentItem: { position: 'relative' },
+    attachmentImg: { width: 60, height: 60, borderRadius: 8, backgroundColor: '#F5F5F5' },
+    attachmentRemove: {
+        position: 'absolute',
+        top: -6,
+        right: -6,
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: 'rgba(0,0,0,0.55)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
     dateInput: { minWidth: 120, textAlign: 'right', fontSize: 14, color: '#999999' },
-
-
-
-
     rowLine: { height: 1, backgroundColor: "#E8DED2" },
+    uploadModal: {
+        width: '100%',
+        backgroundColor: '#191926',
+        borderTopLeftRadius: 21,
+        borderTopRightRadius: 21,
+        paddingTop: 26,
+        paddingBottom: 50,
+        alignSelf: 'flex-end',
+    },
+    uploadModalBox: {
+        paddingHorizontal: 21,
+    },
+    uploadModalItem: {
+        alignItems: 'center',
+        minWidth: 80,
+    },
+    uploadModalImg: {
+        width: 68,
+        height: 68,
+    },
+    uploadModalTitle: {
+        marginTop: 11,
+        fontWeight: '400',
+        fontSize: 15,
+        color: '#FFFFFF',
+        lineHeight: 18,
+    },
+
+
+
+    // detail
+    avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: AppTheme.primaryColor, alignItems: 'center', justifyContent: 'center' },
+    avatarImg: { width: 64, height: 64, borderRadius: 32 },
+    avatarLoading: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        borderRadius: 32,
+        backgroundColor: 'rgba(0,0,0,0.35)',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    avatarText: { fontSize: 28, fontWeight: '700', color: '#fff' },
+    name: { marginTop: 8, width: "100%", height: 27, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 27, textAlign: "center" },
+    userText: { height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary, lineHeight: 19 },
+    medicalBox: {
+        marginTop: 17,
+        shadowColor: AppTheme.primaryColor,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 8,
+        paddingHorizontal: 25,
+        paddingVertical: 16,
+        marginBottom: 20
+    },
+    medicalTitle: { height: 19, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 19 },
+    medicalType: { height: 25, backgroundColor: 'rgba(5,58,147,0.13)', borderRadius: 4, marginLeft: 17, paddingHorizontal: 11 },
+    medicalTypeText: { fontWeight: 400, fontSize: 12, color: AppTheme.primaryColor },
+    medicalInfoBox: { marginTop: 12 },
+    medicalCol: { width: "50%", paddingLeft: 17, paddingTop: 6, paddingBottom: 6 },
+    medicalColLeft: { borderRightWidth: 1, borderRightColor: AppTheme.borderRgbColor },
+    medicalLine: { borderTopWidth: 1, borderTopColor: AppTheme.borderRgbColor },
+    medicalInfoTitle: { fontWeight: 500, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 21, },
+    medicalInfoValue: { fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary, lineHeight: 21, },
+    medicalImg: { width: 20, height: 20, marginRight: 8 }
 })
 
 export default styles

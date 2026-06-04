@@ -26,6 +26,10 @@ const styles = StyleSheet.create({
     mapItemName: { height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
     mapItemValueBox: { marginLeft: 7, paddingHorizontal: 6, height: 19, backgroundColor: "rgba(216,0,16,0.13)", borderRadius: 4 },
     mapItemValue: { fontWeight: 400, fontSize: 12, color: '#D80010' },
+    severityMildBox: { marginLeft: 7, paddingHorizontal: 6, height: 19, backgroundColor: 'rgba(247,210,102,0.13)', borderRadius: 4 },
+    severityMildText: { fontWeight: 400, fontSize: 12, color: '#CF9A00' },
+    severityModerateBox: { marginLeft: 7, paddingHorizontal: 6, height: 19, backgroundColor: 'rgba(245,113,50,0.13)', borderRadius: 4 },
+    severityModerateText: { fontWeight: 400, fontSize: 12, color: '#F57132' },
     mapItemSubtitle: { marginTop: 2, fontWeight: 400, fontSize: 12, color: '#999999', lineHeight: 19 },
     addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: "#053A93", borderRadius: 8 },
     addText: { height: 19, fontWeight: 500, fontSize: 16, color: "#FFFFFF" },
@@ -33,6 +37,19 @@ const styles = StyleSheet.create({
     jzText: { fontWeight: 500, fontSize: 12, color: "#66CA98" },
     ygBox: { height: 19, backgroundColor: "rgba(153,153,153,0.13)", borderRadius: 4, paddingHorizontal: 9, marginLeft: 10 },
     ygText: { fontWeight: 500, fontSize: 12, color: AppTheme.textSecondary },
+
+
+    rowBox: { paddingHorizontal: 14, paddingVertical: 2, borderRadius: 8, marginTop: 12, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, paddingBottom: 12 },
+    rowTitle: { marginTop: 12, marginBottom: 10, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    inputBox: { height: 32, borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textPrimary },
+    rowLine: { height: 1, backgroundColor: "#E8DED2" },
+    yzBox: { marginTop: 10, height: 33, paddingHorizontal: 30, backgroundColor: "rgba(5,58,147,0.14)", borderRadius: 8 },
+    yzBoxActive: { backgroundColor: "#053A93" },
+    yzText: { fontWeight: 500, fontSize: 14, color: "#053A93" },
+    yzTextActive: { color: "#FFFFFF" },
+    chipGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
+    chipItem: { width: '31%', marginRight: '3.5%', paddingHorizontal: 0, alignItems: 'center', justifyContent: 'center' },
+    chipItemLastInRow: { marginRight: 0 },
 
 })
 
