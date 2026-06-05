@@ -142,7 +142,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemRelation}>已授权4项权限</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
@@ -152,7 +152,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemRelation}>已授权4项权限</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex> */}
 
           <TouchableOpacity onPress={() => { }}>
@@ -166,7 +166,7 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
             </Flex>
           </TouchableOpacity>
         </View>
@@ -183,7 +183,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemRelation}>共绑定5个设备</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex>
         </View>
 
@@ -200,7 +200,7 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>当前：{fontSizeLabel}</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
@@ -214,7 +214,7 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>当前：正常</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
@@ -228,7 +228,7 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>已开启</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
@@ -242,7 +242,7 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>手动同步・7天</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
             </Flex>
           </TouchableOpacity>
         </View>
@@ -257,7 +257,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemName}>帮助与反馈</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
@@ -268,7 +268,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemName}>关于我们</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex>
         </View>
         <Text style={styles.modelTitle}>隐私设置</Text>
@@ -282,7 +282,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemName}>修改密码</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
@@ -293,7 +293,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemName}>个人信息可见性</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex>
         </View>
         <TouchableOpacity style={styles.logout} onPress={logout}>

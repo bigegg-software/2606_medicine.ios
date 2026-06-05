@@ -284,7 +284,7 @@ export default function VitalsPage() {
           statusColor={glucose.statusColor}
           onAdd={() => navigation.navigate('AddDataPage', { type: '血糖' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '血糖' })}
-          chart={<BloodGlucoseChart data={toHourPoints(glucoseSeries)} />}
+          chart={<BloodGlucoseChart data={toHourPoints(glucoseSeries)} labels={chartLabels} />}
         />
 
         <VitalCard

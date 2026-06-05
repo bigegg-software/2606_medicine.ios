@@ -2,18 +2,18 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
 import { LineChart } from 'echarts/charts';
-import { GridComponent } from 'echarts/components';
+import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildCategoryAxisLabel } from './chartAxis';
+import { buildChartXAxis, toChartValuePairs } from './chartAxis';
 
-export type BodyTemperaturePoint = { hour: string; value: number };
+export type BodyTemperaturePoint = { hour: string; value: number; x?: number };
 
 const HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, LineChart, GridComponent]);
+echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BodyTemperaturePoint[];
@@ -37,28 +37,37 @@ function buildTemperatureAxisRange(values: Array<number | null>) {
 }
 
 function buildOption(points: BodyTemperaturePoint[]) {
-  const labels = points.map(p => p.hour);
-  const values = points.map(p => (p.value > 0 ? p.value : null));
-  const validCount = values.filter(value => value != null).length;
-  const { min, max } = buildTemperatureAxisRange(values);
+  const chartValues = toChartValuePairs(points);
+  const validValues = points.filter(point => point.value > 0).map(point => point.value);
+  const validCount = validValues.length;
+  const { min, max } = buildTemperatureAxisRange(validValues);
 
   return {
     animation: false,
+    tooltip: {
+      trigger: 'axis',
+      triggerOn: 'click',
+      confine: true,
+      backgroundColor: 'rgba(51,51,51,0.9)',
+      borderWidth: 0,
+      padding: [4, 8],
+      textStyle: { color: '#fff', fontSize: 10, lineHeight: 14 },
+      formatter: (params: any) => {
+        const item = Array.isArray(params) ? params[0] : params;
+        const title = item?.data?.name || item?.name || item?.axisValueLabel || '';
+        const raw = item?.data?.value ?? item?.value;
+        const value = Array.isArray(raw) ? raw[1] : raw;
+        if (value == null || value === '') return title;
+        return `${title}\n体温 ${value}℃`;
+      },
+    },
     grid: {
       top: 4,
       right: 0,
       bottom: 0,
       left: 0,
     },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: labels,
-      axisTick: { show: false },
-      axisLine: { show: false },
-      axisLabel: buildCategoryAxisLabel(labels),
-      splitLine: { show: false },
-    },
+    xAxis: buildChartXAxis(points, [], false),
     yAxis: {
       type: 'value',
       min,
@@ -77,7 +86,7 @@ function buildOption(points: BodyTemperaturePoint[]) {
         showSymbol: validCount > 0 && validCount <= 3,
         symbol: 'circle',
         symbolSize: 6,
-        data: values,
+        data: chartValues,
         lineStyle: { color: '#FD9A00', width: 2 },
         itemStyle: { color: '#FD9A00' },
       },
@@ -118,7 +127,7 @@ export default function BodyTemperatureChart({ data }: Props) {
 
   return (
     <View style={styles.container}>
-      <SkiaChart ref={skiaRef} style={styles.chart} handleGesture={false} />
+      <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );
 }

@@ -15,6 +15,9 @@ import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
 import MainTabs from '@/src/features/home/MainTabs';
 
+// 运动处方
+import ExercisePage from "@/src/features/home/exercise/exercisePage"
+
 // 健康档案
 import HealthRecord from '@/src/features/profile/healthRecord';
 import CaseNotes from '@/src/features/profile/healthRecord/caseNotes';
@@ -57,27 +60,12 @@ import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 //设置 
 import SettingsPage from '@/src/features/profile/settings';
 
-import ScheduleAddPage from '@/src/features/schedule/ScheduleAddPage';
-import ScheduleCalendarPage from '@/src/features/schedule/ScheduleCalendarPage';
-import FamilyBindPage from '@/src/features/profile/FamilyBindPage';
-import MyBedPage from '@/src/features/profile/MyBedPage';
-import HealthPage from '@/src/features/health/HealthPage';
-import MedicalRecordsPage from '@/src/features/health/MedicalRecordsPage';
-import MedicalRecordDetailPage from '@/src/features/health/MedicalRecordDetailPage';
-import HealthProfilePage from '@/src/features/health/HealthProfilePage';
-import TrainingPage from '@/src/features/training/TrainingPage';
-import TrainingExecutionPage from '@/src/features/training/TrainingExecutionPage';
-import TrainingHistoryPage from '@/src/features/training/TrainingHistoryPage';
-import PrescriptionListPage from '@/src/features/training/PrescriptionListPage';
-import PrescriptionDetailPage from '@/src/features/training/PrescriptionDetailPage';
-
 export type RootStackParamList = {
   Welcome: undefined;
   Login: undefined;
   Register: undefined;
   Home: undefined;
-  ScheduleAdd: undefined;
-  ScheduleCalendar: undefined;
+  ExercisePage: undefined;
   ActivityDetail: { id: number | string };
   ProfileEditPage: undefined;
   HealthRecord: undefined;
@@ -98,8 +86,6 @@ export type RootStackParamList = {
   FamilyHistory: undefined;
   FamilyHistoryAdd: { editIndex?: number } | undefined;
   FamilyBind: undefined;
-  MyBed: undefined;
-  Health: undefined;
   ChronicDisease: undefined;
   ChronicDiseaseAddPage: undefined;
   VitalsPage: undefined;
@@ -107,23 +93,7 @@ export type RootStackParamList = {
   AllDataPage: { type?: '血压' | '血糖' | '体温' };
   Medication: undefined;
   MedicationAddPage: undefined;
-  MedicalRecords: undefined;
-  MedicalRecordDetail: { id: number };
-  Allergy: undefined;
-  EmergencyContacts: undefined;
-  HealthProfile: undefined;
-  Training: { catalogId?: string } | undefined;
-  TrainingExecution: {
-    prescriptionId: number;
-    exerciseId?: number;
-    exerciseName?: string;
-    targetCount?: number;
-    unit?: string;
-    durationMinutes?: number;
-  };
-  TrainingHistory: undefined;
-  PrescriptionList: undefined;
-  PrescriptionDetail: { id: number };
+ 
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -237,8 +207,7 @@ export default function RootStack() {
       <Stack.Screen name="Login" component={LoginPage} />
       <Stack.Screen name="Register" component={RegisterPage} />
       <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false, title: "首页" }} />
-      <Stack.Screen name="ScheduleAdd" component={ScheduleAddPage} />
-      <Stack.Screen name="ScheduleCalendar" component={ScheduleCalendarPage} />
+      <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
@@ -252,11 +221,8 @@ export default function RootStack() {
       <Stack.Screen name="AllergiesAdd" component={AllergiesAdd} options={{ title: "添加过敏史" }} />
       <Stack.Screen name="FamilyHistory" component={FamilyHistory} options={{ title: "家族病史" }} />
       <Stack.Screen name="FamilyHistoryAdd" component={FamilyHistoryAdd} options={{ title: "添加家族病史" }} />
-      <Stack.Screen name="FamilyBind" component={FamilyBindPage} />
-      <Stack.Screen name="MyBed" component={MyBedPage} options={{ title: "我的" }} />
       <Stack.Screen name="ChronicDisease" component={ChronicDiseasePage} options={{ title: "慢病管理" }} />
       <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
-      <Stack.Screen name="Health" component={HealthPage} />
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
@@ -268,14 +234,6 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
       <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: "设置" }} />
-      <Stack.Screen name="MedicalRecords" component={MedicalRecordsPage} />
-      <Stack.Screen name="MedicalRecordDetail" component={MedicalRecordDetailPage} />
-      <Stack.Screen name="HealthProfile" component={HealthProfilePage} />
-      <Stack.Screen name="Training" component={TrainingPage} />
-      <Stack.Screen name="TrainingExecution" component={TrainingExecutionPage} />
-      <Stack.Screen name="TrainingHistory" component={TrainingHistoryPage} />
-      <Stack.Screen name="PrescriptionList" component={PrescriptionListPage} />
-      <Stack.Screen name="PrescriptionDetail" component={PrescriptionDetailPage} />
     </Stack.Navigator>
   );
 }

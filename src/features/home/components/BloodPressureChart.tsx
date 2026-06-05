@@ -2,18 +2,18 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
 import { LineChart } from 'echarts/charts';
-import { GridComponent } from 'echarts/components';
+import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildCategoryAxisLabel } from './chartAxis';
+import { buildChartXAxis, toBloodPressureSeriesData } from './chartAxis';
 
-export type BloodPressurePoint = { high: number; low: number };
+export type BloodPressurePoint = { high: number; low: number; hour?: string; x?: number };
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, LineChart, GridComponent]);
+echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BloodPressurePoint[];
@@ -21,26 +21,38 @@ type Props = {
 };
 
 function buildOption(points: BloodPressurePoint[], labels: string[]) {
-  const highData = points.map(p => p.high);
-  const lowData = points.map(p => p.low);
+  const { chartPoints, high: highData, low: lowData } = toBloodPressureSeriesData(points);
 
   return {
     animation: false,
+    tooltip: {
+      trigger: 'axis',
+      triggerOn: 'click',
+      confine: true,
+      backgroundColor: 'rgba(51,51,51,0.9)',
+      borderWidth: 0,
+      padding: [4, 8],
+      textStyle: { color: '#fff', fontSize: 10, lineHeight: 14 },
+      formatter: (params: any) => {
+        const items = Array.isArray(params) ? params : [params];
+        const dataIndex = items[0]?.dataIndex;
+        const point = dataIndex != null ? chartPoints[dataIndex] : undefined;
+        const title = point?.hour || items[0]?.name || items[0]?.axisValueLabel || '';
+        if (point && point.high > 0 && point.low > 0) {
+          return `${title}\n血压 ${point.high}/${point.low}`;
+        }
+        if (point && point.high > 0) return `${title}\n血压 ${point.high}`;
+        if (point && point.low > 0) return `${title}\n血压 ${point.low}`;
+        return title;
+      },
+    },
     grid: {
       top: 4,
       right: 0,
       bottom: 0,
       left: 0,
     },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: labels,
-      axisTick: { show: false },
-      axisLine: { show: false },
-      axisLabel: buildCategoryAxisLabel(labels),
-      splitLine: { show: false },
-    },
+    xAxis: buildChartXAxis(points, labels, false),
     yAxis: {
       type: 'value',
       axisTick: { show: false },
@@ -117,7 +129,7 @@ export default function BloodPressureChart({ data, labels }: Props) {
 
   return (
     <View style={styles.container}>
-      <SkiaChart ref={skiaRef} style={styles.chart} handleGesture={false} />
+      <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );
 }

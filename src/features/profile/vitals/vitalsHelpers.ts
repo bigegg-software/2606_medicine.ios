@@ -3,7 +3,10 @@ import type { MeasureDataDayGroup, MeasureDataItem, VitalKey, VitalsMeasureType 
 import { VITAL_KEY_API_TYPE, VITAL_KEYS } from '@/api/measureData';
 import type { WearableDataItem } from '@/api/wearableData';
 import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
+import { TODAY_AXIS_LABELS } from '@/src/features/home/components/chartAxis';
 import type { SleepPieSegment } from '@/src/features/home/components/SleepPieChart';
+
+export { TODAY_AXIS_LABELS as TODAY_HOUR_LABELS };
 
 export type VitalsRange = 'today' | '7Days' | '30Days';
 
@@ -17,19 +20,23 @@ export { VITAL_KEYS, VITAL_KEY_API_TYPE };
 export type { VitalKey };
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
-const TODAY_HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 const MONTH_DAY_OFFSETS = [29, 24, 19, 14, 9, 4, 0];
+
+export function mapTimeToTodayChartX(hour: number, minute = 0) {
+  const totalMinutes = hour * 60 + minute;
+  return (totalMinutes / (24 * 60)) * (TODAY_AXIS_LABELS.length - 1);
+}
 
 export function getChartLabels(range: VitalsRange): string[] {
   switch (range) {
     case 'today':
-      return TODAY_HOUR_LABELS;
+      return TODAY_AXIS_LABELS;
     case '7Days':
       return WEEK_LABELS;
     case '30Days':
       return MONTH_DAY_OFFSETS.map(d => moment().subtract(d, 'days').format('M/D'));
     default:
-      return TODAY_HOUR_LABELS;
+      return TODAY_AXIS_LABELS;
   }
 }
 
@@ -44,7 +51,7 @@ export function getDateRange(range: VitalsRange) {
   return { startDate, endDate };
 }
 
-export type LabeledValue = { label: string; value: number };
+export type LabeledValue = { label: string; value: number; x?: number };
 
 export function flattenMeasureItems(groups?: MeasureDataDayGroup[] | null): MeasureDataItem[] {
   return (groups ?? [])
@@ -74,14 +81,9 @@ function getLatestItem(items: MeasureDataItem[]) {
   return items.length ? items[items.length - 1] : undefined;
 }
 
-function getTodayBucketIndex(hour: number, bucketCount: number) {
-  return Math.min(bucketCount - 1, Math.floor(hour / (24 / bucketCount)));
-}
-
 function pickBucketItems(items: MeasureDataItem[], range: VitalsRange, labelIndex: number, labelCount: number) {
   if (range === 'today') {
-    const todayItems = items.filter(item => getItemTimestamp(item).isSame(moment(), 'day'));
-    return todayItems.filter(item => getTodayBucketIndex(getItemTimestamp(item).hour(), labelCount) === labelIndex);
+    return [];
   }
   if (range === '7Days') {
     const day = moment()
@@ -94,6 +96,19 @@ function pickBucketItems(items: MeasureDataItem[], range: VitalsRange, labelInde
 }
 
 export function buildSingleValueSeries(items: MeasureDataItem[], range: VitalsRange): LabeledValue[] {
+  if (range === 'today') {
+    return items
+      .filter(item => getItemTimestamp(item).isSame(moment(), 'day'))
+      .map(item => {
+        const ts = getItemTimestamp(item);
+        return {
+          label: ts.format('HH:mm'),
+          value: parseMeasureNumber(item.val) ?? 0,
+          x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+        };
+      });
+  }
+
   const labels = getChartLabels(range);
   return labels.map((label, index) => {
     const bucketItems = pickBucketItems(items, range, index, labels.length);
@@ -103,13 +118,28 @@ export function buildSingleValueSeries(items: MeasureDataItem[], range: VitalsRa
 }
 
 export function buildBloodPressureSeriesFromItems(items: MeasureDataItem[], range: VitalsRange): BloodPressurePoint[] {
+  if (range === 'today') {
+    return items
+      .filter(item => getItemTimestamp(item).isSame(moment(), 'day'))
+      .map(item => {
+        const ts = getItemTimestamp(item);
+        return {
+          high: Math.round(parseMeasureNumber(item.val) ?? 0),
+          low: Math.round(parseMeasureNumber(item.val2) ?? 0),
+          hour: ts.format('HH:mm'),
+          x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+        };
+      });
+  }
+
   const labels = getChartLabels(range);
-  return labels.map((_, index) => {
+  return labels.map((label, index) => {
     const bucketItems = pickBucketItems(items, range, index, labels.length);
     const latest = getLatestItem(bucketItems);
     return {
       high: Math.round(parseMeasureNumber(latest?.val) ?? 0),
       low: Math.round(parseMeasureNumber(latest?.val2) ?? 0),
+      hour: label,
     };
   });
 }
@@ -131,7 +161,7 @@ export function buildBloodPressureSeries(range: VitalsRange): BloodPressurePoint
 }
 
 export function toHourPoints(series: LabeledValue[]) {
-  return series.map(({ label, value }) => ({ hour: label, value }));
+  return series.map(({ label, value, x }) => ({ hour: label, value, x }));
 }
 
 export function getLevelLabel(item?: MeasureDataItem) {
@@ -384,17 +414,22 @@ function buildWearableValueSeries(
   range: VitalsRange,
   parseValue: (item?: WearableDataItem) => number | null,
 ): LabeledValue[] {
+  if (range === 'today') {
+    return items
+      .filter(item => getWearableDate(item).isSame(moment(), 'day'))
+      .map(item => {
+        const ts = getWearableTimestamp(item);
+        return {
+          label: ts.format('HH:mm'),
+          value: parseValue(item) ?? 0,
+          x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+        };
+      });
+  }
+
   const labels = getChartLabels(range);
   return labels.map((label, index) => {
-    let bucketItems: WearableDataItem[];
-    if (range === 'today') {
-      const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
-      bucketItems = todayItems.filter(
-        item => getTodayBucketIndex(getWearableTimestamp(item).hour(), labels.length) === index,
-      );
-    } else {
-      bucketItems = pickWearableDayItems(items, range, index, labels.length);
-    }
+    const bucketItems = pickWearableDayItems(items, range, index, labels.length);
     const latest = getLatestWearableItem(bucketItems);
     return { label, value: parseValue(latest) ?? 0 };
   });

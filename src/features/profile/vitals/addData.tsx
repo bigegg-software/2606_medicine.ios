@@ -99,6 +99,15 @@ function sanitizeNumberInput(text: string, allowDecimal: boolean) {
   return text.replace(/[^\d]/g, '');
 }
 
+function formatEditMeasureValue(value: number | undefined, type: MeasureDataType) {
+  if (value == null) return '';
+  const num = Number(value);
+  if (Number.isNaN(num)) return String(value);
+  if (type === '血压') return String(Math.round(num));
+  if (type === '体温') return num.toFixed(1);
+  return String(value);
+}
+
 function OptionChip({
   label,
   active,
@@ -141,12 +150,11 @@ export default function BloodAddPage({ route }: Props) {
     if (editItem.customerLocalDate) setMeasureDate(editItem.customerLocalDate);
     if (editItem.dataTime) setMeasureTime(editItem.dataTime);
     if (editItem.val != null) {
-      const val = Number(editItem.val);
-      setPrimaryValue(
-        measureType === '体温' && !Number.isNaN(val) ? val.toFixed(1) : String(editItem.val),
-      );
+      setPrimaryValue(formatEditMeasureValue(editItem.val, measureType));
     }
-    if (editItem.val2 != null) setSecondaryValue(String(editItem.val2));
+    if (editItem.val2 != null) {
+      setSecondaryValue(formatEditMeasureValue(editItem.val2, measureType));
+    }
     if (editItem.measuringSite) setMeasureSite(editItem.measuringSite);
     setMeasureStatus(editItem.measurementStatus || config.defaultStatus);
     setRemark(editItem.remark ?? '');

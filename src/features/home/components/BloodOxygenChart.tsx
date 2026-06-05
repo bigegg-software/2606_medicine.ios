@@ -2,17 +2,17 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
 import { ScatterChart } from 'echarts/charts';
-import { GridComponent } from 'echarts/components';
+import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildCategoryAxisLabel } from './chartAxis';
+import { buildChartXAxis, hasTodayChartX } from './chartAxis';
 
-export type BloodOxygenPoint = { hour: string; value: number };
+export type BloodOxygenPoint = { hour: string; value: number; x?: number };
 
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, ScatterChart, GridComponent]);
+echarts.use([SkiaRenderer, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BloodOxygenPoint[];
@@ -27,11 +27,23 @@ const DEFAULT_POINTS: BloodOxygenPoint[] = [
 ];
 
 function buildOption(points: BloodOxygenPoint[]) {
-  const labels = points.map(p => p.hour);
-  const scatterData = points
-    .map((point, index) => (point.value > 0 ? [index, point.value] : null))
-    .filter((item): item is [number, number] => item != null);
-  const validValues = scatterData.map(item => item[1]);
+  const scatterData = hasTodayChartX(points)
+    ? points
+        .filter(point => point.x != null && point.value > 0)
+        .sort((a, b) => (a.x ?? 0) - (b.x ?? 0))
+        .map(point => ({
+          value: [point.x as number, point.value],
+          name: point.hour,
+        }))
+    : points
+        .filter(point => point.value > 0)
+        .map((point, index) => ({
+          value: [index, point.value],
+          name: point.hour,
+        }));
+  const validValues = scatterData.map(item =>
+    Array.isArray(item.value) ? Number(item.value[1]) : Number(item.value),
+  );
   let yMin = 90;
   let yMax = 100;
   if (validValues.length) {
@@ -41,20 +53,29 @@ function buildOption(points: BloodOxygenPoint[]) {
 
   return {
     animation: false,
+    tooltip: {
+      trigger: 'item',
+      triggerOn: 'click',
+      confine: true,
+      backgroundColor: 'rgba(51,51,51,0.9)',
+      borderWidth: 0,
+      padding: [4, 8],
+      textStyle: { color: '#fff', fontSize: 10, lineHeight: 14 },
+      formatter: (param: any) => {
+        const title = param?.data?.name || param?.name || '';
+        const raw = param?.data?.value ?? param?.value;
+        const value = Array.isArray(raw) ? raw[1] : raw;
+        if (value == null || value === '') return title;
+        return `${title}\n血氧 ${value}%`;
+      },
+    },
     grid: {
       top: 4,
       right: 0,
       bottom: 0,
       left: 0,
     },
-    xAxis: {
-      type: 'category',
-      data: labels,
-      axisTick: { show: false },
-      axisLine: { show: false },
-      axisLabel: buildCategoryAxisLabel(labels),
-      splitLine: { show: false },
-    },
+    xAxis: buildChartXAxis(points, []),
     yAxis: {
       type: 'value',
       min: yMin,
@@ -104,7 +125,7 @@ export default function BloodOxygenChart({ data }: Props) {
 
   return (
     <View style={styles.container}>
-      <SkiaChart ref={skiaRef} style={styles.chart} handleGesture={false} />
+      <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );
 }
