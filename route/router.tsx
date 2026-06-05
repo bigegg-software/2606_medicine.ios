@@ -7,6 +7,7 @@ import type { RootState } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import type { QuestionnaireType } from '@/api/questionTemplate';
+import type { MeasureDataItem } from '@/api/measureData';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import WelcomePage from '@/src/features/auth/WelcomePage';
@@ -40,6 +41,8 @@ import Emergency from '@/src/features/profile/emergency';
 
 // 体征数据
 import VitalsPage from '@/src/features/profile/vitals/VitalsPage';
+import AddDataPage from '@/src/features/profile/vitals/addData';
+import AllDataPage from '@/src/features/profile/vitals/allData';
 
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
@@ -100,6 +103,8 @@ export type RootStackParamList = {
   ChronicDisease: undefined;
   ChronicDiseaseAddPage: undefined;
   VitalsPage: undefined;
+  AddDataPage: { type?: '血压' | '血糖' | '体温'; item?: MeasureDataItem };
+  AllDataPage: { type?: '血压' | '血糖' | '体温' };
   Medication: undefined;
   MedicationAddPage: undefined;
   MedicalRecords: undefined;
@@ -253,6 +258,8 @@ export default function RootStack() {
       <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
       <Stack.Screen name="Health" component={HealthPage} />
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
+      <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
+      <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
       <Stack.Screen name="Medication" component={MedicationPage} options={{ title: "用药记录" }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: "添加用药记录" }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: "评估问卷" }} />

@@ -1,43 +1,26 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
-import { ScatterChart } from 'echarts/charts';
+import { BarChart } from 'echarts/charts';
 import { GridComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
 import { buildCategoryAxisLabel } from './chartAxis';
 
-export type BloodOxygenPoint = { hour: string; value: number };
+export type SleepBarPoint = { label: string; value: number };
 
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, ScatterChart, GridComponent]);
+echarts.use([SkiaRenderer, BarChart, GridComponent]);
 
 type Props = {
-  data?: BloodOxygenPoint[];
+  data?: SleepBarPoint[];
 };
 
-const DEFAULT_POINTS: BloodOxygenPoint[] = [
-  { hour: '01:00', value: 97 },
-  { hour: '07:00', value: 98 },
-  { hour: '12:00', value: 99 },
-  { hour: '18:00', value: 98 },
-  { hour: '24:00', value: 98 },
-];
-
-function buildOption(points: BloodOxygenPoint[]) {
-  const labels = points.map(p => p.hour);
-  const scatterData = points
-    .map((point, index) => (point.value > 0 ? [index, point.value] : null))
-    .filter((item): item is [number, number] => item != null);
-  const validValues = scatterData.map(item => item[1]);
-  let yMin = 90;
-  let yMax = 100;
-  if (validValues.length) {
-    yMin = Math.max(80, Math.min(...validValues) - 2);
-    yMax = Math.min(100, Math.max(...validValues) + 2);
-  }
+function buildOption(points: SleepBarPoint[]) {
+  const labels = points.map(p => p.label);
+  const values = points.map(p => p.value);
 
   return {
     animation: false,
@@ -57,9 +40,6 @@ function buildOption(points: BloodOxygenPoint[]) {
     },
     yAxis: {
       type: 'value',
-      min: yMin,
-      max: yMax,
-      scale: true,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: { show: false },
@@ -67,21 +47,24 @@ function buildOption(points: BloodOxygenPoint[]) {
     },
     series: [
       {
-        type: 'scatter',
-        data: scatterData,
-        symbolSize: 6,
+        type: 'bar',
+        data: values,
+        barWidth: 8,
         itemStyle: {
-          color: '#00C950',
+          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+            { offset: 0, color: '#053A93' },
+            { offset: 1, color: 'rgba(5,58,147,0.35)' },
+          ]),
+          borderRadius: [2, 2, 0, 0],
         },
       },
     ],
   };
 }
 
-export default function BloodOxygenChart({ data }: Props) {
+export default function SleepBarChart({ data = [] }: Props) {
   const skiaRef = useRef<any>(null);
-  const points = data ?? DEFAULT_POINTS;
-  const option = useMemo(() => buildOption(points), [points]);
+  const option = useMemo(() => buildOption(data), [data]);
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

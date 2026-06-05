@@ -14,7 +14,7 @@ const styles = StyleSheet.create({
     vCard: { marginTop: 12, padding: 18, borderRadius: 8, backgroundColor: '#FFF', shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
     vIcon: { width: 24, height: 24 },
     vLabel: { fontSize: 16, color: AppTheme.textPrimary, fontWeight: 500, lineHeight: 19, marginLeft: 6 },
-    vMore: { height: 20, fontWeight: 400, fontSize: 14, color: AppTheme.primaryColor },
+    vMore: { height: 20, fontWeight: 400, fontSize: 14, color: AppTheme.primaryColor, marginLeft: 12 },
     vValueBox: { marginTop: 20 },
     vValue1: { height: 50, fontWeight: 500, fontSize: 36, color: "#333333" },
     vValue: {
@@ -50,16 +50,34 @@ const styles = StyleSheet.create({
         fontWeight: 400,
         fontSize: 12,
         color: "#999999",
-        textAlign:"center",
+        textAlign: "center",
     },
     vText2: {
         fontWeight: 400,
         fontSize: 18,
-        lineHeight:18,
-        marginVertical:4,
+        lineHeight: 18,
+        marginVertical: 4,
         color: "#333333",
-        textAlign:"center",
+        textAlign: "center",
+    },
+    icon1: { width: 5, height: 5, borderRadius: 5, backgroundColor: "rgba(5,58,147,0.4)" },
+    icon2: { width: 5, height: 5, borderRadius: 5, backgroundColor: "rgba(5,58,147,0.6)" },
+    icon3: { width: 5, height: 5, borderRadius: 5, backgroundColor: "rgba(5,58,147,0.8)" },
+    icon4: { width: 5, height: 5, borderRadius: 5, backgroundColor: "#053A93" },
+    sleepTitle: {
+        marginLeft: 9,
+        fontWeight: 400,
+        fontSize: 12,
+        color: AppTheme.textSecondary,
+    },
+    sleepText: {
+        marginLeft: 5,
+        fontWeight: 400,
+        fontSize: 12,
+        color: AppTheme.textPrimary,
+
     }
+    // icon1: { width: 5, height: 5, borderRadius: 5, background: "rgba(5,58,147,0.4)" },
 })
 
 export default styles

@@ -19,9 +19,28 @@ type Props = {
   data?: BodyTemperaturePoint[];
 };
 
+function buildTemperatureAxisRange(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => value != null && value > 0);
+  if (!valid.length) {
+    return { min: 36, max: 37.5 };
+  }
+
+  const minVal = Math.min(...valid);
+  const maxVal = Math.max(...valid);
+  const spread = maxVal - minVal;
+  const padding = Math.max(0.3, spread * 0.25);
+
+  return {
+    min: Math.floor((minVal - padding) * 10) / 10,
+    max: Math.ceil((maxVal + padding) * 10) / 10,
+  };
+}
+
 function buildOption(points: BodyTemperaturePoint[]) {
   const labels = points.map(p => p.hour);
-  const values = points.map(p => p.value);
+  const values = points.map(p => (p.value > 0 ? p.value : null));
+  const validCount = values.filter(value => value != null).length;
+  const { min, max } = buildTemperatureAxisRange(values);
 
   return {
     animation: false,
@@ -42,8 +61,9 @@ function buildOption(points: BodyTemperaturePoint[]) {
     },
     yAxis: {
       type: 'value',
-      min: 36,
-      max: 37.5,
+      min,
+      max,
+      scale: true,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: { show: false },
@@ -53,9 +73,13 @@ function buildOption(points: BodyTemperaturePoint[]) {
       {
         type: 'line',
         smooth: true,
-        showSymbol: false,
+        connectNulls: false,
+        showSymbol: validCount > 0 && validCount <= 3,
+        symbol: 'circle',
+        symbolSize: 6,
         data: values,
         lineStyle: { color: '#FD9A00', width: 2 },
+        itemStyle: { color: '#FD9A00' },
       },
     ],
   };
