@@ -3,11 +3,13 @@ import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { Provider as AntdProvider } from '@ant-design/react-native';
 import zhCN from '@ant-design/react-native/lib/locale-provider/zh_CN';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFonts } from 'expo-font';
 import { Provider } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import store from '@/store/store';
+import store, { type AppDispatch } from '@/store/store';
+import { fetchUserBaseInfo } from '@/store/actions/user';
 import { navigationRef } from '@/utils/navigationRef';
 import RootStack from '@/route/router';
 import { getToken } from '@/services/storage';
@@ -42,7 +44,12 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const token = await getToken();
-      store.dispatch({ type: SET_LOGIN, payload: !!(token && token.length > 0) });
+      const isLoggedIn = !!(token && token.length > 0);
+      const dispatch = store.dispatch as AppDispatch;
+      dispatch({ type: SET_LOGIN, payload: isLoggedIn });
+      if (isLoggedIn) {
+        await dispatch(fetchUserBaseInfo());
+      }
       setReady(true);
     })();
   }, []);

@@ -58,8 +58,7 @@ const styles = StyleSheet.create({
     addBtn: { height: 45, backgroundColor: "#053A93", marginHorizontal: 18, borderRadius: 8 },
     addText: { height: 19, fontWeight: 500, fontSize: 16, color: "#FFFFFF" },
     emergencyText: { marginTop: 12, fontWeight: 400, fontSize: 12, color: "#999999", lineHeight: 19 },
-
-
+    familyAuthText: { fontWeight: 400, fontSize: 12, color: AppTheme.primaryColor,marginRight:12 },
 
     // caseNotes
     topBox: { paddingHorizontal: 18, paddingTop: 19 },

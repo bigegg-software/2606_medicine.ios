@@ -1,4 +1,6 @@
-export const baseURL = 'https://dnai-web2.bigeggtec.com/kf-dev-api';
+export const baseURL = 'https://dnai-web2.bigeggtec.com/kf-dev-api/';
+
+export const aiBaseURL = 'https://dnai-web2.bigeggtec.com/';
 
 export const appId = 'd61f8f5492c041708904da6233d5e832';
 export const appSecret = '970FC0E8-BE8D-41D5-B16E-9DD7CBC76940';

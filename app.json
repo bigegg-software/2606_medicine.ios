@@ -6,9 +6,8 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#F5F8FF"
+      "image": "./assets/splash.png",
+      "resizeMode": "cover"
     },
     "userInterfaceStyle": "light",
     "ios": {
@@ -18,10 +17,32 @@
       "infoPlist": {
         "NSCameraUsageDescription": "用于拍摄病例照片并进行识别",
         "NSPhotoLibraryUsageDescription": "用于从相册选择病例照片并进行识别",
+        "NSLocalNetworkUsageDescription": "用于连接本地 AI 开发服务器进行健康对话",
+        "NSMicrophoneUsageDescription": "需要麦克风权限以进行语音识别",
+        "NSSpeechRecognitionUsageDescription": "需要语音识别权限以将语音转换为文字",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
         "UIViewControllerBasedStatusBarAppearance": true
       }
     },
     "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "cover",
+          "enableFullScreenImage_legacy": true
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
+      ],
       [
         "expo-image-picker",
         {
@@ -40,10 +61,19 @@
         {
           "photosPermission": "用于从相册选择病例照片并进行识别"
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "需要麦克风权限以进行语音识别"
+        }
       ]
     ],
     "android": {
       "package": "com.bigegg.medicine",
+      "permissions": [
+        "RECORD_AUDIO"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#C45C4B",
         "foregroundImage": "./assets/android-icon-foreground.png",

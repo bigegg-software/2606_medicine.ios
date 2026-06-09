@@ -10,7 +10,6 @@ import type { QuestionnaireType } from '@/api/questionTemplate';
 import type { MeasureDataItem } from '@/api/measureData';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import WelcomePage from '@/src/features/auth/WelcomePage';
 import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
 import MainTabs from '@/src/features/home/MainTabs';
@@ -30,6 +29,14 @@ import AllergiesAdd from "@/src/features/profile/healthRecord/allergiesAdd"
 import FamilyHistory from "@/src/features/profile/healthRecord/familyHistory"
 import FamilyHistoryAdd from "@/src/features/profile/healthRecord/familyHistoryAdd"
 import ProfileEditPage from '@/src/features/profile/healthRecord/ProfileEditPage';
+import MyFamily from '@/src/features/profile/myFamily';
+import FamilyDetail from '@/src/features/profile/myFamily/detail';
+
+// AI健康管家
+import AssistantPage from '@/src/features/assistant/AssistantPage';
+
+// 饮食运动
+import NutritionPage from '@/src/features/home/nutrition';
 
 // 用药记录
 import MedicationPage from '@/src/features/profile/medication';
@@ -61,11 +68,11 @@ import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 import SettingsPage from '@/src/features/profile/settings';
 
 export type RootStackParamList = {
-  Welcome: undefined;
   Login: undefined;
   Register: undefined;
   Home: undefined;
   ExercisePage: undefined;
+  NutritionPage: undefined;
   ActivityDetail: { id: number | string };
   ProfileEditPage: undefined;
   HealthRecord: undefined;
@@ -93,7 +100,9 @@ export type RootStackParamList = {
   AllDataPage: { type?: '血压' | '血糖' | '体温' };
   Medication: undefined;
   MedicationAddPage: undefined;
- 
+  AssistantPage: undefined;
+  MyFamily: undefined;
+  FamilyDetail: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -202,14 +211,16 @@ export default function RootStack() {
         contentStyle: { backgroundColor: AppTheme.backgroundColor },
         statusBarStyle: 'dark',
       }}
-      initialRouteName={isLogin ? 'Home' : 'Welcome'}>
-      <Stack.Screen name="Welcome" component={WelcomePage} options={{ headerShown: false }} />
-      <Stack.Screen name="Login" component={LoginPage} />
-      <Stack.Screen name="Register" component={RegisterPage} />
+      initialRouteName={isLogin ? 'Home' : 'Login'}>
+      <Stack.Screen name="Login" component={LoginPage} options={{ headerShown: false, title: "登录" }} />
+      <Stack.Screen name="Register" component={RegisterPage} options={{ headerShown: false, title: "注册" }} />
       <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false, title: "首页" }} />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
+      <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
+      <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
+      <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
       <Stack.Screen name="CaseNotes" component={CaseNotes} options={{ title: "病例记录" }} />
@@ -228,6 +239,7 @@ export default function RootStack() {
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
       <Stack.Screen name="Medication" component={MedicationPage} options={{ title: "用药记录" }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: "添加用药记录" }} />
+      <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ headerShown: false }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: "评估问卷" }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />

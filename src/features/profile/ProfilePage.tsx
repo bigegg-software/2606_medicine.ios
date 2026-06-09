@@ -6,9 +6,11 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialIcons } from '@expo/vector-icons';
+import { logout as logoutApi } from '@/api/auth';
 import { clearAll } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
 import { fetchUserBaseInfo, clearUser } from '@/store/actions/user';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
@@ -63,10 +65,20 @@ export default function ProfilePage() {
         text: '确定',
         style: 'destructive',
         onPress: async () => {
+          try {
+            const res = await logoutApi() as { code?: number; msg?: string };
+            if (!isResourceApiOk(res)) {
+              Alert.alert('退出失败', res.msg ?? '请稍后重试');
+              return;
+            }
+          } catch {
+            Alert.alert('错误', '网络错误，请稍后重试');
+            return;
+          }
           await clearAll();
           dispatch(clearUser());
           dispatch({ type: SET_LOGIN, payload: false });
-          navigation.reset({ index: 0, routes: [{ name: 'Welcome' }] });
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         },
       },
     ]);
@@ -155,13 +167,13 @@ export default function ProfilePage() {
             <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
           </Flex> */}
 
-          <TouchableOpacity onPress={() => { }}>
+          <TouchableOpacity onPress={() => navigation.navigate('MyFamily')}>
             <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
               <Flex>
-                {/* <Flex justify='center' align='center' style={styles.imgBox}>
+                <Flex justify='center' align='center' style={styles.imgBox}>
                   <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
-                </Flex> */}
-                <View>
+                </Flex>
+                <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>点击添加联系人</Text>
                   <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
                 </View>

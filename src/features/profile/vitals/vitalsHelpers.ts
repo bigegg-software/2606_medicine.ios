@@ -5,6 +5,9 @@ import type { WearableDataItem } from '@/api/wearableData';
 import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
 import { TODAY_AXIS_LABELS } from '@/src/features/home/components/chartAxis';
 import type { SleepPieSegment } from '@/src/features/home/components/SleepPieChart';
+import { getLevelColor } from './vitalLevelColors';
+
+export { getLevelColor, getLevelBgColor } from './vitalLevelColors';
 
 export { TODAY_AXIS_LABELS as TODAY_HOUR_LABELS };
 
@@ -173,11 +176,6 @@ export function getLevelLabel(item?: MeasureDataItem) {
   return '正常';
 }
 
-export function getLevelColor(label: string) {
-  if (!label || label.includes('正常')) return '#00C950';
-  return '#FFBA1D';
-}
-
 export function formatMeasureDisplay(item: MeasureDataItem | undefined, type: VitalsMeasureType) {
   if (!item) {
     return { value: '--', status: '', statusColor: '#999999' };
@@ -207,7 +205,7 @@ export function formatMeasureDisplay(item: MeasureDataItem | undefined, type: Vi
 export function formatBloodPressure(latest?: BloodPressurePoint) {
   const point = latest ?? { high: 142, low: 92 };
   const status = point.high >= 140 || point.low >= 90 ? '偏高' : '正常';
-  const statusColor = status === '偏高' ? '#FFBA1D' : '#00C950';
+  const statusColor = getLevelColor(status);
   return {
     value: `${point.high}/${point.low}`,
     status: `・${status}`,
@@ -227,7 +225,7 @@ export function formatSingleValue(
   let status = '正常';
   if (high != null && value > high) status = '偏高';
   if (low != null && value < low) status = '偏低';
-  const statusColor = status === '正常' ? '#00C950' : '#FFBA1D';
+  const statusColor = getLevelColor(status);
   return {
     value: String(value),
     status: `・${status}`,

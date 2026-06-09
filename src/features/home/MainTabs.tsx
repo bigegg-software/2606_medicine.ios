@@ -3,7 +3,6 @@ import { Image, View, type ImageSourcePropType } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import HomeTab from '@/src/features/home/HomeTab';
 import SchedulePage from '@/src/features/schedule/SchedulePage';
-import AssistantPage from '@/src/features/assistant/AssistantPage';
 import CommunityPage from '@/src/features/community/CommunityPage';
 import ProfilePage from '@/src/features/profile/ProfilePage';
 import { AppTheme } from '@/common/theme';
@@ -18,6 +17,9 @@ export type MainTabParamList = {
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
+function EmptyTabScreen() {
+  return null;
+}
 
 function TabIcon({ focused, source, focusedMarginLeft }: {
   focused: boolean;
@@ -76,7 +78,13 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="Assistant"
-        component={AssistantPage}
+        component={EmptyTabScreen}
+        listeners={({ navigation }) => ({
+          tabPress: e => {
+            e.preventDefault();
+            navigation.getParent()?.navigate('AssistantPage');
+          },
+        })}
         options={{
           tabBarLabel: () => null,
           tabBarIcon: () => (

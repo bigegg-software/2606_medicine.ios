@@ -16,6 +16,7 @@ import {
 } from '@/api/measureData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { getLevelBgColor, getLevelColor } from './vitalLevelColors';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AllDataPage'>;
@@ -94,7 +95,7 @@ function formatMeasureValue(item: MeasureDataItem, type: MeasureDataType) {
   if (type === '血压') {
     return `${Number(item.val) ?? '--'}/${Number(item.val2) ?? '--'}`;
   }
-  if (type === '体温') {
+  if (type === '体温' || type === '血糖') {
     const val = Number(item.val);
     return !Number.isNaN(val) ? val.toFixed(1) : '--';
   }
@@ -107,16 +108,6 @@ function getLevelLabel(item: MeasureDataItem) {
   if (item.isHigh === 1) return '偏高';
   if (item.isLow === 1) return '偏低';
   return '正常';
-}
-
-function getLevelColor(label: string) {
-  if (label.includes('正常')) return '#00C950';
-  return '#FFBA1D';
-}
-
-function getLevelBgColor(label: string) {
-  if (label.includes('正常')) return 'rgba(0,201,80,0.14)';
-  return 'rgba(237,194,98,0.14)';
 }
 
 function MeasureRecordCard({

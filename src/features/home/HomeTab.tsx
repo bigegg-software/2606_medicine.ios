@@ -252,6 +252,7 @@ export default function HomeTab() {
         <Flex justify='between'>
           <Text style={styles.sectionTitle}>运动处方</Text>
           <TouchableOpacity onPress={() => navigation.navigate('ExercisePage')}>
+            {/* <TouchableOpacity onPress={() => navigation.navigate('NutritionPage')}> */}
             <Flex style={{ marginTop: 16 }}>
               <Text style={styles.more}>查看全部</Text>
               <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
