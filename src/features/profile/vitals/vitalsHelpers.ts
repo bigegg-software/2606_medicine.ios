@@ -1,7 +1,7 @@
 import moment from 'moment';
 import type { MeasureDataDayGroup, MeasureDataItem, VitalKey, VitalsMeasureType } from '@/api/measureData';
 import { VITAL_KEY_API_TYPE, VITAL_KEYS } from '@/api/measureData';
-import type { WearableDataItem } from '@/api/wearableData';
+import type { WearableDataItem, WearableOriginalReading } from '@/api/wearableData';
 import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
 import { TODAY_AXIS_LABELS } from '@/src/features/home/components/chartAxis';
 import type { SleepPieSegment } from '@/src/features/home/components/SleepPieChart';
@@ -51,6 +51,18 @@ export function getDateRange(range: VitalsRange) {
       : range === '7Days'
         ? moment().subtract(6, 'days').format('YYYY-MM-DD')
         : moment().subtract(29, 'days').format('YYYY-MM-DD');
+  return { startDate, endDate };
+}
+
+/** 睡眠查询需包含昨日，否则「今日」看不到昨夜数据 */
+export function getSleepFetchDateRange(range: VitalsRange) {
+  const { startDate, endDate } = getDateRange(range);
+  if (range === 'today') {
+    return {
+      startDate: moment().subtract(1, 'day').format('YYYY-MM-DD'),
+      endDate,
+    };
+  }
   return { startDate, endDate };
 }
 
@@ -238,11 +250,120 @@ export function formatSingleValueFromItems(items: MeasureDataItem[], type: Vital
 }
 
 export const SLEEP_STAGE_CONFIG = [
-  { key: 'awakeSleepTime' as const, name: '清醒', color: 'rgba(5,58,147,0.4)' },
-  { key: 'remSleepTime' as const, name: '入眠', color: 'rgba(5,58,147,0.6)' },
-  { key: 'coreSleepTime' as const, name: '浅睡', color: 'rgba(5,58,147,0.8)' },
-  { key: 'deepSleepTime' as const, name: '深睡', color: '#053A93' },
+  { key: 'awakeSleepTime' as const, name: '清醒', color: 'rgba(5,58,147,0.4)', stages: ['AWAKE'] },
+  { key: 'remSleepTime' as const, name: '入眠', color: 'rgba(5,58,147,0.6)', stages: ['REM'] },
+  { key: 'coreSleepTime' as const, name: '浅睡', color: 'rgba(5,58,147,0.8)', stages: ['CORE'] },
+  { key: 'deepSleepTime' as const, name: '深睡', color: '#053A93', stages: ['DEEP'] },
 ];
+
+const SLEEP_DURATION_STAGES = new Set(['ASLEEP', 'CORE', 'DEEP', 'REM']);
+
+function readingDurationMinutes(reading: WearableOriginalReading) {
+  const start = reading.startDate ? moment(reading.startDate) : null;
+  const end = reading.endDate ? moment(reading.endDate) : null;
+  if (!start?.isValid() || !end?.isValid()) return 0;
+  return Math.max(0, end.diff(start, 'minutes'));
+}
+
+function sumSleepMinutesFromOriginalData(readings: WearableOriginalReading[]) {
+  if (!readings.length) return null;
+
+  let stageTotal = 0;
+  let hasStage = false;
+
+  for (const reading of readings) {
+    const stage = String(reading.value ?? '').toUpperCase();
+    const minutes = readingDurationMinutes(reading);
+    if (minutes <= 0) continue;
+
+    if (stage && SLEEP_DURATION_STAGES.has(stage)) {
+      stageTotal += minutes;
+      hasStage = true;
+    }
+  }
+
+  if (hasStage) return Math.round(stageTotal);
+
+  let durationTotal = 0;
+  for (const reading of readings) {
+    const stage = String(reading.value ?? '').toUpperCase();
+    if (stage === 'INBED' || stage === 'AWAKE') continue;
+    const minutes = readingDurationMinutes(reading);
+    if (minutes > 0) durationTotal += minutes;
+  }
+
+  return durationTotal > 0 ? Math.round(durationTotal) : null;
+}
+
+function parseSleepStageMinutes(
+  item: WearableDataItem | undefined,
+  stageKey: (typeof SLEEP_STAGE_CONFIG)[number]['key'],
+) {
+  const fromField = parseMeasureNumber(item?.[stageKey]);
+  if (fromField != null && fromField > 0) return fromField;
+
+  if (!item) return null;
+  const stageConfig = SLEEP_STAGE_CONFIG.find(stage => stage.key === stageKey);
+  if (!stageConfig) return null;
+
+  let total = 0;
+  for (const reading of flattenWearableOriginalData(item)) {
+    const stage = String(reading.value ?? '').toUpperCase();
+    if (!stageConfig.stages.includes(stage)) continue;
+    const minutes = readingDurationMinutes(reading);
+    if (minutes > 0) total += minutes;
+  }
+
+  return total > 0 ? Math.round(total) : null;
+}
+
+function parseSleepDurationMinutes(item?: WearableDataItem) {
+  if (!item) return null;
+
+  const asleep = parseMeasureNumber(item.asleepTime);
+  if (asleep != null && asleep > 0) return Math.round(asleep);
+
+  const sleep = parseMeasureNumber(item.sleepTime);
+  if (sleep != null && sleep > 0) return Math.round(sleep);
+
+  const inbed = parseMeasureNumber(item.inbedSleepTime);
+  if (inbed != null && inbed > 0) return Math.round(inbed);
+
+  const stageTotal = SLEEP_STAGE_CONFIG.reduce(
+    (sum, stage) => sum + (parseSleepStageMinutes(item, stage.key) ?? 0),
+    0,
+  );
+  if (stageTotal > 0) return stageTotal;
+
+  return sumSleepMinutesFromOriginalData(flattenWearableOriginalData(item));
+}
+
+function getDisplaySleepItem(items: WearableDataItem[], range: VitalsRange) {
+  if (range === 'today') {
+    const sorted = [...items].sort((a, b) => getWearableDate(b).valueOf() - getWearableDate(a).valueOf());
+    for (const item of sorted) {
+      const date = getWearableDate(item);
+      if (
+        (date.isSame(moment(), 'day') || date.isSame(moment().subtract(1, 'day'), 'day')) &&
+        parseSleepDurationMinutes(item) != null
+      ) {
+        return item;
+      }
+    }
+    for (const item of sorted) {
+      if (parseSleepDurationMinutes(item) != null) return item;
+    }
+    return getTodayWearableItem(items) ?? getLatestWearableItem(items);
+  }
+
+  return getLatestWearableItem(
+    items.filter(item => {
+      const date = getWearableDate(item);
+      const { startDate, endDate } = getDateRange(range);
+      return date.isBetween(startDate, endDate, 'day', '[]');
+    }),
+  );
+}
 
 function getWearableDate(item: WearableDataItem) {
   const date = item.customerLocalDate ?? item.dataDate?.slice(0, 10) ?? moment().format('YYYY-MM-DD');
@@ -251,27 +372,79 @@ function getWearableDate(item: WearableDataItem) {
 }
 
 function getWearableTimestamp(item: WearableDataItem) {
-  if (item.dataDate) {
+  if (item.startTimeStr) {
+    const parsed = moment(item.startTimeStr);
+    if (parsed.isValid()) return parsed;
+  }
+  if (item.dataDate && item.dataDate.length > 10) {
     const parsed = moment(item.dataDate);
     if (parsed.isValid()) return parsed;
   }
   return getWearableDate(item);
 }
 
+function flattenWearableOriginalData(item: WearableDataItem): WearableOriginalReading[] {
+  const data = item.originalData;
+  if (!data?.length) return [];
+  if (Array.isArray(data[0])) {
+    return (data as WearableOriginalReading[][]).flat();
+  }
+  return data as WearableOriginalReading[];
+}
+
+function getOriginalReadingTimestamp(reading: WearableOriginalReading) {
+  const dateStr = reading.startDate ?? reading.endDate;
+  if (!dateStr) return null;
+  const parsed = moment(dateStr);
+  return parsed.isValid() ? parsed : null;
+}
+
+type WearableTimedReading = { ts: moment.Moment; value: number };
+
+function collectWearableReadings(
+  items: WearableDataItem[],
+  parseValue: (reading: WearableOriginalReading) => number | null,
+): WearableTimedReading[] {
+  const readings: WearableTimedReading[] = [];
+
+  for (const item of items) {
+    for (const reading of flattenWearableOriginalData(item)) {
+      const ts = getOriginalReadingTimestamp(reading);
+      const value = parseValue(reading);
+      if (ts && value != null && value > 0) {
+        readings.push({ ts, value: Math.round(value) });
+      }
+    }
+  }
+
+  return readings.sort((a, b) => a.ts.valueOf() - b.ts.valueOf());
+}
+
+function collectHeartRateReadings(items: WearableDataItem[]) {
+  return collectWearableReadings(items, reading => parseMeasureNumber(reading.value));
+}
+
+function collectOxygenReadings(items: WearableDataItem[]) {
+  return collectWearableReadings(items, reading => {
+    const raw = parseMeasureNumber(reading.value);
+    return raw != null ? Math.round(raw * 100) : null;
+  });
+}
+
 function parseWearableOxygenValue(item?: WearableDataItem) {
   if (!item) return null;
-  const value =
+  const raw =
     parseMeasureNumber(item.newOxygenSaturation) ??
     parseMeasureNumber(item.maxOxygenSaturation) ??
     parseMeasureNumber(item.minOxygenSaturation);
-  return value != null ? Math.round(value) : null;
+  return raw != null ? Math.round(raw * 100) : null;
 }
 
 function parseWearableHeartRateValue(item?: WearableDataItem) {
   if (!item) return null;
   const value =
     parseMeasureNumber(item.newHeartRate) ??
-    parseMeasureNumber(item.restingHeartRate) ??
+    parseMeasureNumber(item.heartRate) ??
     parseMeasureNumber(item.maxHeartRate) ??
     parseMeasureNumber(item.minHeartRate);
   return value != null ? Math.round(value) : null;
@@ -339,7 +512,7 @@ export function getSleepQuality(item?: WearableDataItem) {
 export function buildSleepPieSegments(item?: WearableDataItem): SleepPieSegment[] {
   return SLEEP_STAGE_CONFIG.map(stage => ({
     name: stage.name,
-    value: parseMeasureNumber(item?.[stage.key]) ?? 0,
+    value: parseSleepStageMinutes(item, stage.key) ?? 0,
     color: stage.color,
   }));
 }
@@ -349,35 +522,23 @@ export function buildSleepHoursSeries(items: WearableDataItem[], range: VitalsRa
   return labels.map((label, index) => {
     const bucketItems = pickWearableDayItems(items, range, index, labels.length);
     const latest = getLatestWearableItem(bucketItems);
-    const minutes =
-      parseMeasureNumber(latest?.asleepTime) ?? parseMeasureNumber(latest?.sleepTime) ?? 0;
+    const minutes = parseSleepDurationMinutes(latest) ?? 0;
     return { label, value: Math.round((minutes / 60) * 10) / 10 };
   });
 }
 
 export function getSleepSummary(items: WearableDataItem[], range: VitalsRange) {
-  const todayItem = getTodayWearableItem(items);
-  const displayItem =
-    range === 'today'
-      ? todayItem
-      : getLatestWearableItem(
-          items.filter(item => {
-            const date = getWearableDate(item);
-            const { startDate, endDate } = getDateRange(range);
-            return date.isBetween(startDate, endDate, 'day', '[]');
-          }),
-        );
-  const minutes =
-    parseMeasureNumber(displayItem?.asleepTime) ?? parseMeasureNumber(displayItem?.sleepTime);
+  const displayItem = getDisplaySleepItem(items, range);
+  const minutes = parseSleepDurationMinutes(displayItem);
 
   return {
     duration: formatSleepDuration(minutes),
     quality: getSleepQuality(displayItem),
     stages: SLEEP_STAGE_CONFIG.map(stage => ({
       ...stage,
-      duration: formatSleepDuration(parseMeasureNumber(displayItem?.[stage.key])),
+      duration: formatSleepDuration(parseSleepStageMinutes(displayItem, stage.key)),
     })),
-    pieSegments: buildSleepPieSegments(todayItem),
+    pieSegments: buildSleepPieSegments(displayItem),
     barSeries: buildSleepHoursSeries(items, range),
   };
 }
@@ -395,15 +556,27 @@ export function getStepsDisplay(items: WearableDataItem[]) {
   return { value: `${steps}/${goal}`, status, statusColor };
 }
 
-export function getEnergyDisplay(items: WearableDataItem[]) {
-  const item = getTodayWearableItem(items);
-  const active = parseMeasureNumber(item?.activeEnergyBurned) ?? 0;
-  const basal = parseMeasureNumber(item?.basalEnergyBurned) ?? 0;
-  const total = Math.round(active + basal);
+function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEnergyBurned' | 'basalEnergyBurned') {
+  if (!item) return 0;
+
+  const readings = flattenWearableOriginalData(item);
+  if (readings.length) {
+    const total = readings.reduce((sum, reading) => sum + (parseMeasureNumber(reading.value) ?? 0), 0);
+    if (total > 0) return total;
+  }
+
+  return parseMeasureNumber(item[field]) ?? 0;
+}
+
+export function getEnergyDisplay(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
+  const active = Math.round(sumEnergyFromItem(getTodayWearableItem(activeItems), 'activeEnergyBurned'));
+  const basal = Math.round(sumEnergyFromItem(getTodayWearableItem(basalItems), 'basalEnergyBurned'));
+  const total = active + basal;
+
   return {
     total: total > 0 ? String(total) : '--',
-    active: active > 0 ? String(Math.round(active)) : '--',
-    basal: basal > 0 ? String(Math.round(basal)) : '--',
+    active: active > 0 ? String(active) : '--',
+    basal: basal > 0 ? String(basal) : '--',
   };
 }
 
@@ -434,16 +607,60 @@ function buildWearableValueSeries(
 }
 
 export function buildWearableOxygenSeries(items: WearableDataItem[], range: VitalsRange): LabeledValue[] {
+  if (range === 'today') {
+    const readings = collectOxygenReadings(
+      items.filter(item => getWearableDate(item).isSame(moment(), 'day')),
+    );
+    if (readings.length) {
+      return readings.map(({ ts, value }) => ({
+        label: ts.format('HH:mm'),
+        value,
+        x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+      }));
+    }
+  }
+
   return buildWearableValueSeries(items, range, parseWearableOxygenValue);
 }
 
 export function buildWearableHeartRateSeries(items: WearableDataItem[], range: VitalsRange): LabeledValue[] {
+  if (range === 'today') {
+    const readings = collectHeartRateReadings(
+      items.filter(item => getWearableDate(item).isSame(moment(), 'day')),
+    );
+    if (readings.length) {
+      return readings.map(({ ts, value }) => ({
+        label: ts.format('HH:mm'),
+        value,
+        x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+      }));
+    }
+  }
+
+  if (range !== 'today') {
+    const labels = getChartLabels(range);
+    return labels.map((label, index) => {
+      const bucketItems = pickWearableDayItems(items, range, index, labels.length);
+      const dayReadings = collectHeartRateReadings(bucketItems);
+      if (dayReadings.length) {
+        const avg = Math.round(dayReadings.reduce((sum, reading) => sum + reading.value, 0) / dayReadings.length);
+        return { label, value: avg };
+      }
+      const latest = getLatestWearableItem(bucketItems);
+      return { label, value: parseWearableHeartRateValue(latest) ?? 0 };
+    });
+  }
+
   return buildWearableValueSeries(items, range, parseWearableHeartRateValue);
 }
 
 export function getBloodOxygenDisplay(items: WearableDataItem[]) {
-  const item = getLatestWearableItem(items);
-  const value = parseWearableOxygenValue(item);
+  const todayReadings = collectOxygenReadings(
+    items.filter(item => getWearableDate(item).isSame(moment(), 'day')),
+  );
+  const latestReading = todayReadings.length ? todayReadings[todayReadings.length - 1] : undefined;
+  const item = getTodayWearableItem(items) ?? getLatestWearableItem(items);
+  const value = latestReading?.value ?? parseWearableOxygenValue(item);
   if (value == null) {
     return { value: '--', status: '', statusColor: '#999999' };
   }
@@ -472,8 +689,12 @@ export function getBloodOxygenDisplay(items: WearableDataItem[]) {
 }
 
 export function getHeartRateDisplay(items: WearableDataItem[]) {
-  const item = getLatestWearableItem(items);
-  const value = parseWearableHeartRateValue(item);
+  const todayReadings = collectHeartRateReadings(
+    items.filter(item => getWearableDate(item).isSame(moment(), 'day')),
+  );
+  const latestReading = todayReadings.length ? todayReadings[todayReadings.length - 1] : undefined;
+  const item = getTodayWearableItem(items) ?? getLatestWearableItem(items);
+  const value = latestReading?.value ?? parseWearableHeartRateValue(item);
   if (value == null) {
     return { value: '--', status: '', statusColor: '#999999' };
   }

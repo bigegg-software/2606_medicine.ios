@@ -1,10 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, type ImageSourcePropType } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type ImageSourcePropType } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AppTheme } from '@/common/theme';
+import UploadProgressBar from '@/src/components/UploadProgressBar';
+import updateHealthKit from '@/utils/healthKit';
+import type { RootState } from '@/store/store';
 import BloodPressureChart from '@/src/features/home/components/BloodPressureChart';
 import BloodGlucoseChart from '@/src/features/home/components/BloodGlucoseChart';
 import BloodOxygenChart from '@/src/features/home/components/BloodOxygenChart';
@@ -42,6 +46,7 @@ import {
   getDateRange,
   getEnergyDisplay,
   getHeartRateDisplay,
+  getSleepFetchDateRange,
   getSleepSummary,
   getStepsDisplay,
   sortWearableItems,
@@ -58,6 +63,7 @@ const EMPTY_MEASURE_DATA: Record<VitalKey, MeasureDataItem[]> = {
 
 export default function VitalsPage() {
   const navigation: any = useNavigation();
+  const uploading = useSelector((state: RootState) => state.upload.uploading);
   const [activeNav, setActiveNav] = useState<VitalsRange>('today');
   const [loading, setLoading] = useState(false);
   const [measureData, setMeasureData] = useState<Record<VitalKey, MeasureDataItem[]>>(EMPTY_MEASURE_DATA);
@@ -65,6 +71,8 @@ export default function VitalsPage() {
   const [wearableSteps, setWearableSteps] = useState<WearableDataItem[]>([]);
   const [wearableOxygen, setWearableOxygen] = useState<WearableDataItem[]>([]);
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
+  const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
+  const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
 
   const chartLabels = useMemo(() => getChartLabels(activeNav), [activeNav]);
 
@@ -72,11 +80,11 @@ export default function VitalsPage() {
     setLoading(true);
     const { startDate, endDate } = getDateRange(activeNav);
 
-    const fetchWearableItems = async (type: WearableDataType) => {
+    const fetchWearableItems = async (type: WearableDataType, dateRange = { startDate, endDate }) => {
       try {
         const res = (await getWearableDataDetailByDateRange({
-          startDate,
-          endDate,
+          startDate: dateRange.startDate,
+          endDate: dateRange.endDate,
           type,
         })) as unknown as WearableDataRangeResult;
         if (!isResourceApiOk(res)) return [];
@@ -87,8 +95,18 @@ export default function VitalsPage() {
       }
     };
 
+    const sleepDateRange = getSleepFetchDateRange(activeNav);
+
     try {
-      const [measureEntries, sleepItems, stepsItems, oxygenItems, heartRateItems] = await Promise.all([
+      const [
+        measureEntries,
+        sleepItems,
+        stepsItems,
+        oxygenItems,
+        heartRateItems,
+        activeEnergyItems,
+        basalEnergyItems,
+      ] = await Promise.all([
         Promise.all(
           VITAL_KEYS.map(async key => {
             try {
@@ -107,10 +125,12 @@ export default function VitalsPage() {
             }
           }),
         ),
-        fetchWearableItems(WEARABLE_DATA_TYPES.sleep),
+        fetchWearableItems(WEARABLE_DATA_TYPES.sleep, sleepDateRange),
         fetchWearableItems(WEARABLE_DATA_TYPES.steps),
         fetchWearableItems(WEARABLE_DATA_TYPES.oxygen),
         fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
+        fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
+        fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
       ]);
 
       setMeasureData({
@@ -121,6 +141,8 @@ export default function VitalsPage() {
       setWearableSteps(stepsItems);
       setWearableOxygen(oxygenItems);
       setWearableHeartRate(heartRateItems);
+      setWearableActiveEnergy(activeEnergyItems);
+      setWearableBasalEnergy(basalEnergyItems);
     } finally {
       setLoading(false);
     }
@@ -173,7 +195,10 @@ export default function VitalsPage() {
     [wearableSleep, activeNav],
   );
   const stepsDisplay = useMemo(() => getStepsDisplay(wearableSteps), [wearableSteps]);
-  const energyDisplay = useMemo(() => getEnergyDisplay(wearableSteps), [wearableSteps]);
+  const energyDisplay = useMemo(
+    () => getEnergyDisplay(wearableActiveEnergy, wearableBasalEnergy),
+    [wearableActiveEnergy, wearableBasalEnergy],
+  );
   const sleepBarData = useMemo(
     () => sleepSummary.barSeries.map(item => ({ label: item.label, value: item.value })),
     [sleepSummary.barSeries],
@@ -231,8 +256,39 @@ export default function VitalsPage() {
     );
   }
 
+  const handleUploadData = useCallback(async () => {
+    if (uploading) {
+      return;
+    }
+    try {
+      const res = (await updateHealthKit(7)) as { code?: number; msg?: string } | undefined;
+      if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
+        Alert.alert('同步失败', res.msg ?? '请稍后重试');
+        return;
+      }
+      await loadMeasureDataRef.current();
+    } catch {
+      Alert.alert('错误', '健康数据同步失败，请稍后重试');
+    }
+  }, [uploading]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleUploadData}
+          disabled={uploading}
+          style={{ marginRight: 16, opacity: uploading ? 0.5 : 1 }}
+        >
+          <Image style={{ width: 22, height: 22 }} source={require('@/assets/images/user/uploadData.png')} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleUploadData, uploading]);
+
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <UploadProgressBar />
       <Flex style={styles.navBox}>
         {VITALS_NAV_LIST.map(item => (
           <TouchableOpacity
@@ -351,7 +407,7 @@ export default function VitalsPage() {
           value={bloodOxygen.value}
           status={bloodOxygen.status}
           statusColor={bloodOxygen.statusColor}
-          chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} />}
+          chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} />}
         />
 
         <VitalCard

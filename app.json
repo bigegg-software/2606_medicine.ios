@@ -12,7 +12,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.bigegg.medicine",
+      "bundleIdentifier": "com.bigegg.wisdomHealth",
       "deploymentTarget": "16.4",
       "infoPlist": {
         "NSCameraUsageDescription": "用于拍摄病例照片并进行识别",
@@ -20,6 +20,8 @@
         "NSLocalNetworkUsageDescription": "用于连接本地 AI 开发服务器进行健康对话",
         "NSMicrophoneUsageDescription": "需要麦克风权限以进行语音识别",
         "NSSpeechRecognitionUsageDescription": "需要语音识别权限以将语音转换为文字",
+        "NSHealthShareUsageDescription": "用于同步 Apple 健康数据到您的健康档案",
+        "NSHealthUpdateUsageDescription": "用于同步 Apple 健康数据到您的健康档案",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },

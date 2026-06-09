@@ -25,7 +25,17 @@ const styles = StyleSheet.create({
   agreementLink: { fontSize: 14, lineHeight: 20, color: '#053A93' },
   button: { marginTop: 32, height: 48, backgroundColor: "#053A93", borderRadius: 16, },
   buttonText: { fontWeight: 500, fontSize: 18, color: "#FFFFFF" },
-  registerText: { textAlign: 'center', marginTop: 18, fontWeight: 400, fontSize: 16, color: "#053A93",marginLeft:4 }
+  registerText: { textAlign: 'center', marginTop: 18, fontWeight: 400, fontSize: 16, color: "#053A93", marginLeft: 4 },
+  keyboardAccessory: {
+    backgroundColor: '#f7f7f7',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 44,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(102,102,102,0.29)'
+  },
 })
 
 export default styles

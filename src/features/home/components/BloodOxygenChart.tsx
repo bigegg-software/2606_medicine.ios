@@ -16,6 +16,7 @@ echarts.use([SkiaRenderer, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BloodOxygenPoint[];
+  labels?: string[];
 };
 
 const DEFAULT_POINTS: BloodOxygenPoint[] = [
@@ -26,7 +27,7 @@ const DEFAULT_POINTS: BloodOxygenPoint[] = [
   { hour: '24:00', value: 98 },
 ];
 
-function buildOption(points: BloodOxygenPoint[]) {
+function buildOption(points: BloodOxygenPoint[], categoryLabels: string[]) {
   const scatterData = hasTodayChartX(points)
     ? points
         .filter(point => point.x != null && point.value > 0)
@@ -36,8 +37,9 @@ function buildOption(points: BloodOxygenPoint[]) {
           name: point.hour,
         }))
     : points
-        .filter(point => point.value > 0)
-        .map((point, index) => ({
+        .map((point, index) => ({ point, index }))
+        .filter(({ point }) => point.value > 0)
+        .map(({ point, index }) => ({
           value: [index, point.value],
           name: point.hour,
         }));
@@ -75,7 +77,7 @@ function buildOption(points: BloodOxygenPoint[]) {
       bottom: 0,
       left: 0,
     },
-    xAxis: buildChartXAxis(points, []),
+    xAxis: buildChartXAxis(points, categoryLabels),
     yAxis: {
       type: 'value',
       min: yMin,
@@ -99,10 +101,13 @@ function buildOption(points: BloodOxygenPoint[]) {
   };
 }
 
-export default function BloodOxygenChart({ data }: Props) {
+export default function BloodOxygenChart({ data, labels }: Props) {
   const skiaRef = useRef<any>(null);
   const points = data ?? DEFAULT_POINTS;
-  const option = useMemo(() => buildOption(points), [points]);
+  const categoryLabels =
+    labels ??
+    (hasTodayChartX(points) ? [] : points.map(point => point.hour ?? '').filter(Boolean));
+  const option = useMemo(() => buildOption(points, categoryLabels), [points, categoryLabels]);
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

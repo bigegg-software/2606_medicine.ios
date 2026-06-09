@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent,} from 'react-native';
-import Reanimated, {  Easing,  useAnimatedStyle,  useSharedValue,  withTiming,} from 'react-native-reanimated';
+import { View, Text, TextInput, Image, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, Button, InputAccessoryView, type KeyboardEvent, } from 'react-native';
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,6 +16,20 @@ import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+
+const phoneInputAccessoryViewID = 'loginPhoneDoneToolbar';
+const codeInputAccessoryViewID = 'loginCodeDoneToolbar';
+
+function KeyboardDoneAccessory({ nativeID }: { nativeID: string }) {
+  if (Platform.OS !== 'ios') return null;
+  return (
+    <InputAccessoryView nativeID={nativeID}>
+      <View style={styles.keyboardAccessory}>
+        <Button title="完成" onPress={() => Keyboard.dismiss()} color="#027aff" />
+      </View>
+    </InputAccessoryView>
+  );
+}
 
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {
@@ -75,9 +89,9 @@ export default function LoginPage() {
     };
   }, [bottomOffset, getBottomInset]);
 
-  const openUserAgreement = () => {};
+  const openUserAgreement = () => { };
 
-  const openPrivacyPolicy = () => {};
+  const openPrivacyPolicy = () => { };
 
   const sendCode = useCallback(async () => {
     if (!phoneValid) {
@@ -145,6 +159,9 @@ export default function LoginPage() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />
+      <KeyboardDoneAccessory nativeID={codeInputAccessoryViewID} />
+
       <LinearGradient
         colors={['#B4D0FF', '#F5F8FF']}
         style={styles.headerGradient}
@@ -165,6 +182,7 @@ export default function LoginPage() {
             maxLength={11}
             value={phone}
             onChangeText={setPhone}
+            inputAccessoryViewID={phoneInputAccessoryViewID}
           />
 
           <View style={styles.codeBox}>
@@ -173,9 +191,11 @@ export default function LoginPage() {
               placeholder="验证码"
               placeholderTextColor="#999999"
               keyboardType="number-pad"
+              returnKeyType="done"
               maxLength={6}
               value={code}
               onChangeText={setCode}
+              inputAccessoryViewID={codeInputAccessoryViewID}
             />
             <TouchableOpacity
               style={countdown > 0 && styles.codeBtnOff}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, Button, InputAccessoryView, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +17,21 @@ import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
+
+const inviteInputAccessoryViewID = 'registerInviteDoneToolbar';
+const phoneInputAccessoryViewID = 'registerPhoneDoneToolbar';
+const codeInputAccessoryViewID = 'registerCodeDoneToolbar';
+
+function KeyboardDoneAccessory({ nativeID }: { nativeID: string }) {
+  if (Platform.OS !== 'ios') return null;
+  return (
+    <InputAccessoryView nativeID={nativeID}>
+      <View style={styles.keyboardAccessory}>
+        <Button title="完成" onPress={() => Keyboard.dismiss()} color="#027aff" />
+      </View>
+    </InputAccessoryView>
+  );
+}
 
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {
@@ -153,6 +168,10 @@ export default function RegisterPage() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardDoneAccessory nativeID={inviteInputAccessoryViewID} />
+      <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />
+      <KeyboardDoneAccessory nativeID={codeInputAccessoryViewID} />
+
       <LinearGradient
         colors={['#B4D0FF', '#F5F8FF']}
         style={styles.headerGradient}
@@ -172,6 +191,7 @@ export default function RegisterPage() {
             placeholderTextColor="#999999"
             value={inviteCode}
             onChangeText={setInviteCode}
+            inputAccessoryViewID={inviteInputAccessoryViewID}
           />
 
           <Text style={styles.inputTitle}>手机号</Text>
@@ -183,6 +203,7 @@ export default function RegisterPage() {
             maxLength={11}
             value={phone}
             onChangeText={setPhone}
+            inputAccessoryViewID={phoneInputAccessoryViewID}
           />
 
           <Text style={styles.inputTitle}>验证码</Text>
@@ -192,9 +213,11 @@ export default function RegisterPage() {
               placeholder="验证码"
               placeholderTextColor="#999999"
               keyboardType="number-pad"
+              returnKeyType="done"
               maxLength={6}
               value={code}
               onChangeText={setCode}
+              inputAccessoryViewID={codeInputAccessoryViewID}
             />
             <TouchableOpacity
               style={countdown > 0 && styles.codeBtnOff}

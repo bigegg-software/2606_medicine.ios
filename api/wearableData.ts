@@ -1,24 +1,43 @@
 import request from '@/utils/axios';
 
-export type WearableDataType = 'sleepAnalysis' | 'restingHeartRate' | 'stepCount' | 'oxygenSaturation';
+export type WearableDataType =
+  | 'sleepAnalysis'
+  | 'heartRate'
+  | 'stepCount'
+  | 'oxygenSaturation'
+  | 'activeEnergyBurned'
+  | 'basalEnergyBurned';
 
 export const WEARABLE_DATA_TYPES = {
   sleep: 'sleepAnalysis',
-  heartRate: 'restingHeartRate',
+  heartRate: 'heartRate',
   steps: 'stepCount',
   oxygen: 'oxygenSaturation',
+  activeEnergy: 'activeEnergyBurned',
+  basalEnergy: 'basalEnergyBurned',
 } as const satisfies Record<string, WearableDataType>;
 
+export type WearableOriginalReading = {
+  id?: string;
+  value?: string | number;
+  startDate?: string;
+  endDate?: string;
+  sourceId?: string;
+  sourceName?: string;
+  highLowLabel?: string;
+};
+
 export type WearableDataItem = {
-  wearableDataId?: number;
-  userId?: number;
+  wearableDataId?: number | string;
+  userId?: number | string;
   type?: string;
   dataDate?: string;
   customerLocalDate?: string;
   startTimeStr?: string;
   endTimeStr?: string;
+  originalData?: WearableOriginalReading[] | WearableOriginalReading[][];
   stepCount?: number;
-  restingHeartRate?: number;
+  heartRate?: number;
   newHeartRate?: string;
   maxHeartRate?: number;
   minHeartRate?: number;
@@ -58,3 +77,23 @@ export const getWearableDataDetailByDateRange = (params: {
     {},
     { params },
   );
+
+export type WearableUploadPayload = {
+  type: string;
+  appType: number;
+  data: {
+    last?: boolean;
+    batchNum: string;
+    origin: unknown[];
+    startTime: string;
+    endTime: string;
+  };
+};
+
+export type WearableUploadResult = {
+  code?: number;
+  msg?: string;
+};
+
+export const uploadWearableData = (data: WearableUploadPayload) =>
+  request.post<WearableUploadResult>('/patient/wearableData/upload', data);

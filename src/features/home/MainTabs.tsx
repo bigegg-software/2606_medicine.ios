@@ -5,8 +5,14 @@ import HomeTab from '@/src/features/home/HomeTab';
 import SchedulePage from '@/src/features/schedule/SchedulePage';
 import CommunityPage from '@/src/features/community/CommunityPage';
 import ProfilePage from '@/src/features/profile/ProfilePage';
+import withUploadProgress from '@/src/components/withUploadProgress';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
+
+const HomeTabScreen = withUploadProgress(HomeTab);
+const ScheduleTabScreen = withUploadProgress(SchedulePage);
+const CommunityTabScreen = withUploadProgress(CommunityPage);
+const ProfileTabScreen = withUploadProgress(ProfilePage);
 export type MainTabParamList = {
   Home: undefined;
   Schedule: undefined;
@@ -62,7 +68,7 @@ export default function MainTabs() {
       }}>
       <Tab.Screen
         name="Home"
-        component={HomeTab}
+        component={HomeTabScreen}
         options={{
           tabBarLabel: '首页',
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/home.png')} />,
@@ -70,7 +76,7 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="Schedule"
-        component={SchedulePage}
+        component={ScheduleTabScreen}
         options={{
           tabBarLabel: '安排',
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/time.png')} />,
@@ -95,7 +101,7 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="Community"
-        component={CommunityPage}
+        component={CommunityTabScreen}
         options={{
           tabBarLabel: '社区',
           tabBarIcon: ({ focused }) => (
@@ -105,7 +111,7 @@ export default function MainTabs() {
       />
       <Tab.Screen
         name="Profile"
-        component={ProfilePage}
+        component={ProfileTabScreen}
         options={{
           tabBarLabel: '我的',
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/user.png')} />,

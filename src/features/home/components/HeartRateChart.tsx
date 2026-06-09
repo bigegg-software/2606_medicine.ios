@@ -21,6 +21,13 @@ type Props = {
 
 function buildOption(points: HeartRatePoint[]) {
   const values = toChartValuePairs(points);
+  const validValues = points.filter(point => point.value > 0).map(point => point.value);
+  let yMin: number | undefined;
+  let yMax: number | undefined;
+  if (validValues.length) {
+    yMin = Math.max(40, Math.min(...validValues) - 10);
+    yMax = Math.min(200, Math.max(...validValues) + 10);
+  }
 
   return {
     animation: false,
@@ -50,6 +57,9 @@ function buildOption(points: HeartRatePoint[]) {
     xAxis: buildChartXAxis(points, [], false),
     yAxis: {
       type: 'value',
+      min: yMin,
+      max: yMax,
+      scale: true,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: { show: false },
@@ -59,9 +69,13 @@ function buildOption(points: HeartRatePoint[]) {
       {
         type: 'line',
         smooth: true,
-        showSymbol: false,
+        connectNulls: true,
+        showSymbol: validValues.length > 0 && validValues.length <= 8,
+        symbol: 'circle',
+        symbolSize: 5,
         data: values,
         lineStyle: { color: '#FF2056', width: 2 },
+        itemStyle: { color: '#FF2056' },
       },
     ],
   };
