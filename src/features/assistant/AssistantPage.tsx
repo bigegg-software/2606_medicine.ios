@@ -32,6 +32,7 @@ import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import type { RootState } from '@/store/store';
 import type { RootStackParamList } from '@/route/router';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import styles from '@/css/assistant/assistant';
 import { useAssistantChat } from './utils/useAssistantChat';
 import { renderAiMessageText } from './utils/renderAiMessage';
@@ -279,6 +280,7 @@ export default function AssistantPage() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardDoneAccessory />
       <LinearGradient
         colors={['#B4D0FF', '#F5F8FF']}
         style={styles.headerGradient}
@@ -342,6 +344,7 @@ export default function AssistantPage() {
                   }
                   void speechToTextRef.current?.stopListening();
                 }}
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               />
               <SpeechToText
                 ref={speechToTextRef}

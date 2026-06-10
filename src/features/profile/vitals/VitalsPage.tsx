@@ -44,11 +44,11 @@ import {
   getBloodOxygenDisplay,
   getChartLabels,
   getDateRange,
-  getEnergyDisplay,
+  getEnergySummary,
   getHeartRateDisplay,
   getSleepFetchDateRange,
   getSleepSummary,
-  getStepsDisplay,
+  getStepsSummary,
   sortWearableItems,
   toHourPoints,
   VITAL_KEYS,
@@ -194,10 +194,18 @@ export default function VitalsPage() {
     () => getSleepSummary(wearableSleep, activeNav),
     [wearableSleep, activeNav],
   );
-  const stepsDisplay = useMemo(() => getStepsDisplay(wearableSteps), [wearableSteps]);
-  const energyDisplay = useMemo(
-    () => getEnergyDisplay(wearableActiveEnergy, wearableBasalEnergy),
-    [wearableActiveEnergy, wearableBasalEnergy],
+  const stepsSummary = useMemo(() => getStepsSummary(wearableSteps, activeNav), [wearableSteps, activeNav]);
+  const energySummary = useMemo(
+    () => getEnergySummary(wearableActiveEnergy, wearableBasalEnergy, activeNav),
+    [wearableActiveEnergy, wearableBasalEnergy, activeNav],
+  );
+  const stepsBarData = useMemo(
+    () => stepsSummary.barSeries.map(item => ({ label: item.label, value: item.value })),
+    [stepsSummary.barSeries],
+  );
+  const energyBarData = useMemo(
+    () => energySummary.barSeries.map(item => ({ label: item.label, value: item.value })),
+    [energySummary.barSeries],
   );
   const sleepBarData = useMemo(
     () => sleepSummary.barSeries.map(item => ({ label: item.label, value: item.value })),
@@ -272,20 +280,6 @@ export default function VitalsPage() {
     }
   }, [uploading]);
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          onPress={handleUploadData}
-          disabled={uploading}
-          style={{ marginRight: 16, opacity: uploading ? 0.5 : 1 }}
-        >
-          <Image style={{ width: 22, height: 22 }} source={require('@/assets/images/user/uploadData.png')} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, handleUploadData, uploading]);
-
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <UploadProgressBar />
@@ -350,6 +344,7 @@ export default function VitalsPage() {
           value={heartRate.value}
           status={heartRate.status}
           statusColor={heartRate.statusColor}
+          onAll={() => navigation.navigate('AllDataPage', { type: '心率' })}
           chart={<HeartRateChart data={toHourPoints(heartRateSeries)} />}
         />
 
@@ -407,6 +402,7 @@ export default function VitalsPage() {
           value={bloodOxygen.value}
           status={bloodOxygen.status}
           statusColor={bloodOxygen.statusColor}
+          onAll={() => navigation.navigate('AllDataPage', { type: '血氧' })}
           chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} />}
         />
 
@@ -437,12 +433,21 @@ export default function VitalsPage() {
               </TouchableOpacity>
             </Flex>
           </Flex>
-          <Flex direction="column" style={styles.vValueBox} justify="center" align="center">
-            <Text style={styles.vValue1}>{stepsDisplay.value}</Text>
-            <Text style={styles.vUnit}>步</Text>
-            <Text style={[styles.vText, { color: stepsDisplay.statusColor }]}>
-              {stepsDisplay.status}
-            </Text>
+          <Flex
+            direction={activeNav === 'today' ? 'column' : 'row'}
+            style={styles.vValueBox}
+            justify={activeNav === 'today' ? 'center' : 'between'}
+            align="center">
+            <View style={activeNav === 'today' ? { alignItems: 'center' } : undefined}>
+              <Text style={styles.vValue1}>{stepsSummary.value}</Text>
+              <Text style={styles.vUnit}>{stepsSummary.unit}</Text>
+              <Text style={[styles.vText, { color: stepsSummary.statusColor }]}>
+                {stepsSummary.status}
+              </Text>
+            </View>
+            {activeNav !== 'today' ? (
+              <SleepBarChart data={stepsBarData} metricLabel="步数" valueUnit="步" />
+            ) : null}
           </Flex>
         </View>
 
@@ -463,25 +468,39 @@ export default function VitalsPage() {
           </Flex>
           <Flex style={styles.vValueBox} justify="between" align="center">
             <View>
-              <Text style={styles.vUnit}>总消耗</Text>
-              <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{energyDisplay.total}</Text>
+              <Text style={styles.vUnit}>{energySummary.totalLabel ?? '总消耗'}</Text>
+              <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{energySummary.total}</Text>
               <Text style={styles.vUnit}>千卡</Text>
             </View>
-            <Flex justify="around" style={styles.vRightBox}>
-              <View>
-                <Text style={styles.vText1}>静息消耗</Text>
-                <Text style={styles.vText2}>{energyDisplay.basal}</Text>
-                <Text style={styles.vText1}>千卡</Text>
-              </View>
-              <View>
-                <Text style={styles.vText1}>活动消耗</Text>
-                <Text style={styles.vText2}>{energyDisplay.active}</Text>
-                <Text style={styles.vText1}>千卡</Text>
-              </View>
-            </Flex>
+            {energySummary.showBreakdown ? (
+              <Flex justify="around" style={styles.vRightBox}>
+                <View>
+                  <Text style={styles.vText1}>静息消耗</Text>
+                  <Text style={styles.vText2}>{energySummary.basal}</Text>
+                  <Text style={styles.vText1}>千卡</Text>
+                </View>
+                <View>
+                  <Text style={styles.vText1}>活动消耗</Text>
+                  <Text style={styles.vText2}>{energySummary.active}</Text>
+                  <Text style={styles.vText1}>千卡</Text>
+                </View>
+              </Flex>
+            ) : (
+              <SleepBarChart data={energyBarData} metricLabel="消耗" valueUnit="千卡" />
+            )}
           </Flex>
         </View>
       </ScrollView>
+      <TouchableOpacity
+        style={[styles.addBtn, uploading && { opacity: 0.5 }]}
+        onPress={handleUploadData}
+        disabled={uploading}
+        activeOpacity={0.8}>
+        <Flex justify="center" align="center" style={{ flex: 1 }}>
+          <Text style={styles.addText}>上传体征数据</Text>
+        </Flex>
+      </TouchableOpacity>
+
     </SafeAreaView>
   );
 }

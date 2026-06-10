@@ -7,6 +7,7 @@ import moment from 'moment';
 import styles from '@/css/medication/add';
 import indexStyles from '@/css/medication/index';
 import { AppTheme } from '@/common/theme';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 const DRUG_TYPE_LIST = [
     { label: '片剂', value: '片剂' },
@@ -132,6 +133,7 @@ export default function MedicationAddPage() {
 
     return (
         <SafeAreaView edges={['bottom']} style={styles.container}>
+            <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Text style={styles.sectionTitle}>基础信息</Text>
                 <View style={styles.rowBox}>
@@ -143,6 +145,7 @@ export default function MedicationAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={drugName}
                             onChangeText={setDrugName}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -174,6 +177,7 @@ export default function MedicationAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={dosageSpec}
                             onChangeText={setDosageSpec}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={[styles.rowLine, { marginBottom: 20 }]} />
@@ -210,6 +214,7 @@ export default function MedicationAddPage() {
                                 value={doseAmount}
                                 onChangeText={onDoseAmountChange}
                                 keyboardType="number-pad"
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
                             <Text style={styles.inlineSuffix}>{doseUnit}</Text>
                         </Flex>
@@ -329,6 +334,7 @@ export default function MedicationAddPage() {
                                 value={initialStock}
                                 onChangeText={onInitialStockChange}
                                 keyboardType="number-pad"
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
                             <Text style={styles.inlineSuffix}>{doseUnit}</Text>
                         </Flex>
@@ -356,6 +362,7 @@ export default function MedicationAddPage() {
                                 value={remainingStock}
                                 onChangeText={setRemainingStock}
                                 keyboardType="number-pad"
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
                             <Text style={styles.inlineSuffix}>{doseUnit}</Text>
                         </Flex>

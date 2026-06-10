@@ -545,7 +545,7 @@ export function getSleepSummary(items: WearableDataItem[], range: VitalsRange) {
 
 export function getStepsDisplay(items: WearableDataItem[]) {
   const item = getTodayWearableItem(items);
-  const steps = parseMeasureNumber(item?.stepCount) ?? 0;
+  const steps = parseStepsFromItem(item);
   const goal = parseMeasureNumber(item?.stepGoals) ?? 10000;
   if (steps <= 0) {
     return { value: `--/${goal}`, status: '・暂无数据', statusColor: '#999999' };
@@ -554,6 +554,51 @@ export function getStepsDisplay(items: WearableDataItem[]) {
   const status = ratio >= 1 ? '・达标' : ratio >= 0.6 ? '・进行中' : '・偏少';
   const statusColor = ratio >= 0.6 ? '#00C950' : '#FFBA1D';
   return { value: `${steps}/${goal}`, status, statusColor };
+}
+
+function parseStepsFromItem(item?: WearableDataItem) {
+  if (!item) return 0;
+
+  const readings = flattenWearableOriginalData(item);
+  if (readings.length) {
+    const total = readings.reduce((sum, reading) => sum + (parseMeasureNumber(reading.value) ?? 0), 0);
+    if (total > 0) return Math.round(total);
+  }
+
+  return Math.round(parseMeasureNumber(item.stepCount) ?? 0);
+}
+
+export function buildStepsBarSeries(items: WearableDataItem[], range: VitalsRange): LabeledValue[] {
+  const labels = getChartLabels(range);
+  return labels.map((label, index) => {
+    const bucketItems = pickWearableDayItems(items, range, index, labels.length);
+    const latest = getLatestWearableItem(bucketItems);
+    return { label, value: parseStepsFromItem(latest) };
+  });
+}
+
+export function getStepsSummary(items: WearableDataItem[], range: VitalsRange) {
+  const barSeries = range === 'today' ? [] : buildStepsBarSeries(items, range);
+  if (range === 'today') {
+    return { ...getStepsDisplay(items), barSeries, unit: '步' as const };
+  }
+
+  const dailyValues = barSeries.map(item => item.value).filter(value => value > 0);
+  const average = dailyValues.length
+    ? Math.round(dailyValues.reduce((sum, value) => sum + value, 0) / dailyValues.length)
+    : 0;
+
+  if (average <= 0) {
+    return { value: '--', status: '・暂无数据', statusColor: '#999999', barSeries, unit: '步/日均' as const };
+  }
+
+  return {
+    value: String(average),
+    status: '・日均',
+    statusColor: '#999999',
+    barSeries,
+    unit: '步/日均' as const,
+  };
 }
 
 function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEnergyBurned' | 'basalEnergyBurned') {
@@ -577,6 +622,46 @@ export function getEnergyDisplay(activeItems: WearableDataItem[], basalItems: We
     total: total > 0 ? String(total) : '--',
     active: active > 0 ? String(active) : '--',
     basal: basal > 0 ? String(basal) : '--',
+  };
+}
+
+export function buildEnergyBarSeries(
+  activeItems: WearableDataItem[],
+  basalItems: WearableDataItem[],
+  range: VitalsRange,
+): LabeledValue[] {
+  const labels = getChartLabels(range);
+  return labels.map((label, index) => {
+    const activeBucket = pickWearableDayItems(activeItems, range, index, labels.length);
+    const basalBucket = pickWearableDayItems(basalItems, range, index, labels.length);
+    const active = sumEnergyFromItem(getLatestWearableItem(activeBucket), 'activeEnergyBurned');
+    const basal = sumEnergyFromItem(getLatestWearableItem(basalBucket), 'basalEnergyBurned');
+    return { label, value: Math.round(active + basal) };
+  });
+}
+
+export function getEnergySummary(
+  activeItems: WearableDataItem[],
+  basalItems: WearableDataItem[],
+  range: VitalsRange,
+) {
+  const barSeries = range === 'today' ? [] : buildEnergyBarSeries(activeItems, basalItems, range);
+  if (range === 'today') {
+    return { ...getEnergyDisplay(activeItems, basalItems), barSeries, showBreakdown: true as const };
+  }
+
+  const dailyTotals = barSeries.map(item => item.value).filter(value => value > 0);
+  const average = dailyTotals.length
+    ? Math.round(dailyTotals.reduce((sum, value) => sum + value, 0) / dailyTotals.length)
+    : 0;
+
+  return {
+    total: average > 0 ? String(average) : '--',
+    active: '--',
+    basal: '--',
+    barSeries,
+    showBreakdown: false as const,
+    totalLabel: '日均总消耗',
   };
 }
 

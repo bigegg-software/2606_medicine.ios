@@ -10,6 +10,7 @@ import { AppTheme } from '@/common/theme';
 import { addMeasureData, removeMeasureDataById, updateMeasureData, type AddMeasureDataResult, type MeasureDataType, } from '@/api/measureData';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AddDataPage'>;
@@ -262,6 +263,7 @@ export default function BloodAddPage({ route }: Props) {
 
   return (
     <SafeAreaView edges={['bottom']} style={styles.container}>
+      <KeyboardDoneAccessory />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.rowBox}>
           <Text style={styles.sectionTitle}>测量时间</Text>
@@ -314,6 +316,7 @@ export default function BloodAddPage({ route }: Props) {
             value={primaryValue}
             onChangeText={text => setPrimaryValue(sanitizeNumberInput(text, allowDecimal))}
             keyboardType={config.keyboardType}
+            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           />
 
           {config.showSecondary ? (
@@ -326,6 +329,7 @@ export default function BloodAddPage({ route }: Props) {
                 value={secondaryValue}
                 onChangeText={text => setSecondaryValue(sanitizeNumberInput(text, false))}
                 keyboardType="number-pad"
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               />
             </>
           ) : null}
@@ -377,6 +381,7 @@ export default function BloodAddPage({ route }: Props) {
             onChangeText={setRemark}
             multiline
             textAlignVertical="top"
+            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
           />
         </View>
 

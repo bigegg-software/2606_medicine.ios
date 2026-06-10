@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, Button, InputAccessoryView, type KeyboardEvent, } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -14,22 +14,12 @@ import { SET_LOGIN } from '@/store/type/login';
 import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
+import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 const phoneInputAccessoryViewID = 'loginPhoneDoneToolbar';
 const codeInputAccessoryViewID = 'loginCodeDoneToolbar';
-
-function KeyboardDoneAccessory({ nativeID }: { nativeID: string }) {
-  if (Platform.OS !== 'ios') return null;
-  return (
-    <InputAccessoryView nativeID={nativeID}>
-      <View style={styles.keyboardAccessory}>
-        <Button title="完成" onPress={() => Keyboard.dismiss()} color="#027aff" />
-      </View>
-    </InputAccessoryView>
-  );
-}
 
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {

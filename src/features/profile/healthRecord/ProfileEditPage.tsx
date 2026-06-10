@@ -13,6 +13,7 @@ import allergyStyles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import { useDispatch } from 'react-redux';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import type { AppDispatch } from '@/store/store';
 
 const BLOOD_TYPES = ['A型', 'B型', 'AB型', 'O型', '不详'] as const;
@@ -211,6 +212,7 @@ export default function ProfileEditPage() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <KeyboardDoneAccessory />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
           <Flex direction="column" justify="center" align="center" style={{ marginTop: 16 }}>
@@ -245,6 +247,7 @@ export default function ProfileEditPage() {
               onChangeText={t => patch('name', t)}
               placeholder="请输入姓名"
               placeholderTextColor={AppTheme.textSecondary}
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             />
           </Flex>
 
@@ -299,6 +302,7 @@ export default function ProfileEditPage() {
               placeholder="请输入身高"
               placeholderTextColor={AppTheme.textSecondary}
               keyboardType="decimal-pad"
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             />
             <Text style={styles.unitText}>cm</Text>
           </Flex>
@@ -312,6 +316,7 @@ export default function ProfileEditPage() {
               placeholder="请输入体重"
               placeholderTextColor={AppTheme.textSecondary}
               keyboardType="decimal-pad"
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
             />
             <Text style={styles.unitText}>kg</Text>
           </Flex>

@@ -9,6 +9,7 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AllergiesAdd'>;
@@ -125,6 +126,7 @@ export default function AllergiesAddPage({ route }: Props) {
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
+            <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body}>
                 <View style={styles.rowBox}>
                     <View>
@@ -135,6 +137,7 @@ export default function AllergiesAddPage({ route }: Props) {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={allergenName}
                             onChangeText={setAllergenName}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -164,6 +167,7 @@ export default function AllergiesAddPage({ route }: Props) {
                             value={allergicSymptoms}
                             onChangeText={setAllergicSymptoms}
                             multiline
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />

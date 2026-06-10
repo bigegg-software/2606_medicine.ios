@@ -20,6 +20,7 @@ import { getMedicalRecordFrontList, removeMedicalRecord, type MedicalRecord } fr
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import SwipeDeleteRow, { closeActiveSwipeRow } from './components/SwipeDeleteRow';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -149,6 +150,7 @@ export default function CaseNotesPage() {
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
+            <KeyboardDoneAccessory />
             <View style={styles.topBox}>
                 <Flex style={styles.inputBox}>
                     <Image style={styles.inputIcon} source={require('@/assets/images/user/fdj.png')} />
@@ -160,6 +162,7 @@ export default function CaseNotesPage() {
                         onChangeText={setKeyword}
                         returnKeyType="search"
                         onSubmitEditing={onSearch}
+                        inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                     />
                 </Flex>
 

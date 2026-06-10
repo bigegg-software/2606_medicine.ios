@@ -16,9 +16,11 @@ echarts.use([SkiaRenderer, BarChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: SleepBarPoint[];
+  metricLabel?: string;
+  valueUnit?: string;
 };
 
-function buildOption(points: SleepBarPoint[]) {
+function buildOption(points: SleepBarPoint[], metricLabel: string, valueUnit: string) {
   const labels = points.map(p => p.label);
   const values = points.map(point => ({
     value: point.value,
@@ -41,7 +43,7 @@ function buildOption(points: SleepBarPoint[]) {
         const raw = item?.data?.value ?? item?.value;
         const value = Array.isArray(raw) ? raw[1] : raw;
         if (value == null || value === '') return title;
-        return `${title}\n睡眠 ${value}小时`;
+        return `${title}\n${metricLabel} ${value}${valueUnit}`;
       },
     },
     grid: {
@@ -82,9 +84,13 @@ function buildOption(points: SleepBarPoint[]) {
   };
 }
 
-export default function SleepBarChart({ data = [] }: Props) {
+export default function SleepBarChart({
+  data = [],
+  metricLabel = '睡眠',
+  valueUnit = '小时',
+}: Props) {
   const skiaRef = useRef<any>(null);
-  const option = useMemo(() => buildOption(data), [data]);
+  const option = useMemo(() => buildOption(data, metricLabel, valueUnit), [data, metricLabel, valueUnit]);
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

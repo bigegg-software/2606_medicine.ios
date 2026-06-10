@@ -67,6 +67,12 @@ export type WearableDataRangeResult = {
   data?: WearableDataItem[];
 };
 
+export type WearableDataDetailResult = {
+  code?: number;
+  msg?: string;
+  data?: WearableDataItem;
+};
+
 export const getWearableDataDetailByDateRange = (params: {
   startDate: string;
   endDate: string;
@@ -74,6 +80,16 @@ export const getWearableDataDetailByDateRange = (params: {
 }) =>
   request.post<WearableDataRangeResult>(
     '/patient/wearableData/detailByBetweenCustomerLocalDate',
+    {},
+    { params },
+  );
+
+export const getWearableDataDetailByCustomerLocalDate = (params: {
+  customerLocalDate: string;
+  type: WearableDataType;
+}) =>
+  request.post<WearableDataDetailResult>(
+    '/patient/wearableData/detailByCustomerLocalDate',
     {},
     { params },
   );

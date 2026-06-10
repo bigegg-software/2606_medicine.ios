@@ -13,6 +13,7 @@ import { AppTheme } from '@/common/theme';
 import { addMedicalRecord, aiIdentifyMedicalRecords, type MedicalRecord, type MedicalRecordAttachment } from '@/api/medicalRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import { consumePendingAttachments } from '@/src/utils/attachmentUploadSession';
 import { consumePendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
@@ -148,6 +149,7 @@ function TextareaField({ title, placeholder, value, onChangeText, optional }: Te
                     onChangeText={onChangeText}
                     multiline
                     textAlignVertical="top"
+                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 />
             </View>
             <View style={styles.rowLine} />
@@ -309,6 +311,7 @@ export default function CaseAddPage() {
 
     return (
         <SafeAreaView edges={['bottom']} style={styles.container}>
+            <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Text style={styles.sectionTitle}>拍照识别</Text>
                 <Flex justify="between" style={styles.cameraBoxRow}>
@@ -367,6 +370,7 @@ export default function CaseAddPage() {
                             onChangeText={setRecordDate}
                             placeholder="yyyy-MM-dd"
                             placeholderTextColor={AppTheme.textSecondary}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </Flex>
                     <View style={styles.rowLine} />
@@ -379,6 +383,7 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={hospital}
                             onChangeText={setHospital}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -391,6 +396,7 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={department}
                             onChangeText={setDepartment}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -416,6 +422,7 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={diagnosticResult}
                             onChangeText={setDiagnosticResult}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -428,6 +435,7 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={doctor}
                             onChangeText={setDoctor}
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.rowLine} />

@@ -18,6 +18,7 @@ import {
 import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 function getTemplateKey(template: QuestionTemplate) {
     return template.templateId ?? template.id ?? 0;
@@ -230,6 +231,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                             placeholder="请输入身高"
                             placeholderTextColor={AppTheme.textSecondary}
                             keyboardType="decimal-pad"
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     <View style={styles.fillBox}>
@@ -243,6 +245,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                             placeholder="请输入体重"
                             placeholderTextColor={AppTheme.textSecondary}
                             keyboardType="decimal-pad"
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>
                     {bmi != null && Number.isFinite(bmi) ? (
@@ -319,6 +322,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
+            <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Flex style={styles.titleBox}>
                     <Text style={styles.leftTitle}>测评进度</Text>

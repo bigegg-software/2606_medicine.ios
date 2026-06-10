@@ -208,7 +208,7 @@ export default async function updateHealthKit(syncDays = 7) {
           endTime: moment(new Date(end)).format('YYYY-MM-DDTHH:mm:ss.SSSZZ'),
         });
 
-        AppleHealthKit.getRestingHeartRate(baseOptions, (_err, results) => {
+        AppleHealthKit.getRestingHeartRate(baseOptions, (_err, results: any) => {
           if (results.length > 0) {
             allResults.push({
               type: 'restingHeartRate',
@@ -261,19 +261,13 @@ export default async function updateHealthKit(syncDays = 7) {
           checkAllCompleted();
         });
 
-        AppleHealthKit.getStepCount({ date: new Date(dayStartTime).toISOString() }, (_err, results) => {
-          if (results.value) {
-            const filtered = filterData(results);
+        AppleHealthKit.getDailyStepCountSamples(baseOptions, (_err, results) => {
+          if (results?.length > 0) {
             allResults.push({
               type: 'stepCount',
               data: {
                 batchNum,
-                origin: [
-                  {
-                    ...filtered,
-                    ...formatRange(baseOptions.startDate, baseOptions.endDate),
-                  },
-                ],
+                origin: filterData(results),
                 ...formatRange(baseOptions.startDate, baseOptions.endDate),
               },
             });

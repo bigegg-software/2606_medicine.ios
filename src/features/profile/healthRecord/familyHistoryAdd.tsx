@@ -9,6 +9,7 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyHistoryAdd'>;
@@ -155,6 +156,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
 
     return (
         <SafeAreaView style={styles.container} edges={['bottom']}>
+            <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body}>
                 <View style={styles.rowBox}>
                     <View>
@@ -204,6 +206,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                                 placeholderTextColor={AppTheme.textSecondary}
                                 value={otherDisease}
                                 onChangeText={setOtherDisease}
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
                             <View style={styles.rowLine} />
                         </View>
@@ -219,6 +222,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                                 value={age}
                                 onChangeText={setAge}
                                 keyboardType="number-pad"
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
                             <View style={styles.rowLine} />
                         </View>

@@ -13,7 +13,16 @@ import {
   type MeasureDataDetailResult,
   type MeasureDataItem,
   type MeasureDataType,
+  type VitalsMeasureType,
 } from '@/api/measureData';
+import {
+  getWearableDataDetailByCustomerLocalDate,
+  WEARABLE_DATA_TYPES,
+  type WearableDataDetailResult,
+  type WearableDataItem,
+  type WearableDataType,
+  type WearableOriginalReading,
+} from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { getLevelBgColor, getLevelColor } from './vitalLevelColors';
@@ -26,10 +35,12 @@ const DASH_COUNT = 30;
 const MIN_YEAR = moment().year() - 10;
 const MAX_YEAR = moment().year() + 1;
 
-const PAGE_TITLES: Record<MeasureDataType, string> = {
+const PAGE_TITLES: Record<VitalsMeasureType, string> = {
   血压: '血压记录',
   血糖: '血糖记录',
   体温: '体温记录',
+  血氧: '血氧记录',
+  心率: '心率记录',
 };
 
 const MEASURE_UNITS: Record<MeasureDataType, string> = {
@@ -108,6 +119,86 @@ function getLevelLabel(item: MeasureDataItem) {
   if (item.isHigh === 1) return '偏高';
   if (item.isLow === 1) return '偏低';
   return '正常';
+}
+
+type WearableReadingRecord = {
+  key: string;
+  time: string;
+  recordTime: string;
+  value: number;
+  level: string;
+  sourceName?: string;
+};
+
+type WearableDetailConfig = {
+  apiType: WearableDataType;
+  label: string;
+  unit: string;
+  parseValue: (raw: number) => number | null;
+  getLevelLabel: (value: number, highLowLabel?: string) => string;
+};
+
+const WEARABLE_DETAIL_CONFIG: Partial<Record<Extract<VitalsMeasureType, '血氧' | '心率'>, WearableDetailConfig>> = {
+  血氧: {
+    apiType: WEARABLE_DATA_TYPES.oxygen,
+    label: '血氧',
+    unit: '%',
+    parseValue: raw => (raw > 0 ? Math.round(raw * 100) : null),
+    getLevelLabel: (value, highLowLabel) => {
+      const label = highLowLabel?.trim();
+      if (label) return label;
+      if (value < 90) return '异常偏低';
+      if (value < 95) return '较低';
+      return '正常';
+    },
+  },
+  心率: {
+    apiType: WEARABLE_DATA_TYPES.heartRate,
+    label: '心率',
+    unit: '次/分钟',
+    parseValue: raw => (raw > 0 ? Math.round(raw) : null),
+    getLevelLabel: (value, highLowLabel) => {
+      const label = highLowLabel?.trim();
+      if (label) return label;
+      if (value > 100) return '偏高';
+      if (value < 60) return '偏低';
+      return '正常';
+    },
+  },
+};
+
+function flattenWearableOriginalData(readings?: WearableOriginalReading[] | WearableOriginalReading[][]) {
+  if (!readings?.length) return [] as WearableOriginalReading[];
+  if (Array.isArray(readings[0])) {
+    return (readings as WearableOriginalReading[][]).flat();
+  }
+  return readings as WearableOriginalReading[];
+}
+
+function buildWearableRecords(
+  originalData: WearableOriginalReading[] | WearableOriginalReading[][] | undefined,
+  config: WearableDetailConfig,
+): WearableReadingRecord[] {
+  const records: WearableReadingRecord[] = [];
+
+  for (const [index, reading] of flattenWearableOriginalData(originalData).entries()) {
+    const raw = Number(reading.value);
+    if (!Number.isFinite(raw)) continue;
+    const value = config.parseValue(raw);
+    if (value == null) continue;
+    const ts = moment(reading.startDate ?? reading.endDate);
+    const recordTime = ts.isValid() ? ts.format('YYYY-MM-DD HH:mm') : '--';
+    records.push({
+      key: reading.id ?? `${reading.startDate ?? reading.endDate ?? index}-${index}`,
+      time: ts.isValid() ? ts.format('HH:mm') : '--',
+      recordTime,
+      value,
+      level: config.getLevelLabel(value, reading.highLowLabel),
+      sourceName: reading.sourceName,
+    });
+  }
+
+  return records.sort((a, b) => b.recordTime.localeCompare(a.recordTime));
 }
 
 function MeasureRecordCard({
@@ -208,12 +299,87 @@ function MeasureRecordCard({
   );
 }
 
+function WearableRecordCard({
+  item,
+  label,
+  unit,
+  expanded,
+  onToggle,
+}: {
+  item: WearableReadingRecord;
+  label: string;
+  unit: string;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const levelColor = getLevelColor(item.level);
+
+  return (
+    <View style={styles.mapBox}>
+      <Flex justify="between" style={styles.mapItem}>
+        <Flex>
+          <Image
+            style={styles.mapIcon}
+            tintColor={AppTheme.textPrimary}
+            source={require('@/assets/images/user/nl.png')}
+          />
+          <Text style={styles.mapTime}>{item.time}</Text>
+        </Flex>
+        <Flex style={[styles.mapValueBox, { backgroundColor: getLevelBgColor(item.level) }]}>
+          <Text style={[styles.mapValue, { color: levelColor }]}>{item.level}</Text>
+        </Flex>
+      </Flex>
+      <Flex justify="between" align="start" style={styles.mapItem}>
+        <View style={styles.mapItemLeft}>
+          <Text style={styles.mapItemText}>{label}</Text>
+        </View>
+        <View style={styles.mapItemRight}>
+          <Text style={styles.mapItemValue}>{item.value}</Text>
+          <Text style={styles.mapItemUnit}>{unit}</Text>
+        </View>
+      </Flex>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        style={[styles.expandBtn, expanded && styles.expandBtnExpanded]}
+        onPress={onToggle}>
+        <Flex align="center" justify="center">
+          <Text style={styles.expandText}>{expanded ? '收起' : '展开'}</Text>
+          <MaterialIcons
+            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+            size={18}
+            color={AppTheme.textSecondary}
+          />
+        </Flex>
+      </TouchableOpacity>
+
+      {expanded ? (
+        <View style={styles.expandDetail}>
+          <View style={styles.rowLine} />
+          <Flex justify="between" style={styles.mapItem}>
+            <View>
+              <Text style={styles.mapLeftText}>记录时间</Text>
+              {item.sourceName ? <Text style={styles.mapLeftText}>数据来源</Text> : null}
+            </View>
+            <View>
+              <Text style={styles.mapRightText}>{item.recordTime}</Text>
+              {item.sourceName ? <Text style={styles.mapRightText}>{item.sourceName}</Text> : null}
+            </View>
+          </Flex>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export default function AllDataPage({ route }: Props) {
-  const measureType = route.params?.type ?? '血压';
+  const measureType = (route.params?.type ?? '血压') as VitalsMeasureType;
+  const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率'];
+  const isWearableType = Boolean(wearableConfig);
   const navigation = useNavigation<Nav>();
   const [currentMonth, setCurrentMonth] = useState(moment());
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
   const [records, setRecords] = useState<MeasureDataItem[]>([]);
+  const [wearableRecords, setWearableRecords] = useState<WearableReadingRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
@@ -221,24 +387,40 @@ export default function AllDataPage({ route }: Props) {
   useEffect(() => {
     navigation.setOptions({
       title: PAGE_TITLES[measureType],
-      headerRight: () => (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={{ marginRight: 16 }}
-          onPress={() => navigation.navigate('AddDataPage', { type: measureType })}>
-          <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>新增记录</Text>
-        </TouchableOpacity>
-      ),
+      headerRight: isWearableType
+        ? undefined
+        : () => (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={{ marginRight: 16 }}
+            onPress={() => navigation.navigate('AddDataPage', { type: measureType as MeasureDataType })}>
+            <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>新增记录</Text>
+          </TouchableOpacity>
+        ),
     });
-  }, [measureType, navigation]);
+  }, [isWearableType, measureType, navigation]);
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
     setExpandedKey(null);
     try {
+      if (wearableConfig) {
+        const res = (await getWearableDataDetailByCustomerLocalDate({
+          customerLocalDate: selectedDate,
+          type: wearableConfig.apiType,
+        })) as unknown as WearableDataDetailResult;
+        if (!isResourceApiOk(res)) {
+          setWearableRecords([]);
+          return;
+        }
+        const data = apiResourceData<WearableDataItem>(res);
+        setWearableRecords(buildWearableRecords(data?.originalData, wearableConfig));
+        return;
+      }
+
       const res = (await getMeasureDataDetailByDate({
         customerLocalDate: selectedDate,
-        type: measureType,
+        type: measureType as MeasureDataType,
       })) as unknown as MeasureDataDetailResult;
       if (!isResourceApiOk(res)) {
         setRecords([]);
@@ -248,10 +430,11 @@ export default function AllDataPage({ route }: Props) {
       setRecords(Array.isArray(data) ? sortRecordsDesc(data) : []);
     } catch {
       setRecords([]);
+      setWearableRecords([]);
     } finally {
       setLoading(false);
     }
-  }, [measureType, selectedDate]);
+  }, [measureType, selectedDate, wearableConfig]);
 
   const loadRecordsRef = useRef(loadRecords);
   loadRecordsRef.current = loadRecords;
@@ -316,6 +499,7 @@ export default function AllDataPage({ route }: Props) {
             {calendarDays.map(day => {
               const dateKey = day.date.format('YYYY-MM-DD');
               const isSelected = selectedDate === dateKey;
+              const isToday = day.date.isSame(moment(), 'day');
               return (
                 <TouchableOpacity
                   key={dateKey}
@@ -331,7 +515,7 @@ export default function AllDataPage({ route }: Props) {
                             ? styles.dayText
                             : styles.dayTextOther
                       }>
-                      {day.date.date()}
+                      {isToday ? '今' : day.date.date()}
                     </Text>
                   </View>
                 </TouchableOpacity>
@@ -346,25 +530,36 @@ export default function AllDataPage({ route }: Props) {
           </View>
         ) : null}
 
-        {!loading && records.length === 0 ? (
+        {!loading && (isWearableType ? wearableRecords.length === 0 : records.length === 0) ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>暂无记录</Text>
           </View>
         ) : null}
 
-        {records.map((item, index) => {
-          const itemKey = String(item.id ?? `${item.dataTime}-${item.val}-${index}`);
-          return (
-            <MeasureRecordCard
-              key={itemKey}
+        {isWearableType && wearableConfig
+          ? wearableRecords.map(item => (
+            <WearableRecordCard
+              key={item.key}
               item={item}
-              type={measureType}
-              expanded={expandedKey === itemKey}
-              onToggle={() => setExpandedKey(prev => (prev === itemKey ? null : itemKey))}
-              onPress={() => navigation.navigate('AddDataPage', { type: measureType, item })}
+              label={wearableConfig.label}
+              unit={wearableConfig.unit}
+              expanded={expandedKey === item.key}
+              onToggle={() => setExpandedKey(prev => (prev === item.key ? null : item.key))}
             />
-          );
-        })}
+          ))
+          : records.map((item, index) => {
+            const itemKey = String(item.id ?? `${item.dataTime}-${item.val}-${index}`);
+            return (
+              <MeasureRecordCard
+                key={itemKey}
+                item={item}
+                type={measureType as MeasureDataType}
+                expanded={expandedKey === itemKey}
+                onToggle={() => setExpandedKey(prev => (prev === itemKey ? null : itemKey))}
+                onPress={() => navigation.navigate('AddDataPage', { type: measureType as MeasureDataType, item })}
+              />
+            );
+          })}
       </ScrollView>
     </SafeAreaView>
   );

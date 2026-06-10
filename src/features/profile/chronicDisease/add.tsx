@@ -7,6 +7,7 @@ import moment from 'moment';
 import styles from '@/css/chronicDisease/add';
 import { AppTheme } from '@/common/theme';
 import { MaterialIcons } from '@expo/vector-icons';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 const CHRONIC_TYPE_GROUPS = [
     { title: null, options: ['高血脂', '高血压', '冠心病'] },
@@ -74,6 +75,7 @@ export default function ChronicDiseaseAddPage() {
 
     return (
         <SafeAreaView edges={['bottom']} style={styles.container}>
+            <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <View style={styles.rowBox}>
                     <Text style={styles.sectionTitle}>基础信息</Text>
@@ -163,6 +165,7 @@ export default function ChronicDiseaseAddPage() {
                                     placeholderTextColor={AppTheme.textSecondary}
                                     value={currentMedication}
                                     onChangeText={setCurrentMedication}
+                                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                                 />
                             </View>
                             <View style={styles.rowLine} />
@@ -175,6 +178,7 @@ export default function ChronicDiseaseAddPage() {
                                     placeholderTextColor={AppTheme.textSecondary}
                                     value={dosage}
                                     onChangeText={setDosage}
+                                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                                 />
                             </View>
                             <View style={styles.rowLine} />
