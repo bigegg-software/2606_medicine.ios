@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -10,15 +10,39 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/community/community';
 import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
+import ActivityPage from './components/activity';
+import LivePage from './components/live';
+import CoursePage from './components/course';
+import RankingPage from './components/ranking';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const NAV_LIST = [
+  { label: '活动', value: 'activity', path: ActivityPage },
+  { label: '直播', value: 'live', path: LivePage },
+  { label: '课程', value: 'course', path: CoursePage },
+  { label: '排行榜', value: 'ranking', path: RankingPage },
+] as const;
+
+function getNavBackground(index: number, total: number) {
+  if (index === 0) {
+    return require('@/assets/images/community/leftBack.png');
+  }
+  if (index === total - 1) {
+    return require('@/assets/images/community/rightBack.png');
+  }
+  return require('@/assets/images/community/cenBack.png');
+}
 
 
 
 export default function CommunityPage() {
+
+
   const navigation: any = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
 
-  const [activeNav, setActiveNav] = useState('all');
+  const [activeNav, setActiveNav] = useState<string>(NAV_LIST[0].value);
+
   const navList = [
     {
       label: '全部',
@@ -48,73 +72,47 @@ export default function CommunityPage() {
       <Text style={styles.pageTitle}>社区服务</Text>
       <View style={styles.pageLine} />
 
-      <Flex style={styles.navBox}>
-        {navList.map((item, index) => (
-          <TouchableOpacity style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
-            <View style={styles.navItemWrap}>
-              <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>{item.label}</Text>
-              {activeNav === item.value ? (
-                <View style={styles.navIndicatorWrap}>
-                  <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
-                </View>
-              ) : null}
-            </View>
-          </TouchableOpacity>
-        ))}
-      </Flex>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.sectionTitle}>营养处方</Text>
-        <View style={styles.mapBox}>
-          <Flex justify='between' style={styles.mapBoxItem}>
-            <View style={styles.mapLeftBox}>
-              <Text style={styles.mapBoxItemTitle}>公园太极拳活动</Text>
-              <Flex style={{ marginTop: 4 }}>
-                <Image style={styles.mapIcon} tintColor={"#999"} source={require('@/assets/images/home/nz.png')} />
-                <Text style={styles.mapText}>明天9:00</Text>
-                <Image style={styles.mapIcon} tintColor={"#999"} source={require('@/assets/images/home/dw.png')} />
-                <Text style={styles.mapText}>朝阳公园正门</Text>
-              </Flex>
-            </View>
-            <Image source={require('@/assets/images/home/head.png')} style={styles.mapBoxItemImg} />
-          </Flex>
-        </View>
-        <Text style={styles.sectionTitle}>最新动态</Text>
-        <View style={styles.newDynamicBox}>
-          <Image source={require('@/assets/images/home/head.png')} style={styles.newDynamicIcon} />
-          <View style={styles.newDynamicContent}>
-            <Text style={styles.mapBoxItemTitle}>公园太极拳活动</Text>
-            <Text style={styles.newDynamicContentText}>每周六上午在朝阳公园东门集合，由专业教练带领练习太极拳，适合各年龄段老年人参加。</Text>
-            <Flex style={{ marginTop: 6 }}>
-              <Image style={styles.mapIcon} tintColor={"#999"} source={require('@/assets/images/home/nz.png')} />
-              <Text style={styles.mapText}>明天9:00</Text>
-              <Image style={styles.mapIcon} tintColor={"#999"} source={require('@/assets/images/home/dw.png')} />
-              <Text style={styles.mapText}>朝阳公园正门</Text>
-            </Flex>
-            <Flex justify='between' style={styles.btmBox}>
-              <Flex justify='center' align='center'>
-                <Flex style={styles.headBox}>
-                  <Image source={require('@/assets/images/home/head.png')} style={styles.head1} />
-                  <Image source={require('@/assets/images/home/head.png')} style={styles.head2} />
-                  <Image source={require('@/assets/images/home/head.png')} style={styles.head3} />
-                </Flex>
-                <Text style={styles.btmText}>花开富贵等28人参与</Text>
-              </Flex>
-              <TouchableOpacity style={styles.btmBtn}>
-                <Flex justify='center' style={{ flex: 1 }}>
-                  <Text style={styles.btmBtnText}>立即报名</Text>
-                </Flex>
+
+      <Flex justify='center'>
+        <View style={styles.topNavBox}>
+          {NAV_LIST.map((item, index) => {
+            const isActive = activeNav === item.value;
+            const label = (
+              <Text style={[styles.topNavItemText, isActive && styles.topNavItemTextActive]}>{item.label}</Text>
+            );
+
+            return (
+              <TouchableOpacity
+                style={styles.topNavItem}
+                key={item.value}
+                activeOpacity={0.8}
+                onPress={() => setActiveNav(item.value)}>
+                {isActive ? (
+                  <ImageBackground
+                    source={getNavBackground(index, NAV_LIST.length)}
+                    style={styles.topNavItemBg}
+                    resizeMode="stretch">
+                    {label}
+                  </ImageBackground>
+                ) : (
+                  label
+                )}
               </TouchableOpacity>
-            </Flex>
-          </View>
+            );
+          })}
         </View>
-        <Text style={styles.timeText}>5月20日 10:00</Text>
-        <View style={styles.newDynamicBox}>
-          <View style={styles.newDynamicContent}>
-            <Text style={[styles.mapBoxItemTitle, { textAlign: 'center' }]}>公园太极拳活动</Text>
-            <Text style={[styles.newDynamicContentText, { marginTop: 12 }]}>每周六上午在朝阳公园东门集合，由专业教练带领练习太极拳，适合各年龄段老年人参加。</Text>
-          </View>
-        </View>
-      </ScrollView>
+      </Flex>
+      <View style={styles.pageContent}>
+        {activeNav === 'ranking' ? (
+          <RankingPage />
+        ) : (
+          <ScrollView contentContainerStyle={styles.scroll}>
+            {NAV_LIST[0].value === activeNav && <ActivityPage />}
+            {NAV_LIST[1].value === activeNav && <LivePage />}
+            {NAV_LIST[2].value === activeNav && <CoursePage />}
+          </ScrollView>
+        )}
+      </View>
     </SafeAreaView>
   );
 }

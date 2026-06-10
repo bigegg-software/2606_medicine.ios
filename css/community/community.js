@@ -4,158 +4,160 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
     headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 310 },
+    topNavBox: {
+        flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', marginTop: 8, paddingHorizontal: 4, borderBottomWidth: 1,
+        borderBottomColor: "rgba(5, 58, 147, 0.06)",
+    },
+    topNavItem: { alignItems: 'center', justifyContent: 'center', minHeight: 36, },
+    topNavItemBg: { minHeight: 36, alignItems: 'center', justifyContent: 'center', },
+    topNavItemText: { paddingHorizontal: 19, fontWeight: '400', fontSize: 16, color: '#999999' },
+    topNavItemTextActive: { paddingHorizontal: 19, fontWeight: '500', fontSize: 18, color: '#053A93' },
+
+    mapBoxItemImg: { width: 68, height: 68, borderRadius: 6, },
+    mapRightBox: { marginLeft: 17, flex: 1 },
+    mapBoxItemTitle: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, },
+    mapRightBtn: { height: 19, backgroundColor: "#00C950", borderRadius: 16, },
+    mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
+    wbmBtn: { height: 19, backgroundColor: "#053A93", borderRadius: 16, },
+    wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
+    mapIntro: { marginTop: 11, fontWeight: 400, fontSize: 14, lineHeight: 20, color: AppTheme.textSecondary }, mapBox: { marginTop: 14, },
+    mapBoxItem: {
+        marginBottom: 10, paddingHorizontal: 19, paddingVertical: 12, paddingBottom: 17, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08, shadowRadius: 12, backgroundColor: "#FFF", borderRadius: 8
+    },
     pageTitle: { height: 27, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 27, textAlign: "center" },
     pageLine: { marginTop: 18, height: 1, backgroundColor: "#053A93", opacity: 0.06 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    pageContent: { flex: 1 },
     scroll: { padding: 18, paddingTop: 8, paddingBottom: 40 },
-    navBox: { marginTop: 16, paddingHorizontal: 18, paddingBottom: 10 },
+    navBox: { marginTop: 14, paddingHorizontal: 14, paddingBottom: 0 },
     navCol: { paddingHorizontal: 8 },
-    navItemWrap: {
-        position: 'relative',
-        alignItems: 'center',
-        paddingBottom: 12,
-    },
-    navText: { fontWeight: 400, fontSize: 16, color: "#999999", lineHeight: 22 },
+    navItemWrap: { position: 'relative', alignItems: 'center', paddingBottom: 12, },
+    navText: { fontWeight: 400, fontSize: 16, color: AppTheme.textSecondary, lineHeight: 22 },
     activeNavText: { color: AppTheme.primaryColor, fontWeight: 500, fontSize: 18, lineHeight: 24 },
-    navIndicatorWrap: {
+    navIndicatorWrap: { position: 'absolute', left: 0, right: 0, bottom: 6, alignItems: 'center', },
+    navIndicator: { width: 34, height: 10, },
+    sectionTitle: { marginTop: 16, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, },
+    mapIcon: { width: 14, height: 14, },
+    mapText: { marginLeft: 2, marginRight: 7, height: 19, fontWeight: 400, fontSize: 14, color: "rgba(43,18,13,0.75)", lineHeight: 19, },
+    newDynamicBox: {
+        marginTop: 14, backgroundColor: "#FFF", borderRadius: 8, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08, shadowRadius: 12,
+    },
+    newDynamicContent: { paddingHorizontal: 19, paddingVertical: 16 },
+    newDynamicContentText: { marginTop: 6, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 19, },
+    timeText: { marginTop: 15, height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 19, textAlign: "center", },
+
+    // live
+    liveTopRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 12, },
+    liveTopBox: {
+        width: '48%', borderRadius: 14, backgroundColor: "#FFF", shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08, shadowRadius: 14,
+    },
+    liveTopInfo: { padding: 8, },
+    liveTopText: { fontWeight: 400, fontSize: 14, color: "#000000", },
+    liveTopIntro: { marginTop: 4, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, },
+    liveTopImgWrap: { position: 'relative', width: '100%', aspectRatio: 1, borderTopLeftRadius: 14, borderTopRightRadius: 14, overflow: 'hidden', },
+    liveTopImg: { width: '100%', height: '100%', },
+    liveTopCategoryTag: {
+        position: 'absolute', top: 0, right: 0, height: 24, paddingHorizontal: 8, backgroundColor: '#B4D0FF', borderTopRightRadius: 8,
+        borderBottomLeftRadius: 14
+    },
+    liveTopCategoryText: { fontWeight: '400', fontSize: 12, color: '#053A93', },
+    liveTopLiveTag: {
+        position: 'absolute', right: 6, bottom: 6, height: 16, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center',
+        justifyContent: 'center', gap: 3, backgroundColor: 'rgba(0, 0, 0, 0.62)', borderRadius: 8,
+    },
+    liveTopLiveDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#34C759', },
+    liveTopLiveText: { fontWeight: '400', fontSize: 10, color: '#FFFFFF', lineHeight: 12, },
+    liveImg: { width: 85, height: 85, borderRadius: 6, },
+    liveMapBox: { marginLeft: 10, flex: 1 },
+
+
+    // Course
+    courseBox: { marginTop: 12, backgroundColor: "#FEFFFF", borderRadius: 8, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 }, },
+    courseImgWrap: { position: 'relative', width: '100%' },
+    courseImg: { width: '100%', height: 155, borderRadius: 8, },
+    courseBoxInfo: { padding: 18 },
+    courseTitle: { fontWeight: 500, fontSize: 16, color: "#333333" },
+    courseText: { fontWeight: 400, marginTop: 10, fontSize: 14, color: "#999999" },
+    gkrsText: { position: 'absolute', zIndex: 1, bottom: 5, left: 10, fontWeight: 400, fontSize: 12, color: "#FFFFFF" },
+    coursePlayIcon: { position: 'absolute', top: '50%', left: '50%', width: 38, height: 38, transform: [{ translateX: -19 }, { translateY: -19 }], },
+    courseIcon: { width: 19, height: 19, marginLeft: 21 },
+
+
+    //ranking
+    rankingBpx: {},
+    headImgBox: { width: 54, height: 54, position: "relative" },
+    headImg: { width: 54, height: 54 },
+    headBg: { position: "absolute", width: 32, height: 19, bottom: 0, left: 11 },
+    rankingItem: {
+        width: '30%', paddingVertical: 17, backgroundColor: '#FFF', borderRadius: 8, shadowColor: '#053A93',
+        shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
+    },
+    rankingItemText: { marginTop: 7, fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, },
+    avatarIcon: { width: 18, height: 18 },
+    avatarValue: { marginLeft: 5, height: 19, fontWeight: 400, fontSize: 14, color: "#053A93", lineHeight: 19 },
+    rankingItemBox: {
+        marginTop: 12,
+        height: 70,
+        paddingHorizontal: 24,
+        paddingVertical: 14,
+        backgroundColor: "#FEFFFF",
+        shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08, shadowRadius: 12,
+        borderRadius: 12,
+    },
+    numBox: {
+        width:40,
+        textAlign:"left",
+        fontWeight: 400,
+        fontSize: 20,
+        color: "#A4A4A4",
+    },
+    rankingItemText2: {
+        fontWeight: 400,
+        fontSize: 14,
+        color: "#999999"
+    },
+    rankingPage: { flex: 1 },
+    rankingScroll: { flex: 1 },
+    rankingScrollContent: { paddingHorizontal: 18, paddingBottom: 86 },
+    rankingListInfo: { flex: 1, marginLeft: 17 },
+    rankingScoreRow: { marginTop: 7 },
+    rankingMeBar: {
         position: 'absolute',
         left: 0,
         right: 0,
-        bottom: 6,
-        alignItems: 'center',
+        bottom: 0,
     },
-    navIndicator: {
-        width: 34,
-        height: 10,
-    },
-    sectionTitle: {
-        marginTop: 16,
-        fontWeight: 500,
-        fontSize: 18,
-        color: AppTheme.textPrimary,
-    },
-    mapBox: {
-        marginTop: 14,
-    },
-    mapBoxItem: {
-        marginBottom: 10,
-        paddingHorizontal: 21,
-        paddingVertical: 7,
+    rankingMeItemBox: {
+        height: 70,
+        paddingHorizontal: 42,
+        paddingVertical: 14,
+        backgroundColor: "#FEFFFF",
         shadowColor: '#053A93',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
-        backgroundColor: "#FFF",
-        borderRadius: 8
+        borderTopLeftRadius: 12,
+        borderTopRightRadius: 12,
     },
-    mapLeftBox: {
-        paddingTop: 9
-    },
-    mapBoxItemTitle: {
-        height: 22,
-        fontWeight: 500,
-        fontSize: 16,
-        color: AppTheme.textPrimary,
-    },
-    mapBoxItemImg: {
-        width: 62,
-        height: 62
-    },
-    mapIcon: {
-        width: 14,
-        height: 14,
-    },
-    mapText: {
-        marginLeft: 2,
-        marginRight: 7,
-        height: 19,
-        fontWeight: 400,
-        fontSize: 14,
-        color: "#999",
-        lineHeight: 19,
-    },
-    newDynamicBox: {
-        marginTop: 14,
-        backgroundColor: "#FFF",
-        borderRadius: 8,
-        shadowColor: '#053A93',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-    },
-    newDynamicIcon: {
-        height: 155,
-        width: "100%",
-        borderRadius: 8,
-        overflow: "hidden"
-    },
-    newDynamicContent: {
-        paddingHorizontal: 19,
-        paddingVertical: 16
-    },
-    newDynamicContentText: {
-        marginTop: 6,
-        fontWeight: 400,
-        fontSize: 14,
-        color: "#999999",
-        lineHeight: 19,
-    },
-    btmBox: {
-        marginTop: 16
-    },
-    headBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        width: 58,
-        height: 30,
-    },
-    head1: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        zIndex: 1,
-    },
-    head2: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        marginLeft: -16,
-        zIndex: 2,
-    },
-    head3: {
-        width: 30,
-        height: 30,
-        borderRadius: 15,
-        marginLeft: -16,
-        zIndex: 3,
-    },
-    btmText: {
-        fontWeight: 400,
-        fontSize: 12,
-        color: "#999999",
-        marginLeft: 7,
-        lineHeight: 30
-    },
-    btmBtn: {
-        height: 26,
-        borderRadius: 13,
-        paddingHorizontal: 13,
-        backgroundColor: "#053A93",
-    },
-    btmBtnText: {
-        fontWeight: 500,
-        fontSize: 12,
-        color: "#FEFFFF",
-    },
-    timeText: {
-        marginTop: 15,
-        height: 19,
-        fontWeight: 400,
-        fontSize: 14,
-        color: "#999999",
-        lineHeight: 19,
-        textAlign: "center",
-    }
-});
+    listImg:{width:42,height:42}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+})
 
 export default styles;
