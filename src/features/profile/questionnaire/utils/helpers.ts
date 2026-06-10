@@ -20,6 +20,21 @@ export const QUESTIONNAIRE_TITLES: Record<QuestionnaireType, string> = {
     3: '认知功能评估',
 };
 
+const ASSESSMENT_INTERVAL_MONTHS: Partial<Record<QuestionnaireType, number>> = {
+    0: 3,
+    1: 6,
+    2: 3,
+};
+
+export function canStartAssessment(type: QuestionnaireType, lastDate?: string) {
+    const months = ASSESSMENT_INTERVAL_MONTHS[type];
+    if (months == null) return true;
+    if (!lastDate) return true;
+    const last = moment(lastDate);
+    if (!last.isValid()) return true;
+    return moment().isSameOrAfter(last.clone().add(months, 'months'), 'day');
+}
+
 const MAX_SCORE_BY_TYPE: Partial<Record<QuestionnaireType, number>> = {
     0: 100,
     1: 60,

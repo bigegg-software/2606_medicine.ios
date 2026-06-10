@@ -24,7 +24,9 @@ const styles = StyleSheet.create({
     rowLine: { height: 1, backgroundColor: '#E8DED2', width: "100%" },
     btmBox: { marginTop: 18 },
     startBtn: { paddingHorizontal: 20, height: 29, backgroundColor: '#053A93', borderRadius: 15 },
+    startBtnDisabled: { backgroundColor: 'rgba(5, 58, 147, 0.35)' },
     startText: { fontWeight: 500, fontSize: 14, color: '#FFFFFF' },
+    startTextDisabled: { color: 'rgba(255, 255, 255, 0.85)' },
     moreText: { marginTop: 16, fontWeight: 400, fontSize: 14, color: AppTheme.primaryColor },
 
 

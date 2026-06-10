@@ -16,6 +16,7 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import {
     buildLastAssessmentMap,
+    canStartAssessment,
     QUESTIONNAIRE_TITLES,
     sortRecordsByTime,
     toHistoryItem,
@@ -28,10 +29,10 @@ const QUESTIONNAIRE_LIST: {
     title: string;
     duration: string;
 }[] = [
-    { type: 0, title: QUESTIONNAIRE_TITLES[0], duration: '5分钟' },
-    { type: 1, title: QUESTIONNAIRE_TITLES[1], duration: '5分钟' },
-    { type: 2, title: QUESTIONNAIRE_TITLES[2], duration: '5分钟' },
-];
+        { type: 0, title: QUESTIONNAIRE_TITLES[0], duration: '5分钟' },
+        { type: 1, title: QUESTIONNAIRE_TITLES[1], duration: '5分钟' },
+        { type: 2, title: QUESTIONNAIRE_TITLES[2], duration: '5分钟' },
+    ];
 
 export default function QuestionnaireListPage() {
     const navigation: any = useNavigation();
@@ -94,6 +95,7 @@ export default function QuestionnaireListPage() {
                     const lastAssessment = lastAssessmentByType[item.type];
                     const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
                     const statusStyle = styles[lastAssessment?.statusStyle ?? 'rowStatus'];
+                    const canStart = canStartAssessment(item.type, lastAssessment?.date);
 
                     return (
                         <View key={item.type} style={styles.rowBox}>
@@ -117,10 +119,13 @@ export default function QuestionnaireListPage() {
                                     )}
                                 </View>
                                 <TouchableOpacity
-                                    style={styles.startBtn}
+                                    style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
+                                    disabled={!canStart}
                                     onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
                                     <Flex style={{ flex: 1 }} justify="center">
-                                        <Text style={styles.startText}>开始评估</Text>
+                                        <Text style={[styles.startText, !canStart && styles.startTextDisabled]}>
+                                            开始评估
+                                        </Text>
                                     </Flex>
                                 </TouchableOpacity>
                             </Flex>
