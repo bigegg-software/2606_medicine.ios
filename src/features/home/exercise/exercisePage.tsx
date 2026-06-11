@@ -1,53 +1,80 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Text, View, ScrollView, Image, TouchableOpacity } from 'react-native';
+import { Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { SafeAreaView } from 'react-native-safe-area-context';
-
 import { Flex } from '@ant-design/react-native';
 import moment from 'moment';
-import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getMedicalRecordInfo, type MedicalRecord } from '@/api/medicalRecord';
+import { useFocusEffect } from '@react-navigation/native';
+import { getInUseExPatientRuleInfo, getExPatientRuleList, type ExPatientRuleInfo } from '@/api/exPatientRule';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/home/exercise';
-import { apiResourceData } from '@/src/utils/apiHelpers';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/store/store';
-import type { RootStackParamList } from '@/route/router';
+import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+    buildExerciseTaskSummary,
+    buildHistoryPlanItem,
+    buildWeekDaysFromCalendar,
+    getPrescriptionSummary,
+    loadExerciseDictMaps,
+    loadExerciseWeekCalendar,
+    loadExerciseWeekStats,
+    normalizeExPatientRuleInfo,
+    normalizeExerciseProgress,
+    toQueryId,
+    type ExerciseDictMaps,
+    type ExerciseWeekDayItem,
+    type ExerciseWeekStats,
+} from './exerciseHelpers';
 
 const PROGRESS_SIZE = 48;
 const PROGRESS_STROKE = 6;
-const PROGRESS_VALUE = 67;
 const BTN_BORDER_STROKE = 2;
-const TASK_PROGRESS = 40;
-const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
+const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 const DASH_COUNT = 30;
 
-type WeekDayItem = {
-    date: moment.Moment;
-    completed: boolean;
-    done: number;
-    total: number;
-};
+function ProgressRing({ progress }: { progress: number }) {
+    const value = normalizeExerciseProgress(progress);
+    const progressRadius = (PROGRESS_SIZE - PROGRESS_STROKE) / 2;
+    const progressCenter = PROGRESS_SIZE / 2;
+    const progressPath = useMemo(() => {
+        const path = Skia.Path.Make();
+        path.addArc(
+            {
+                x: progressCenter - progressRadius,
+                y: progressCenter - progressRadius,
+                width: progressRadius * 2,
+                height: progressRadius * 2,
+            },
+            -90,
+            (360 * value) / 100,
+        );
+        return path;
+    }, [progressCenter, progressRadius, value]);
 
-function buildCurrentWeekDays(): WeekDayItem[] {
-    const weekStart = moment().startOf('week');
-    const mockStats = [
-        { completed: true, done: 3, total: 3 },
-        { completed: false, done: 1, total: 3 },
-        { completed: false, done: 0, total: 8 },
-        { completed: true, done: 2, total: 2 },
-        { completed: false, done: 2, total: 5 },
-        { completed: false, done: 0, total: 3 },
-        { completed: false, done: 0, total: 8 },
-    ];
-
-    return mockStats.map((item, index) => ({
-        date: moment(weekStart).add(index, 'day'),
-        ...item,
-    }));
+    return (
+        <View style={styles.progressRing}>
+            <Canvas style={styles.progressCanvas}>
+                <Circle
+                    cx={progressCenter}
+                    cy={progressCenter}
+                    r={progressRadius}
+                    color="rgba(5,58,147,0.14)"
+                    style="stroke"
+                    strokeWidth={PROGRESS_STROKE}
+                />
+                <Path
+                    path={progressPath}
+                    color="#053A93"
+                    style="stroke"
+                    strokeWidth={PROGRESS_STROKE}
+                    strokeCap="round"
+                />
+            </Canvas>
+            <Text style={styles.progressText}>{value}%</Text>
+        </View>
+    );
 }
 
-function WeekDayCell({ item }: { item: WeekDayItem }) {
+function WeekDayCell({ item }: { item: ExerciseWeekDayItem }) {
     const isToday = item.date.isSame(moment(), 'day');
     const isFuture = item.date.isAfter(moment(), 'day');
 
@@ -283,73 +310,126 @@ function AutoScrollText({ children }: { children: string }) {
 }
 
 export default function ExercisePage() {
-    const weekDays = useMemo(() => buildCurrentWeekDays(), []);
+    const [loading, setLoading] = useState(true);
+    const [prescription, setPrescription] = useState<ExPatientRuleInfo | null>(null);
+    const [historyPlans, setHistoryPlans] = useState<ExPatientRuleInfo[]>([]);
+    const [dictMaps, setDictMaps] = useState<ExerciseDictMaps | null>(null);
+    const [weekDays, setWeekDays] = useState<ExerciseWeekDayItem[]>(() => buildWeekDaysFromCalendar());
+    const [weekStats, setWeekStats] = useState<ExerciseWeekStats>(() => ({
+        trainingCount: '--',
+        completionRate: '--',
+        totalDuration: '--',
+    }));
 
-    const progressRadius = (PROGRESS_SIZE - PROGRESS_STROKE) / 2;
-    const progressCenter = PROGRESS_SIZE / 2;
-    const progressPath = useMemo(() => {
-        const path = Skia.Path.Make();
-        path.addArc(
-            {
-                x: progressCenter - progressRadius,
-                y: progressCenter - progressRadius,
-                width: progressRadius * 2,
-                height: progressRadius * 2,
-            },
-            -90,
-            (360 * PROGRESS_VALUE) / 100,
-        );
-        return path;
-    }, [progressCenter, progressRadius]);
+    const summary = useMemo(() => getPrescriptionSummary(prescription), [prescription]);
+    const todayTasks = useMemo(
+        () => (prescription?.ruleRatioList ?? []).map(rule => buildExerciseTaskSummary(rule, dictMaps ?? undefined)),
+        [prescription?.ruleRatioList, dictMaps],
+    );
+    const historyItems = useMemo(
+        () => historyPlans.map(buildHistoryPlanItem),
+        [historyPlans],
+    );
 
+    useEffect(() => {
+        loadExerciseDictMaps()
+            .then(setDictMaps)
+            .catch(() => setDictMaps(null));
+    }, []);
+
+    const loadPrescription = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [inUseRes, historyRes] = await Promise.all([
+                getInUseExPatientRuleInfo(),
+                getExPatientRuleList({ status: 2, pageSize: 10, pageNum: 1 }),
+            ]);
+
+            let current: ExPatientRuleInfo | null = null;
+            if (isResourceApiOk(inUseRes)) {
+                const raw = apiResourceData<ExPatientRuleInfo>(inUseRes);
+                current = raw ? normalizeExPatientRuleInfo(raw) : null;
+                setPrescription(current);
+            } else {
+                setPrescription(null);
+            }
+
+            const [calendarDays, stats] = await Promise.all([
+                loadExerciseWeekCalendar(current?.exPatientRuleId),
+                loadExerciseWeekStats(current?.exPatientRuleId),
+            ]);
+            setWeekDays(calendarDays);
+            setWeekStats(stats);
+
+            const rows = getResourceRows<ExPatientRuleInfo>(historyRes).map(normalizeExPatientRuleInfo);
+            const currentId = toQueryId(current?.exPatientRuleId);
+            setHistoryPlans(
+                currentId == null ? rows : rows.filter(item => toQueryId(item.exPatientRuleId) !== currentId),
+            );
+        } catch {
+            setPrescription(null);
+            setHistoryPlans([]);
+            setWeekDays(buildWeekDaysFromCalendar());
+            setWeekStats({
+                trainingCount: '--',
+                completionRate: '--',
+                totalDuration: '--',
+            });
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const loadPrescriptionRef = useRef(loadPrescription);
+    loadPrescriptionRef.current = loadPrescription;
+    const hasMountedRef = useRef(false);
+
+    useEffect(() => {
+        loadPrescription();
+    }, [loadPrescription]);
+
+    useFocusEffect(
+        useCallback(() => {
+            if (!hasMountedRef.current) {
+                hasMountedRef.current = true;
+                return;
+            }
+            loadPrescriptionRef.current();
+        }, []),
+    );
 
     return (
         <SafeAreaView edges={['bottom']} style={styles.container}>
+            {loading ? (
+                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+                    <ActivityIndicator color={AppTheme.primaryColor} />
+                </View>
+            ) : null}
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <View style={styles.medicalBox}>
                     <Flex justify='between'>
-                        <Text style={[styles.medicalTitle, { marginTop: 0 }]}>高血压康复运动处方</Text>
-                        <View style={styles.progressRing}>
-                            <Canvas style={styles.progressCanvas}>
-                                <Circle
-                                    cx={progressCenter}
-                                    cy={progressCenter}
-                                    r={progressRadius}
-                                    color="rgba(5,58,147,0.14)"
-                                    style="stroke"
-                                    strokeWidth={PROGRESS_STROKE}
-                                />
-                                <Path
-                                    path={progressPath}
-                                    color="#053A93"
-                                    style="stroke"
-                                    strokeWidth={PROGRESS_STROKE}
-                                    strokeCap="round"
-                                />
-                            </Canvas>
-                            <Text style={styles.progressText}>{PROGRESS_VALUE}%</Text>
-                        </View>
-
+                        <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{summary.title}</Text>
+                        <ProgressRing progress={summary.progress} />
                     </Flex>
                     <View style={styles.medicalInfoBox}>
                         <Flex>
                             <View style={[styles.medicalCol, styles.medicalColLeft]}>
-                                <Text style={styles.medicalInfoTitle}>医生</Text>
-                                <AutoScrollText>李建国（北京大学人民医院）</AutoScrollText>
+                                <Text style={styles.medicalInfoTitle}>康复师</Text>
+                                <AutoScrollText>{summary.doctor}</AutoScrollText>
                             </View>
                             <View style={styles.medicalCol}>
                                 <Text style={styles.medicalInfoTitle}>时长</Text>
-                                <Text style={styles.medicalInfoValue}>60分钟/次</Text>
+                                <Text style={styles.medicalInfoValue}>{summary.duration}</Text>
                             </View>
                         </Flex>
                         <Flex style={styles.medicalLine}>
                             <View style={[styles.medicalCol, styles.medicalColLeft]}>
                                 <Text style={styles.medicalInfoTitle}>周期</Text>
-                                <AutoScrollText>2024-06-15至2024-06-28</AutoScrollText>
+                                <AutoScrollText>{summary.cycle}</AutoScrollText>
                             </View>
                             <View style={styles.medicalCol}>
                                 <Text style={styles.medicalInfoTitle}>频率</Text>
-                                <Text style={styles.medicalInfoValue}>每周4次</Text>
+                                <Text style={styles.medicalInfoValue}>{summary.frequency}</Text>
                             </View>
                         </Flex>
                     </View>
@@ -357,40 +437,43 @@ export default function ExercisePage() {
 
                 <Flex justify='between'>
                     <Text style={styles.medicalTitle}>今日任务</Text>
-                    <Text style={styles.rightText}>进度40%</Text>
+                    {prescription ? (
+                        <Text style={styles.rightText}>进度{summary.progress}%</Text>
+                    ) : null}
                 </Flex>
-                <View style={styles.medicalBox}>
-                    <Flex justify='between' style={{ marginBottom: 6 }} >
-                        <Text style={[styles.leftTitle, styles.leftTitleDel]}>任务名称</Text>
-                        <Text style={styles.rightText}>时间：40分钟</Text>
-                    </Flex>
-                    <Flex justify='between' align="end">
-                        <View>
-                            <Text style={styles.leftText}>时长：弹力带训练5分钟</Text>
-                            <Text style={styles.leftText}>项目：自重训练、弹力带训练</Text>
-                        </View>
-                        <ProgressBorderButton progress={TASK_PROGRESS}>
-                            <Flex style={styles.medicalStatus}>
-                                <Image style={styles.statusIcon} source={require('@/assets/images/home/start.png')} />
-                                <Text style={styles.statusText}>开始</Text>
-                            </Flex>
-                        </ProgressBorderButton>
-                    </Flex>
-                </View>
 
-                <View style={styles.medicalBox}>
-                    <Flex justify='between' style={{ marginBottom: 6 }} >
-                        <Text style={[styles.leftTitle, styles.leftTitleDel]}>任务名称</Text>
-                        <Text style={styles.rightText}>时间：40分钟</Text>
-                    </Flex>
-                    <Flex justify='between' align="end">
-                        <View>
-                            <Text style={styles.leftText}>时长：弹力带训练5分钟</Text>
-                            <Text style={styles.leftText}>项目：自重训练、弹力带训练</Text>
-                        </View>
-                        <Text style={styles.ywcText}>已完成</Text>
-                    </Flex>
-                </View>
+                {!loading && !prescription ? (
+                    <View style={styles.medicalBox}>
+                        <Text style={styles.leftText}>暂无进行中的运动处方</Text>
+                    </View>
+                ) : null}
+
+                {todayTasks.map((task, index) => (
+                    <View key={`${task.title}-${index}`} style={styles.medicalBox}>
+                        <Flex justify='between' style={{ marginBottom: 6 }}>
+                            <Text style={styles.leftTitle}>{task.title}</Text>
+                            <Text style={styles.rightText}>时间：{task.durationText}</Text>
+                        </Flex>
+                        <Flex justify='between' align="end">
+                            <View style={{ flex: 1, paddingRight: 12 }}>
+                                <Text style={styles.leftText}>时长：{task.durationDetail}</Text>
+                                <Text style={styles.leftText}>项目：{task.projects}</Text>
+                            </View>
+                            <ProgressBorderButton progress={task.progress}>
+                                <Flex style={styles.medicalStatus}>
+                                    <Image style={styles.statusIcon} source={require('@/assets/images/home/start.png')} />
+                                    <Text style={styles.statusText}>开始</Text>
+                                </Flex>
+                            </ProgressBorderButton>
+                        </Flex>
+                    </View>
+                ))}
+
+                {!loading && prescription && todayTasks.length === 0 ? (
+                    <View style={styles.medicalBox}>
+                        <Text style={styles.leftText}>暂无训练任务</Text>
+                    </View>
+                ) : null}
                 <Text style={styles.medicalTitle}>本周训练统计</Text>
 
 
@@ -412,54 +495,44 @@ export default function ExercisePage() {
                 <Flex style={styles.statRow}>
                     <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
                         <Text style={styles.statTitle}>训练次数</Text>
-                        <Text style={styles.statValue}>12/15</Text>
+                        <Text style={styles.statValue}>{weekStats.trainingCount}</Text>
                     </Flex>
                     <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
                         <Text style={styles.statTitle}>完成率</Text>
-                        <Text style={styles.statValue}>80%</Text>
+                        <Text style={styles.statValue}>{weekStats.completionRate}</Text>
                     </Flex>
                     <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
                         <Text style={styles.statTitle}>累计时长</Text>
-                        <Text style={styles.statValue}>45小时</Text>
+                        <Text style={styles.statValue}>{weekStats.totalDuration}</Text>
                     </Flex>
                 </Flex>
 
                 <Flex justify='between'>
                     <Text style={styles.medicalTitle}>历史计划</Text>
-                    <TouchableOpacity>
-                        <Text style={styles.allBtn}>全部</Text>
-                    </TouchableOpacity>
+                    {historyItems.length > 0 ? (
+                        <TouchableOpacity>
+                            <Text style={styles.allBtn}>全部</Text>
+                        </TouchableOpacity>
+                    ) : null}
                 </Flex>
 
-                <View style={styles.medicalBox}>
-                    <Flex justify='between'>
-                        <View>
-                            <Text style={[styles.medicalTitle, { marginTop: 0 }]}>下肢力量训练</Text>
-                            <Text style={styles.leftText}>2025/10/01-2026/01/01</Text>
-                        </View>
+                {!loading && historyItems.length === 0 ? (
+                    <View style={styles.medicalBox}>
+                        <Text style={styles.leftText}>暂无历史计划</Text>
+                    </View>
+                ) : null}
 
-                        <View style={styles.progressRing}>
-                            <Canvas style={styles.progressCanvas}>
-                                <Circle
-                                    cx={progressCenter}
-                                    cy={progressCenter}
-                                    r={progressRadius}
-                                    color="rgba(5,58,147,0.14)"
-                                    style="stroke"
-                                    strokeWidth={PROGRESS_STROKE}
-                                />
-                                <Path
-                                    path={progressPath}
-                                    color="#053A93"
-                                    style="stroke"
-                                    strokeWidth={PROGRESS_STROKE}
-                                    strokeCap="round"
-                                />
-                            </Canvas>
-                            <Text style={styles.progressText}>{PROGRESS_VALUE}%</Text>
-                        </View>
-                    </Flex>
-                </View>
+                {historyItems.map(item => (
+                    <View key={String(item.id)} style={styles.medicalBox}>
+                        <Flex justify='between'>
+                            <View style={{ flex: 1, paddingRight: 12 }}>
+                                <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
+                                <Text style={styles.leftText}>{item.cycle}</Text>
+                            </View>
+                            <ProgressRing progress={item.progress} />
+                        </Flex>
+                    </View>
+                ))}
             </ScrollView>
         </SafeAreaView>
     );
