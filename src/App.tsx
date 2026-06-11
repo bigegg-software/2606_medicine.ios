@@ -9,7 +9,7 @@ import { Provider } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import store, { type AppDispatch } from '@/store/store';
-import { fetchUserBaseInfo } from '@/store/actions/user';
+import { fetchUserSession } from '@/store/actions/user';
 import { navigationRef } from '@/utils/navigationRef';
 import RootStack from '@/route/router';
 import { getToken } from '@/services/storage';
@@ -48,7 +48,7 @@ export default function App() {
       const dispatch = store.dispatch as AppDispatch;
       dispatch({ type: SET_LOGIN, payload: isLoggedIn });
       if (isLoggedIn) {
-        await dispatch(fetchUserBaseInfo());
+        await dispatch(fetchUserSession());
       }
       setReady(true);
     })();

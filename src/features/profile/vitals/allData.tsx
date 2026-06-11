@@ -26,6 +26,12 @@ import {
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { getLevelBgColor, getLevelColor } from './vitalLevelColors';
+import {
+  getTotalCholesterolStatusLabel,
+  getUricAcidStatusLabel,
+} from './vitalsHelpers';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AllDataPage'>;
@@ -39,6 +45,8 @@ const PAGE_TITLES: Record<VitalsMeasureType, string> = {
   血压: '血压记录',
   血糖: '血糖记录',
   体温: '体温记录',
+  尿酸: '尿酸记录',
+  血脂: '血脂记录',
   血氧: '血氧记录',
   心率: '心率记录',
 };
@@ -47,6 +55,8 @@ const MEASURE_UNITS: Record<MeasureDataType, string> = {
   血压: 'mmHg',
   血糖: 'mmol/L',
   体温: '℃',
+  尿酸: 'μmol/L',
+  血脂: 'mmol/L',
 };
 
 const MONTH_PICKER_DATA = [
@@ -94,6 +104,10 @@ function buildCalendarDays(month: Moment): CalendarDay[] {
   return days;
 }
 
+function getDataSourceLabel(source?: string | null) {
+  return source?.trim() || '手动录入';
+}
+
 function sortRecordsDesc(items: MeasureDataItem[]) {
   return [...items].sort((a, b) => {
     const timeCompare = (b.dataTime ?? '').localeCompare(a.dataTime ?? '');
@@ -106,18 +120,42 @@ function formatMeasureValue(item: MeasureDataItem, type: MeasureDataType) {
   if (type === '血压') {
     return `${Number(item.val) ?? '--'}/${Number(item.val2) ?? '--'}`;
   }
+  if (type === '血脂') {
+    const tc = item.xuezhiTc ?? item.val;
+    const tg = item.xuezhiTg;
+    const hdl = item.xuezhiHdlC;
+    const ldl = item.xuezhiLdlC;
+    const parts: string[] = [];
+    if (tc != null && !Number.isNaN(Number(tc))) parts.push(`TC ${Number(tc).toFixed(2)}`);
+    if (tg != null && !Number.isNaN(Number(tg))) parts.push(`TG ${Number(tg).toFixed(2)}`);
+    if (hdl != null && !Number.isNaN(Number(hdl))) parts.push(`HDL ${Number(hdl).toFixed(2)}`);
+    if (ldl != null && !Number.isNaN(Number(ldl))) parts.push(`LDL ${Number(ldl).toFixed(2)}`);
+    return parts.length ? parts.join('  ') : '--';
+  }
   if (type === '体温' || type === '血糖') {
     const val = Number(item.val);
     return !Number.isNaN(val) ? val.toFixed(1) : '--';
   }
+  if (type === '尿酸') {
+    const val = Number(item.val);
+    return !Number.isNaN(val) ? String(Math.round(val)) : '--';
+  }
   return item.val != null ? String(item.val) : '--';
 }
 
-function getLevelLabel(item: MeasureDataItem) {
+function getLevelLabel(item: MeasureDataItem, type?: MeasureDataType, gender?: string | null) {
   const level = item.level?.split(',')[0]?.trim();
   if (level) return level;
   if (item.isHigh === 1) return '偏高';
   if (item.isLow === 1) return '偏低';
+  if (type === '血脂') {
+    const tc = Number(item.xuezhiTc ?? item.val);
+    if (Number.isFinite(tc)) return getTotalCholesterolStatusLabel(tc);
+  }
+  if (type === '尿酸') {
+    const val = Number(item.val);
+    if (Number.isFinite(val)) return getUricAcidStatusLabel(val, gender);
+  }
   return '正常';
 }
 
@@ -204,17 +242,19 @@ function buildWearableRecords(
 function MeasureRecordCard({
   item,
   type,
+  gender,
   expanded,
   onToggle,
   onPress,
 }: {
   item: MeasureDataItem;
   type: MeasureDataType;
+  gender?: string | null;
   expanded: boolean;
   onToggle: () => void;
   onPress: () => void;
 }) {
-  const levelLabel = getLevelLabel(item);
+  const levelLabel = getLevelLabel(item, type, gender);
   const levelColor = getLevelColor(levelLabel);
   const recordTime =
     item.customerLocalDate && item.dataTime
@@ -273,6 +313,7 @@ function MeasureRecordCard({
             <View>
               {item.measurementStatus ? <Text style={styles.mapLeftText}>记录状态</Text> : null}
               <Text style={styles.mapLeftText}>记录时间</Text>
+              <Text style={styles.mapLeftText}>数据来源</Text>
               {type === '血压' && item.measuringSite ? (
                 <Text style={styles.mapLeftText}>测量部位</Text>
               ) : null}
@@ -282,6 +323,7 @@ function MeasureRecordCard({
                 <Text style={styles.mapRightText}>{item.measurementStatus}</Text>
               ) : null}
               <Text style={styles.mapRightText}>{recordTime}</Text>
+              <Text style={styles.mapRightText}>{getDataSourceLabel(item.sourceName)}</Text>
               {type === '血压' && item.measuringSite ? (
                 <Text style={styles.mapRightText}>{item.measuringSite}</Text>
               ) : null}
@@ -358,11 +400,11 @@ function WearableRecordCard({
           <Flex justify="between" style={styles.mapItem}>
             <View>
               <Text style={styles.mapLeftText}>记录时间</Text>
-              {item.sourceName ? <Text style={styles.mapLeftText}>数据来源</Text> : null}
+              <Text style={styles.mapLeftText}>数据来源</Text>
             </View>
             <View>
               <Text style={styles.mapRightText}>{item.recordTime}</Text>
-              {item.sourceName ? <Text style={styles.mapRightText}>{item.sourceName}</Text> : null}
+              <Text style={styles.mapRightText}>{getDataSourceLabel(item.sourceName)}</Text>
             </View>
           </Flex>
         </View>
@@ -373,6 +415,7 @@ function WearableRecordCard({
 
 export default function AllDataPage({ route }: Props) {
   const measureType = (route.params?.type ?? '血压') as VitalsMeasureType;
+  const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率'];
   const isWearableType = Boolean(wearableConfig);
   const navigation = useNavigation<Nav>();
@@ -554,6 +597,7 @@ export default function AllDataPage({ route }: Props) {
                 key={itemKey}
                 item={item}
                 type={measureType as MeasureDataType}
+                gender={userGender}
                 expanded={expandedKey === itemKey}
                 onToggle={() => setExpandedKey(prev => (prev === itemKey ? null : itemKey))}
                 onPress={() => navigation.navigate('AddDataPage', { type: measureType as MeasureDataType, item })}

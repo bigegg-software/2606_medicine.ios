@@ -71,7 +71,7 @@ function buildOption(points: SleepBarPoint[], metricLabel: string, valueUnit: st
       {
         type: 'bar',
         data: values,
-        barWidth: 8,
+        barWidth: labels.length > 20 ? 3 : labels.length > 7 ? 6 : 8,
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#053A93' },

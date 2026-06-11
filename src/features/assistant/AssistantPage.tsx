@@ -49,6 +49,12 @@ const DOCUMENT_TYPES = [
 
 const PANEL_HEIGHT = 220;
 
+const QUICK_ACTIONS = [
+  { label: '评估量表', route: 'QuestionnaireList' as const },
+  { label: '健康状况', route: 'VitalsPage' as const },
+  { label: '用药提醒', route: 'Medication' as const },
+];
+
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {
     return event.duration;
@@ -324,6 +330,23 @@ export default function AssistantPage() {
             ))}
           </ScrollView>
         )}
+
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.quickActionRow}
+          contentContainerStyle={styles.quickActionContent}
+          keyboardShouldPersistTaps="handled">
+          {QUICK_ACTIONS.map(item => (
+            <TouchableOpacity
+              key={item.label}
+              style={styles.quickActionBtn}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate(item.route)}>
+              <Text style={styles.quickActionText}>{item.label}</Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
 
         <View style={styles.inputSection}>
           <View style={styles.inputBar}>

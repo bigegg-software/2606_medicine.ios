@@ -10,14 +10,20 @@ export function formatTimeLabel(value: string) {
 
 export function buildCategoryAxisLabel(labels: string[]) {
   const isTimeLabel = labels.some(l => /^\d{1,2}:\d{2}$/.test(l));
+  const interval =
+    labels.length > 20
+      ? Math.max(0, Math.floor(labels.length / 6) - 1)
+      : labels.length > 6
+        ? 1
+        : 0;
 
   return {
     show: true,
-    fontSize: isTimeLabel ? 9 : 10,
+    fontSize: isTimeLabel ? 9 : 9,
     color: '#999999',
     margin: 4,
     hideOverlap: true,
-    interval: labels.length > 6 ? 1 : 0,
+    interval,
     ...(isTimeLabel ? { formatter: formatTimeLabel } : {}),
   };
 }
@@ -107,6 +113,46 @@ export function normalizeBloodPressureChartPoints<
     .sort((a, b) => (a.x ?? 0) - (b.x ?? 0));
 }
 
+export type LineChartSeriesItem = {
+  value: number | null | [number, number | null];
+  name?: string;
+  symbol?: string;
+  symbolSize?: number;
+  itemStyle?: { color?: string };
+};
+
+function hasLineChartValue(value: LineChartSeriesItem['value']) {
+  const raw = Array.isArray(value) ? value[1] : value;
+  return raw != null && Number(raw) > 0;
+}
+
+/** 连不成线的孤立点，供 scatter 层渲染 */
+export function buildIsolatedLineScatterData(
+  data: LineChartSeriesItem[],
+): Array<number | [number, number] | null> {
+  const hasValue = data.map(item => hasLineChartValue(item.value));
+
+  return data.map((item, index) => {
+    if (!hasValue[index]) return null;
+
+    const hasPrev = index > 0 && hasValue[index - 1];
+    const hasNext = index < data.length - 1 && hasValue[index + 1];
+    if (hasPrev || hasNext) return null;
+
+    const raw = item.value;
+    if (Array.isArray(raw)) {
+      const [x, y] = raw;
+      return y != null && Number(y) > 0 ? ([x, Number(y)] as [number, number]) : null;
+    }
+    return Number(raw);
+  });
+}
+
+/** @deprecated 使用 buildIsolatedLineScatterData */
+export const buildIsolatedBloodPressureScatterData = buildIsolatedLineScatterData;
+
+type BloodPressureSeriesItem = LineChartSeriesItem;
+
 export function toBloodPressureSeriesData<T extends { x?: number; high: number; low: number; hour?: string }>(
   points: T[],
 ) {
@@ -116,11 +162,11 @@ export function toBloodPressureSeriesData<T extends { x?: number; high: number; 
     return {
       chartPoints,
       high: chartPoints.map(point => ({
-        value: point.high,
+        value: point.high > 0 ? point.high : null,
         name: point.hour,
       })),
       low: chartPoints.map(point => ({
-        value: point.low,
+        value: point.low > 0 ? point.low : null,
         name: point.hour,
       })),
     };
@@ -129,11 +175,11 @@ export function toBloodPressureSeriesData<T extends { x?: number; high: number; 
   return {
     chartPoints,
     high: chartPoints.map(point => ({
-      value: [point.x as number, point.high > 0 ? point.high : null],
+      value: [point.x as number, point.high > 0 ? point.high : null] as [number, number | null],
       name: point.hour,
     })),
     low: chartPoints.map(point => ({
-      value: [point.x as number, point.low > 0 ? point.low : null],
+      value: [point.x as number, point.low > 0 ? point.low : null] as [number, number | null],
       name: point.hour,
     })),
   };

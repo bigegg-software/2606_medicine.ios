@@ -1,11 +1,15 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
+import { LineChart, ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildChartXAxis, toBloodPressureSeriesData } from './chartAxis';
+import {
+  buildChartXAxis,
+  buildIsolatedLineScatterData,
+  toBloodPressureSeriesData,
+} from './chartAxis';
 
 export type BloodPressurePoint = { high: number; low: number; hour?: string; x?: number };
 
@@ -13,7 +17,7 @@ const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
+echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BloodPressurePoint[];
@@ -22,6 +26,8 @@ type Props = {
 
 function buildOption(points: BloodPressurePoint[], labels: string[]) {
   const { chartPoints, high: highData, low: lowData } = toBloodPressureSeriesData(points);
+  const highScatter = buildIsolatedLineScatterData(highData);
+  const lowScatter = buildIsolatedLineScatterData(lowData);
 
   return {
     animation: false,
@@ -55,6 +61,7 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
     xAxis: buildChartXAxis(points, labels, false),
     yAxis: {
       type: 'value',
+      scale: true,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: { show: false },
@@ -65,9 +72,11 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         name: 'low',
         type: 'line',
         smooth: true,
+        connectNulls: false,
         showSymbol: false,
         data: lowData,
         lineStyle: { color: '#06BDFF', width: 2 },
+        itemStyle: { color: '#06BDFF' },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#06BDFF' },
@@ -79,15 +88,35 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         name: 'high',
         type: 'line',
         smooth: true,
+        connectNulls: false,
         showSymbol: false,
         data: highData,
         lineStyle: { color: '#FF8B07', width: 2 },
+        itemStyle: { color: '#FF8B07' },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             { offset: 0, color: '#FF8B07' },
             { offset: 1, color: 'rgba(255,139,7,0)' },
           ]),
         },
+      },
+      {
+        name: 'low-scatter',
+        type: 'scatter',
+        data: lowScatter,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: { color: '#06BDFF' },
+        z: 10,
+      },
+      {
+        name: 'high-scatter',
+        type: 'scatter',
+        data: highScatter,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: { color: '#FF8B07' },
+        z: 10,
       },
     ],
   };

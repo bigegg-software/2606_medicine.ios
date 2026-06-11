@@ -75,6 +75,36 @@ const MEASURE_CONFIG: Record<
     ],
     keyboardType: 'decimal-pad',
   },
+  尿酸: {
+    title: '新增尿酸记录',
+    primaryLabel: '尿酸 μmol/L',
+    showSecondary: false,
+    showSite: false,
+    showStatus: true,
+    statusList: ['空腹', '餐后', '其他'],
+    defaultStatus: '空腹',
+    referenceLines: [
+      '正常（男）：208-428 μmol/L',
+      '正常（女）：155-357 μmol/L',
+      '偏高：高于上述范围',
+    ],
+    keyboardType: 'number-pad',
+  },
+  血脂: {
+    title: '新增血脂记录',
+    primaryLabel: '总胆固醇（TC）mmol/L',
+    showSecondary: false,
+    showSite: false,
+    showStatus: false,
+    statusList: [],
+    defaultStatus: '',
+    referenceLines: [
+      '理想：总胆固醇 <5.2 mmol/L',
+      '边缘升高：5.2-6.2 mmol/L',
+      '升高：≥6.2 mmol/L',
+    ],
+    keyboardType: 'decimal-pad',
+  },
 };
 
 const TIME_PICKER_DATA = [
@@ -105,7 +135,8 @@ function formatEditMeasureValue(value: number | undefined, type: MeasureDataType
   const num = Number(value);
   if (Number.isNaN(num)) return String(value);
   if (type === '血压') return String(Math.round(num));
-  if (type === '体温') return num.toFixed(1);
+  if (type === '体温' || type === '血脂') return num.toFixed(2);
+  if (type === '尿酸') return String(Math.round(num));
   return String(value);
 }
 
@@ -140,6 +171,9 @@ export default function BloodAddPage({ route }: Props) {
   const [measureTime, setMeasureTime] = useState(moment().format('HH:mm'));
   const [primaryValue, setPrimaryValue] = useState('');
   const [secondaryValue, setSecondaryValue] = useState('');
+  const [lipidTg, setLipidTg] = useState('');
+  const [lipidHdl, setLipidHdl] = useState('');
+  const [lipidLdl, setLipidLdl] = useState('');
   const [measureSite, setMeasureSite] = useState('左臂');
   const [measureStatus, setMeasureStatus] = useState(config.defaultStatus);
   const [remark, setRemark] = useState('');
@@ -151,10 +185,18 @@ export default function BloodAddPage({ route }: Props) {
     if (editItem.customerLocalDate) setMeasureDate(editItem.customerLocalDate);
     if (editItem.dataTime) setMeasureTime(editItem.dataTime);
     if (editItem.val != null) {
-      setPrimaryValue(formatEditMeasureValue(editItem.val, measureType));
+      setPrimaryValue(formatEditMeasureValue(
+        measureType === '血脂' ? (editItem.xuezhiTc ?? editItem.val) : editItem.val,
+        measureType,
+      ));
     }
     if (editItem.val2 != null) {
       setSecondaryValue(formatEditMeasureValue(editItem.val2, measureType));
+    }
+    if (measureType === '血脂') {
+      if (editItem.xuezhiTg != null) setLipidTg(formatEditMeasureValue(editItem.xuezhiTg, measureType));
+      if (editItem.xuezhiHdlC != null) setLipidHdl(formatEditMeasureValue(editItem.xuezhiHdlC, measureType));
+      if (editItem.xuezhiLdlC != null) setLipidLdl(formatEditMeasureValue(editItem.xuezhiLdlC, measureType));
     }
     if (editItem.measuringSite) setMeasureSite(editItem.measuringSite);
     setMeasureStatus(editItem.measurementStatus || config.defaultStatus);
@@ -234,6 +276,20 @@ export default function BloodAddPage({ route }: Props) {
       }
     }
 
+    if (measureType === '血脂') {
+      const optionalFields = [
+        { label: '甘油三酯（TG）', value: lipidTg },
+        { label: '高密度脂蛋白（HDL-C）', value: lipidHdl },
+        { label: '低密度脂蛋白（LDL-C）', value: lipidLdl },
+      ];
+      for (const field of optionalFields) {
+        if (field.value.trim() && !Number.isFinite(Number(field.value))) {
+          Alert.alert('提示', `请输入有效的${field.label}`);
+          return;
+        }
+      }
+    }
+
     setSubmitting(true);
     try {
       const payload = {
@@ -245,6 +301,14 @@ export default function BloodAddPage({ route }: Props) {
         measurementStatus: config.showStatus ? measureStatus : '',
         measuringSite: config.showSite ? measureSite : '',
         remark: remark.trim(),
+        ...(measureType === '血脂'
+          ? {
+              xuezhiTc: val,
+              ...(lipidTg.trim() ? { xuezhiTg: Number(lipidTg) } : {}),
+              ...(lipidHdl.trim() ? { xuezhiHdlC: Number(lipidHdl) } : {}),
+              ...(lipidLdl.trim() ? { xuezhiLdlC: Number(lipidLdl) } : {}),
+            }
+          : {}),
       };
       const res = (await (isEdit
         ? updateMeasureData({ ...payload, id: editItem!.id! })
@@ -329,6 +393,41 @@ export default function BloodAddPage({ route }: Props) {
                 value={secondaryValue}
                 onChangeText={text => setSecondaryValue(sanitizeNumberInput(text, false))}
                 keyboardType="number-pad"
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              />
+            </>
+          ) : null}
+
+          {measureType === '血脂' ? (
+            <>
+              <Text style={styles.sectionTitle}>甘油三酯（TG）mmol/L</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="--"
+                placeholderTextColor={AppTheme.textSecondary}
+                value={lipidTg}
+                onChangeText={text => setLipidTg(sanitizeNumberInput(text, true))}
+                keyboardType="decimal-pad"
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              />
+              <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="--"
+                placeholderTextColor={AppTheme.textSecondary}
+                value={lipidHdl}
+                onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
+                keyboardType="decimal-pad"
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              />
+              <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="--"
+                placeholderTextColor={AppTheme.textSecondary}
+                value={lipidLdl}
+                onChangeText={text => setLipidLdl(sanitizeNumberInput(text, true))}
+                keyboardType="decimal-pad"
                 inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               />
             </>

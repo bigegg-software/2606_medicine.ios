@@ -1,5 +1,11 @@
 import moment from 'moment';
-import type { MeasureDataDayGroup, MeasureDataItem, VitalKey, VitalsMeasureType } from '@/api/measureData';
+import type {
+  MeasureDataAllRecordsMonthGroup,
+  MeasureDataDayGroup,
+  MeasureDataItem,
+  VitalKey,
+  VitalsMeasureType,
+} from '@/api/measureData';
 import { VITAL_KEY_API_TYPE, VITAL_KEYS } from '@/api/measureData';
 import type { WearableDataItem, WearableOriginalReading } from '@/api/wearableData';
 import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
@@ -22,12 +28,18 @@ export const VITALS_NAV_LIST: { label: string; value: VitalsRange }[] = [
 export { VITAL_KEYS, VITAL_KEY_API_TYPE };
 export type { VitalKey };
 
-const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
-const MONTH_DAY_OFFSETS = [29, 24, 19, 14, 9, 4, 0];
 
-export function mapTimeToTodayChartX(hour: number, minute = 0) {
-  const totalMinutes = hour * 60 + minute;
-  return (totalMinutes / (24 * 60)) * (TODAY_AXIS_LABELS.length - 1);
+export function getRangeDayCount(range: VitalsRange) {
+  switch (range) {
+    case 'today':
+      return 1;
+    case '7Days':
+      return 7;
+    case '30Days':
+      return 30;
+    default:
+      return 1;
+  }
 }
 
 export function getChartLabels(range: VitalsRange): string[] {
@@ -35,12 +47,28 @@ export function getChartLabels(range: VitalsRange): string[] {
     case 'today':
       return TODAY_AXIS_LABELS;
     case '7Days':
-      return WEEK_LABELS;
-    case '30Days':
-      return MONTH_DAY_OFFSETS.map(d => moment().subtract(d, 'days').format('M/D'));
+    case '30Days': {
+      const dayCount = getRangeDayCount(range);
+      return Array.from({ length: dayCount }, (_, index) =>
+        moment()
+          .subtract(dayCount - 1 - index, 'days')
+          .format('M/D'),
+      );
+    }
     default:
       return TODAY_AXIS_LABELS;
   }
+}
+
+export function mapTimeToTodayChartX(hour: number, minute = 0) {
+  const totalMinutes = hour * 60 + minute;
+  return (totalMinutes / (24 * 60)) * (TODAY_AXIS_LABELS.length - 1);
+}
+
+function getBucketDay(range: VitalsRange, labelIndex: number, labelCount: number) {
+  return moment()
+    .subtract(labelCount - 1 - labelIndex, 'days')
+    .startOf('day');
 }
 
 export function getDateRange(range: VitalsRange) {
@@ -68,15 +96,47 @@ export function getSleepFetchDateRange(range: VitalsRange) {
 
 export type LabeledValue = { label: string; value: number; x?: number };
 
-export function flattenMeasureItems(groups?: MeasureDataDayGroup[] | null): MeasureDataItem[] {
-  return (groups ?? [])
-    .flatMap(group =>
-      (group.childList ?? []).map(item => ({
+export function flattenMeasureItems(groups?: MeasureDataDayGroup[] | MeasureDataItem[] | null): MeasureDataItem[] {
+  if (!groups?.length) return [];
+
+  const items = groups.flatMap(entry => {
+    if (entry == null || typeof entry !== 'object') return [] as MeasureDataItem[];
+
+    const record = entry as MeasureDataDayGroup & MeasureDataItem;
+    if (Array.isArray(record.childList)) {
+      return record.childList.map(item => ({
         ...item,
-        customerLocalDate: item.customerLocalDate || group.customerLocalDate,
-      })),
-    )
-    .sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf());
+        customerLocalDate:
+          item.customerLocalDate?.trim() || record.customerLocalDate?.trim() || item.customerLocalDate,
+      }));
+    }
+
+    if (record.val != null || record.val2 != null || record.id != null || record.dataTime) {
+      return [record as MeasureDataItem];
+    }
+
+    return [] as MeasureDataItem[];
+  });
+
+  return items.sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf());
+}
+
+export function normalizeMeasureRangeData(raw: unknown): MeasureDataDayGroup[] | MeasureDataItem[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'object') {
+    const record = raw as Record<string, unknown>;
+    if (Array.isArray(record.childList)) {
+      return [raw as MeasureDataDayGroup];
+    }
+    if (Array.isArray(record.list)) {
+      return record.list as MeasureDataItem[];
+    }
+    if (Array.isArray(record.rows)) {
+      return record.rows as MeasureDataItem[];
+    }
+  }
+  return [];
 }
 
 function parseMeasureNumber(value?: number | string | null) {
@@ -85,71 +145,107 @@ function parseMeasureNumber(value?: number | string | null) {
   return Number.isFinite(num) ? num : null;
 }
 
+function parseMeasureDate(raw?: string | null) {
+  if (!raw?.trim()) return null;
+  const value = raw.trim();
+  const parsed = moment(
+    value,
+    [
+      moment.ISO_8601,
+      'YYYY-MM-DD HH:mm:ss',
+      'YYYY-MM-DD HH:mm',
+      'YYYY-MM-DD',
+      'YYYY/MM/DD HH:mm:ss',
+      'YYYY/MM/DD HH:mm',
+      'YYYY/MM/DD',
+    ],
+    true,
+  );
+  return parsed.isValid() ? parsed : null;
+}
+
 function getItemTimestamp(item: MeasureDataItem) {
-  const date = item.customerLocalDate ?? moment().format('YYYY-MM-DD');
-  const time = item.dataTime ?? '00:00';
-  const parsed = moment(`${date} ${time}`, 'YYYY-MM-DD HH:mm', true);
-  return parsed.isValid() ? parsed : moment(date, 'YYYY-MM-DD', true);
+  const parsedDate = parseMeasureDate(item.customerLocalDate);
+  const base = parsedDate ? parsedDate.clone().startOf('day') : moment().startOf('day');
+  const time = item.dataTime?.trim();
+  if (!time) return base;
+
+  const parsedTime = moment(time, ['HH:mm:ss', 'HH:mm', 'H:mm'], true);
+  if (parsedTime.isValid()) {
+    return base.hour(parsedTime.hour()).minute(parsedTime.minute()).second(parsedTime.second());
+  }
+  return base;
+}
+
+function getMeasureItemDay(item: MeasureDataItem) {
+  return getItemTimestamp(item).clone().startOf('day');
 }
 
 function getLatestItem(items: MeasureDataItem[]) {
   return items.length ? items[items.length - 1] : undefined;
 }
 
+function getLatestItemForRange(items: MeasureDataItem[], range: VitalsRange) {
+  const rangedItems = filterMeasureItemsInRange(items, range);
+  if (range === 'today') {
+    return getLatestItem(rangedItems);
+  }
+  return getLatestItem(rangedItems);
+}
+
 function pickBucketItems(items: MeasureDataItem[], range: VitalsRange, labelIndex: number, labelCount: number) {
   if (range === 'today') {
     return [];
   }
-  if (range === '7Days') {
-    const day = moment()
-      .subtract(labelCount - 1 - labelIndex, 'days')
-      .startOf('day');
-    return items.filter(item => getItemTimestamp(item).isSame(day, 'day'));
-  }
-  const day = moment().subtract(MONTH_DAY_OFFSETS[labelIndex], 'days').startOf('day');
-  return items.filter(item => getItemTimestamp(item).isSame(day, 'day'));
+  const day = getBucketDay(range, labelIndex, labelCount);
+  return items.filter(item => getMeasureItemDay(item).isSame(day, 'day'));
+}
+
+export function filterMeasureItemsInRange(items: MeasureDataItem[], range: VitalsRange) {
+  const { startDate, endDate } = getDateRange(range);
+  const start = moment(startDate, 'YYYY-MM-DD', true).startOf('day');
+  const end = moment(endDate, 'YYYY-MM-DD', true).endOf('day');
+  return items.filter(item => getMeasureItemDay(item).isBetween(start, end, 'day', '[]'));
 }
 
 export function buildSingleValueSeries(items: MeasureDataItem[], range: VitalsRange): LabeledValue[] {
+  const rangedItems = filterMeasureItemsInRange(items, range);
   if (range === 'today') {
-    return items
-      .filter(item => getItemTimestamp(item).isSame(moment(), 'day'))
-      .map(item => {
-        const ts = getItemTimestamp(item);
-        return {
-          label: ts.format('HH:mm'),
-          value: parseMeasureNumber(item.val) ?? 0,
-          x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
-        };
-      });
+    return rangedItems.map(item => {
+      const ts = getItemTimestamp(item);
+      return {
+        label: ts.format('HH:mm'),
+        value: parseMeasureNumber(item.val) ?? 0,
+        x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+      };
+    });
   }
 
   const labels = getChartLabels(range);
   return labels.map((label, index) => {
-    const bucketItems = pickBucketItems(items, range, index, labels.length);
+    const bucketItems = pickBucketItems(rangedItems, range, index, labels.length);
     const latest = getLatestItem(bucketItems);
     return { label, value: parseMeasureNumber(latest?.val) ?? 0 };
   });
 }
 
 export function buildBloodPressureSeriesFromItems(items: MeasureDataItem[], range: VitalsRange): BloodPressurePoint[] {
+  const rangedItems = filterMeasureItemsInRange(items, range);
   if (range === 'today') {
-    return items
-      .filter(item => getItemTimestamp(item).isSame(moment(), 'day'))
-      .map(item => {
-        const ts = getItemTimestamp(item);
-        return {
-          high: Math.round(parseMeasureNumber(item.val) ?? 0),
-          low: Math.round(parseMeasureNumber(item.val2) ?? 0),
-          hour: ts.format('HH:mm'),
-          x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
-        };
-      });
+    return rangedItems.map(item => {
+      const ts = getItemTimestamp(item);
+      return {
+        high: Math.round(parseMeasureNumber(item.val) ?? 0),
+        low: Math.round(parseMeasureNumber(item.val2) ?? 0),
+        hour: ts.format('HH:mm'),
+        x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+      };
+    });
   }
 
   const labels = getChartLabels(range);
   return labels.map((label, index) => {
-    const bucketItems = pickBucketItems(items, range, index, labels.length);
+    const bucketItems = pickBucketItems(rangedItems, range, index, labels.length);
     const latest = getLatestItem(bucketItems);
     return {
       high: Math.round(parseMeasureNumber(latest?.val) ?? 0),
@@ -225,28 +321,144 @@ export function formatBloodPressure(latest?: BloodPressurePoint) {
   };
 }
 
-export function formatBloodPressureFromItems(items: MeasureDataItem[]) {
-  return formatMeasureDisplay(getLatestItem(items), '血压');
+export function formatBloodPressureFromItems(items: MeasureDataItem[], range: VitalsRange = 'today') {
+  return formatMeasureDisplay(getLatestItemForRange(items, range), '血压');
 }
 
-export function formatSingleValue(
-  value: number,
-  opts: { high?: number; low?: number; unit?: string } = {},
+export function formatSingleValueFromItems(
+  items: MeasureDataItem[],
+  type: VitalsMeasureType,
+  range: VitalsRange = 'today',
 ) {
-  const { high, low } = opts;
-  let status = '正常';
-  if (high != null && value > high) status = '偏高';
-  if (low != null && value < low) status = '偏低';
-  const statusColor = getLevelColor(status);
+  return formatMeasureDisplay(getLatestItemForRange(items, range), type);
+}
+
+export function isFemaleGender(gender?: string | null) {
+  return gender === '女' || gender === '1';
+}
+
+export function getUricAcidRange(gender?: string | null) {
+  if (isFemaleGender(gender)) {
+    return { min: 155, max: 357 };
+  }
+  return { min: 208, max: 428 };
+}
+
+export function getUricAcidStatusLabel(value: number, gender?: string | null) {
+  const { min, max } = getUricAcidRange(gender);
+  if (value > max) return '偏高';
+  if (value < min) return '偏低';
+  return '正常';
+}
+
+export function flattenAllMeasureRecords(rows?: MeasureDataAllRecordsMonthGroup[] | null): MeasureDataItem[] {
+  if (!rows?.length) return [];
+
+  const items = rows.flatMap(month =>
+    (month.list ?? []).flatMap(day =>
+      (day.childList ?? []).map(item => ({
+        ...item,
+        customerLocalDate:
+          item.customerLocalDate?.trim() || day.customerLocalDate?.trim() || item.customerLocalDate,
+      })),
+    ),
+  );
+
+  return items.sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf());
+}
+
+export function formatUricAcidCompareText(items: MeasureDataItem[]) {
+  if (items.length < 2) return null;
+
+  const latest = items[items.length - 1];
+  const previous = items[items.length - 2];
+  const latestVal = parseMeasureNumber(latest.val);
+  const prevVal = parseMeasureNumber(previous.val);
+  if (latestVal == null || prevVal == null) return null;
+
+  const diff = Math.round(latestVal - prevVal);
+  if (diff === 0) {
+    return { text: '较上次持平', color: '#999999' };
+  }
+  if (diff > 0) {
+    return { text: `较上次上升+${diff}μmol/L`, color: '#D80010' };
+  }
+  return { text: `较上次下降${Math.abs(diff)}μmol/L`, color: '#00C950' };
+}
+
+export function formatUricAcidRecordTime(item?: MeasureDataItem) {
+  if (!item) return '';
+  const date = item.customerLocalDate?.trim();
+  const time = item.dataTime?.trim();
+  const status = item.measurementStatus?.trim();
+  const datetime = date && time ? `${date} ${time}` : date || time || '';
+  if (!datetime) return status ? `(${status})` : '';
+  return status ? `${datetime}(${status})` : datetime;
+}
+
+export function formatUricAcidFromItems(
+  items: MeasureDataItem[],
+  range: VitalsRange = 'today',
+  gender?: string | null,
+) {
+  const item = getLatestItemForRange(items, range);
+  const val = parseMeasureNumber(item?.val);
+  if (val == null) {
+    return {
+      value: '--',
+      status: '',
+      statusColor: '#999999',
+      statusLabel: '',
+      recordTime: '',
+    };
+  }
+
+  const serverLabel = getLevelLabel(item);
+  const label = serverLabel || getUricAcidStatusLabel(val, gender);
   return {
-    value: String(value),
-    status: `・${status}`,
-    statusColor,
+    value: String(Math.round(val)),
+    status: label ? `・${label}` : '',
+    statusColor: getLevelColor(label),
+    statusLabel: label,
+    recordTime: formatUricAcidRecordTime(item),
   };
 }
 
-export function formatSingleValueFromItems(items: MeasureDataItem[], type: VitalsMeasureType) {
-  return formatMeasureDisplay(getLatestItem(items), type);
+export function getTotalCholesterolStatusLabel(value: number) {
+  if (value < 5.2) return '理想';
+  if (value < 6.2) return '边缘升高';
+  return '升高';
+}
+
+export function formatBloodLipidsFromItems(items: MeasureDataItem[], range: VitalsRange = 'today') {
+  const item = getLatestItemForRange(items, range);
+  const tc = parseMeasureNumber(item?.xuezhiTc ?? item?.val);
+  const tg = parseMeasureNumber(item?.xuezhiTg);
+  const hdl = parseMeasureNumber(item?.xuezhiHdlC);
+  const ldl = parseMeasureNumber(item?.xuezhiLdlC);
+
+  if (tc == null && tg == null && hdl == null && ldl == null) {
+    return {
+      tcValue: '--',
+      tgValue: '--',
+      hdlValue: '--',
+      ldlValue: '--',
+      status: '',
+      statusColor: '#999999',
+    };
+  }
+
+  const serverLabel = getLevelLabel(item);
+  const label = serverLabel || (tc != null ? getTotalCholesterolStatusLabel(tc) : '');
+
+  return {
+    tcValue: tc != null ? tc.toFixed(2) : '--',
+    tgValue: tg != null ? tg.toFixed(2) : '--',
+    hdlValue: hdl != null ? hdl.toFixed(2) : '--',
+    ldlValue: ldl != null ? ldl.toFixed(2) : '--',
+    status: label ? `・${label}` : '',
+    statusColor: getLevelColor(label),
+  };
 }
 
 export const SLEEP_STAGE_CONFIG = [
@@ -476,13 +688,7 @@ function pickWearableDayItems(
   if (range === 'today') {
     return items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
   }
-  if (range === '7Days') {
-    const day = moment()
-      .subtract(labelCount - 1 - labelIndex, 'days')
-      .startOf('day');
-    return items.filter(item => getWearableDate(item).isSame(day, 'day'));
-  }
-  const day = moment().subtract(MONTH_DAY_OFFSETS[labelIndex], 'days').startOf('day');
+  const day = getBucketDay(range, labelIndex, labelCount);
   return items.filter(item => getWearableDate(item).isSame(day, 'day'));
 }
 

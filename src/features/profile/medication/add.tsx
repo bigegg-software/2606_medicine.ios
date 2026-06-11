@@ -13,26 +13,42 @@ const DRUG_TYPE_LIST = [
     { label: '片剂', value: '片剂' },
     { label: '胶囊', value: '胶囊' },
     { label: '液体', value: '液体' },
-    { label: '颗粒', value: '颗粒' },
-    { label: '外用', value: '外用' },
+    { label: '滴剂', value: '滴剂' },
+    { label: '注射剂', value: '注射剂' },
+    { label: '喷雾', value: '喷雾' },
+    { label: '膏剂', value: '膏剂' },
+    { label: '吸入剂', value: '吸入剂' },
+    { label: '贴剂', value: '贴剂' },
+    { label: '其他', value: '其他' },
 ];
 
 const MEAL_RELATION_LIST = [
+    { label: '无', value: '无' },
     { label: '饭前', value: '饭前' },
     { label: '饭后', value: '饭后' },
-    { label: '餐中', value: '餐中' },
+    { label: '随餐', value: '随餐' },
     { label: '睡前', value: '睡前' },
-    { label: '起床后', value: '起床后' },
+    { label: '晨起空腹', value: '晨起空腹' },
 ];
 
 const DOSE_UNIT_LIST = [
     { label: '片', value: '片' },
     { label: '粒', value: '粒' },
-    { label: 'ml', value: 'ml' },
-    { label: 'mg', value: 'mg' },
+    { label: '丸', value: '丸' },
+    { label: '袋', value: '袋' },
+    { label: '支', value: '支' },
+    { label: '瓶', value: '瓶' },
+    { label: '毫升', value: '毫升' },
+    { label: '毫克', value: '毫克' },
+    { label: '克', value: '克' },
+    { label: '微克', value: '微克' },
+    { label: '喷', value: '喷' },
+    { label: '吸', value: '吸' },
+    { label: '枚', value: '枚' },
+    { label: '贴', value: '贴' },
 ];
 
-const DEFAULT_TAKE_TIMES = ['08:00', '12:00', '18:00', '21:00'];
+const DEFAULT_TAKE_TIMES = ['08:00', '12:00', '18:00', '20:00'];
 
 const REMIND_TIME_LIST = [
     { label: '5分钟', value: '5' },
@@ -67,9 +83,19 @@ function parseTimeValue(time: string): [number, number] {
     return m.isValid() ? [m.hour(), m.minute()] : [8, 0];
 }
 
+function getDefaultTakeTime(index: number, count: number) {
+    if (count === 1) {
+        return moment().format('HH:mm');
+    }
+    if (index < DEFAULT_TAKE_TIMES.length) {
+        return DEFAULT_TAKE_TIMES[index];
+    }
+    return moment().format('HH:mm');
+}
+
 function syncTakeTimes(prev: string[], count: number) {
     return Array.from({ length: count }, (_, index) => {
-        return prev[index] ?? DEFAULT_TAKE_TIMES[index] ?? DEFAULT_TAKE_TIMES[DEFAULT_TAKE_TIMES.length - 1];
+        return prev[index] ?? getDefaultTakeTime(index, count);
     });
 }
 
@@ -82,8 +108,8 @@ export default function MedicationAddPage() {
     const [doseAmount, setDoseAmount] = useState('4');
     const [doseUnit, setDoseUnit] = useState('片');
     const [initialStock, setInitialStock] = useState('4');
-    const [dailyFrequency, setDailyFrequency] = useState(3);
-    const [takeTimes, setTakeTimes] = useState(['08:00', '12:00', '18:00']);
+    const [dailyFrequency, setDailyFrequency] = useState(1);
+    const [takeTimes, setTakeTimes] = useState(() => syncTakeTimes([], 1));
     const [weekDays, setWeekDays] = useState<string[]>(['一', '二', '三', '四', '五']);
     const [cycleStartDate, setCycleStartDate] = useState(moment('2026-05-21').format('YYYY-MM-DD'));
     const [continuousMedication, setContinuousMedication] = useState(true);
@@ -98,7 +124,15 @@ export default function MedicationAddPage() {
     const setDailyFrequencyCount = (count: number) => {
         const next = getTakeTimeCount(count);
         setDailyFrequency(next);
-        setTakeTimes(prev => syncTakeTimes(prev, next));
+        setTakeTimes(prev => {
+            if (next === 1) {
+                return syncTakeTimes([], 1);
+            }
+            if (next >= 2 && dailyFrequency === 1) {
+                return syncTakeTimes([], next);
+            }
+            return syncTakeTimes(prev, next);
+        });
     };
 
     const updateTakeTime = (index: number, hour: number, minute: number) => {
@@ -219,7 +253,7 @@ export default function MedicationAddPage() {
                             <Text style={styles.inlineSuffix}>{doseUnit}</Text>
                         </Flex>
                     </Flex>
-                    <Flex justify="end" style={{ marginBottom: 12, gap: 8 }}>
+                    <ScrollView horizontal style={{ marginBottom: 12, gap: 8 }}>
                         {DOSE_UNIT_LIST.map(item => (
                             <TouchableOpacity
                                 style={[indexStyles.typeItem, doseUnit === item.value && indexStyles.typeItemActive]}
@@ -232,7 +266,7 @@ export default function MedicationAddPage() {
                                 </Flex>
                             </TouchableOpacity>
                         ))}
-                    </Flex>
+                    </ScrollView>
                     <View style={styles.rowLine} />
 
                     <Flex justify="between" align="center">
@@ -240,12 +274,14 @@ export default function MedicationAddPage() {
                         <Flex align="center">
                             <TouchableOpacity
                                 activeOpacity={0.7}
+                                style={styles.stepperBtn}
                                 onPress={() => setDailyFrequencyCount(dailyFrequency - 1)}>
                                 <Image source={require('@/assets/images/user/jian.png')} style={styles.stepperIcon} />
                             </TouchableOpacity>
                             <Text style={styles.stepperValue}>{dailyFrequency}</Text>
                             <TouchableOpacity
                                 activeOpacity={0.7}
+                                style={styles.stepperBtn}
                                 onPress={() => setDailyFrequencyCount(dailyFrequency + 1)}>
                                 <Image source={require('@/assets/images/user/jia.png')} style={styles.stepperIcon} />
                             </TouchableOpacity>
@@ -339,7 +375,7 @@ export default function MedicationAddPage() {
                             <Text style={styles.inlineSuffix}>{doseUnit}</Text>
                         </Flex>
                     </Flex>
-                    <Flex justify="end" style={{ marginBottom: 12, gap: 8 }}>
+                    <ScrollView horizontal style={{ marginBottom: 12, gap: 8 }}>
                         {DOSE_UNIT_LIST.map(item => (
                             <TouchableOpacity
                                 style={[indexStyles.typeItem, doseUnit === item.value && indexStyles.typeItemActive]}
@@ -352,7 +388,7 @@ export default function MedicationAddPage() {
                                 </Flex>
                             </TouchableOpacity>
                         ))}
-                    </Flex>
+                    </ScrollView>
                     <View style={styles.rowLine} />
                     <Flex justify="between" align="center" style={{ marginBottom: 12 }}>
                         <Text style={styles.rowTitle}>剩余数量</Text>

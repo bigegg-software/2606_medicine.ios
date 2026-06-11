@@ -17,8 +17,9 @@ import HeartRateChart from '@/src/features/home/components/HeartRateChart';
 import SleepPieChart from '@/src/features/home/components/SleepPieChart';
 import SleepBarChart from '@/src/features/home/components/SleepBarChart';
 import {
+  getMeasureDataAllRecords,
   getMeasureDataDetailByDateRange,
-  type MeasureDataDayGroup,
+  type MeasureDataAllRecordsResult,
   type MeasureDataItem,
   type MeasureDataRangeDetailResult,
   type VitalKey,
@@ -41,6 +42,11 @@ import {
   flattenMeasureItems,
   formatBloodPressureFromItems,
   formatSingleValueFromItems,
+  formatUricAcidFromItems,
+  formatUricAcidCompareText,
+  flattenAllMeasureRecords,
+  formatBloodLipidsFromItems,
+  normalizeMeasureRangeData,
   getBloodOxygenDisplay,
   getChartLabels,
   getDateRange,
@@ -59,11 +65,14 @@ const EMPTY_MEASURE_DATA: Record<VitalKey, MeasureDataItem[]> = {
   bloodPressure: [],
   bloodGlucose: [],
   bodyTemperature: [],
+  uricAcid: [],
+  bloodLipids: [],
 };
 
 export default function VitalsPage() {
   const navigation: any = useNavigation();
   const uploading = useSelector((state: RootState) => state.upload.uploading);
+  const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const [activeNav, setActiveNav] = useState<VitalsRange>('today');
   const [loading, setLoading] = useState(false);
   const [measureData, setMeasureData] = useState<Record<VitalKey, MeasureDataItem[]>>(EMPTY_MEASURE_DATA);
@@ -73,6 +82,7 @@ export default function VitalsPage() {
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
   const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
+  const [uricAcidCompare, setUricAcidCompare] = useState<{ text: string; color: string } | null>(null);
 
   const chartLabels = useMemo(() => getChartLabels(activeNav), [activeNav]);
 
@@ -106,6 +116,7 @@ export default function VitalsPage() {
         heartRateItems,
         activeEnergyItems,
         basalEnergyItems,
+        uricAcidRecordsRes,
       ] = await Promise.all([
         Promise.all(
           VITAL_KEYS.map(async key => {
@@ -118,7 +129,7 @@ export default function VitalsPage() {
               if (!isResourceApiOk(res)) {
                 return [key, []] as const;
               }
-              const groups = apiResourceData<MeasureDataDayGroup[]>(res);
+              const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res));
               return [key, flattenMeasureItems(groups)] as const;
             } catch {
               return [key, []] as const;
@@ -131,6 +142,7 @@ export default function VitalsPage() {
         fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
         fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
         fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
+        getMeasureDataAllRecords({ type: '尿酸', pageSize: 20, pageNum: 1 }).catch(() => null),
       ]);
 
       setMeasureData({
@@ -143,6 +155,13 @@ export default function VitalsPage() {
       setWearableHeartRate(heartRateItems);
       setWearableActiveEnergy(activeEnergyItems);
       setWearableBasalEnergy(basalEnergyItems);
+
+      if (uricAcidRecordsRes && isResourceApiOk(uricAcidRecordsRes as { code?: number })) {
+        const rows = (uricAcidRecordsRes as MeasureDataAllRecordsResult).rows;
+        setUricAcidCompare(formatUricAcidCompareText(flattenAllMeasureRecords(rows)));
+      } else {
+        setUricAcidCompare(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -171,8 +190,8 @@ export default function VitalsPage() {
     [measureData.bloodPressure, activeNav],
   );
   const bloodPressure = useMemo(
-    () => formatBloodPressureFromItems(measureData.bloodPressure),
-    [measureData.bloodPressure],
+    () => formatBloodPressureFromItems(measureData.bloodPressure, activeNav),
+    [measureData.bloodPressure, activeNav],
   );
 
   const glucoseSeries = useMemo(
@@ -180,8 +199,8 @@ export default function VitalsPage() {
     [measureData.bloodGlucose, activeNav],
   );
   const glucose = useMemo(
-    () => formatSingleValueFromItems(measureData.bloodGlucose, '血糖'),
-    [measureData.bloodGlucose],
+    () => formatSingleValueFromItems(measureData.bloodGlucose, '血糖', activeNav),
+    [measureData.bloodGlucose, activeNav],
   );
 
   const heartRateSeries = useMemo(
@@ -223,8 +242,18 @@ export default function VitalsPage() {
     [measureData.bodyTemperature, activeNav],
   );
   const bodyTemperature = useMemo(
-    () => formatSingleValueFromItems(measureData.bodyTemperature, '体温'),
-    [measureData.bodyTemperature],
+    () => formatSingleValueFromItems(measureData.bodyTemperature, '体温', activeNav),
+    [measureData.bodyTemperature, activeNav],
+  );
+
+  const uricAcid = useMemo(
+    () => formatUricAcidFromItems(measureData.uricAcid, activeNav, userGender),
+    [measureData.uricAcid, activeNav, userGender],
+  );
+
+  const bloodLipids = useMemo(
+    () => formatBloodLipidsFromItems(measureData.bloodLipids, activeNav),
+    [measureData.bloodLipids, activeNav],
   );
 
   const stageIconStyles = [styles.icon1, styles.icon2, styles.icon3, styles.icon4];
@@ -488,6 +517,86 @@ export default function VitalsPage() {
             ) : (
               <SleepBarChart data={energyBarData} metricLabel="消耗" valueUnit="千卡" />
             )}
+          </Flex>
+        </View>
+        <View style={styles.vCard}>
+          <Flex justify="between" align="center">
+            <Flex>
+              <Image source={require('@/assets/images/home/xy.png')} style={styles.vIcon} />
+              <Text style={styles.vLabel}>尿酸</Text>
+            </Flex>
+            <Flex>
+              <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '尿酸' })}>
+                <Text style={styles.vMore}>新增记录</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => navigation.navigate('AllDataPage', { type: '尿酸' })}>
+                <Text style={styles.vMore}>全部记录</Text>
+              </TouchableOpacity>
+            </Flex>
+          </Flex>
+          <Flex style={styles.vValueBox} justify="between" align="center">
+            <View>
+              <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{uricAcid.value}</Text>
+              <Text style={styles.vUnit}>μmol/L</Text>
+            </View>
+            {uricAcid.statusLabel || uricAcid.recordTime ? (
+              <View style={{ alignItems: 'flex-end' }}>
+                {uricAcid.statusLabel ? (
+                  <Text style={[styles.vText, { color: uricAcid.statusColor, marginTop: 0 }]}>
+                    {uricAcid.statusLabel}
+                  </Text>
+                ) : null}
+                {uricAcid.recordTime ? (
+                  <Text style={[styles.vUnit, { marginTop: 4, textAlign: 'right' }]}>{uricAcid.recordTime}</Text>
+                ) : null}
+              </View>
+            ) : null}
+          </Flex>
+          {uricAcidCompare && uricAcid.value !== '--' ? (
+            <Flex style={styles.bjBox}>
+              <Text style={[styles.bjText, { color: uricAcidCompare.color }]}>{uricAcidCompare.text}</Text>
+            </Flex>
+          ) : null}
+        </View>
+
+        <View style={styles.vCard}>
+          <Flex justify="between" align="center">
+            <Flex>
+              <Image source={require('@/assets/images/home/xy.png')} style={styles.vIcon} />
+              <Text style={styles.vLabel}>血脂</Text>
+            </Flex>
+            <Flex>
+              <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '血脂' })}>
+                <Text style={styles.vMore}>新增记录</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => navigation.navigate('AllDataPage', { type: '血脂' })}>
+                <Text style={styles.vMore}>全部记录</Text>
+              </TouchableOpacity>
+            </Flex>
+          </Flex>
+          <Flex style={styles.vValueBox} justify="between" align="center">
+            <View>
+              <Text style={styles.vUnit}>总胆固醇 TC</Text>
+              <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
+              <Text style={styles.vUnit}>mmol/L</Text>
+              {bloodLipids.status ? (
+                <Text style={[styles.vStatus, { color: bloodLipids.statusColor }]}>{bloodLipids.status}</Text>
+              ) : null}
+            </View>
+            <View style={styles.vRightBox}>
+              <Flex justify="between" style={{ marginBottom: 6 }}>
+                <Text style={styles.vText1}>TG</Text>
+                <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
+              </Flex>
+              <Flex justify="between" style={{ marginBottom: 6 }}>
+                <Text style={styles.vText1}>HDL-C</Text>
+                <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
+              </Flex>
+              <Flex justify="between">
+                <Text style={styles.vText1}>LDL-C</Text>
+                <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
+              </Flex>
+            </View>
           </Flex>
         </View>
       </ScrollView>

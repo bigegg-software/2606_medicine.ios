@@ -96,8 +96,8 @@ export type RootStackParamList = {
   ChronicDisease: undefined;
   ChronicDiseaseAddPage: undefined;
   VitalsPage: undefined;
-  AddDataPage: { type?: '血压' | '血糖' | '体温'; item?: MeasureDataItem };
-  AllDataPage: { type?: '血压' | '血糖' | '体温' | '血氧' | '心率' };
+  AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
+  AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' };
   Medication: undefined;
   MedicationAddPage: undefined;
   AssistantPage: undefined;

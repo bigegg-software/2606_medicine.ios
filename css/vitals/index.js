@@ -34,7 +34,12 @@ const styles = StyleSheet.create({
     addText: { height: 19, fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
     btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, lineHeight: 19, textAlign: 'center' },
     btmText: { fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, lineHeight: 19, textAlign: 'center' },
-
+    bjBox: { marginTop: 8, height: 27, paddingHorizontal: 18, paddingVertical: 4, backgroundColor: '#F5F8FB', borderRadius: 12, },
+    bjText: {
+        fontWeight: 500,
+        fontSize: 14,
+        color: '#D80010',
+    }
 })
 
 export default styles

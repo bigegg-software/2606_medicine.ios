@@ -11,6 +11,8 @@ import styles from '@/css/auth/login';
 import { saveToken, saveUserId, saveRefreshToken, saveClientId } from '@/services/storage';
 import { smsClientId } from '@/utils/config';
 import { SET_LOGIN } from '@/store/type/login';
+import { fetchUserSession } from '@/store/actions/user';
+import type { AppDispatch } from '@/store/store';
 import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -30,7 +32,7 @@ function getKeyboardDuration(event: KeyboardEvent) {
 
 export default function LoginPage() {
   const navigation = useNavigation<Nav>();
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const bottomOffset = useSharedValue(0);
   const [phone, setPhone] = useState('');
@@ -132,6 +134,7 @@ export default function LoginPage() {
         if (data.refresh_token) await saveRefreshToken(data.refresh_token);
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
+        dispatch(fetchUserSession());
         navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
       } else {
         Alert.alert('登录失败', res.msg ?? res.message ?? '请检查验证码');

@@ -1,19 +1,20 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
+import { LineChart, ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildChartXAxis, toChartValuePairs } from './chartAxis';
+import { buildChartXAxis, buildIsolatedLineScatterData, toChartValuePairs, type LineChartSeriesItem } from './chartAxis';
 
 export type BloodGlucosePoint = { hour: string; value: number; x?: number };
 
 const HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
+const GLUCOSE_COLOR = '#06BDFF';
 
-echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
+echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BloodGlucosePoint[];
@@ -21,8 +22,8 @@ type Props = {
 };
 
 function buildOption(points: BloodGlucosePoint[], labels: string[]) {
-  const values = toChartValuePairs(points);
-  const validCount = points.filter(point => point.value > 0).length;
+  const values = toChartValuePairs(points) as LineChartSeriesItem[];
+  const scatterData = buildIsolatedLineScatterData(values);
 
   return {
     animation: false,
@@ -63,18 +64,24 @@ function buildOption(points: BloodGlucosePoint[], labels: string[]) {
         type: 'line',
         smooth: true,
         connectNulls: false,
-        showSymbol: validCount > 0 && validCount <= 3,
-        symbol: 'circle',
-        symbolSize: 6,
+        showSymbol: false,
         data: values,
-        lineStyle: { color: '#06BDFF', width: 2 },
+        lineStyle: { color: GLUCOSE_COLOR, width: 2 },
+        itemStyle: { color: GLUCOSE_COLOR },
         areaStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#06BDFF' },
+            { offset: 0, color: GLUCOSE_COLOR },
             { offset: 1, color: 'rgba(6,189,255,0)' },
           ]),
         },
-        itemStyle: { color: '#06BDFF' },
+      },
+      {
+        type: 'scatter',
+        data: scatterData,
+        symbol: 'circle',
+        symbolSize: 6,
+        itemStyle: { color: GLUCOSE_COLOR },
+        z: 10,
       },
     ],
   };
