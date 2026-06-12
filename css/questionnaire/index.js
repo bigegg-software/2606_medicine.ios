@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
     },
     detailTitle: { fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary },
     detailTime: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, marginTop: 6 },
-    progressRing: { width: 60, height: 60, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+    progressRing: { width: 60, height: 60, justifyContent: 'center', alignItems: 'center' },
     progressCanvas: { width: 60, height: 60, position: 'absolute' },
     progressText: { fontWeight: 500, fontSize: 12, color: '#FFBA1D', lineHeight: 14 },
     rowTextBox: { marginTop: 12 },
@@ -109,9 +109,9 @@ const styles = StyleSheet.create({
 
 
     //result
-    resultCanvasBox: { width: 144, height: 144, justifyContent: "center", alignItems: "center", marginHorizontal: "auto" },
+    resultCanvasBox: { width: 182, height: 182, justifyContent: "center", alignItems: "center", marginHorizontal: "auto" },
     resultTitle: { marginTop: 24, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, textAlign: "center", lineHeight: 52 },
-    resultCanvas: { width: 144, height: 144, position: 'absolute' },
+    resultCanvas: { width: 182, height: 182, position: 'absolute' },
     resultScore: { textAlign: "center", fontWeight: 500, fontSize: 16, color: '#FFBA1D' },
     resultScoreBox: {
         marginTop: 23,

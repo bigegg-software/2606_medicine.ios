@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert, } from 'react-native';
 import { Flex, DatePicker, Toast } from '@ant-design/react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
 import {
     addUserQuestion,
@@ -19,6 +20,9 @@ import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import type { RootStackParamList } from '@/route/router';
+
+type Nav = NativeStackNavigationProp<RootStackParamList, 'QuestionnairePage'>;
 
 function getTemplateKey(template: QuestionTemplate) {
     return template.templateId ?? template.id ?? 0;
@@ -105,7 +109,8 @@ function buildQuestionsAnswer(
 
 export default function QuestionnairePage({ route }: { route: { params: { type: QuestionnaireType } } }) {
     const { type } = route.params;
-    const navigation: any = useNavigation();
+    const navigation = useNavigation<Nav>();
+    const allowExitRef = useRef(false);
     const [templates, setTemplates] = useState<QuestionTemplate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
@@ -130,9 +135,37 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
 
     useFocusEffect(
         useCallback(() => {
+            allowExitRef.current = false;
             loadTemplates();
         }, [loadTemplates]),
     );
+
+    useEffect(() => {
+        navigation.setOptions({ gestureEnabled: false });
+    }, [navigation]);
+
+    useEffect(() => {
+        const unsubscribe = navigation.addListener('beforeRemove', event => {
+            if (allowExitRef.current) {
+                return;
+            }
+
+            event.preventDefault();
+            Alert.alert('提示', '您确定要放弃填写问卷吗？', [
+                { text: '继续', style: 'cancel' },
+                {
+                    text: '放弃',
+                    style: 'destructive',
+                    onPress: () => {
+                        allowExitRef.current = true;
+                        navigation.dispatch(event.data.action);
+                    },
+                },
+            ]);
+        });
+
+        return unsubscribe;
+    }, [navigation]);
 
     const currentTemplate = templates[currentIndex];
     const currentQuestion = currentTemplate?.questionOption?.questions?.[0];
@@ -197,6 +230,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
             }
             const data = apiResourceData<UserQuestionRecord>(res);
             Toast.show('提交成功');
+            allowExitRef.current = true;
             navigation.replace('QuestionnaireResult', {
                 id: String(data?.id ?? ''),
                 type,

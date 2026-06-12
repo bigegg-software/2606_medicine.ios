@@ -10,7 +10,7 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import { getRiskPercent, getScoreLevel, getScoreTip, PROGRESS_COLORS, } from './utils/helpers';
 
-const PROGRESS_SIZE = 142;
+const PROGRESS_SIZE = 182;
 const PROGRESS_STROKE = 14;
 
 export default function QuestionnaireResultPage({
@@ -142,22 +142,21 @@ export default function QuestionnaireResultPage({
                     ) : null}
                 </View>
                 <Text style={styles.resultScoreTip}>本结果仅为参考，不能替代专业医疗诊所建议</Text>
+                <TouchableOpacity
+                    style={[styles.reEvaluateBtn, { marginTop: 100 }]}
+                    onPress={() => navigation.navigate('QuestionnaireDetail', { id })}>
+                    <Flex justify="center" align="center" style={{ flex: 1 }}>
+                        <Text style={styles.reEvaluateBtnText}>查看详情</Text>
+                    </Flex>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.nextBtn}
+                    onPress={() => navigation.goBack()}>
+                    <Flex justify="center" align="center" style={{ flex: 1 }}>
+                        <Text style={styles.nextBtnText}>返回列表</Text>
+                    </Flex>
+                </TouchableOpacity>
             </ScrollView>
-
-            <TouchableOpacity
-                style={styles.reEvaluateBtn}
-                onPress={() => navigation.replace('QuestionnairePage', { type: questionnaireType })}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    <Text style={styles.reEvaluateBtnText}>重新评估</Text>
-                </Flex>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={styles.nextBtn}
-                onPress={() => navigation.navigate('QuestionnaireDetail', { id })}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    <Text style={styles.nextBtnText}>查看详情</Text>
-                </Flex>
-            </TouchableOpacity>
         </SafeAreaView>
     );
 }

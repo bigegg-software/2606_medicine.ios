@@ -29,9 +29,9 @@ const QUESTIONNAIRE_LIST: {
     title: string;
     duration: string;
 }[] = [
-        { type: 0, title: QUESTIONNAIRE_TITLES[0], duration: '5分钟' },
-        { type: 1, title: QUESTIONNAIRE_TITLES[1], duration: '5分钟' },
-        { type: 2, title: QUESTIONNAIRE_TITLES[2], duration: '5分钟' },
+        { type: 0, title: QUESTIONNAIRE_TITLES[0], duration: '2-4分钟' },
+        { type: 1, title: QUESTIONNAIRE_TITLES[1], duration: '2-3分钟' },
+        { type: 2, title: QUESTIONNAIRE_TITLES[2], duration: '3-5分钟' },
     ];
 
 export default function QuestionnaireListPage() {

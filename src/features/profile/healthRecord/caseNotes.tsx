@@ -76,7 +76,7 @@ export default function CaseNotesPage() {
         try {
             const res = await getMedicalRecordFrontList({
                 medicalRecordType: nav?.type || undefined,
-                diagnosticResult: searchKeyword.trim() || undefined,
+                searchWords: searchKeyword.trim() || undefined,
                 pageNum: 1,
                 pageSize: 50,
             });

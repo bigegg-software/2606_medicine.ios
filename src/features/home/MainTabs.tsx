@@ -1,6 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Image, View, type ImageSourcePropType } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import HomeTab from '@/src/features/home/HomeTab';
 import SchedulePage from '@/src/features/schedule/SchedulePage';
 import CommunityPage from '@/src/features/community/CommunityPage';
@@ -8,18 +10,15 @@ import ProfilePage from '@/src/features/profile/ProfilePage';
 import withUploadProgress from '@/src/components/withUploadProgress';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
+import { getMainTabTitle, setActiveMainTabTitle, type MainTabParamList } from '@/src/utils/tabNavigation';
+import type { RootStackParamList } from '@/route/router';
+
+export type { MainTabParamList };
 
 const HomeTabScreen = withUploadProgress(HomeTab);
 const ScheduleTabScreen = withUploadProgress(SchedulePage);
 const CommunityTabScreen = withUploadProgress(CommunityPage);
 const ProfileTabScreen = withUploadProgress(ProfilePage);
-export type MainTabParamList = {
-  Home: undefined;
-  Schedule: undefined;
-  Assistant: undefined;
-  Community: undefined;
-  Profile: undefined;
-};
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -53,13 +52,32 @@ function TabIcon({ focused, source, focusedMarginLeft }: {
 
 export default function MainTabs() {
   const { scaleSize } = useFontSize();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabBarLabelStyle = useMemo(
     () => ({ fontSize: scaleSize(14), fontWeight: '600' as const }),
     [scaleSize],
   );
 
+  const syncMainTabTitle = (routeName: string) => {
+    const title = getMainTabTitle(routeName);
+    setActiveMainTabTitle(title);
+    navigation.setOptions({ title });
+  };
+
+  useEffect(() => {
+    syncMainTabTitle('Home');
+  }, [navigation]);
+
   return (
     <Tab.Navigator
+      screenListeners={{
+        state: event => {
+          const tabState = event.data.state;
+          if (!tabState) return;
+          const route = tabState.routes[tabState.index];
+          syncMainTabTitle(route.name);
+        },
+      }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: AppTheme.primaryColor,

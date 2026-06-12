@@ -23,7 +23,7 @@ const styles = StyleSheet.create({
         paddingTop: 16,
         paddingBottom: 14,
     },
-    mapItemName: { height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    mapItemName: { maxWidth: "80%", fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
     mapItemValueBox: { marginLeft: 7, paddingHorizontal: 6, height: 19, backgroundColor: "rgba(216,0,16,0.13)", borderRadius: 4 },
     mapItemValue: { fontWeight: 400, fontSize: 12, color: '#D80010' },
     severityMildBox: { marginLeft: 7, paddingHorizontal: 6, height: 19, backgroundColor: 'rgba(247,210,102,0.13)', borderRadius: 4 },
@@ -40,7 +40,8 @@ const styles = StyleSheet.create({
 
 
     rowBox: { paddingHorizontal: 14, paddingVertical: 2, borderRadius: 8, marginTop: 12, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, paddingBottom: 12 },
-    rowTitle: { marginTop: 12, marginBottom: 10, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    rowTitle: { marginTop: 12, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    switch: { width: 43, height: 21, marginTop: 12 },
     inputBox: { height: 32, borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textPrimary },
     rowLine: { height: 1, backgroundColor: "#E8DED2" },
     yzBox: { marginTop: 10, height: 33, paddingHorizontal: 30, backgroundColor: "rgba(5,58,147,0.14)", borderRadius: 8 },

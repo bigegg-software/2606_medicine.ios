@@ -27,7 +27,7 @@ export type MedicalRecord = {
 
 export type MedicalRecordListParams = {
   medicalRecordType?: string;
-  diagnosticResult?: string;
+  searchWords?: string;
   hospital?: string;
   pageSize?: number;
   pageNum?: number;

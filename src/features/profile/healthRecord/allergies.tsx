@@ -140,7 +140,7 @@ export default function AllergiesPage() {
                                                         })
                                                     }>
                                                     <Flex>
-                                                        <Text style={styles.mapItemName}>{item.allergenName || '—'}</Text>
+                                                        <Text style={[styles.mapItemName]}>{item.allergenName || '—'}</Text>
                                                         {item.severity ? (
                                                             <Flex style={severityStyle.box}>
                                                                 <Text style={severityStyle.text}>{item.severity}</Text>

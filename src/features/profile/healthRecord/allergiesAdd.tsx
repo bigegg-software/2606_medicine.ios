@@ -15,6 +15,11 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AllergiesAdd'>;
 
 const SEVERITY_OPTIONS = ['轻度', '中度', '严重'] as const;
+const ALLERGEN_NAME_MAX_LENGTH = 50;
+
+function limitText(value: string, maxLength: number) {
+    return value.slice(0, maxLength);
+}
 
 function getAllergenPlaceholder(allergyType: string) {
     switch (allergyType) {
@@ -62,7 +67,7 @@ export default function AllergiesAddPage({ route }: Props) {
                 if (!item) {
                     return;
                 }
-                setAllergenName(item.allergenName ?? '');
+                setAllergenName(limitText(item.allergenName ?? '', ALLERGEN_NAME_MAX_LENGTH));
                 setSeverity(normalizeSeverity(item.severity));
                 setAllergicSymptoms(item.allergicSymptoms ?? '');
             } catch {
@@ -136,7 +141,8 @@ export default function AllergiesAddPage({ route }: Props) {
                             placeholder={getAllergenPlaceholder(type)}
                             placeholderTextColor={AppTheme.textSecondary}
                             value={allergenName}
-                            onChangeText={setAllergenName}
+                            onChangeText={value => setAllergenName(limitText(value, ALLERGEN_NAME_MAX_LENGTH))}
+                            maxLength={ALLERGEN_NAME_MAX_LENGTH}
                             inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
                     </View>

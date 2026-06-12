@@ -40,8 +40,8 @@ const styles = StyleSheet.create({
         paddingBottom: 3,
     },
     infoItem: { height: 43, borderBottomWidth: 1, borderBottomColor: AppTheme.borderRgbColor },
-    infoItemLabel: { height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
-    infoItemValue: { height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 19 },
+    infoItemLabel: { fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    infoItemValue: { width: "60%", textAlign: "right", fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 19 },
     infoInput: { flex: 1, marginLeft: 12, textAlign: 'right', fontSize: 14, color: AppTheme.textPrimary, paddingVertical: 0 },
     infoPlaceholder: { color: AppTheme.textSecondary },
     fieldBlock: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: AppTheme.borderRgbColor },
@@ -58,7 +58,9 @@ const styles = StyleSheet.create({
     addBtn: { height: 45, backgroundColor: "#053A93", marginHorizontal: 18, borderRadius: 8 },
     addText: { height: 19, fontWeight: 500, fontSize: 16, color: "#FFFFFF" },
     emergencyText: { marginTop: 12, fontWeight: 400, fontSize: 12, color: "#999999", lineHeight: 19 },
-    familyAuthText: { fontWeight: 400, fontSize: 12, color: AppTheme.primaryColor,marginRight:12 },
+    jzBox: { height: 19, backgroundColor: "rgba(102,202,152,0.13)", borderRadius: 4, paddingHorizontal: 9, marginLeft: 10 },
+    jzText: { fontWeight: 500, fontSize: 12, color: "#66CA98" },
+    familyAuthText: { fontWeight: 400, fontSize: 12, color: AppTheme.primaryColor, marginRight: 12 },
 
     // caseNotes
     topBox: { paddingHorizontal: 18, paddingTop: 19 },

@@ -230,13 +230,14 @@ export default function FamilyHistoryAddPage({ route }: Props) {
 
                     <View>
                         <Text style={styles.rowTitle}>状态</Text>
-                        <View style={styles.chipGrid}>
+                        <Flex justify="between" >
                             {STATUS_OPTIONS.map((item, index) => (
                                 <TouchableOpacity
                                     key={item}
                                     style={[
                                         styles.yzBox,
                                         styles.chipItem,
+                                        {width: '43%'},
                                         index % 3 === 2 && styles.chipItemLastInRow,
                                         status === item && styles.yzBoxActive,
                                     ]}
@@ -244,7 +245,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                                     <Text style={[styles.yzText, status === item && styles.yzTextActive]}>{item}</Text>
                                 </TouchableOpacity>
                             ))}
-                        </View>
+                        </Flex>
                     </View>
                 </View>
             </ScrollView>

@@ -7,6 +7,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, type AllergyItem } from '@/api/allergy';
 import { getFamilyMedicalInfo, type FamilyMedicalItem } from '@/api/familyMedical';
 import { getMedicalRecordFrontList, type MedicalRecord } from '@/api/medicalRecord';
+import { buildDictLabelMap } from '@/api/dict';
+import type { EmergencyContact } from '@/api/emergencyContact';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import { useSelector } from 'react-redux';
@@ -15,6 +17,11 @@ import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
+import {
+  formatEmergencyContactName,
+  loadEmergencyContacts,
+  loadRelationTypeOptions,
+} from '@/src/features/profile/emergencyHelpers';
 import moment from 'moment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -65,6 +72,8 @@ export default function HealthRecordPage() {
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [allergyList, setAllergyList] = useState<AllergyItem[]>([]);
     const [familyList, setFamilyList] = useState<FamilyMedicalItem[]>([]);
+    const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
+    const [relationMap, setRelationMap] = useState<Record<string, string>>({});
 
     const loadRecords = useCallback(async () => {
         try {
@@ -99,12 +108,27 @@ export default function HealthRecordPage() {
         }
     }, []);
 
+    const loadEmergency = useCallback(async () => {
+        try {
+            const [list, relationOptions] = await Promise.all([
+                loadEmergencyContacts({ pageNum: 1, pageSize: 3 }),
+                loadRelationTypeOptions(),
+            ]);
+            setEmergencyContacts(list);
+            setRelationMap(buildDictLabelMap(relationOptions));
+        } catch {
+            setEmergencyContacts([]);
+        }
+    }, []);
+
     const loadRecordsRef = useRef(loadRecords);
     loadRecordsRef.current = loadRecords;
     const loadAllergiesRef = useRef(loadAllergies);
     loadAllergiesRef.current = loadAllergies;
     const loadFamilyMedicalRef = useRef(loadFamilyMedical);
     loadFamilyMedicalRef.current = loadFamilyMedical;
+    const loadEmergencyRef = useRef(loadEmergency);
+    loadEmergencyRef.current = loadEmergency;
 
     const hasMountedRef = useRef(false);
 
@@ -112,6 +136,7 @@ export default function HealthRecordPage() {
         loadRecordsRef.current();
         loadAllergiesRef.current();
         loadFamilyMedicalRef.current();
+        loadEmergencyRef.current();
     }, []);
 
     useFocusEffect(
@@ -123,6 +148,7 @@ export default function HealthRecordPage() {
             loadRecordsRef.current();
             loadAllergiesRef.current();
             loadFamilyMedicalRef.current();
+            loadEmergencyRef.current();
         }, []),
     );
 
@@ -193,29 +219,40 @@ export default function HealthRecordPage() {
                 </Flex>
 
                 <View style={styles.infoBox}>
-                    {/* <Flex justify='between' style={styles.familyItem}>
-                    <View>
-                        <Text style={styles.familyItemName}>张小红（女儿）</Text>
-                        <Text style={styles.familyItemRelation}>已授权4项权限</Text>
-                    </View>
-                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                </Flex>
-                <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                    <View>
-                        <Text style={styles.familyItemName}>张小红（女儿）</Text>
-                        <Text style={styles.familyItemRelation}>已授权4项权限</Text>
-                    </View>
-                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                </Flex> */}
-                    <TouchableOpacity onPress={() => { }}>
-                        <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                            <View>
-                                <Text style={styles.familyItemName}>点击添加联系人</Text>
-                                <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
-                            </View>
-                            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                        </Flex>
-                    </TouchableOpacity>
+                    {emergencyContacts.length === 0 ? (
+                        <TouchableOpacity onPress={() => navigation.navigate('EmergencyAdd')}>
+                            <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                <View>
+                                    <Text style={styles.familyItemName}>点击添加联系人</Text>
+                                    <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
+                                </View>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                            </Flex>
+                        </TouchableOpacity>
+                    ) : (
+                        emergencyContacts.map((contact, index) => (
+                            <TouchableOpacity
+                                key={String(contact.id ?? index)}
+                                onPress={() => navigation.navigate('Emergency')}>
+                                <Flex
+                                    justify="between"
+                                    style={[
+                                        styles.familyItem,
+                                        index === emergencyContacts.length - 1 && { borderBottomWidth: 0 },
+                                    ]}>
+                                    <View>
+                                        <Text style={styles.familyItemName}>
+                                            {formatEmergencyContactName(contact, relationMap)}
+                                        </Text>
+                                        <Text style={styles.familyItemRelation}>
+                                            {contact.contactPhone || '—'}
+                                        </Text>
+                                    </View>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
+                        ))
+                    )}
                 </View>
 
                 <Flex justify='between' style={styles.sectionBox}>
