@@ -12,6 +12,7 @@ import styles from '@/css/profile/healthRecord';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
 import moment from 'moment';
@@ -60,6 +61,7 @@ function formatFamilyPreviewValue(item: FamilyMedicalItem) {
 export default function HealthRecordPage() {
     const navigation = useNavigation<Nav>();
     const user = useSelector((state: RootState) => state.user.info);
+    const systemUser = useSelector((state: RootState) => state.user.systemUser);
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [allergyList, setAllergyList] = useState<AllergyItem[]>([]);
     const [familyList, setFamilyList] = useState<FamilyMedicalItem[]>([]);
@@ -126,7 +128,7 @@ export default function HealthRecordPage() {
 
 
     const avatarOssUrl = String(user?.avatarOssUrl ?? '');
-    const name = user?.name ?? '';
+    const name = getDisplayUserName(user);
 
     const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
     const birthDate = birthMoment.isValid() ? birthMoment.format('YYYY-MM-DD') : '--';
@@ -155,7 +157,7 @@ export default function HealthRecordPage() {
                 <View style={styles.infoBox}>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>性别</Text>
-                        <Text style={styles.infoItemValue}>{user?.gender}</Text>
+                        <Text style={styles.infoItemValue}>{user?.gender || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>出生日期</Text>
@@ -167,19 +169,19 @@ export default function HealthRecordPage() {
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>身高</Text>
-                        <Text style={styles.infoItemValue}>{user?.height}</Text>
+                        <Text style={styles.infoItemValue}>{user?.height || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>体重</Text>
-                        <Text style={styles.infoItemValue}>{user?.weight}</Text>
+                        <Text style={styles.infoItemValue}>{user?.weight || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>血型</Text>
-                        <Text style={styles.infoItemValue}>{user?.bloodType}</Text>
+                        <Text style={styles.infoItemValue}>{user?.bloodType || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
                         <Text style={styles.infoItemLabel}>手机号</Text>
-                        <Text style={styles.infoItemValue}>--</Text>
+                        <Text style={styles.infoItemValue}>{systemUser?.phonenumber||'--'}</Text>
                     </Flex>
                 </View>
 

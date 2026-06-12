@@ -14,6 +14,7 @@ import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFontSize } from '@/common/FontSizeContext';
@@ -51,6 +52,7 @@ export default function ProfilePage() {
   const navigation: any = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.user.info);
+  const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const loading = useSelector((s: RootState) => s.user.loading);
   const { label: fontSizeLabel } = useFontSize();
 
@@ -84,7 +86,7 @@ export default function ProfilePage() {
     ]);
   };
 
-  const name = String(user?.name ?? '未知用户');
+  const name = getDisplayUserName(user);
   const avatarOssUrl = String(user?.avatarOssUrl ?? '');
 
   if (loading && user == null) {

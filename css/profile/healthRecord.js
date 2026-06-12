@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     },
     infoItem: { height: 43, borderBottomWidth: 1, borderBottomColor: AppTheme.borderRgbColor },
     infoItemLabel: { height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
-    infoItemValue: { height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary, lineHeight: 19 },
+    infoItemValue: { height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 19 },
     infoInput: { flex: 1, marginLeft: 12, textAlign: 'right', fontSize: 14, color: AppTheme.textPrimary, paddingVertical: 0 },
     infoPlaceholder: { color: AppTheme.textSecondary },
     fieldBlock: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: AppTheme.borderRgbColor },

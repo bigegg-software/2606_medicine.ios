@@ -8,6 +8,7 @@ import { getMedicalRecordInfo, type MedicalRecord } from '@/api/medicalRecord';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/caseAdd';
 import { apiResourceData } from '@/src/utils/apiHelpers';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import type { RootStackParamList } from '@/route/router';
@@ -24,6 +25,13 @@ const TEXT_SECTIONS: { key: keyof MedicalRecord; title: string; icon: ImageSourc
     { key: 'medicalSummary', title: '病情摘要', icon: require('@/assets/images/user/zd.png') },
 ];
 
+function displayValue(value?: string | number | null) {
+    if (value == null || String(value).trim() === '') {
+        return '暂无';
+    }
+    return String(value);
+}
+
 function DetailSection({
     title,
     content,
@@ -33,9 +41,6 @@ function DetailSection({
     content?: string;
     icon: ImageSourcePropType;
 }) {
-    if (!content?.trim()) {
-        return null;
-    }
     return (
         <>
             <Flex style={{ marginTop: 10 }} align="center">
@@ -43,22 +48,16 @@ function DetailSection({
                 <Text style={styles.medicalTitle}>{title}</Text>
             </Flex>
             <View style={styles.medicalBox}>
-                <Text style={styles.medicalInfoValue}>{content}</Text>
+                <Text style={[styles.medicalInfoValue, { color: AppTheme.textSecondary }]}>{displayValue(content)}</Text>
             </View>
         </>
     );
 }
 
-function displayValue(value?: string | number) {
-    if (value == null || value === '') {
-        return '—';
-    }
-    return String(value);
-}
-
 export default function CaseDetailPage({ route }: Props) {
     const { id } = route.params;
     const user = useSelector((state: RootState) => state.user.info);
+    const systemUser = useSelector((state: RootState) => state.user.systemUser);
     const [record, setRecord] = useState<MedicalRecord | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -66,7 +65,6 @@ export default function CaseDetailPage({ route }: Props) {
         (async () => {
             try {
                 const res = await getMedicalRecordInfo(id);
-                console.log(res)
                 setRecord(apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord }) ?? null);
             } catch {
                 setRecord(null);
@@ -77,11 +75,11 @@ export default function CaseDetailPage({ route }: Props) {
     }, [id]);
 
     const avatarOssUrl = String(user?.avatarOssUrl ?? '');
-    const name = user?.name ?? '';
+    const name = getDisplayUserName(user, systemUser);
     const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
-    const age = birthMoment.isValid() ? moment().diff(birthMoment, 'years') : '--';
-    const gender = user?.gender ?? '—';
-    const bloodType = user?.bloodType ?? '—';
+    const ageText = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '暂无';
+    const gender = displayValue(user?.gender);
+    const bloodType = displayValue(user?.bloodType);
 
     if (loading) {
         return (
@@ -118,7 +116,7 @@ export default function CaseDetailPage({ route }: Props) {
                     </View>
                     <Text style={styles.name}>{name}</Text>
                     <Text style={styles.userText}>
-                        {gender}-{age}岁-{bloodType}
+                        {gender}-{ageText}-{bloodType}
                     </Text>
                 </Flex>
 
@@ -126,11 +124,9 @@ export default function CaseDetailPage({ route }: Props) {
                     <Flex align="center">
                         <Image source={require('@/assets/images/user/hospital.png')} style={styles.medicalImg} />
                         <Text style={styles.medicalTitle}>{displayValue(record.diagnosticResult)}</Text>
-                        {record.medicalRecordType ? (
-                            <Flex style={styles.medicalType}>
-                                <Text style={styles.medicalTypeText}>{record.medicalRecordType}</Text>
-                            </Flex>
-                        ) : null}
+                        <Flex style={styles.medicalType}>
+                            <Text style={styles.medicalTypeText}>{displayValue(record.medicalRecordType)}</Text>
+                        </Flex>
                     </Flex>
                     <View style={styles.medicalInfoBox}>
                         <Flex>
@@ -165,27 +161,27 @@ export default function CaseDetailPage({ route }: Props) {
                     />
                 ))}
 
-                {record.attachmentList && record.attachmentList.length > 0 ? (
-                    <>
-                        <Flex style={{ marginTop: 10 }} align="center">
-                            <Image source={require('@/assets/images/user/file.png')} style={styles.medicalImg} />
-                            <Text style={styles.medicalTitle}>附件</Text>
-                        </Flex>
-                        <View style={styles.medicalBox}>
-                            <View style={styles.attachmentList}>
-                                {record.attachmentList.map((att, index) =>
-                                    att.ossUrl ? (
-                                        <Image
-                                            key={`${att.ossId ?? att.ossUrl}-${index}`}
-                                            source={{ uri: att.ossUrl }}
-                                            style={styles.attachmentImg}
-                                        />
-                                    ) : null,
-                                )}
-                            </View>
+                <Flex style={{ marginTop: 10 }} align="center">
+                    <Image source={require('@/assets/images/user/file.png')} style={styles.medicalImg} />
+                    <Text style={styles.medicalTitle}>附件</Text>
+                </Flex>
+                <View style={styles.medicalBox}>
+                    {record.attachmentList && record.attachmentList.length > 0 ? (
+                        <View style={styles.attachmentList}>
+                            {record.attachmentList.map((att, index) =>
+                                att.ossUrl ? (
+                                    <Image
+                                        key={`${att.ossId ?? att.ossUrl}-${index}`}
+                                        source={{ uri: att.ossUrl }}
+                                        style={styles.attachmentImg}
+                                    />
+                                ) : null,
+                            )}
                         </View>
-                    </>
-                ) : null}
+                    ) : (
+                        <Text style={styles.medicalInfoValue}>暂无</Text>
+                    )}
+                </View>
             </ScrollView>
         </SafeAreaView>
     );

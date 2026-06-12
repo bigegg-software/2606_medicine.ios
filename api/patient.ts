@@ -26,3 +26,17 @@ export const getUserBaseInfo = () => request.get('/patient/userBaseInfo/getInfo'
 
 export const updateUserBaseInfo = (data: UpdateUserBaseInfoParams) =>
   request.put('/patient/userBaseInfo/update', data);
+
+export type UpdateDrugTipInfoParams = {
+  drugIsTip?: number;
+  drugBeforeTipTime?: number;
+  drugTipTypes?: string;
+};
+
+export type UpdateDrugTipInfoResult = {
+  code?: number;
+  msg?: string;
+};
+
+export const updateDrugTipInfo = (data: UpdateDrugTipInfoParams) =>
+  request.put<UpdateDrugTipInfoResult>('/patient/user/updateDrugTipInfo', data);

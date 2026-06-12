@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Flex, DatePicker, Toast } from '@ant-design/react-native';
@@ -11,13 +11,24 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import allergyStyles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { fetchUserBaseInfo } from '@/store/actions/user';
-import { useDispatch } from 'react-redux';
-import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
-import type { AppDispatch } from '@/store/store';
+import { useDispatch, useSelector } from 'react-redux';
+import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
+import type { AppDispatch, RootState } from '@/store/store';
+
+const nameInputAccessoryViewID = 'profileEditNameDoneToolbar';
+const heightInputAccessoryViewID = 'profileEditHeightDoneToolbar';
+const weightInputAccessoryViewID = 'profileEditWeightDoneToolbar';
 
 const BLOOD_TYPES = ['A型', 'B型', 'AB型', 'O型', '不详'] as const;
 const GENDERS = ['男', '女'] as const;
+const NAME_MAX_LENGTH = 10;
+const METRIC_MAX_LENGTH = 6;
+
+function limitText(value: string, maxLength: number) {
+  return value.slice(0, maxLength);
+}
 
 function normalizeBirthDate(value?: string) {
   if (!value) {
@@ -62,7 +73,9 @@ async function pickImageFromLibrary() {
 export default function ProfileEditPage() {
   const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
+  const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const [avatarOssUrl, setAvatarOssUrl] = useState('');
+  const [userId, setUserId] = useState<number | undefined>();
   const [form, setForm] = useState({
     avatarOssId: undefined as string | undefined,
     name: '',
@@ -81,6 +94,7 @@ export default function ProfileEditPage() {
       try {
         const res = await getUserBaseInfo();
         const data = apiResourceData<{
+          userId?: number;
           avatarOssId?: string;
           avatarOssUrl?: string;
           name?: string;
@@ -91,14 +105,15 @@ export default function ProfileEditPage() {
           bloodType?: string;
         }>(res as { code?: number; data?: Record<string, unknown> });
         if (data) {
+          setUserId(data.userId);
           setAvatarOssUrl(data.avatarOssUrl ?? '');
           setForm({
             avatarOssId: data.avatarOssId != null ? String(data.avatarOssId) : undefined,
-            name: data.name ?? '',
+            name: limitText(data.name ?? '', NAME_MAX_LENGTH),
             gender: data.gender ?? '',
             birthDate: normalizeBirthDate(data.birthDate),
-            height: data.height != null ? String(data.height) : '',
-            weight: data.weight != null ? String(data.weight) : '',
+            height: limitText(data.height != null ? String(data.height) : '', METRIC_MAX_LENGTH),
+            weight: limitText(data.weight != null ? String(data.weight) : '', METRIC_MAX_LENGTH),
             bloodType: data.bloodType ?? '',
           });
         }
@@ -208,12 +223,18 @@ export default function ProfileEditPage() {
     );
   }
 
-  const displayName = form.name.trim() || 'U';
+  const displayName = getDisplayUserName({ name: form.name, userId }, systemUser);
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <KeyboardDoneAccessory />
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <KeyboardDoneAccessory nativeID={nameInputAccessoryViewID} />
+      <KeyboardDoneAccessory nativeID={heightInputAccessoryViewID} />
+      <KeyboardDoneAccessory nativeID={weightInputAccessoryViewID} />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag">
         <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
           <Flex direction="column" justify="center" align="center" style={{ marginTop: 16 }}>
             <View>
@@ -244,20 +265,24 @@ export default function ProfileEditPage() {
             <TextInput
               style={styles.infoInput}
               value={form.name}
-              onChangeText={t => patch('name', t)}
+              onChangeText={t => patch('name', limitText(t, NAME_MAX_LENGTH))}
               placeholder="请输入姓名"
               placeholderTextColor={AppTheme.textSecondary}
-              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              maxLength={NAME_MAX_LENGTH}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
+              inputAccessoryViewID={nameInputAccessoryViewID}
             />
           </Flex>
 
-          <View style={styles.fieldBlock}>
+          <Flex justify="between" align="center" style={styles.fieldBlock}>
             <Text style={styles.infoItemLabel}>性别</Text>
-            <View style={[allergyStyles.chipGrid, styles.chipRow]}>
+            <View style={[allergyStyles.chipGrid, { gap: 8 }]}>
               {GENDERS.map(item => (
                 <TouchableOpacity
                   key={item}
-                  style={[allergyStyles.yzBox, form.gender === item && allergyStyles.yzBoxActive]}
+                  style={[allergyStyles.yzBox, { marginTop: 0 }, form.gender === item && allergyStyles.yzBoxActive]}
                   onPress={() => patch('gender', item)}>
                   <Flex style={{ flex: 1 }}>
                     <Text
@@ -271,7 +296,7 @@ export default function ProfileEditPage() {
                 </TouchableOpacity>
               ))}
             </View>
-          </View>
+          </Flex>
 
           <DatePicker
             precision="day"
@@ -298,11 +323,12 @@ export default function ProfileEditPage() {
             <TextInput
               style={styles.infoInput}
               value={form.height}
-              onChangeText={t => patch('height', t)}
+              onChangeText={t => patch('height', limitText(t, METRIC_MAX_LENGTH))}
               placeholder="请输入身高"
               placeholderTextColor={AppTheme.textSecondary}
               keyboardType="decimal-pad"
-              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              maxLength={METRIC_MAX_LENGTH}
+              inputAccessoryViewID={heightInputAccessoryViewID}
             />
             <Text style={styles.unitText}>cm</Text>
           </Flex>
@@ -312,16 +338,17 @@ export default function ProfileEditPage() {
             <TextInput
               style={styles.infoInput}
               value={form.weight}
-              onChangeText={t => patch('weight', t)}
+              onChangeText={t => patch('weight', limitText(t, METRIC_MAX_LENGTH))}
               placeholder="请输入体重"
               placeholderTextColor={AppTheme.textSecondary}
               keyboardType="decimal-pad"
-              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              maxLength={METRIC_MAX_LENGTH}
+              inputAccessoryViewID={weightInputAccessoryViewID}
             />
             <Text style={styles.unitText}>kg</Text>
           </Flex>
 
-          <View style={[styles.fieldBlock, { borderBottomWidth: 0 }]}>
+          <View style={styles.fieldBlock}>
             <Text style={styles.infoItemLabel}>血型</Text>
             <View style={allergyStyles.chipGrid}>
               {BLOOD_TYPES.map((item, index) => (
@@ -345,8 +372,13 @@ export default function ProfileEditPage() {
               ))}
             </View>
           </View>
+          <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
+            <Text style={styles.infoItemLabel}>手机号</Text>
+            <Text style={styles.infoItemValue}>{systemUser?.phonenumber || '--'}</Text>
+          </Flex>
         </View>
-      </ScrollView>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }

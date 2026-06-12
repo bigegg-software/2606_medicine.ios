@@ -17,6 +17,7 @@ import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/compone
 import { consumePendingAttachments } from '@/src/utils/attachmentUploadSession';
 import { consumePendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
+import { MEDICAL_RECORD_TYPE_LIST } from './caseConstants';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -44,15 +45,6 @@ function isImageAttachment(att: MedicalRecordAttachment) {
     const name = att.originalName ?? att.ossUrl ?? '';
     return /\.(jpe?g|png|gif|webp|heic|bmp)$/i.test(name);
 }
-
-const TYPE_LIST = [
-    { label: '门诊', value: '门诊' },
-    { label: '急诊', value: '急诊' },
-    { label: '住院', value: '住院' },
-    { label: '体检', value: '体检' },
-    { label: '复诊', value: '复诊' },
-    { label: '其他', value: '其他' },
-];
 
 const KS_LIST = [
     '心血管内科',
@@ -346,7 +338,7 @@ export default function CaseAddPage() {
                     <View>
                         <Text style={styles.rowTitle}>就诊类型</Text>
                         <Flex wrap="wrap" style={{ marginBottom: 12, gap: 8 }}>
-                            {TYPE_LIST.map(item => (
+                            {MEDICAL_RECORD_TYPE_LIST.map(item => (
                                 <TouchableOpacity
                                     style={[styles.typeItem, type === item.value && styles.typeItemActive]}
                                     key={item.value}

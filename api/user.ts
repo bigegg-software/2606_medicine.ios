@@ -1,5 +1,44 @@
 import request from '@/utils/axios';
 
+export type SystemUserRole = {
+  roleId?: number;
+  roleName?: string;
+  roleKey?: string;
+  roleSort?: number;
+  dataScope?: string;
+  menuCheckStrictly?: boolean;
+  deptCheckStrictly?: boolean;
+  status?: string;
+  remark?: string;
+  createTime?: string;
+  flag?: boolean;
+};
+
+export type SystemUser = {
+  userId?: number;
+  tenantId?: string;
+  deptId?: number;
+  userName?: string;
+  nickName?: string;
+  userType?: string;
+  email?: string;
+  phonenumber?: string;
+  sex?: string;
+  avatar?: number;
+  status?: string;
+  loginIp?: string;
+  loginDate?: string;
+  remark?: string;
+  createTime?: string;
+  deptName?: string;
+  roles?: SystemUserRole[];
+  roleIds?: number[];
+  postIds?: number[];
+  roleId?: number;
+  realName?: string;
+  pcode?: string;
+};
+
 export type UserExtr = {
   userId?: number;
   language?: string;
@@ -12,15 +51,28 @@ export type UserExtr = {
   sleepGoals?: number;
   stepGoals?: number;
   energyGoals?: number;
+  calorieGoals?: number;
   createTime?: string;
   drugIsTip?: number;
   drugBeforeTipTime?: number;
   drugTipTypes?: string;
   questionAiSuggestion?: string;
+  isSendSysMsg?: number;
+  autoSyncData?: number;
+  synWdataDays?: number;
+};
+
+export type UserInfoData = {
+  user?: SystemUser;
+  userExtr?: UserExtr;
+  permissions?: string[];
+  roles?: string[];
 };
 
 type UserInfoResponse = {
-  userExtr?: UserExtr;
+  code?: number;
+  msg?: string;
+  data?: UserInfoData;
 };
 
 export const getUserInfo = () => request.get<UserInfoResponse>('/system/user/getInfo');

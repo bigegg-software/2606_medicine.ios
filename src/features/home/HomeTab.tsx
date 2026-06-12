@@ -23,6 +23,7 @@ import BodyTemperatureChart from './components/BodyTemperatureChart';
 import { parseHealthMetrics, type HealthMetricModel, type ScheduleItem, type ActivityItem } from '@/common/models';
 import { AppTheme } from '@/common/theme';
 import { isApiOk, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
 import type { RootStackParamList } from '@/route/router';
 
 type Nav = CompositeNavigationProp<
@@ -94,7 +95,10 @@ export default function HomeTab() {
     load();
   }, [load]);
 
-  const userName = String(profile.nickname ?? profile.name ?? '张爷爷');
+  const userName = getDisplayUserName({
+    name: String(profile.name ?? profile.nickname ?? ''),
+    userId: typeof profile.userId === 'number' ? profile.userId : undefined,
+  });
   const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][moment().day()];
   const timeStr = moment().format('HH:mm');
 

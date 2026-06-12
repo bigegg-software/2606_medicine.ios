@@ -20,15 +20,12 @@ import { getMedicalRecordFrontList, removeMedicalRecord, type MedicalRecord } fr
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import SwipeDeleteRow, { closeActiveSwipeRow } from './components/SwipeDeleteRow';
+import { buildMedicalRecordNavList } from './caseConstants';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const NAV_LIST = [
-    { label: '全部', value: 'all', type: '' },
-    { label: '住院', value: 'hospital', type: '住院' },
-    { label: '门诊', value: 'outpatient', type: '门诊' },
-] as const;
+const NAV_LIST = buildMedicalRecordNavList();
 
 function CaseNoteCard({ item }: { item: MedicalRecord }) {
     const navigation = useNavigation<Nav>();
@@ -65,7 +62,7 @@ function CaseNoteCard({ item }: { item: MedicalRecord }) {
 
 export default function CaseNotesPage() {
     const navigation = useNavigation<Nav>();
-    const [activeNav, setActiveNav] = useState<(typeof NAV_LIST)[number]['value']>('all');
+    const [activeNav, setActiveNav] = useState('all');
     const [keyword, setKeyword] = useState('');
     const [searchKeyword, setSearchKeyword] = useState('');
     const [items, setItems] = useState<MedicalRecord[]>([]);

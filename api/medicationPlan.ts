@@ -53,6 +53,7 @@ export type MedicationPlanInfoResult = ApiResult & {
 
 export type IndexMedicationPlanItem = {
   healthMedicationPlan?: MedicationPlan;
+  userId?: number;
   dataType?: number;
   medicationPlanTime?: string;
   isAllDay?: number;
@@ -60,20 +61,45 @@ export type IndexMedicationPlanItem = {
   actionTime?: string;
 };
 
+export type IndexMedicationPlanGroupItem = {
+  medicationPlanTime?: string;
+  list?: IndexMedicationPlanItem[];
+};
+
 export type IndexMedicationPlanResult = ApiResult & {
   data?: IndexMedicationPlanItem[];
+};
+
+export type IndexMedicationPlanGroupResult = ApiResult & {
+  data?: IndexMedicationPlanGroupItem[];
 };
 
 export const getIndexMedicationPlan = () =>
   request.get<IndexMedicationPlanResult>('/patient/medicationPlan/indexPlan');
 
-export const getMedicationPlanInfo = (medicationPlanId: number | string) =>
+export const getIndexMedicationPlanGroupByTime = () =>
+  request.get<IndexMedicationPlanGroupResult>('/patient/medicationPlan/indexPlanGroupByTime');
+
+export const getMedicationPlanInfo = (medicationPlanId: string | number) =>
   request.get<MedicationPlanInfoResult>('/patient/medicationPlan/getInfo', {
-    params: { medicationPlanId },
+    params: { medicationPlanId: String(medicationPlanId) },
   });
+
+export const getMyMedicationPlanList = (params?: { planType?: number | '' }) =>
+  request.get<ApiResult & { data?: MedicationPlan[] }>('/patient/medicationPlan/myList', { params });
 
 export const addMedicationPlan = (data: MedicationPlanPayload) =>
   request.post<ApiResult>('/patient/medicationPlan/add', data);
 
-export const updateMedicationPlan = (data: MedicationPlanPayload & { medicationPlanId: number }) =>
+export const updateMedicationPlan = (data: MedicationPlanPayload & { medicationPlanId: string | number }) =>
   request.put<ApiResult>('/patient/medicationPlan/update', data);
+
+export const removeMedicationPlanById = (medicationPlanId: string | number) =>
+  request.delete<ApiResult>('/patient/medicationPlan/removeById', {
+    params: { medicationPlanId: String(medicationPlanId) },
+  });
+
+export const updateMedicationPlanTimeList = (data: {
+  medicationPlanId: string | number;
+  timeList: string[];
+}) => request.put<ApiResult>('/patient/medicationPlan/updateTimeList', data);

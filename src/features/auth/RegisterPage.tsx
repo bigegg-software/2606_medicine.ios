@@ -6,7 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch } from 'react-redux';
 import { AppTheme } from '@/common/theme';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { sendSmsCode, register } from '@/api/auth';
 import styles from '@/css/auth/register';
 import { saveToken, saveUserId, saveRefreshToken, saveClientId } from '@/services/storage';
@@ -91,7 +91,7 @@ export default function RegisterPage() {
 
   const sendCode = useCallback(async () => {
     if (!phoneValid) {
-      Alert.alert('提示', '请输入正确的手机号（11位数字）');
+      Toast.info('请输入正确的手机号（11位数字）', 1.5);
       return;
     }
     setSendingCode(true);
@@ -99,13 +99,13 @@ export default function RegisterPage() {
       const res = await sendSmsCode(phone.trim());
       if (isResourceApiOk(res as { code?: number; msg?: string })) {
         setCountdown(60);
-        Alert.alert('提示', '验证码已发送');
+        Toast.success('验证码已发送', 1.5);
       } else {
         const r = res as { msg?: string; message?: string };
-        Alert.alert('发送失败', r.msg ?? r.message ?? '请稍后重试');
+        Toast.fail(r.msg ?? r.message ?? '请稍后重试', 1.5);
       }
     } catch {
-      Alert.alert('错误', '网络错误，请稍后重试');
+      Toast.fail('网络错误，请稍后重试', 1.5);
     } finally {
       setSendingCode(false);
     }

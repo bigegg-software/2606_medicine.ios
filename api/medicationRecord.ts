@@ -4,7 +4,7 @@ import type { MedicationPlan } from '@/api/medicationPlan';
 export type MedicationRecordAction = 0 | 1;
 
 export type MedicationRecordPayload = {
-  medicationPlanId: number;
+  medicationPlanId: string | number;
   medicationPlanTime?: string;
   action: MedicationRecordAction;
 };
@@ -16,6 +16,7 @@ export type MedicationRecordItem = {
   userId?: number;
   medicationPlanTime?: string;
   action?: MedicationRecordAction;
+  actionTime?: string;
   snapshotRule?: MedicationPlan;
   dataType?: number;
   isManual?: number;
