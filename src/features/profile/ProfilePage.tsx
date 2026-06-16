@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -16,7 +16,6 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import type { RootStackParamList } from '@/route/router';
-import { LinearGradient } from 'expo-linear-gradient';
 import { useFontSize } from '@/common/FontSizeContext';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -91,20 +90,14 @@ export default function ProfilePage() {
 
   if (loading && user == null) {
     return (
-      <View style={styles.center}>
+      <TabPageLayout style={styles.container} contentStyle={styles.center}>
         <ActivityIndicator color={AppTheme.primaryColor} />
-      </View>
+      </TabPageLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
+    <TabPageLayout style={styles.container}>
       <Text style={styles.pageTitle}>我的</Text>
       <View style={styles.pageLine} />
 
@@ -316,6 +309,6 @@ export default function ProfilePage() {
           </Flex>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </TabPageLayout>
   );
 }

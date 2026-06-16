@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Image } from 'react-native';
+import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useDispatch, useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from '@/store/store';
-import { AppTheme } from '@/common/theme';
+import { useDispatch } from 'react-redux';
+import type { AppDispatch } from '@/store/store';
 import styles from '@/css/community/community';
 import type { RootStackParamList } from '@/route/router';
-import { LinearGradient } from 'expo-linear-gradient';
 import ActivityPage from './components/activity';
 import LivePage from './components/live';
 import CoursePage from './components/course';
@@ -62,13 +60,7 @@ export default function CommunityPage() {
     }
   ]
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
+    <TabPageLayout style={styles.container}>
       <Text style={styles.pageTitle}>社区服务</Text>
       <View style={styles.pageLine} />
 
@@ -113,6 +105,6 @@ export default function CommunityPage() {
           </ScrollView>
         )}
       </View>
-    </SafeAreaView>
+    </TabPageLayout>
   );
 }

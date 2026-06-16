@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, Image, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, type ImageSourcePropType } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flex, Carousel } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { TabPageLayout } from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
@@ -104,20 +104,14 @@ export default function HomeTab() {
 
   if (loading) {
     return (
-      <View style={styles.center}>
+      <TabPageLayout style={styles.container} contentStyle={styles.center}>
         <ActivityIndicator size="large" color={AppTheme.primaryColor} />
-      </View>
+      </TabPageLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
+    <TabPageLayout style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
@@ -393,8 +387,8 @@ export default function HomeTab() {
           </TouchableOpacity>
         ))}
         {activities.length === 0 ? <Text style={styles.emptyLine}>暂无社区活动</Text> : null} */}
-      </ScrollView >
-    </SafeAreaView >
+      </ScrollView>
+    </TabPageLayout>
   );
 }
 
