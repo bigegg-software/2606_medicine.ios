@@ -1,0 +1,52 @@
+import request from '@/utils/axios';
+
+export type ChronicDiseaseRecord = {
+  id?: number;
+  userId?: number;
+  diseaseType?: string;
+  diagnosisTime?: string;
+  mainSymptoms?: string;
+  associationMedicationPlanIds?: (string | number)[];
+};
+
+export type ChronicDiseaseListParams = {
+  diseaseType?: string;
+  pageSize?: number;
+  pageNum?: number;
+};
+
+export type ChronicDiseaseListResult = {
+  code?: number;
+  msg?: string;
+  total?: number;
+  rows?: ChronicDiseaseRecord[];
+};
+
+export type ChronicDiseaseInfoResult = {
+  code?: number;
+  msg?: string;
+  data?: ChronicDiseaseRecord;
+};
+
+export type ChronicDiseasePayload = {
+  id?: number | null;
+  diseaseType?: string;
+  diagnosisTime?: string;
+  mainSymptoms?: string;
+  associationMedicationPlanIds?: (string | number)[];
+};
+
+export const getChronicDiseaseFrontList = (params?: ChronicDiseaseListParams) =>
+  request.get<ChronicDiseaseListResult>('/patient/chronicDisease/frontList', { params });
+
+export const getChronicDiseaseInfo = (id: number) =>
+  request.get<ChronicDiseaseInfoResult>('/patient/chronicDisease/getInfo', { params: { id } });
+
+export const addChronicDisease = (data: ChronicDiseasePayload) =>
+  request.post('/patient/chronicDisease/add', data);
+
+export const updateChronicDisease = (data: ChronicDiseasePayload & { id: number }) =>
+  request.put('/patient/chronicDisease/update', data);
+
+export const removeChronicDiseaseById = (id: number) =>
+  request.delete('/patient/chronicDisease/removeById', { params: { id } });

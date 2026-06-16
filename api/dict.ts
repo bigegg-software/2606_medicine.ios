@@ -20,6 +20,7 @@ export type DictDataListResult = {
 };
 
 export const DICT_TYPES = {
+  diseaseType: 'disease_type',
   relationType: 'relation_type',
   drugAmountUnit: 'drug_amount_unit',
   medicationEventBased: 'medication_event_based',

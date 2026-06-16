@@ -46,6 +46,7 @@ import MedicationAllPage from '@/src/features/profile/medication/all';
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
 import ChronicDiseaseAddPage from '@/src/features/profile/chronicDisease/add';
+import ChronicDiseaseDetailPage from '@/src/features/profile/chronicDisease/detail';
 
 // 紧急联系人
 import Emergency from '@/src/features/profile/emergency';
@@ -97,7 +98,8 @@ export type RootStackParamList = {
   FamilyHistoryAdd: { editIndex?: number } | undefined;
   FamilyBind: undefined;
   ChronicDisease: undefined;
-  ChronicDiseaseAddPage: undefined;
+  ChronicDiseaseAddPage: { id?: number } | undefined;
+  ChronicDiseaseDetailPage: { id: number } | undefined;
   VitalsPage: undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' };
@@ -132,6 +134,7 @@ const STACK_ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
   FamilyHistoryAdd: '添加家族病史',
   ChronicDisease: '慢病管理',
   ChronicDiseaseAddPage: '新增慢病',
+  ChronicDiseaseDetailPage: '慢病详情',
   VitalsPage: '体征监测',
   AddDataPage: '新增记录',
   AllDataPage: '血压记录',
@@ -191,7 +194,6 @@ function StackHeader({ route, options, back, navigation }: any) {
         }
         back={back}
       />
-      <View style={styles.stackHeaderDivider} />
     </View>
   );
 }
@@ -214,7 +216,6 @@ function DarkStackHeader({ route, options, back }: NativeStackHeaderProps) {
         headerShadowVisible={false}
         back={back}
       />
-      <View style={styles.darkStackHeaderDivider} />
     </View>
   );
 }
@@ -233,20 +234,10 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     overflow: 'hidden',
   },
-  stackHeaderDivider: {
-    height: 1,
-    marginTop: 10,
-    backgroundColor: 'rgba(5,58,147,0.06)',
-  },
   darkStackHeader: {
     paddingLeft: 10,
     backgroundColor: '#191926',
     overflow: 'hidden',
-  },
-  darkStackHeaderDivider: {
-    height: 1,
-    marginTop: 10,
-    backgroundColor: 'rgba(255,255,255,0.08)',
   },
 });
 
@@ -295,6 +286,7 @@ export default function RootStack() {
       <Stack.Screen name="FamilyHistoryAdd" component={FamilyHistoryAdd} options={{ title: "添加家族病史" }} />
       <Stack.Screen name="ChronicDisease" component={ChronicDiseasePage} options={{ title: "慢病管理" }} />
       <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
+      <Stack.Screen name="ChronicDiseaseDetailPage" component={ChronicDiseaseDetailPage} options={{ title: "慢病详情" }} />
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
