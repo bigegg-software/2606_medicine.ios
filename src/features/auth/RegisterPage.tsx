@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, ScrollView, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -21,9 +21,13 @@ import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
-const inviteInputAccessoryViewID = 'registerInviteDoneToolbar';
-const phoneInputAccessoryViewID = 'registerPhoneDoneToolbar';
-const codeInputAccessoryViewID = 'registerCodeDoneToolbar';
+const REGISTER_ACCESSORY = {
+  invite: 'registerInviteDoneToolbar',
+  phone: 'registerPhoneDoneToolbar',
+  code: 'registerCodeDoneToolbar',
+} as const;
+
+type RegisterField = keyof typeof REGISTER_ACCESSORY;
 
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {
@@ -44,6 +48,15 @@ export default function RegisterPage() {
   const [sendingCode, setSendingCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [accessoryKeys, setAccessoryKeys] = useState<Record<RegisterField, number>>({
+    invite: 0,
+    phone: 0,
+    code: 0,
+  });
+
+  const refreshAccessory = useCallback((field: RegisterField) => {
+    setAccessoryKeys(prev => ({ ...prev, [field]: prev[field] + 1 }));
+  }, []);
 
   const inviteCodeValid = inviteCode.trim().length > 0;
   const phoneValid = phone.trim().length === 11;
@@ -161,118 +174,135 @@ export default function RegisterPage() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <KeyboardDoneAccessory nativeID={inviteInputAccessoryViewID} />
-      <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />
-      <KeyboardDoneAccessory nativeID={codeInputAccessoryViewID} />
+      {(Object.entries(REGISTER_ACCESSORY) as [RegisterField, string][]).map(([field, id]) => (
+        <KeyboardDoneAccessory key={`${id}-${accessoryKeys[field]}`} nativeID={id} />
+      ))}
 
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-
-      <View style={styles.body}>
-        <View style={styles.content}>
-          <Text style={styles.title}>欢迎来到莱益昇</Text>
-          <Text style={styles.subtitle}>请填写以下信息完成注册</Text>
-
-          <Text style={styles.inputTitle}>邀请码</Text>
-          <TextInput
-            style={styles.inputBox}
-            placeholder="请输入邀请码"
-            placeholderTextColor="#999999"
-            value={inviteCode}
-            onChangeText={setInviteCode}
-            inputAccessoryViewID={inviteInputAccessoryViewID}
-          />
-
-          <Text style={styles.inputTitle}>手机号</Text>
-          <TextInput
-            style={styles.inputBox}
-            placeholder="请输入手机号"
-            placeholderTextColor="#999999"
-            keyboardType="phone-pad"
-            maxLength={11}
-            value={phone}
-            onChangeText={setPhone}
-            inputAccessoryViewID={phoneInputAccessoryViewID}
-          />
-
-          <Text style={styles.inputTitle}>验证码</Text>
-          <View style={[styles.codeBox, styles.codeBoxTight]}>
-            <TextInput
-              style={styles.codeInput}
-              placeholder="验证码"
-              placeholderTextColor="#999999"
-              keyboardType="number-pad"
-              returnKeyType="done"
-              maxLength={6}
-              value={code}
-              onChangeText={setCode}
-              inputAccessoryViewID={codeInputAccessoryViewID}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bounces={false}
+          showsVerticalScrollIndicator={false}>
+          <View style={{ flex: 1 }}>
+            <LinearGradient
+              colors={['#B4D0FF', '#F5F8FF']}
+              style={styles.headerGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
             />
-            <TouchableOpacity
-              style={countdown > 0 && styles.codeBtnOff}
-              disabled={countdown > 0 || sendingCode || submitting}
-              onPress={sendCode}
-            >
-              <Text style={styles.codeBtnText}>
-                {countdown > 0 ? `${countdown}秒` : '获取验证码'}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.agreement}>
-            <View style={styles.agreementRow}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setAgreed(v => !v)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                  {agreed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            <View style={styles.body}>
+              <View style={styles.content}>
+                <Text style={styles.title}>欢迎来到莱益昇</Text>
+                <Text style={styles.subtitle}>请填写以下信息完成注册</Text>
+
+                <Text style={styles.inputTitle}>邀请码</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="请输入邀请码"
+                  placeholderTextColor="#999999"
+                  value={inviteCode}
+                  onChangeText={setInviteCode}
+                  returnKeyType="done"
+                  onPressIn={() => refreshAccessory('invite')}
+                  inputAccessoryViewID={REGISTER_ACCESSORY.invite}
+                />
+
+                <Text style={styles.inputTitle}>手机号</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="请输入手机号"
+                  placeholderTextColor="#999999"
+                  keyboardType="phone-pad"
+                  maxLength={11}
+                  value={phone}
+                  onChangeText={setPhone}
+                  returnKeyType="done"
+                  onPressIn={() => refreshAccessory('phone')}
+                  inputAccessoryViewID={REGISTER_ACCESSORY.phone}
+                />
+
+                <Text style={styles.inputTitle}>验证码</Text>
+                <View style={[styles.codeBox, styles.codeBoxTight]}>
+                  <TextInput
+                    style={styles.codeInput}
+                    placeholder="验证码"
+                    placeholderTextColor="#999999"
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    maxLength={6}
+                    value={code}
+                    onChangeText={setCode}
+                    onPressIn={() => refreshAccessory('code')}
+                    inputAccessoryViewID={REGISTER_ACCESSORY.code}
+                  />
+                  <TouchableOpacity
+                    style={countdown > 0 && styles.codeBtnOff}
+                    disabled={countdown > 0 || sendingCode || submitting}
+                    onPress={sendCode}
+                  >
+                    <Text style={styles.codeBtnText}>
+                      {countdown > 0 ? `${countdown}秒` : '获取验证码'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-              <Text style={styles.agreementText}>
-                已阅读并同意
-                <Text style={styles.agreementLink} onPress={openUserAgreement}>
-                  《用户协议》
-                </Text>
-                和
-                <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
-                  《隐私政策》
-                </Text>
-              </Text>
+
+                <View style={styles.agreement}>
+                  <View style={styles.agreementRow}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setAgreed(v => !v)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                        {agreed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={styles.agreementText}>
+                      已阅读并同意
+                      <Text style={styles.agreementLink} onPress={openUserAgreement}>
+                        《用户协议》
+                      </Text>
+                      和
+                      <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
+                        《隐私政策》
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.button, submitting && styles.buttonDisabled]}
+                  disabled={submitting}
+                  onPress={doRegister}
+                >
+                  <Flex justify="center" style={{ flex: 1 }}>
+                    {submitting ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.buttonText}>立即注册</Text>
+                    )}
+                  </Flex>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => navigation.replace('Login')}>
+                  <Flex justify="center">
+                    <Text style={[styles.registerText, { color: AppTheme.textSecondary }]}>
+                      已有账号？
+                    </Text>
+                    <Text style={styles.registerText}>立即登录</Text>
+                  </Flex>
+                </TouchableOpacity>
+              </View>
+
+              <Reanimated.View style={bottomAreaStyle} />
             </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.button, submitting && styles.buttonDisabled]}
-            disabled={submitting}
-            onPress={doRegister}
-          >
-            <Flex justify="center" style={{ flex: 1 }}>
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>立即注册</Text>
-              )}
-            </Flex>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => navigation.replace('Login')}>
-            <Flex justify="center">
-              <Text style={[styles.registerText, { color: AppTheme.textSecondary }]}>
-                已有账号？
-              </Text>
-              <Text style={styles.registerText}>立即登录</Text>
-            </Flex>
-          </TouchableOpacity>
-        </View>
-
-        <Reanimated.View style={bottomAreaStyle} />
-      </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }

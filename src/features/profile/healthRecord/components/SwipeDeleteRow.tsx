@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect } from 'react';
-import { View, Text, Image, Pressable } from 'react-native';
+import React, { useCallback, useEffect, useMemo } from 'react';
+import { View, Image, Pressable, type ImageStyle, type ViewStyle } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, runOnJS } from 'react-native-reanimated';
 import { AppTheme } from '@/common/theme';
-import styles from '@/css/profile/healthRecord';
+import baseStyles from '@/css/profile/healthRecord';
 
 const ACTION_WIDTH = 72;
 const SNAP_SPRING = { damping: 22, stiffness: 240 };
@@ -14,12 +14,25 @@ export function closeActiveSwipeRow() {
     activeCloser?.();
 }
 
+export type SwipeDeleteRowStyleOverrides = {
+    swipeRow?: ViewStyle;
+    swipeAction?: ViewStyle;
+    swipeForeground?: ViewStyle;
+    swipeDeleteBtn?: ViewStyle;
+    editIcon?: ImageStyle;
+};
+
 type Props = {
     children: React.ReactNode;
     onDelete: () => void;
+    styleOverrides?: SwipeDeleteRowStyleOverrides;
 };
 
-export default function SwipeDeleteRow({ children, onDelete }: Props) {
+export default function SwipeDeleteRow({ children, onDelete, styleOverrides }: Props) {
+    const styles = useMemo(
+        () => ({ ...baseStyles, ...styleOverrides }),
+        [styleOverrides],
+    );
     const translateX = useSharedValue(0);
     const startX = useSharedValue(0);
 

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert, } from 'react-native';
 import { Flex, DatePicker, Toast } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
@@ -336,26 +336,26 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <Flex justify="center" style={{ flex: 1 }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </Flex>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     if (!currentTemplate || !currentQuestion) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <Flex justify="center" style={{ flex: 1 }}>
                     <Text style={styles.rowText}>暂无问卷题目</Text>
                 </Flex>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Flex style={styles.titleBox}>
@@ -389,6 +389,6 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                     <Text style={styles.nextBtnText}>{isLast ? '提交' : '下一题'}</Text>
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

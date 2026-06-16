@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getAllergyInfo, updateAllergy, type AllergyItem } from '@/api/allergy';
@@ -121,16 +121,16 @@ export default function AllergiesAddPage({ route }: Props) {
 
     if (initializing) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body}>
                 <View style={styles.rowBox}>
@@ -189,6 +189,6 @@ export default function AllergiesAddPage({ route }: Props) {
                     )}
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

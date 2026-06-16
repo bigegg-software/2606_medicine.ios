@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getFamilyMedicalInfo, updateFamilyMedical, type FamilyMedicalItem, } from '@/api/familyMedical';
@@ -88,16 +88,16 @@ export default function FamilyHistoryPage() {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={theme.AppTheme.primaryColor} />
                 </View>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
                 <Flex style={styles.sectionBox}>
                     <Image style={styles.imgItem} source={require('@/assets/images/user/file.png')} />
@@ -143,6 +143,6 @@ export default function FamilyHistoryPage() {
                     <Text style={styles.addText}>添加家族成员病史</Text>
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

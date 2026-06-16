@@ -5,8 +5,8 @@ import {
   getDictDataByType,
   type DictDataItem,
 } from '@/api/dict';
-import type { IndexMedicationPlanGroupItem, IndexMedicationPlanItem, MedicationPlanPayload } from '@/api/medicationPlan';
-import { getIndexMedicationPlanGroupByTime } from '@/api/medicationPlan';
+import type { IndexMedicationPlanGroupItem, IndexMedicationPlanItem, MedicationPlan, MedicationPlanPayload } from '@/api/medicationPlan';
+import { getIndexMedicationPlanGroupByTime, getMedicationPlanInfo, getMyMedicationPlanList } from '@/api/medicationPlan';
 import { addMedicationRecord, getMedicationRecordAll, getMedicationRecordStatis, type MedicationRecordDayGroup } from '@/api/medicationRecord';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 
@@ -120,6 +120,106 @@ export function formatMedicationDoseText(
     return `${dose}，每日${frequency}次`;
   }
   return dose;
+}
+
+export function formatMedicationUsageText(
+  plan?: { amount?: string; amountUnit?: string; medicationFrequency?: number; eventBased?: string },
+  dictMaps?: MedicationDictMaps,
+) {
+  const dosePart = formatMedicationDoseText(plan, dictMaps);
+  const eventLabel = resolveDictLabel(dictMaps?.eventBased ?? {}, plan?.eventBased);
+  const parts: string[] = [];
+  if (dosePart && dosePart !== '--') {
+    parts.push(dosePart);
+  }
+  if (eventLabel && eventLabel !== '无' && plan?.eventBased?.trim() !== '无') {
+    parts.push(eventLabel);
+  }
+  return parts.length > 0 ? parts.join('，') : '--';
+}
+
+export function formatMedicationTimeList(timeList?: string[]) {
+  if (!Array.isArray(timeList) || timeList.length === 0) {
+    return '--';
+  }
+  return timeList.map(time => formatPlanTime(time)).join("，");
+}
+
+export function formatMedicationPlanDate(date?: string) {
+  if (!date?.trim()) {
+    return '--';
+  }
+  const parsed = moment(date, ['YYYY-MM-DD', 'YYYYMMDD', moment.ISO_8601], true);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : date;
+}
+
+export async function loadMyMedicationPlans(params?: { planType?: number }) {
+  try {
+    const res = await getMyMedicationPlanList(params);
+    const data = apiResourceData<MedicationPlan[]>(
+      res as unknown as { code?: number; data?: MedicationPlan[] },
+    );
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function loadMedicationPlanForEdit(medicationPlanId: string | number) {
+  try {
+    const res = await getMedicationPlanInfo(medicationPlanId);
+    return apiResourceData<MedicationPlan>(
+      res as unknown as { code?: number; data?: MedicationPlan },
+    );
+  } catch {
+    return undefined;
+  }
+}
+
+export type MedicationPlanFormValues = {
+  drugName: string;
+  drugType: string;
+  dosageSpec: string;
+  mealRelation: string;
+  doseAmount: string;
+  doseUnit: string;
+  dailyFrequency: number;
+  takeTimes: string[];
+  weekDays: string[];
+  cycleStartDate: string;
+  continuousMedication: boolean;
+};
+
+export function mapMedicationPlanToFormValues(plan: MedicationPlan): MedicationPlanFormValues {
+  const dailyFrequency = Math.max(1, plan.medicationFrequency ?? 1);
+  const rawTimes = (plan.timeList ?? [])
+    .map(time => formatPlanTime(time))
+    .filter(time => time !== '--');
+  const takeTimes = Array.from({ length: dailyFrequency }, (_, index) => rawTimes[index] ?? '08:00');
+  const weekDays = weekDayApiToLabels(plan.daysWeek);
+  const startMoment = plan.startDate
+    ? moment(plan.startDate, ['YYYY-MM-DD', 'YYYYMMDD'], true)
+    : null;
+
+  return {
+    drugName: plan.name?.trim() ?? '',
+    drugType: plan.drugType?.trim() || '片剂',
+    dosageSpec: plan.remark?.trim() ?? '',
+    mealRelation: plan.eventBased?.trim() ?? '',
+    doseAmount: plan.amount?.trim() || '1',
+    doseUnit: plan.amountUnit?.trim() ?? '',
+    dailyFrequency,
+    takeTimes,
+    weekDays: weekDays.length > 0 ? weekDays : [...WEEKDAY_LABELS],
+    cycleStartDate: startMoment?.isValid()
+      ? startMoment.format('YYYY-MM-DD')
+      : moment().format('YYYY-MM-DD'),
+    continuousMedication: plan.courseTreatment === 0,
+  };
+}
+
+export function isPersonalMedicationPlan(plan?: MedicationPlan | null) {
+  return plan != null && plan.planType !== 1;
 }
 
 export function getMedicationPlanTypeLabel(planType?: number) {

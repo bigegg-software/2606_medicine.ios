@@ -1,21 +1,28 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flex, DatePicker, Picker, Switch, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import moment from 'moment';
-import { addMedicationPlan } from '@/api/medicationPlan';
+import { addMedicationPlan, updateMedicationPlan } from '@/api/medicationPlan';
 import styles from '@/css/medication/add';
 import indexStyles from '@/css/medication/index';
 import { AppTheme } from '@/common/theme';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import PageLayout from '@/src/components/PageLayout';
+import type { RootStackParamList } from '@/route/router';
 import {
     WEEKDAY_LABELS,
     buildMedicationPlanPayload,
     loadMedicationDictMaps,
+    loadMedicationPlanForEdit,
+    mapMedicationPlanToFormValues,
     type MedicationDictMaps,
 } from './medicationHelpers';
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Props = NativeStackScreenProps<RootStackParamList, 'MedicationAddPage'>;
 
 const DRUG_TYPE_LIST = [
     { label: '片剂', value: '片剂' },
@@ -118,8 +125,10 @@ function DoseUnitPicker({
     );
 }
 
-export default function MedicationAddPage() {
-    const navigation = useNavigation();
+export default function MedicationAddPage({ route }: Props) {
+    const medicationPlanId = route.params?.medicationPlanId;
+    const isEdit = medicationPlanId != null;
+    const navigation = useNavigation<Nav>();
     const [drugName, setDrugName] = useState('');
     const [drugType, setDrugType] = useState('片剂');
     const [dosageSpec, setDosageSpec] = useState('');
@@ -132,6 +141,7 @@ export default function MedicationAddPage() {
     const [cycleStartDate, setCycleStartDate] = useState(moment().format('YYYY-MM-DD'));
     const [continuousMedication, setContinuousMedication] = useState(true);
     const [submitting, setSubmitting] = useState(false);
+    const [initializing, setInitializing] = useState(isEdit);
     const [dictMaps, setDictMaps] = useState<MedicationDictMaps | null>(null);
 
     const mealRelationList = useMemo(
@@ -144,18 +154,59 @@ export default function MedicationAddPage() {
     );
 
     useEffect(() => {
+        navigation.setOptions({ title: isEdit ? '编辑用药' : '添加用药记录' });
+    }, [isEdit, navigation]);
+
+    useEffect(() => {
         loadMedicationDictMaps()
             .then(maps => {
                 setDictMaps(maps);
-                setDoseUnit(prev => prev || maps.amountUnitOptions[0]?.value || DOSE_UNIT_FALLBACK[0].value);
-                setMealRelation(prev => prev || maps.eventBasedOptions[0]?.value || MEAL_RELATION_FALLBACK[0].value);
+                if (!isEdit) {
+                    setDoseUnit(prev => prev || maps.amountUnitOptions[0]?.value || DOSE_UNIT_FALLBACK[0].value);
+                    setMealRelation(prev => prev || maps.eventBasedOptions[0]?.value || MEAL_RELATION_FALLBACK[0].value);
+                }
             })
             .catch(() => {
                 setDictMaps(null);
-                setDoseUnit(prev => prev || DOSE_UNIT_FALLBACK[0].value);
-                setMealRelation(prev => prev || MEAL_RELATION_FALLBACK[0].value);
+                if (!isEdit) {
+                    setDoseUnit(prev => prev || DOSE_UNIT_FALLBACK[0].value);
+                    setMealRelation(prev => prev || MEAL_RELATION_FALLBACK[0].value);
+                }
             });
-    }, []);
+    }, [isEdit]);
+
+    useEffect(() => {
+        if (!isEdit || medicationPlanId == null) {
+            return;
+        }
+        (async () => {
+            try {
+                const plan = await loadMedicationPlanForEdit(medicationPlanId);
+                if (!plan) {
+                    Toast.fail('加载用药计划失败', 1.5);
+                    navigation.goBack();
+                    return;
+                }
+                const form = mapMedicationPlanToFormValues(plan);
+                setDrugName(form.drugName);
+                setDrugType(form.drugType);
+                setDosageSpec(form.dosageSpec);
+                setMealRelation(form.mealRelation);
+                setDoseAmount(form.doseAmount);
+                setDoseUnit(form.doseUnit);
+                setDailyFrequency(form.dailyFrequency);
+                setTakeTimes(form.takeTimes);
+                setWeekDays(form.weekDays);
+                setCycleStartDate(form.cycleStartDate);
+                setContinuousMedication(form.continuousMedication);
+            } catch {
+                Toast.fail('加载用药计划失败', 1.5);
+                navigation.goBack();
+            } finally {
+                setInitializing(false);
+            }
+        })();
+    }, [isEdit, medicationPlanId, navigation]);
 
     const takeTimeCount = getTakeTimeCount(dailyFrequency);
     const visibleTakeTimes = takeTimes.slice(0, takeTimeCount);
@@ -230,214 +281,224 @@ export default function MedicationAddPage() {
                 continuousMedication,
                 reminderEnabled: true,
             });
-            const res = await addMedicationPlan(payload);
+            const res = isEdit
+                ? await updateMedicationPlan({ ...payload, medicationPlanId: medicationPlanId! })
+                : await addMedicationPlan(payload);
             if (!isResourceApiOk(res as any)) {
-                Toast.fail((res as any)?.msg || '添加失败', 1.5);
+                Toast.fail((res as any)?.msg || (isEdit ? '保存失败' : '添加失败'), 1.5);
                 return;
             }
-            Toast.success('添加成功', 1.5);
+            Toast.success(isEdit ? '保存成功' : '添加成功', 1.5);
             navigation.goBack();
         } catch {
-            Toast.fail('添加失败', 1.5);
+            Toast.fail(isEdit ? '保存失败' : '添加失败', 1.5);
         } finally {
             setSubmitting(false);
         }
     };
 
+    if (initializing) {
+        return (
+            <PageLayout style={styles.container} contentStyle={[indexStyles.pageBody, styles.loadingWrap]}>
+                <ActivityIndicator color={AppTheme.primaryColor} />
+            </PageLayout>
+        );
+    }
+
     return (
-        <SafeAreaView edges={['bottom']} style={styles.container}>
-            <KeyboardDoneAccessory />
-            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-                <Text style={styles.sectionTitle}>基础信息</Text>
-                <View style={styles.rowBox}>
-                    <View>
-                        <Text style={styles.rowTitle}>药品名称</Text>
-                        <TextInput
-                            style={styles.inputBox}
-                            placeholder="请输入药品名称"
-                            placeholderTextColor={AppTheme.textSecondary}
-                            value={drugName}
-                            onChangeText={setDrugName}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
-                    </View>
-                    <View style={styles.rowLine} />
-
-                    <View>
-                        <Text style={styles.rowTitle}>药品类型</Text>
-                        <Flex wrap="wrap" style={{ marginBottom: 12, gap: 8 }}>
-                            {DRUG_TYPE_LIST.map(item => (
-                                <TouchableOpacity
-                                    style={[styles.typeItem, drugType === item.value && styles.typeItemActive]}
-                                    key={item.value}
-                                    onPress={() => setDrugType(item.value)}>
-                                    <Flex style={{ flex: 1 }}>
-                                        <Text style={[styles.typeItemText, drugType === item.value && styles.typeItemTextActive]}>
-                                            {item.label}
-                                        </Text>
-                                    </Flex>
-                                </TouchableOpacity>
-                            ))}
-                        </Flex>
-                    </View>
-                    <View style={styles.rowLine} />
-
-                    <View>
-                        <Text style={styles.rowTitle}>剂量规格</Text>
-                        <TextInput
-                            style={styles.inputBox}
-                            placeholder="如：500mg/1片/10ml"
-                            placeholderTextColor={AppTheme.textSecondary}
-                            value={dosageSpec}
-                            onChangeText={setDosageSpec}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
-                    </View>
-                    <View style={[styles.rowLine, { marginBottom: 20 }]} />
-                </View>
-
-                <Text style={styles.sectionTitle}>用药时机</Text>
-                <View style={styles.rowBox}>
-                    <View>
-                        <Text style={styles.rowTitle}>与进餐关系</Text>
-                        <Flex wrap="wrap" style={{ marginBottom: 12, gap: 8 }}>
-                            {mealRelationList.map(item => (
-                                <TouchableOpacity
-                                    style={[styles.typeItem, mealRelation === item.value && styles.typeItemActive]}
-                                    key={item.value}
-                                    onPress={() => setMealRelation(item.value)}>
-                                    <Flex style={{ flex: 1 }}>
-                                        <Text style={[styles.typeItemText, mealRelation === item.value && styles.typeItemTextActive]}>
-                                            {item.label}
-                                        </Text>
-                                    </Flex>
-                                </TouchableOpacity>
-                            ))}
-                        </Flex>
-                    </View>
-                </View>
-
-                <Text style={styles.sectionTitle}>用药规则</Text>
-                <View style={styles.rowBox}>
-                    <Flex justify="between" align="center" style={{ marginBottom: 12 }}>
-                        <Text style={styles.rowTitle}>每次服用剂量</Text>
-                        <Flex align="center">
+        <PageLayout style={styles.container} contentStyle={indexStyles.pageBody}>
+                <KeyboardDoneAccessory />
+                <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+                    <Text style={styles.sectionTitle}>基础信息</Text>
+                    <View style={styles.rowBox}>
+                        <Flex justify="between" align="center">
+                            <Text style={styles.rowTitle}>药品名称</Text>
                             <TextInput
-                                style={styles.numberInput}
-                                value={doseAmount}
-                                onChangeText={onDoseAmountChange}
-                                keyboardType="number-pad"
+                                style={styles.inputBox}
+                                placeholder="请输入药品名称"
+                                placeholderTextColor={AppTheme.textSecondary}
+                                value={drugName}
+                                onChangeText={setDrugName}
                                 inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
-                            <DoseUnitPicker value={doseUnit} onChange={setDoseUnit} options={doseUnitList} />
                         </Flex>
-                    </Flex>
-                    <View style={styles.rowLine} />
+                        <View style={styles.rowLine} />
 
-                    <Flex justify="between" align="center">
-                        <Text style={styles.rowTitle}>每日服用频次</Text>
-                        <Flex align="center">
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                style={styles.stepperBtn}
-                                onPress={() => setDailyFrequencyCount(dailyFrequency - 1)}>
-                                <Image source={require('@/assets/images/user/jian.png')} style={styles.stepperIcon} />
-                            </TouchableOpacity>
-                            <Text style={styles.stepperValue}>{dailyFrequency}</Text>
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                style={styles.stepperBtn}
-                                onPress={() => setDailyFrequencyCount(dailyFrequency + 1)}>
-                                <Image source={require('@/assets/images/user/jia.png')} style={styles.stepperIcon} />
-                            </TouchableOpacity>
-                            <Text style={styles.inlineSuffix}>次/天</Text>
-                        </Flex>
-                    </Flex>
-                    <View style={styles.rowLine} />
-
-                    <View>
-                        <Text style={styles.rowTitle}>具体服用时间</Text>
-                        <Flex wrap="wrap" style={{ marginBottom: 12, gap: 8 }}>
-                            {visibleTakeTimes.map((time, index) => {
-                                const [hour, minute] = parseTimeValue(time);
-                                return <Picker
-                                    key={`take-time-${index}`}
-                                    data={TIME_PICKER_DATA}
-                                    cols={2}
-                                    cascade={false}
-                                    value={[hour, minute]}
-                                    onOk={values => updateTakeTime(index, Number(values[0]), Number(values[1]))}>
-                                    <TouchableOpacity activeOpacity={0.7} style={indexStyles.typeItem}>
-                                        <Flex style={{ flex: 1 }}>
-                                            <Text style={indexStyles.typeItemText}>{formatTimeDisplay(time)}</Text>
+                        <View>
+                            <Text style={styles.rowTitle}>药品类型</Text>
+                            <Flex wrap="wrap" style={{ marginBottom: 12, marginTop: 4, gap: 8 }}>
+                                {DRUG_TYPE_LIST.map(item => (
+                                    <TouchableOpacity
+                                        style={[styles.typeItem, drugType === item.value && styles.typeItemActive]}
+                                        key={item.value}
+                                        onPress={() => setDrugType(item.value)}>
+                                        <Flex justify='center' style={{ flex: 1 }}>
+                                            <Text style={[styles.typeItemText, drugType === item.value && styles.typeItemTextActive]}>
+                                                {item.label}
+                                            </Text>
                                         </Flex>
                                     </TouchableOpacity>
-                                </Picker>
-                            })}
-                        </Flex>
-                    </View>
-                    <View style={styles.rowLine} />
-                    <View>
-                        <Text style={styles.rowTitle}>每周用药时间</Text>
-                        <Flex justify='between' style={{ marginBottom: 12, gap: 8 }}>
-                            {WEEKDAY_LIST.map(day => (
-                                <TouchableOpacity
-                                    key={day}
-                                    activeOpacity={0.7}
-                                    style={[styles.weekdayItem, weekDays.includes(day) && styles.weekdayItemActive]}
-                                    onPress={() => toggleWeekDay(day)}>
-                                    <Text style={[styles.weekdayItemText, weekDays.includes(day) && styles.weekdayItemTextActive]}>
-                                        {day}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                        </Flex>
+                                ))}
+                            </Flex>
+                        </View>
+                        {/* <View style={styles.rowLine} /> */}
+
+                        {/* <View>
+                            <Text style={styles.rowTitle}>剂量规格</Text>
+                            <TextInput
+                                style={styles.inputBox}
+                                placeholder="如：500mg/1片/10ml"
+                                placeholderTextColor={AppTheme.textSecondary}
+                                value={dosageSpec}
+                                onChangeText={setDosageSpec}
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            />
+                        </View>
+                        <View style={[styles.rowLine, { marginBottom: 20 }]} /> */}
                     </View>
 
-                    <View style={styles.rowLine} />
-
-                    <Flex justify="between" align="center">
-                        <Text style={styles.rowTitle}>持续用药</Text>
-                        <Switch
-                            style={styles.switch}
-                            checked={continuousMedication}
-                            onChange={setContinuousMedication}
-                            color={AppTheme.primaryColor}
-                        />
-                    </Flex>
-
-                    {!continuousMedication ? (
-                        <>
-                            <View style={styles.rowLine} />
-                            <DatePicker
-                                precision="day"
-                                value={moment(cycleStartDate, 'YYYY-MM-DD').toDate()}
-                                onOk={date => setCycleStartDate(moment(date).format('YYYY-MM-DD'))}>
-                                <TouchableOpacity activeOpacity={0.7}>
-                                    <Flex justify="between" align="center">
-                                        <Text style={styles.rowTitle}>用药周期</Text>
-                                        <Flex align="center">
-                                            <Text style={styles.dateValue}>
-                                                {moment(cycleStartDate).format('YYYY年M月D日')}
+                    <Text style={styles.sectionTitle}>用药时机</Text>
+                    <View style={styles.rowBox}>
+                        <View>
+                            <Text style={styles.rowTitle}>与进餐关系</Text>
+                            <Flex wrap="wrap" style={{ marginBottom: 12, gap: 8 }}>
+                                {mealRelationList.map(item => (
+                                    <TouchableOpacity
+                                        style={[styles.typeItem, mealRelation === item.value && styles.typeItemActive]}
+                                        key={item.value}
+                                        onPress={() => setMealRelation(item.value)}>
+                                        <Flex justify='center' style={{ flex: 1 }}>
+                                            <Text style={[styles.typeItemText, mealRelation === item.value && styles.typeItemTextActive]}>
+                                                {item.label}
                                             </Text>
-                                            <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
                                         </Flex>
-                                    </Flex>
+                                    </TouchableOpacity>
+                                ))}
+                            </Flex>
+                        </View>
+                    </View>
+
+                    <Text style={styles.sectionTitle}>用药规则</Text>
+                    <View style={styles.rowBox}>
+                        <Flex justify="between" align="center" style={{ marginBottom: 8 }}>
+                            <Text style={styles.rowTitle}>每次服用剂量</Text>
+                            <Flex align="center">
+                                <TextInput
+                                    style={styles.numberInput}
+                                    value={doseAmount}
+                                    onChangeText={onDoseAmountChange}
+                                    keyboardType="number-pad"
+                                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                                />
+                                <DoseUnitPicker value={doseUnit} onChange={setDoseUnit} options={doseUnitList} />
+                            </Flex>
+                        </Flex>
+                        {/* <View style={styles.rowLine} /> */}
+
+                        <Flex justify="between" align="center" style={{ marginBottom: 8 }}>
+                            <Text style={styles.rowTitle}>每日服用频次</Text>
+                            <Flex align="center">
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={styles.stepperBtn}
+                                    onPress={() => setDailyFrequencyCount(dailyFrequency - 1)}>
+                                    <Image source={require('@/assets/images/user/jian.png')} style={styles.stepperIcon} />
                                 </TouchableOpacity>
-                            </DatePicker>
-                        </>
-                    ) : null}
-                </View>
-            </ScrollView>
-            <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    {submitting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.addText}>添加用药</Text>
-                    )}
-                </Flex>
-            </TouchableOpacity>
-        </SafeAreaView>
+                                <Text style={styles.stepperValue}>{dailyFrequency}</Text>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    style={styles.stepperBtn}
+                                    onPress={() => setDailyFrequencyCount(dailyFrequency + 1)}>
+                                    <Image source={require('@/assets/images/user/jia.png')} style={styles.stepperIcon} />
+                                </TouchableOpacity>
+                                <Text style={styles.inlineSuffix}>次/天</Text>
+                            </Flex>
+                        </Flex>
+                        {/* <View style={styles.rowLine} /> */}
+
+                        <View>
+                            <Text style={styles.rowTitle}>具体服用时间</Text>
+                            <Flex wrap="wrap" style={{ marginBottom: 8, marginTop: 8, gap: 8 }}>
+                                {visibleTakeTimes.map((time, index) => {
+                                    const [hour, minute] = parseTimeValue(time);
+                                    return <Picker
+                                        key={`take-time-${index}`}
+                                        data={TIME_PICKER_DATA}
+                                        cols={2}
+                                        cascade={false}
+                                        value={[hour, minute]}
+                                        onOk={values => updateTakeTime(index, Number(values[0]), Number(values[1]))}>
+                                        <TouchableOpacity activeOpacity={0.7} style={indexStyles.typeItem}>
+                                            <Flex style={{ flex: 1 }}>
+                                                <Text style={indexStyles.typeItemText}>{formatTimeDisplay(time)}</Text>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    </Picker>
+                                })}
+                            </Flex>
+                        </View>
+                        {/* <View style={styles.rowLine} /> */}
+                        <View>
+                            <Text style={styles.rowTitle}>每周用药时间</Text>
+                            <Flex justify='between' style={{ marginBottom: 8, marginTop: 8, gap: 8 }}>
+                                {WEEKDAY_LIST.map(day => (
+                                    <TouchableOpacity
+                                        key={day}
+                                        activeOpacity={0.7}
+                                        style={[styles.weekdayItem, weekDays.includes(day) && styles.weekdayItemActive]}
+                                        onPress={() => toggleWeekDay(day)}>
+                                        <Text style={[styles.weekdayItemText, weekDays.includes(day) && styles.weekdayItemTextActive]}>
+                                            {day}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </Flex>
+                        </View>
+
+                        {/* <View style={styles.rowLine} /> */}
+
+                        <Flex justify="between" align="center">
+                            <Text style={styles.rowTitle}>持续用药</Text>
+                            <Switch
+                                style={styles.switch}
+                                checked={continuousMedication}
+                                onChange={setContinuousMedication}
+                                color={AppTheme.primaryColor}
+                            />
+                        </Flex>
+
+                        {!continuousMedication ? (
+                            <>
+                                {/* <View style={styles.rowLine} /> */}
+                                <DatePicker
+                                    precision="day"
+                                    value={moment(cycleStartDate, 'YYYY-MM-DD').toDate()}
+                                    onOk={date => setCycleStartDate(moment(date).format('YYYY-MM-DD'))}>
+                                    <TouchableOpacity activeOpacity={0.7}>
+                                        <Flex justify="between" align="center">
+                                            <Text style={styles.rowTitle}>用药周期</Text>
+                                            <Flex align="center">
+                                                <Text style={styles.dateValue}>
+                                                    {moment(cycleStartDate).format('YYYY年M月D日')}
+                                                </Text>
+                                                <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
+                                            </Flex>
+                                        </Flex>
+                                    </TouchableOpacity>
+                                </DatePicker>
+                            </>
+                        ) : null}
+                    </View>
+                </ScrollView>
+                <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
+                    <Flex justify="center" align="center" style={{ flex: 1 }}>
+                        {submitting ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <Text style={styles.addText}>{isEdit ? '保存' : '添加用药'}</Text>
+                        )}
+                    </Flex>
+                </TouchableOpacity>
+        </PageLayout>
     );
 }

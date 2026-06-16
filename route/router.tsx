@@ -9,7 +9,6 @@ import { useFontSize } from '@/common/FontSizeContext';
 import { getActiveMainTabTitle } from '@/src/utils/tabNavigation';
 import type { QuestionnaireType } from '@/api/questionTemplate';
 import type { MeasureDataItem } from '@/api/measureData';
-import { LinearGradient } from 'expo-linear-gradient';
 
 import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
@@ -42,6 +41,7 @@ import NutritionPage from '@/src/features/home/nutrition';
 // 用药记录
 import MedicationPage from '@/src/features/profile/medication';
 import MedicationAddPage from '@/src/features/profile/medication/add';
+import MedicationAllPage from '@/src/features/profile/medication/all';
 
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
@@ -102,13 +102,14 @@ export type RootStackParamList = {
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' };
   Medication: undefined;
-  MedicationAddPage: undefined;
+  MedicationAddPage: { medicationPlanId?: number } | undefined;
+  MedicationAllPage: undefined;
   AssistantPage: undefined;
   MyFamily: undefined;
   FamilyDetail: undefined;
 };
 
-const Stack = createNativeStackNavigator<RootStackParamList>();
+const Stack: any = createNativeStackNavigator<RootStackParamList>();
 
 const STACK_ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
   Home: '首页',
@@ -136,6 +137,7 @@ const STACK_ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
   AllDataPage: '血压记录',
   Medication: '用药记录',
   MedicationAddPage: '添加用药记录',
+  MedicationAllPage: '所有用药',
   QuestionnairePage: '评估问卷',
   QuestionnaireList: '评估问卷',
   QuestionnaireDetail: '评估问卷详情',
@@ -148,7 +150,7 @@ function getStackRouteTitle(routeName: string) {
   return STACK_ROUTE_TITLES[routeName as keyof RootStackParamList] ?? routeName;
 }
 
-function StackHeader({ route, options, back, navigation }: NativeStackHeaderProps) {
+function StackHeader({ route, options, back, navigation }: any) {
   const { scaleSize } = useFontSize();
   const headerTitleStyle = useMemo(
     () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),
@@ -167,12 +169,6 @@ function StackHeader({ route, options, back, navigation }: NativeStackHeaderProp
 
   return (
     <View style={styles.stackHeader}>
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
       <Header
         {...options}
         title={getHeaderTitle(options, route.name)}
@@ -181,17 +177,16 @@ function StackHeader({ route, options, back, navigation }: NativeStackHeaderProp
         headerTitleStyle={headerTitleStyle}
         headerStyle={{ backgroundColor: 'transparent' }}
         headerShadowVisible={false}
-        headerBackTitleVisible
         headerLeft={
           canGoBack
             ? props => (
-                <HeaderBackButton
-                  {...props}
-                  label={backLabel}
-                  tintColor={AppTheme.primaryColor}
-                  onPress={navigation.goBack}
-                />
-              )
+              <HeaderBackButton
+                {...props}
+                label={backLabel}
+                tintColor={AppTheme.primaryColor}
+                onPress={navigation.goBack}
+              />
+            )
             : undefined
         }
         back={back}
@@ -268,11 +263,12 @@ export default function RootStack() {
       screenOptions={{
         animation: 'slide_from_right',
         header: StackHeader,
-        headerStyle: { backgroundColor: AppTheme.backgroundColor },
+        headerTransparent: true,
+        headerStyle: { backgroundColor: 'transparent' },
         headerShadowVisible: false,
         headerTintColor: AppTheme.primaryColor,
         headerTitleStyle,
-        contentStyle: { backgroundColor: AppTheme.backgroundColor },
+        contentStyle: { backgroundColor: 'transparent' },
         statusBarStyle: 'dark',
       }}
       initialRouteName={isLogin ? 'Home' : 'Login'}>
@@ -302,8 +298,13 @@ export default function RootStack() {
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
-      <Stack.Screen name="Medication" component={MedicationPage} options={{ title: "用药记录" }} />
-      <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: "添加用药记录" }} />
+      <Stack.Screen
+        name="Medication"
+        component={MedicationPage}
+        options={{ title: '用药记录' }}
+      />
+      <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: '添加用药记录' }} />
+      <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ headerShown: false }} />
       <Stack.Screen
         name="QuestionnairePage"

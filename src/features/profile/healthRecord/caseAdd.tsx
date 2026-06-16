@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { Text, Image, View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Flex, Toast, Modal } from '@ant-design/react-native';
+import PageLayout from '@/src/components/PageLayout';
+import { Flex, Toast, Modal, DatePicker } from '@ant-design/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import moment from 'moment';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -13,7 +13,7 @@ import { AppTheme } from '@/common/theme';
 import { addMedicalRecord, aiIdentifyMedicalRecords, type MedicalRecord, type MedicalRecordAttachment } from '@/api/medicalRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import { consumePendingAttachments } from '@/src/utils/attachmentUploadSession';
 import { consumePendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
@@ -21,12 +21,42 @@ import { MEDICAL_RECORD_TYPE_LIST } from './caseConstants';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const CASE_ADD_ACCESSORY = {
+    hospital: 'caseAddHospitalDoneToolbar',
+    department: 'caseAddDepartmentDoneToolbar',
+    diagnosticResult: 'caseAddDiagnosticDoneToolbar',
+    doctor: 'caseAddDoctorDoneToolbar',
+    chiefComplaint: 'caseAddChiefComplaintDoneToolbar',
+    presentIllness: 'caseAddPresentIllnessDoneToolbar',
+    pastMedicalHistory: 'caseAddPastMedicalDoneToolbar',
+    personalHistory: 'caseAddPersonalHistoryDoneToolbar',
+    physicalExamination: 'caseAddPhysicalExamDoneToolbar',
+    previousExaminationResults: 'caseAddPreviousExamDoneToolbar',
+    medicalSummary: 'caseAddMedicalSummaryDoneToolbar',
+} as const;
+
 const DOCUMENT_TYPES = [
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'text/plain',
 ];
+
+function normalizeRecordDate(value?: string) {
+    if (!value) {
+        return '';
+    }
+    const m = moment(value, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+    return m.isValid() ? m.format('YYYY-MM-DD') : value;
+}
+
+function parseRecordDate(value?: string) {
+    if (!value) {
+        return undefined;
+    }
+    const m = moment(value, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+    return m.isValid() ? m.toDate() : undefined;
+}
 
 function sanitizeFileName(fileName: string) {
     const lastDotIndex = fileName.lastIndexOf('.');
@@ -74,7 +104,7 @@ type FormSetters = {
 
 function applyRecordToForm(record: MedicalRecord, setters: FormSetters) {
     if (record.medicalRecordType) setters.setType(record.medicalRecordType);
-    if (record.recordDate) setters.setRecordDate(record.recordDate);
+    if (record.recordDate) setters.setRecordDate(normalizeRecordDate(record.recordDate));
     if (record.hospital) setters.setHospital(record.hospital);
     if (record.medicalDepartment) setters.setDepartment(record.medicalDepartment);
     if (record.diagnosticResult) setters.setDiagnosticResult(record.diagnosticResult);
@@ -125,10 +155,11 @@ type TextareaFieldProps = {
     placeholder: string;
     value: string;
     onChangeText: (text: string) => void;
+    inputAccessoryViewID: string;
     optional?: boolean;
 };
 
-function TextareaField({ title, placeholder, value, onChangeText, optional }: TextareaFieldProps) {
+function TextareaField({ title, placeholder, value, onChangeText, inputAccessoryViewID, optional }: TextareaFieldProps) {
     return (
         <>
             <View>
@@ -141,7 +172,7 @@ function TextareaField({ title, placeholder, value, onChangeText, optional }: Te
                     onChangeText={onChangeText}
                     multiline
                     textAlignVertical="top"
-                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                    inputAccessoryViewID={inputAccessoryViewID}
                 />
             </View>
             <View style={styles.rowLine} />
@@ -302,8 +333,10 @@ export default function CaseAddPage() {
     };
 
     return (
-        <SafeAreaView edges={['bottom']} style={styles.container}>
-            <KeyboardDoneAccessory />
+        <PageLayout style={styles.container}>
+            {Object.values(CASE_ADD_ACCESSORY).map(id => (
+                <KeyboardDoneAccessory key={id} nativeID={id} />
+            ))}
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Text style={styles.sectionTitle}>拍照识别</Text>
                 <Flex justify="between" style={styles.cameraBoxRow}>
@@ -354,17 +387,27 @@ export default function CaseAddPage() {
                     </View>
                     <View style={styles.rowLine} />
 
-                    <Flex justify="between">
-                        <Text style={styles.rowTitle}>就诊日期</Text>
-                        <TextInput
-                            style={styles.dateInput}
-                            value={recordDate}
-                            onChangeText={setRecordDate}
-                            placeholder="yyyy-MM-dd"
-                            placeholderTextColor={AppTheme.textSecondary}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
-                    </Flex>
+                    <DatePicker
+                        precision="day"
+                        minDate={new Date(1900, 0, 1)}
+                        maxDate={new Date()}
+                        value={parseRecordDate(recordDate)}
+                        onOk={date => setRecordDate(moment(date).format('YYYY-MM-DD'))}>
+                        <TouchableOpacity activeOpacity={0.7}>
+                            <Flex justify="between" align="center">
+                                <Text style={styles.rowTitle}>就诊日期</Text>
+                                <Flex align="center">
+                                    <Text style={[styles.dateValue, styles.datePlaceholder]}>
+                                        {recordDate || '请选择就诊日期'}
+                                    </Text>
+                                    <Image
+                                        source={require('@/assets/images/user/icon-rl.png')}
+                                        style={styles.dateIcon}
+                                    />
+                                </Flex>
+                            </Flex>
+                        </TouchableOpacity>
+                    </DatePicker>
                     <View style={styles.rowLine} />
 
                     <View>
@@ -375,7 +418,9 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={hospital}
                             onChangeText={setHospital}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            returnKeyType="done"
+                            blurOnSubmit
+                            inputAccessoryViewID={CASE_ADD_ACCESSORY.hospital}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -388,7 +433,9 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={department}
                             onChangeText={setDepartment}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            returnKeyType="done"
+                            blurOnSubmit
+                            inputAccessoryViewID={CASE_ADD_ACCESSORY.department}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -414,7 +461,9 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={diagnosticResult}
                             onChangeText={setDiagnosticResult}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            returnKeyType="done"
+                            blurOnSubmit
+                            inputAccessoryViewID={CASE_ADD_ACCESSORY.diagnosticResult}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -427,7 +476,9 @@ export default function CaseAddPage() {
                             placeholderTextColor={AppTheme.textSecondary}
                             value={doctor}
                             onChangeText={setDoctor}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            returnKeyType="done"
+                            blurOnSubmit
+                            inputAccessoryViewID={CASE_ADD_ACCESSORY.doctor}
                         />
                     </View>
                     <View style={styles.rowLine} />
@@ -437,42 +488,49 @@ export default function CaseAddPage() {
                         placeholder="请输入主诉"
                         value={chiefComplaint}
                         onChangeText={setChiefComplaint}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.chiefComplaint}
                     />
                     <TextareaField
                         title="现病史"
                         placeholder="请输入现病史"
                         value={presentIllness}
                         onChangeText={setPresentIllness}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.presentIllness}
                     />
                     <TextareaField
                         title="既往史"
                         placeholder="请输入既往史"
                         value={pastMedicalHistory}
                         onChangeText={setPastMedicalHistory}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.pastMedicalHistory}
                     />
                     <TextareaField
                         title="个人史"
                         placeholder="请输入个人史"
                         value={personalHistory}
                         onChangeText={setPersonalHistory}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.personalHistory}
                     />
                     <TextareaField
                         title="体格检查"
                         placeholder="请输入体格检查结果"
                         value={physicalExamination}
                         onChangeText={setPhysicalExamination}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.physicalExamination}
                     />
                     <TextareaField
                         title="既往检查结果"
                         placeholder="请输入既往检查结果"
                         value={previousExaminationResults}
                         onChangeText={setPreviousExaminationResults}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.previousExaminationResults}
                     />
                     <TextareaField
                         title="病情摘要"
                         placeholder="简要描述病情和治疗情况"
                         value={medicalSummary}
                         onChangeText={setMedicalSummary}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.medicalSummary}
                         optional
                     />
 
@@ -567,6 +625,6 @@ export default function CaseAddPage() {
                     )}
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

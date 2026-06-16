@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex, DatePicker, Switch } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import moment from 'moment';
@@ -74,7 +74,7 @@ export default function ChronicDiseaseAddPage() {
     };
 
     return (
-        <SafeAreaView edges={['bottom']} style={styles.container}>
+        <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <View style={styles.rowBox}>
@@ -239,6 +239,6 @@ export default function ChronicDiseaseAddPage() {
                     )}
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

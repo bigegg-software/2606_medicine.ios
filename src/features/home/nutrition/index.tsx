@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -28,7 +28,7 @@ export default function CommunityPage() {
     }
   ]
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <PageLayout style={styles.container}>
       <Flex style={styles.navBox}>
         {navList.map((item, index) => (
           <TouchableOpacity style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
@@ -104,6 +104,6 @@ export default function CommunityPage() {
         </View>
 
       </ScrollView>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

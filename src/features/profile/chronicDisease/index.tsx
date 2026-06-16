@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator, ScrollView } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getMedicalRecordFrontList, type MedicalRecord } from '@/api/medicalRecord';
@@ -58,7 +58,7 @@ export default function AllergiesPage() {
     }, [navigation]);
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
                 <Flex style={styles.sectionBox}>
                     <Image style={styles.imgItem} source={require('@/assets/images/user/file.png')} />
@@ -113,6 +113,6 @@ export default function AllergiesPage() {
                     <Text style={styles.tipContent}>· 保持良好作息</Text>
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { getUserQuestionDetail, type QuestionnaireType, type UserQuestionDetailResult, type UserQuestionRecord, } from '@/api/questionTemplate';
@@ -80,16 +80,16 @@ export default function QuestionnaireResultPage({
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <Flex justify="center" style={{ flex: 1 }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </Flex>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
                 <Text style={styles.resultTitle}>风险评分</Text>
                 <View style={styles.resultCanvasBox}>
@@ -157,6 +157,6 @@ export default function QuestionnaireResultPage({
                     </Flex>
                 </TouchableOpacity>
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

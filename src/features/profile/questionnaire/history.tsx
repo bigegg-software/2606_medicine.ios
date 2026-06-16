@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getUserQuestionFrontList, type UserQuestionListResult } from '@/api/questionTemplate';
 import styles from '@/css/questionnaire/index';
@@ -48,16 +48,16 @@ export default function QuestionnaireHistoryPage() {
 
     if (loading && !refreshing) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <Flex justify="center" style={{ flex: 1 }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </Flex>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView
                 contentContainerStyle={[
                     styles.body,
@@ -94,6 +94,6 @@ export default function QuestionnaireHistoryPage() {
                     <NoData text="暂无评估历史" />
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

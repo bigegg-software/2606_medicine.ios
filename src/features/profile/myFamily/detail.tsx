@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -16,7 +16,7 @@ export default function ProfileEditPage() {
     const user: any = useSelector((state: RootState) => state.user.info);
     const [emergencyList, setEmergencyList] = useState<any[]>([{}]);
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
 
             {emergencyList.length > 0 ?
 
@@ -70,6 +70,6 @@ export default function ProfileEditPage() {
                     <Text style={styles.addText}>邀请家人加入</Text>
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

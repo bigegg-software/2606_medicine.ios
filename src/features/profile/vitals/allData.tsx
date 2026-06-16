@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex, Picker } from '@ant-design/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -498,7 +498,7 @@ export default function AllDataPage({ route }: Props) {
   }, [loadRecords]);
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.container}>
+    <PageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.rowBox}>
           <Flex justify="between" align="center">
@@ -605,6 +605,6 @@ export default function AllDataPage({ route }: Props) {
             );
           })}
       </ScrollView>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

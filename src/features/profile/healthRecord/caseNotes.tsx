@@ -10,7 +10,7 @@ import {
     RefreshControl,
     Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -146,7 +146,7 @@ export default function CaseNotesPage() {
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
             <View style={styles.topBox}>
                 <Flex style={styles.inputBox}>
@@ -208,6 +208,6 @@ export default function CaseNotesPage() {
                     <Text style={styles.addText}>添加病例</Text>
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

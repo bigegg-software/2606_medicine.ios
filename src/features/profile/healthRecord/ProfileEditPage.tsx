@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import { Flex, DatePicker, Toast } from '@ant-design/react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -11,15 +11,17 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import allergyStyles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDisplayUserName } from '@/src/utils/userHelpers';
+import { getDisplayUserName, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import { useDispatch, useSelector } from 'react-redux';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import type { AppDispatch, RootState } from '@/store/store';
 
-const nameInputAccessoryViewID = 'profileEditNameDoneToolbar';
-const heightInputAccessoryViewID = 'profileEditHeightDoneToolbar';
-const weightInputAccessoryViewID = 'profileEditWeightDoneToolbar';
+const PROFILE_EDIT_ACCESSORY = {
+  name: 'profileEditNameDoneToolbar',
+  height: 'profileEditHeightDoneToolbar',
+  weight: 'profileEditWeightDoneToolbar',
+} as const;
 
 const BLOOD_TYPES = ['A型', 'B型', 'AB型', 'O型', '不详'] as const;
 const GENDERS = ['男', '女'] as const;
@@ -215,170 +217,175 @@ export default function ProfileEditPage() {
 
   if (initializing) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <PageLayout style={styles.container}>
         <View style={styles.center}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      </SafeAreaView>
+      </PageLayout>
     );
   }
 
   const displayName = getDisplayUserName({ name: form.name, userId }, systemUser);
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <KeyboardDoneAccessory nativeID={nameInputAccessoryViewID} />
-      <KeyboardDoneAccessory nativeID={heightInputAccessoryViewID} />
-      <KeyboardDoneAccessory nativeID={weightInputAccessoryViewID} />
+    <PageLayout style={styles.container}>
+      {Object.values(PROFILE_EDIT_ACCESSORY).map(id => (
+        <KeyboardDoneAccessory key={id} nativeID={id} />
+      ))}
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <ScrollView
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
-        <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
-          <Flex direction="column" justify="center" align="center" style={{ marginTop: 16 }}>
-            <View>
-              {avatarOssUrl ? (
-                <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
-              ) : (
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{displayName[0] ?? 'U'}</Text>
-                </View>
-              )}
-              {uploadingAvatar ? (
-                <View style={styles.avatarLoading}>
-                  <ActivityIndicator color="#FFFFFF" />
-                </View>
-              ) : null}
-            </View>
-            <Text style={styles.tipText}>点击更换头像</Text>
-          </Flex>
-        </TouchableOpacity>
+          <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
+            <Flex direction="column" justify="center" align="center" style={{ marginTop: 16 }}>
+              <View>
+                {avatarOssUrl ? (
+                  <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
+                ) : (
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarText}>{displayName[0] ?? 'U'}</Text>
+                  </View>
+                )}
+                {uploadingAvatar ? (
+                  <View style={styles.avatarLoading}>
+                    <ActivityIndicator color="#FFFFFF" />
+                  </View>
+                ) : null}
+              </View>
+              <Text style={styles.tipText}>点击更换头像</Text>
+            </Flex>
+          </TouchableOpacity>
 
-        <Flex justify='between' style={[styles.sectionBox, { marginTop: 23 }]}>
-          <Text style={styles.sectionTitle}>个人信息</Text>
-        </Flex>
-
-        <View style={styles.infoBox}>
-          <Flex justify="between" align="center" style={styles.infoItem}>
-            <Text style={styles.infoItemLabel}>姓名</Text>
-            <TextInput
-              style={styles.infoInput}
-              value={form.name}
-              onChangeText={t => patch('name', limitText(t, NAME_MAX_LENGTH))}
-              placeholder="请输入姓名"
-              placeholderTextColor={AppTheme.textSecondary}
-              maxLength={NAME_MAX_LENGTH}
-              returnKeyType="done"
-              blurOnSubmit
-              onSubmitEditing={Keyboard.dismiss}
-              inputAccessoryViewID={nameInputAccessoryViewID}
-            />
+          <Flex justify='between' style={[styles.sectionBox, { marginTop: 23 }]}>
+            <Text style={styles.sectionTitle}>个人信息</Text>
           </Flex>
 
-          <Flex justify="between" align="center" style={styles.fieldBlock}>
-            <Text style={styles.infoItemLabel}>性别</Text>
-            <View style={[allergyStyles.chipGrid, { gap: 8 }]}>
-              {GENDERS.map(item => (
-                <TouchableOpacity
-                  key={item}
-                  style={[allergyStyles.yzBox, { marginTop: 0 }, form.gender === item && allergyStyles.yzBoxActive]}
-                  onPress={() => patch('gender', item)}>
-                  <Flex style={{ flex: 1 }}>
+          <View style={styles.infoBox}>
+            <Flex justify="between" align="center" style={styles.infoItem}>
+              <Text style={styles.infoItemLabel}>姓名</Text>
+              <TextInput
+                style={styles.infoInput}
+                value={form.name}
+                onChangeText={t => patch('name', limitText(t, NAME_MAX_LENGTH))}
+                placeholder="请输入姓名"
+                placeholderTextColor={AppTheme.textSecondary}
+                maxLength={NAME_MAX_LENGTH}
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.name}
+              />
+            </Flex>
+
+            <Flex justify="between" align="center" style={styles.fieldBlock}>
+              <Text style={styles.infoItemLabel}>性别</Text>
+              <View style={[allergyStyles.chipGrid, { gap: 8 }]}>
+                {GENDERS.map(item => (
+                  <TouchableOpacity
+                    key={item}
+                    style={[allergyStyles.yzBox, { marginTop: 0 }, form.gender === item && allergyStyles.yzBoxActive]}
+                    onPress={() => patch('gender', item)}>
+                    <Flex style={{ flex: 1 }}>
+                      <Text
+                        style={[
+                          allergyStyles.yzText,
+                          form.gender === item && allergyStyles.yzTextActive,
+                        ]}>
+                        {item}
+                      </Text>
+                    </Flex>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Flex>
+
+            <DatePicker
+              precision="day"
+              minDate={new Date(1900, 0, 1)}
+              maxDate={new Date()}
+              value={parseBirthDate(form.birthDate)}
+              onOk={date => patch('birthDate', moment(date).format('YYYY-MM-DD'))}>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Flex justify="between" align="center" style={styles.infoItem}>
+                  <Text style={styles.infoItemLabel}>出生日期</Text>
+                  <Flex justify='end' style={{ flex: 1 }}>
+                    <Text style={[styles.infoItemValue, !form.birthDate && styles.infoPlaceholder]}>
+                      {form.birthDate || '请选择出生日期'}
+                    </Text>
+                    <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.arrowRight} />
+                  </Flex>
+                </Flex>
+              </TouchableOpacity>
+            </DatePicker>
+
+            <Flex justify="between" align="center" style={styles.infoItem}>
+              <Text style={styles.infoItemLabel}>身高</Text>
+              <TextInput
+                style={styles.infoInput}
+                value={form.height}
+                onChangeText={t => patch('height', limitText(t, METRIC_MAX_LENGTH))}
+                placeholder="请输入身高"
+                placeholderTextColor={AppTheme.textSecondary}
+                keyboardType="decimal-pad"
+                maxLength={METRIC_MAX_LENGTH}
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.height}
+              />
+              <Text style={styles.unitText}>cm</Text>
+            </Flex>
+
+            <Flex justify="between" align="center" style={styles.infoItem}>
+              <Text style={styles.infoItemLabel}>体重</Text>
+              <TextInput
+                style={styles.infoInput}
+                value={form.weight}
+                onChangeText={t => patch('weight', limitText(t, METRIC_MAX_LENGTH))}
+                placeholder="请输入体重"
+                placeholderTextColor={AppTheme.textSecondary}
+                keyboardType="decimal-pad"
+                maxLength={METRIC_MAX_LENGTH}
+                returnKeyType="done"
+                blurOnSubmit
+                onSubmitEditing={Keyboard.dismiss}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.weight}
+              />
+              <Text style={styles.unitText}>kg</Text>
+            </Flex>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.infoItemLabel}>血型</Text>
+              <View style={allergyStyles.chipGrid}>
+                {BLOOD_TYPES.map((item, index) => (
+                  <TouchableOpacity
+                    key={item}
+                    style={[
+                      allergyStyles.yzBox,
+                      allergyStyles.chipItem,
+                      index % 3 === 2 && allergyStyles.chipItemLastInRow,
+                      form.bloodType === item && allergyStyles.yzBoxActive,
+                    ]}
+                    onPress={() => patch('bloodType', item)}>
                     <Text
                       style={[
                         allergyStyles.yzText,
-                        form.gender === item && allergyStyles.yzTextActive,
+                        form.bloodType === item && allergyStyles.yzTextActive,
                       ]}>
                       {item}
                     </Text>
-                  </Flex>
-                </TouchableOpacity>
-              ))}
+                  </TouchableOpacity>
+                ))}
+              </View>
             </View>
-          </Flex>
-
-          <DatePicker
-            precision="day"
-            minDate={new Date(1900, 0, 1)}
-            maxDate={new Date()}
-            value={parseBirthDate(form.birthDate)}
-            onOk={date => patch('birthDate', moment(date).format('YYYY-MM-DD'))}>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Flex justify="between" align="center" style={styles.infoItem}>
-                <Text style={styles.infoItemLabel}>出生日期</Text>
-                <Flex>
-                  <Text style={[styles.infoItemValue, !form.birthDate && styles.infoPlaceholder]}>
-                    {form.birthDate || '请选择出生日期'}
-                  </Text>
-
-                  <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.arrowRight} />
-                </Flex>
-              </Flex>
-            </TouchableOpacity>
-          </DatePicker>
-
-          <Flex justify="between" align="center" style={styles.infoItem}>
-            <Text style={styles.infoItemLabel}>身高</Text>
-            <TextInput
-              style={styles.infoInput}
-              value={form.height}
-              onChangeText={t => patch('height', limitText(t, METRIC_MAX_LENGTH))}
-              placeholder="请输入身高"
-              placeholderTextColor={AppTheme.textSecondary}
-              keyboardType="decimal-pad"
-              maxLength={METRIC_MAX_LENGTH}
-              inputAccessoryViewID={heightInputAccessoryViewID}
-            />
-            <Text style={styles.unitText}>cm</Text>
-          </Flex>
-
-          <Flex justify="between" align="center" style={styles.infoItem}>
-            <Text style={styles.infoItemLabel}>体重</Text>
-            <TextInput
-              style={styles.infoInput}
-              value={form.weight}
-              onChangeText={t => patch('weight', limitText(t, METRIC_MAX_LENGTH))}
-              placeholder="请输入体重"
-              placeholderTextColor={AppTheme.textSecondary}
-              keyboardType="decimal-pad"
-              maxLength={METRIC_MAX_LENGTH}
-              inputAccessoryViewID={weightInputAccessoryViewID}
-            />
-            <Text style={styles.unitText}>kg</Text>
-          </Flex>
-
-          <View style={styles.fieldBlock}>
-            <Text style={styles.infoItemLabel}>血型</Text>
-            <View style={allergyStyles.chipGrid}>
-              {BLOOD_TYPES.map((item, index) => (
-                <TouchableOpacity
-                  key={item}
-                  style={[
-                    allergyStyles.yzBox,
-                    allergyStyles.chipItem,
-                    index % 3 === 2 && allergyStyles.chipItemLastInRow,
-                    form.bloodType === item && allergyStyles.yzBoxActive,
-                  ]}
-                  onPress={() => patch('bloodType', item)}>
-                  <Text
-                    style={[
-                      allergyStyles.yzText,
-                      form.bloodType === item && allergyStyles.yzTextActive,
-                    ]}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+            <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
+              <Text style={styles.infoItemLabel}>手机号</Text>
+              <Text style={styles.infoItemValue}>{maskPhoneNumber(systemUser?.phonenumber)}</Text>
+            </Flex>
           </View>
-          <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
-            <Text style={styles.infoItemLabel}>手机号</Text>
-            <Text style={styles.infoItemValue}>{systemUser?.phonenumber || '--'}</Text>
-          </Flex>
-        </View>
         </ScrollView>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

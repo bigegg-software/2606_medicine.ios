@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getFamilyMedicalInfo, updateFamilyMedical, type FamilyMedicalItem } from '@/api/familyMedical';
@@ -146,16 +146,16 @@ export default function FamilyHistoryAddPage({ route }: Props) {
 
     if (initializing) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
             <ScrollView contentContainerStyle={styles.body}>
                 <View style={styles.rowBox}>
@@ -198,7 +198,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                     </View>
 
                     <Flex style={{ marginTop: 10 }}>
-                        <Text style={styles.rowTitle}>其他疾病</Text>
+                        <Text style={[styles.rowTitle, { fontSize: 14 }]}>其他疾病</Text>
                         <View style={{ flex: 1 }}>
                             <TextInput
                                 style={[styles.inputBox, { textAlign: 'right' }]}
@@ -213,7 +213,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                     </Flex>
 
                     <Flex style={{ marginTop: 10 }}>
-                        <Text style={styles.rowTitle}>年龄</Text>
+                        <Text style={[styles.rowTitle, { fontSize: 14 }]}>年龄</Text>
                         <View style={{ flex: 1 }}>
                             <TextInput
                                 style={[styles.inputBox, { textAlign: 'right' }]}
@@ -237,7 +237,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                                     style={[
                                         styles.yzBox,
                                         styles.chipItem,
-                                        {width: '43%'},
+                                        { width: '43%' },
                                         index % 3 === 2 && styles.chipItemLastInRow,
                                         status === item && styles.yzBoxActive,
                                     ]}
@@ -259,6 +259,6 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                     )}
                 </Flex>
             </TouchableOpacity>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

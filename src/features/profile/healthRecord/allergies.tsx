@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, updateAllergy, type AllergyItem } from '@/api/allergy';
@@ -93,16 +93,16 @@ export default function AllergiesPage() {
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
                 {ALLERGY_SECTIONS.map(section => {
                     const items = allergyList
@@ -163,6 +163,6 @@ export default function AllergiesPage() {
                     );
                 })}
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

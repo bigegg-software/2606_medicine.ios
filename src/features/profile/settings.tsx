@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex, Switch, WhiteSpace, WingBlank } from '@ant-design/react-native';
 import { FONT_SIZE_OPTIONS } from '@/common/fontSize';
 import { useFontSize } from '@/common/FontSizeContext';
@@ -36,7 +36,7 @@ export default function SettingsPage() {
     };
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.scroll}>
                 <Text style={styles.sectionTitle}>字体大小</Text>
                 <View style={styles.sectionBox}>
@@ -179,6 +179,6 @@ export default function SettingsPage() {
                     </TouchableOpacity>
                 </Flex>
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

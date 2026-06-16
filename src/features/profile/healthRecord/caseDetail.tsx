@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Text, Image, View, ScrollView, ActivityIndicator, type ImageSourcePropType } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import moment from 'moment';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -83,26 +83,26 @@ export default function CaseDetailPage({ route }: Props) {
 
     if (loading) {
         return (
-            <SafeAreaView edges={['bottom']} style={styles.container}>
+            <PageLayout style={styles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     if (!record) {
         return (
-            <SafeAreaView edges={['bottom']} style={styles.container}>
+            <PageLayout style={styles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <Text style={{ color: AppTheme.textSecondary }}>暂无病例详情</Text>
                 </View>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     return (
-        <SafeAreaView edges={['bottom']} style={styles.container}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <Flex direction="column" justify="center" align="center" style={{ marginTop: 19 }}>
                     <View>
@@ -179,10 +179,10 @@ export default function CaseDetailPage({ route }: Props) {
                             )}
                         </View>
                     ) : (
-                        <Text style={styles.medicalInfoValue}>暂无</Text>
+                        <Text style={[styles.medicalInfoValue, { color: AppTheme.textSecondary }]}>暂无</Text>
                     )}
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

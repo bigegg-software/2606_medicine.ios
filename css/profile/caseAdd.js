@@ -51,7 +51,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
-    dateInput: { minWidth: 120, textAlign: 'right', fontSize: 14, color: '#999999' },
+    dateValue: { fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary, lineHeight: 19 },
+    datePlaceholder: { color: AppTheme.textSecondary },
+    dateIcon: { width: 19, height: 19, marginLeft: 16 },
     rowLine: { height: 1, backgroundColor: "#E8DED2" },
     uploadModal: {
         width: '100%',

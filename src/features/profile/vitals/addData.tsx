@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex, DatePicker, Picker } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -326,7 +326,7 @@ export default function BloodAddPage({ route }: Props) {
   };
 
   return (
-    <SafeAreaView edges={['bottom']} style={styles.container}>
+    <PageLayout style={styles.container}>
       <KeyboardDoneAccessory />
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <View style={styles.rowBox}>
@@ -502,6 +502,6 @@ export default function BloodAddPage({ route }: Props) {
           )}
         </Flex>
       </TouchableOpacity>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -100,16 +100,16 @@ export default function EmergencyPage() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <PageLayout style={styles.container}>
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      </SafeAreaView>
+      </PageLayout>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <PageLayout style={styles.container}>
       {contacts.length > 0 ? (
         <ScrollView style={styles.body}>
           {contacts.map(contact => (
@@ -157,6 +157,6 @@ export default function EmergencyPage() {
           <Text style={styles.addText}>添加紧急联系人</Text>
         </Flex>
       </TouchableOpacity>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type ImageSourcePropType } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -310,7 +310,7 @@ export default function VitalsPage() {
   }, [uploading]);
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <PageLayout style={styles.container}>
       <UploadProgressBar />
       <Flex style={styles.navBox}>
         {VITALS_NAV_LIST.map(item => (
@@ -610,6 +610,6 @@ export default function VitalsPage() {
         </Flex>
       </TouchableOpacity>
 
-    </SafeAreaView>
+    </PageLayout>
   );
 }

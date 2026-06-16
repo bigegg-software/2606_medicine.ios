@@ -28,3 +28,14 @@ export function getDisplayUserName(
 
   return '用户';
 }
+
+export function maskPhoneNumber(phone?: string | null): string {
+  if (!phone?.trim()) {
+    return '--';
+  }
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length < 7) {
+    return phone;
+  }
+  return `${digits.slice(0, 3)}****${digits.slice(-4)}`;
+}

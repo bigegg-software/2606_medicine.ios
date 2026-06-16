@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import {
     getUserQuestionFrontList,
@@ -79,7 +79,7 @@ export default function QuestionnaireListPage() {
     );
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView
                 contentContainerStyle={styles.body}
                 refreshControl={
@@ -170,6 +170,6 @@ export default function QuestionnaireListPage() {
                     </View>
                 )}
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

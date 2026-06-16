@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, type AllergyItem } from '@/api/allergy';
@@ -14,7 +14,7 @@ import styles from '@/css/profile/healthRecord';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
-import { getDisplayUserName } from '@/src/utils/userHelpers';
+import { getDisplayUserName, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
 import {
@@ -160,7 +160,7 @@ export default function HealthRecordPage() {
     const birthDate = birthMoment.isValid() ? birthMoment.format('YYYY-MM-DD') : '--';
     const age = birthMoment.isValid() ? moment().diff(birthMoment, 'years') : '--';
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
                 <Flex direction="column" justify='center' align='center' style={{ marginTop: 16 }}>
                     {avatarOssUrl ? (
@@ -207,7 +207,7 @@ export default function HealthRecordPage() {
                     </Flex>
                     <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
                         <Text style={styles.infoItemLabel}>手机号</Text>
-                        <Text style={styles.infoItemValue}>{systemUser?.phonenumber||'--'}</Text>
+                        <Text style={styles.infoItemValue}>{maskPhoneNumber(systemUser?.phonenumber)}</Text>
                     </Flex>
                 </View>
 
@@ -357,6 +357,6 @@ export default function HealthRecordPage() {
                     )}
                 </View>
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

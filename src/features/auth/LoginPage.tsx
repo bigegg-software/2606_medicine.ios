@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, TouchableWithoutFeedback, ScrollView, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -155,97 +155,110 @@ export default function LoginPage() {
       <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />
       <KeyboardDoneAccessory nativeID={codeInputAccessoryViewID} />
 
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
-
-      <View style={styles.body}>
-        <View style={styles.content}>
-          <Image style={styles.logo} source={require('@/assets/images/login/logo.png')} />
-          <Text style={styles.title}>欢迎来到莱益昇</Text>
-
-          <TextInput
-            style={styles.inputBox}
-            placeholder="请输入手机号"
-            placeholderTextColor="#999999"
-            keyboardType="phone-pad"
-            maxLength={11}
-            value={phone}
-            onChangeText={setPhone}
-            inputAccessoryViewID={phoneInputAccessoryViewID}
-          />
-
-          <View style={styles.codeBox}>
-            <TextInput
-              style={styles.codeInput}
-              placeholder="验证码"
-              placeholderTextColor="#999999"
-              keyboardType="number-pad"
-              returnKeyType="done"
-              maxLength={6}
-              value={code}
-              onChangeText={setCode}
-              inputAccessoryViewID={codeInputAccessoryViewID}
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bounces={false}
+          showsVerticalScrollIndicator={false}>
+          <View style={{ flex: 1 }}>
+            <LinearGradient
+              colors={['#B4D0FF', '#F5F8FF']}
+              style={styles.headerGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 0, y: 1 }}
             />
-            <TouchableOpacity
-              style={countdown > 0 && styles.codeBtnOff}
-              disabled={countdown > 0 || sendingCode || submitting}
-              onPress={sendCode}
-            >
-              <Text style={styles.codeBtnText}>
-                {countdown > 0 ? `${countdown}秒` : '获取验证码'}
-              </Text>
-            </TouchableOpacity>
-          </View>
 
-          <View style={styles.agreement}>
-            <View style={styles.agreementRow}>
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => setAgreed(v => !v)}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              >
-                <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                  {agreed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+            <View style={styles.body}>
+              <View style={styles.content}>
+                <Image style={styles.logo} source={require('@/assets/images/login/logo.png')} />
+                <Text style={styles.title}>欢迎来到莱益昇</Text>
+
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="请输入手机号"
+                  placeholderTextColor="#999999"
+                  keyboardType="phone-pad"
+                  maxLength={11}
+                  value={phone}
+                  onChangeText={setPhone}
+                  returnKeyType="done"
+                  inputAccessoryViewID={phoneInputAccessoryViewID}
+                />
+
+                <View style={styles.codeBox}>
+                  <TextInput
+                    style={styles.codeInput}
+                    placeholder="验证码"
+                    placeholderTextColor="#999999"
+                    keyboardType="number-pad"
+                    returnKeyType="done"
+                    maxLength={6}
+                    value={code}
+                    onChangeText={setCode}
+                    inputAccessoryViewID={codeInputAccessoryViewID}
+                  />
+                  <TouchableOpacity
+                    style={countdown > 0 && styles.codeBtnOff}
+                    disabled={countdown > 0 || sendingCode || submitting}
+                    onPress={sendCode}
+                  >
+                    <Text style={styles.codeBtnText}>
+                      {countdown > 0 ? `${countdown}秒` : '获取验证码'}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              </TouchableOpacity>
-              <Text style={styles.agreementText}>
-                已阅读并同意
-                <Text style={styles.agreementLink} onPress={openUserAgreement}>
-                  《用户协议》
-                </Text>
-                和
-                <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
-                  《隐私政策》
-                </Text>
-              </Text>
+
+                <View style={styles.agreement}>
+                  <View style={styles.agreementRow}>
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => setAgreed(v => !v)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
+                        {agreed ? <Text style={styles.checkboxMark}>✓</Text> : null}
+                      </View>
+                    </TouchableOpacity>
+                    <Text style={styles.agreementText}>
+                      已阅读并同意
+                      <Text style={styles.agreementLink} onPress={openUserAgreement}>
+                        《用户协议》
+                      </Text>
+                      和
+                      <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
+                        《隐私政策》
+                      </Text>
+                    </Text>
+                  </View>
+                </View>
+
+                <TouchableOpacity
+                  style={[styles.button, submitting && styles.buttonDisabled]}
+                  disabled={submitting}
+                  onPress={doLogin}
+                >
+                  <Flex justify="center" style={{ flex: 1 }}>
+                    {submitting ? (
+                      <ActivityIndicator color="#FFFFFF" />
+                    ) : (
+                      <Text style={styles.buttonText}>立即登录</Text>
+                    )}
+                  </Flex>
+                </TouchableOpacity>
+
+                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
+                  <Text style={styles.registerText}>注册</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Reanimated.View style={bottomAreaStyle} />
             </View>
           </View>
-
-          <TouchableOpacity
-            style={[styles.button, submitting && styles.buttonDisabled]}
-            disabled={submitting}
-            onPress={doLogin}
-          >
-            <Flex justify="center" style={{ flex: 1 }}>
-              {submitting ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.buttonText}>立即登录</Text>
-              )}
-            </Flex>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-            <Text style={styles.registerText}>注册</Text>
-          </TouchableOpacity>
-        </View>
-
-        <Reanimated.View style={bottomAreaStyle} />
-      </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
     </SafeAreaView>
   );
 }

@@ -3,11 +3,13 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
+    loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
     sectionTitle: { marginTop: 16, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary },
     rowBox: {
         paddingHorizontal: 14,
         paddingVertical: 2,
+        paddingBottom: 12,
         borderRadius: 8,
         marginTop: 12,
         backgroundColor: '#FFFFFF',
@@ -15,10 +17,10 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
     },
-    rowTitle: { marginTop: 12, marginBottom: 10, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
-    rowLine: { height: 1, backgroundColor: '#E8DED2' },
+    rowTitle: { marginTop: 12, marginBottom: 4, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary },
+    rowLine: { height: 1, backgroundColor: '#173F7D', opacity: 0.06 },
     inputBox: { height: 32, borderRadius: 24, backgroundColor: '#FFF', fontSize: 14, color: AppTheme.textPrimary },
-    typeItem: { height: 32, paddingHorizontal: 18, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(102,102,102,0.29)' },
+    typeItem: { height: 32, width: "23%", marginBottom: 4, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(102,102,102,0.29)' },
     typeItemActive: { backgroundColor: '#F5F8FF', borderColor: AppTheme.primaryColor },
     typeItemText: { fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary },
     typeItemTextActive: { color: AppTheme.primaryColor },

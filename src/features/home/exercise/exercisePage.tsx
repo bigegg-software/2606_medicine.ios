@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import moment from 'moment';
 import { useFocusEffect } from '@react-navigation/native';
@@ -399,7 +399,7 @@ export default function ExercisePage() {
     );
 
     return (
-        <SafeAreaView edges={['bottom']} style={styles.container}>
+        <PageLayout style={styles.container}>
             {loading ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
@@ -534,6 +534,6 @@ export default function ExercisePage() {
                     </View>
                 ))}
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

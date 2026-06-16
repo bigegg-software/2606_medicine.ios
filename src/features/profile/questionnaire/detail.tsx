@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import PageLayout from '@/src/components/PageLayout';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import {
     getUserQuestionDetail,
@@ -136,21 +136,21 @@ export default function QuestionnaireDetailPage({ route }: { route: { params: { 
 
     if (loading) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <Flex justify="center" style={{ flex: 1 }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </Flex>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
     if (!detail) {
         return (
-            <SafeAreaView style={styles.container} edges={['bottom']}>
+            <PageLayout style={styles.container}>
                 <Flex justify="center" style={{ flex: 1 }}>
                     <Text style={styles.rowText}>暂无问卷详情</Text>
                 </Flex>
-            </SafeAreaView>
+            </PageLayout>
         );
     }
 
@@ -159,7 +159,7 @@ export default function QuestionnaireDetailPage({ route }: { route: { params: { 
     const questionsAnswer = detail.questionsAnswer ?? [];
 
     return (
-        <SafeAreaView style={styles.container} edges={['bottom']}>
+        <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
                 <View style={styles.detailBox}>
                     <Flex justify="between" style={{ marginBottom: 12 }}>
@@ -218,6 +218,6 @@ export default function QuestionnaireDetailPage({ route }: { route: { params: { 
 
                 <Text style={styles.detailBottomText}>本结果仅为参考，不能替代专业医疗诊所建议</Text>
             </ScrollView>
-        </SafeAreaView>
+        </PageLayout>
     );
 }

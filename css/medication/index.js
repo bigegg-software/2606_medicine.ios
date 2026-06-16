@@ -3,6 +3,7 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
+    pageBody: { flex: 1 },
     navBox: { marginTop: 16, marginLeft: 8, paddingHorizontal: 18, paddingBottom: 0 },
     navCol: { paddingHorizontal: 8 },
     navItemWrap: { position: 'relative', alignItems: 'center', paddingBottom: 12 },
@@ -11,6 +12,8 @@ const styles = StyleSheet.create({
     navIndicatorWrap: { position: 'absolute', left: 0, right: 0, bottom: 6, alignItems: 'center' },
     navIndicator: { width: 34, height: 10 },
     body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
+    headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 310 },
+
     sectionTitle: { marginLeft: 14, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary },
     medicationBox: {
         marginTop: 12,
