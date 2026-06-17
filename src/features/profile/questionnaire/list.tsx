@@ -17,6 +17,7 @@ import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import {
     buildLastAssessmentMap,
     canStartAssessment,
+    getNextAssessmentDate,
     QUESTIONNAIRE_TITLES,
     sortRecordsByTime,
     toHistoryItem,
@@ -96,6 +97,7 @@ export default function QuestionnaireListPage() {
                     const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
                     const statusStyle = styles[lastAssessment?.statusStyle ?? 'rowStatus'];
                     const canStart = canStartAssessment(item.type, lastAssessment?.date);
+                    const nextAssessmentDate = getNextAssessmentDate(item.type, lastAssessment?.date);
 
                     return (
                         <View key={item.type} style={styles.rowBox}>
@@ -109,6 +111,11 @@ export default function QuestionnaireListPage() {
                                         <>
                                             {lastAssessment?.date ? (
                                                 <Text style={styles.rowText}>上次评估：{lastAssessment.date}</Text>
+                                            ) : null}
+                                             {!canStart && nextAssessmentDate ? (
+                                                <Text style={[styles.rowText, { marginTop: 4 }]}>
+                                                    下次评估：{nextAssessmentDate}
+                                                </Text>
                                             ) : null}
                                             {lastAssessment?.result ? (
                                                 <Text style={statusStyle}>结果：{lastAssessment.result}</Text>

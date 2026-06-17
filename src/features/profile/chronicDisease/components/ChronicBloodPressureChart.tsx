@@ -53,7 +53,8 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         xAxis: buildChartXAxis(points, labels, false),
         yAxis: {
             type: 'value',
-            scale: true,
+            min: 0,
+            interval: 35,
             axisTick: { show: false },
             axisLine: { show: false },
             axisLabel: { show: true, fontSize: 10, color: '#999999', margin: 4 },

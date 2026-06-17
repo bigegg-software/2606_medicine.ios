@@ -118,6 +118,7 @@ const STACK_ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
   ExercisePage: '运动处方',
   NutritionPage: '饮食运动',
   ProfileEditPage: '个人信息修改',
+  AssistantPage: 'AI健康管家',
   MyFamily: '我的家人',
   FamilyDetail: '家人详情',
   HealthRecord: '健康档案',

@@ -27,16 +27,15 @@ import {
 } from '@/src/features/profile/medication/medicationHelpers';
 import type { DiseaseTrendConfig, StatColumnKey } from './diseaseConfig';
 import { resolveDiseaseTrendConfig } from './diseaseConfig';
+import {
+    resolveChronicDiseaseControlStatusFromData,
+    type ChronicDiseaseControlStatus,
+    CHRONIC_DISEASE_CONTROL_STATUS_LABELS,
+} from './controlStatus';
+
+export { type ChronicDiseaseControlStatus, CHRONIC_DISEASE_CONTROL_STATUS_LABELS };
 
 export const MONTH_DAY_COUNT = 30;
-
-export type ChronicDiseaseControlStatus = 'stable' | 'attention' | 'recovering';
-
-export const CHRONIC_DISEASE_CONTROL_STATUS_LABELS: Record<ChronicDiseaseControlStatus, string> = {
-    stable: '控制良好',
-    attention: '需关注',
-    recovering: '康复中',
-};
 
 export type TrendStats = Partial<Record<StatColumnKey, string>>;
 
@@ -62,6 +61,7 @@ export type ChronicDiseaseDailyIndicators = {
     pendingMedicationCount: number;
     mealRecorded: ChronicDiseaseMealRecordStatus;
     mealLabel?: string;
+    controlStatus: ChronicDiseaseControlStatus;
 };
 
 export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndicators = {
@@ -69,6 +69,7 @@ export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndica
     pendingMedicationCount: 0,
     mealRecorded: 'notRecorded',
     mealLabel: '晚餐',
+    controlStatus: 'stable',
 };
 
 export type AssociatedMedicationRow = {
@@ -95,6 +96,7 @@ export type ChronicDetailData = {
     stats: TrendStats;
     todayOverview: TodayOverviewResult;
     associatedMedications: AssociatedMedicationRow[];
+    controlStatus: ChronicDiseaseControlStatus;
 };
 
 function parseMeasureNumber(value?: number | string | null) {
@@ -155,13 +157,18 @@ export function getMonthChartLabels() {
     );
 }
 
-async function loadMeasureItems(type: MeasureDataType, range: 'today' | 'month' = 'month'): Promise<MeasureDataItem[]> {
+async function loadMeasureItems(
+    type: MeasureDataType,
+    range: 'today' | '7days' | 'month' = 'month',
+): Promise<MeasureDataItem[]> {
     try {
         const endDate = moment().format('YYYY-MM-DD');
         const startDate =
             range === 'today'
                 ? endDate
-                : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
+                : range === '7days'
+                  ? moment().subtract(6, 'days').format('YYYY-MM-DD')
+                  : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
         const res = await getMeasureDataDetailByDateRange({ startDate, endDate, type });
         if (!isResourceApiOk(res as { code?: number })) return [];
         const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res as { code?: number; data?: unknown }));
@@ -171,13 +178,18 @@ async function loadMeasureItems(type: MeasureDataType, range: 'today' | 'month' 
     }
 }
 
-async function loadWearableItems(type: WearableDataType, range: 'today' | 'month' = 'month'): Promise<WearableDataItem[]> {
+async function loadWearableItems(
+    type: WearableDataType,
+    range: 'today' | '7days' | 'month' = 'month',
+): Promise<WearableDataItem[]> {
     try {
         const endDate = moment().format('YYYY-MM-DD');
         const startDate =
             range === 'today'
                 ? endDate
-                : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
+                : range === '7days'
+                  ? moment().subtract(6, 'days').format('YYYY-MM-DD')
+                  : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
         const res = await getWearableDataDetailByDateRange({ startDate, endDate, type });
         if (!isResourceApiOk(res as { code?: number })) return [];
         const data = apiResourceData<WearableDataItem[]>(
@@ -586,27 +598,39 @@ export async function loadChronicIndexIndicators(
         if (config.wearableType) wearableTypes.add(config.wearableType);
     });
 
-    const [plans, planGroups, measureEntries, wearableEntries] = await Promise.all([
-        loadMyMedicationPlans(),
-        loadMedicationPlanGroups(dictMaps),
-        Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, 'today')] as const)),
-        Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, 'today')] as const)),
-    ]);
+    const [plans, planGroups, measureTodayEntries, wearableTodayEntries, measureWeekEntries, wearableWeekEntries] =
+        await Promise.all([
+            loadMyMedicationPlans(),
+            loadMedicationPlanGroups(dictMaps),
+            Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, 'today')] as const)),
+            Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, 'today')] as const)),
+            Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, '7days')] as const)),
+            Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, '7days')] as const)),
+        ]);
 
-    const measureCache = new Map<MeasureDataType, MeasureDataItem[]>(measureEntries);
-    const wearableCache = new Map<WearableDataType, WearableDataItem[]>(wearableEntries);
+    const measureTodayCache = new Map<MeasureDataType, MeasureDataItem[]>(measureTodayEntries);
+    const wearableTodayCache = new Map<WearableDataType, WearableDataItem[]>(wearableTodayEntries);
+    const measureWeekCache = new Map<MeasureDataType, MeasureDataItem[]>(measureWeekEntries);
+    const wearableWeekCache = new Map<WearableDataType, WearableDataItem[]>(wearableWeekEntries);
     const result = new Map<number, ChronicDiseaseDailyIndicators>();
 
     records.forEach(record => {
         if (record.id == null) return;
         const config = resolveDiseaseTrendConfig(record.diseaseType, labelMap);
-        const measureItems = config.measureType ? measureCache.get(config.measureType) ?? [] : [];
-        const wearableItems = config.wearableType ? wearableCache.get(config.wearableType) ?? [] : [];
+        const measureTodayItems = config.measureType ? measureTodayCache.get(config.measureType) ?? [] : [];
+        const wearableTodayItems = config.wearableType ? wearableTodayCache.get(config.wearableType) ?? [] : [];
+        const measureWeekItems = config.measureType ? measureWeekCache.get(config.measureType) ?? [] : [];
+        const wearableWeekItems = config.wearableType ? wearableWeekCache.get(config.wearableType) ?? [] : [];
         result.set(record.id, {
-            vitalsToday: resolveVitalsTodayStatus(config, measureItems, wearableItems),
+            vitalsToday: resolveVitalsTodayStatus(config, measureTodayItems, wearableTodayItems),
             pendingMedicationCount: countPendingMedicationDoses(record, plans, dictMaps, planGroups),
             mealRecorded: DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS.mealRecorded,
             mealLabel: DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS.mealLabel,
+            controlStatus: resolveChronicDiseaseControlStatusFromData(
+                config,
+                measureWeekItems,
+                wearableWeekItems,
+            ),
         });
     });
 
@@ -619,12 +643,6 @@ export function resolveDiseaseTypeLabel(
 ): string {
     if (!diseaseType) return '慢病详情';
     return labelMap[diseaseType] ?? diseaseType;
-}
-
-export function resolveChronicDiseaseControlStatus(
-    _record?: ChronicDiseaseRecord | null,
-): ChronicDiseaseControlStatus {
-    return 'stable';
 }
 
 export async function loadChronicDetailData(recordId?: number): Promise<ChronicDetailData> {
@@ -696,6 +714,7 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
         stats: computeStats(config, measureItems, secondaryMeasureItems, wearableItems),
         todayOverview,
         associatedMedications: buildAssociatedMedicationRows(record, plansRes, dictMaps, todayGroups),
+        controlStatus: resolveChronicDiseaseControlStatusFromData(config, measureItems, wearableItems),
     };
 }
 

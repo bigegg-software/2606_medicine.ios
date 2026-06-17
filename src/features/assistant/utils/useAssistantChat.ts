@@ -14,7 +14,7 @@ import {
   type ChatDetailItem,
   type ChatGuideInfo,
 } from '@/api/assistant';
-import { apiResourceData } from '@/src/utils/apiHelpers';
+import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   clearIncompleteSession,
   getIncompleteSession,
@@ -24,7 +24,33 @@ import {
   SESSION_TTL_MS,
   type IncompleteSession,
 } from './chatSessionStorage';
+import { loadMedicationDictMaps } from '@/src/features/profile/medication/medicationHelpers';
 import type { AssistantMessage, ChatGuideState, DisplayItem } from './types';
+import {
+  MEDICATION_REMINDER_ACTION,
+  parseMedicationGroupsFromInterfaceData,
+  requestMedicationReminderQuickAction,
+} from './medicationReminderAction';
+import {
+  QUESTIONNAIRE_QUICK_ACTION,
+  parseQuestionnaireItemsFromInterfaceData,
+  requestQuestionnaireQuickAction,
+} from './questionnaireQuickAction';
+
+function parseInterfaceData(raw: unknown) {
+  if (raw == null) return undefined;
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as { reqParams?: Record<string, unknown>; respData?: unknown };
+    } catch {
+      return undefined;
+    }
+  }
+  if (typeof raw === 'object') {
+    return raw as { reqParams?: Record<string, unknown>; respData?: unknown };
+  }
+  return undefined;
+}
 
 const WELCOME_TEXT = '您好，我是 AI 健康管家，有什么可以帮您？';
 const CHAT_GUIDE_TYPE = 1;
@@ -69,13 +95,31 @@ function formatTimeLabel(value?: string) {
   return parsed.isValid() ? parsed.format('HH:mm') : moment().format('HH:mm');
 }
 
-function mapDetailItem(item: ChatDetailItem): AssistantMessage {
+function mapDetailItem(
+  item: ChatDetailItem,
+  extras?: {
+    medicationGroups?: AssistantMessage['medicationGroups'];
+    questionnaireItems?: AssistantMessage['questionnaireItems'];
+  },
+): AssistantMessage {
+  const parsedInterfaceData = parseInterfaceData(item.interfaceData);
+
   return {
     id: item.id,
     frontId: item.frontId,
     question: item.question,
     answer: item.answer,
     createTime: item.createTime,
+    action: item.action,
+    interfaceData: parsedInterfaceData,
+    medicationGroups:
+      item.action === MEDICATION_REMINDER_ACTION
+        ? extras?.medicationGroups ?? parseMedicationGroupsFromInterfaceData(parsedInterfaceData)
+        : undefined,
+    questionnaireItems:
+      item.action === QUESTIONNAIRE_QUICK_ACTION
+        ? extras?.questionnaireItems ?? parseQuestionnaireItemsFromInterfaceData(parsedInterfaceData)
+        : undefined,
   };
 }
 
@@ -110,6 +154,20 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
         key: `ai-${msg.frontId ?? msg.id ?? index}`,
         text: msg.answer?.trim() ?? '',
         streaming: msg.streaming,
+      });
+    }
+    if (msg.action === MEDICATION_REMINDER_ACTION && msg.medicationGroups?.length) {
+      items.push({
+        type: 'medication_cards',
+        key: `medication-${msg.frontId ?? msg.id ?? index}`,
+        groups: msg.medicationGroups,
+      });
+    }
+    if (msg.action === QUESTIONNAIRE_QUICK_ACTION && msg.questionnaireItems?.length) {
+      items.push({
+        type: 'questionnaire_cards',
+        key: `questionnaire-${msg.frontId ?? msg.id ?? index}`,
+        items: msg.questionnaireItems,
       });
     }
   });
@@ -304,7 +362,20 @@ export function useAssistantChat() {
         setChatGuide(guide);
         chatGuideRef.current = guide;
 
-        const mapped = detailList.map(mapDetailItem);
+        const dictMaps = await loadMedicationDictMaps();
+        const mapped = detailList.map(item => {
+          const parsedInterface = parseInterfaceData(item.interfaceData);
+          return mapDetailItem(item, {
+            medicationGroups:
+              item.action === MEDICATION_REMINDER_ACTION
+                ? parseMedicationGroupsFromInterfaceData(parsedInterface, dictMaps)
+                : undefined,
+            questionnaireItems:
+              item.action === QUESTIONNAIRE_QUICK_ACTION
+                ? parseQuestionnaireItemsFromInterfaceData(parsedInterface)
+                : undefined,
+          });
+        });
         setMessages(mapped.length > 0 ? mapped : []);
 
         if (incomplete && incomplete.chatId === nextChatId && incomplete.question) {
@@ -430,6 +501,92 @@ export function useAssistantChat() {
     await clearIncompleteSession();
   }, [cleanupStream]);
 
+  const runMedicationReminder = useCallback(async () => {
+    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+
+    setLoading(true);
+    try {
+      const result = await requestMedicationReminderQuickAction({
+        chatId: chatIdRef.current,
+        chatGuide: chatGuideRef.current,
+      });
+
+      if (!isResourceApiOk(result.saveRes as { code?: number })) {
+        const msg =
+          (result.saveRes as { msg?: string; message?: string })?.msg ??
+          (result.saveRes as { message?: string })?.message ??
+          '用药提醒加载失败';
+        console.error('medication reminder saveAction failed:', msg);
+        return false;
+      }
+
+      const savedId = apiResourceData<number | string>(result.saveRes as { code?: number; data?: number | string });
+      setMessages(prev => [
+        ...prev,
+        {
+          id: savedId ?? undefined,
+          frontId: generateUUID(),
+          question: result.question,
+          answer: result.answer,
+          action: MEDICATION_REMINDER_ACTION,
+          interfaceData: result.interfaceData,
+          medicationGroups: result.groups,
+          createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
+        },
+      ]);
+      scrollEndRef.current?.();
+      return true;
+    } catch (error) {
+      console.error('runMedicationReminder failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [initializing]);
+
+  const runQuestionnaireQuickAction = useCallback(async () => {
+    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+
+    setLoading(true);
+    try {
+      const result = await requestQuestionnaireQuickAction({
+        chatId: chatIdRef.current,
+        chatGuide: chatGuideRef.current,
+      });
+
+      if (!isResourceApiOk(result.saveRes as { code?: number })) {
+        const msg =
+          (result.saveRes as { msg?: string; message?: string })?.msg ??
+          (result.saveRes as { message?: string })?.message ??
+          '评估量表加载失败';
+        console.error('questionnaire saveAction failed:', msg);
+        return false;
+      }
+
+      const savedId = apiResourceData<number | string>(result.saveRes as { code?: number; data?: number | string });
+      setMessages(prev => [
+        ...prev,
+        {
+          id: savedId ?? undefined,
+          frontId: generateUUID(),
+          question: result.question,
+          answer: result.answer,
+          action: QUESTIONNAIRE_QUICK_ACTION,
+          interfaceData: result.interfaceData,
+          questionnaireItems: result.items,
+          createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
+        },
+      ]);
+      scrollEndRef.current?.();
+      return true;
+    } catch (error) {
+      console.error('runQuestionnaireQuickAction failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [initializing]);
+
   const displayItems = buildDisplayItems(messages, chatGuide.userChatGuideText);
 
   return {
@@ -441,6 +598,8 @@ export function useAssistantChat() {
     displayItems,
     sendMessage,
     stopMessage,
+    runMedicationReminder,
+    runQuestionnaireQuickAction,
     scrollEndRef,
   };
 }

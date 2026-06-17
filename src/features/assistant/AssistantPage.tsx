@@ -1,29 +1,11 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  Image,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  Platform,
-  ActivityIndicator,
-  Keyboard,
-  Alert,
-  type KeyboardEvent,
-} from 'react-native';
-import Reanimated, {
-  Easing,
-  Extrapolation,
-  interpolate,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator, Keyboard, Alert, type KeyboardEvent, } from 'react-native';
+import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
+import PageLayout from '@/src/components/PageLayout';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import { Header, HeaderBackButton } from '@react-navigation/elements';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +20,8 @@ import { useAssistantChat } from './utils/useAssistantChat';
 import { renderAiMessageText } from './utils/renderAiMessage';
 import type { DisplayItem } from './utils/types';
 import SpeechToText, { type SpeechToTextRef } from './components/SpeechToText';
+import MedicationReminderCards from './components/MedicationReminderCards';
+import QuestionnaireListCards from './components/QuestionnaireListCards';
 import TypingDots from './components/TypingDots';
 
 const DOCUMENT_TYPES = [
@@ -50,9 +34,9 @@ const DOCUMENT_TYPES = [
 const PANEL_HEIGHT = 220;
 
 const QUICK_ACTIONS = [
-  { label: '评估量表', route: 'QuestionnaireList' as const },
+  { label: '评估量表', action: 'assessment' as const },
   { label: '健康状况', route: 'VitalsPage' as const },
-  { label: '用药提醒', route: 'Medication' as const },
+  { label: '用药提醒', action: 'reminder' as const },
 ];
 
 function getKeyboardDuration(event: KeyboardEvent) {
@@ -106,6 +90,26 @@ function MessageRow({
     );
   }
 
+  if (item.type === 'questionnaire_cards') {
+    return (
+      <Flex align="start" style={styles.aiMessageBoxFollowUp}>
+        <View style={styles.aiMedicationCardWrap}>
+          <QuestionnaireListCards items={item.items} />
+        </View>
+      </Flex>
+    );
+  }
+
+  if (item.type === 'medication_cards') {
+    return (
+      <Flex align="start" style={styles.aiMessageBoxFollowUp}>
+        <View style={styles.aiMedicationCardWrap}>
+          <MedicationReminderCards groups={item.groups} />
+        </View>
+      </Flex>
+    );
+  }
+
   return (
     <Flex align="start" style={styles.aiMessageBox}>
       <Image source={require('@/assets/images/assistant/avatar.png')} style={styles.avatar} />
@@ -146,6 +150,8 @@ export default function AssistantPage() {
     displayItems,
     sendMessage,
     stopMessage,
+    runMedicationReminder,
+    runQuestionnaireQuickAction,
     scrollEndRef,
   } = useAssistantChat();
 
@@ -269,6 +275,33 @@ export default function AssistantPage() {
     }
   }, [closeAttachmentPanel]);
 
+  const handleQuickActionPress = useCallback(
+    (item: (typeof QUICK_ACTIONS)[number]) => {
+      if ('action' in item && item.action === 'reminder') {
+        void (async () => {
+          const ok = await runMedicationReminder();
+          if (!ok) {
+            Toast.fail('用药提醒加载失败', 1.5);
+          }
+        })();
+        return;
+      }
+      if ('action' in item && item.action === 'assessment') {
+        void (async () => {
+          const ok = await runQuestionnaireQuickAction();
+          if (!ok) {
+            Toast.fail('评估量表加载失败', 1.5);
+          }
+        })();
+        return;
+      }
+      if ('route' in item) {
+        navigation.navigate(item.route);
+      }
+    },
+    [navigation, runMedicationReminder, runQuestionnaireQuickAction],
+  );
+
   const hasInput = !!input.trim();
 
   const bottomAreaStyle = useAnimatedStyle(() => ({
@@ -285,14 +318,8 @@ export default function AssistantPage() {
   }));
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
+    <PageLayout>
       <KeyboardDoneAccessory />
-      <LinearGradient
-        colors={['#B4D0FF', '#F5F8FF']}
-        style={styles.headerGradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
-      />
       <View style={styles.headerWrap}>
         <Header
           title="AI健康管家"
@@ -342,7 +369,8 @@ export default function AssistantPage() {
               key={item.label}
               style={styles.quickActionBtn}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate(item.route)}>
+              disabled={loading || initializing}
+              onPress={() => handleQuickActionPress(item)}>
               <Text style={styles.quickActionText}>{item.label}</Text>
             </TouchableOpacity>
           ))}
@@ -443,6 +471,6 @@ export default function AssistantPage() {
           </Reanimated.View>
         </View>
       </View>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

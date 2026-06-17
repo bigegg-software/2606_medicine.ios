@@ -96,7 +96,7 @@ export default function MainTabs() {
         name="Schedule"
         component={ScheduleTabScreen}
         options={{
-          tabBarLabel: '安排',
+          tabBarLabel: '里程碑',
           tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/time.png')} />,
         }}
       />

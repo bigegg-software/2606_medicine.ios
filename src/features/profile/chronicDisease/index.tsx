@@ -16,7 +16,6 @@ import {
     DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
     loadChronicIndexIndicators,
     loadDiseaseTypeLabelMap,
-    resolveChronicDiseaseControlStatus,
     resolveDiseaseTypeLabel,
     type ChronicDiseaseControlStatus,
     type ChronicDiseaseDailyIndicators,
@@ -73,11 +72,11 @@ function getControlStatusStyles(status: ChronicDiseaseControlStatus) {
                 icon: styles.infoStatusIconAttention,
                 text: styles.infoStatusTextAttention,
             };
-        case 'recovering':
+        case 'highRisk':
             return {
-                box: styles.infoStatusBoxRecovering,
-                icon: styles.infoStatusIconRecovering,
-                text: styles.infoStatusTextRecovering,
+                box: styles.infoStatusBoxHighRisk,
+                icon: styles.infoStatusIconHighRisk,
+                text: styles.infoStatusTextHighRisk,
             };
         default:
             return {
@@ -119,8 +118,7 @@ function ChronicDiseaseCard({
     onPress,
 }: ChronicDiseaseCardProps) {
     const diseaseLabel = resolveDiseaseTypeLabel(record.diseaseType, diseaseTypeLabels);
-    const controlStatus = resolveChronicDiseaseControlStatus(record);
-    const statusStyles = getControlStatusStyles(controlStatus);
+    const statusStyles = getControlStatusStyles(dailyIndicators.controlStatus);
     const vitalsIndicator = getVitalsTodayIndicator(dailyIndicators.vitalsToday);
     const medicationIndicator = getMedicationPendingIndicator(dailyIndicators.pendingMedicationCount);
     const mealIndicator = getMealRecordIndicator(dailyIndicators.mealRecorded, dailyIndicators.mealLabel);
@@ -133,7 +131,7 @@ function ChronicDiseaseCard({
                     <Flex style={statusStyles.box}>
                         <View style={statusStyles.icon} />
                         <Text style={statusStyles.text}>
-                            {CHRONIC_DISEASE_CONTROL_STATUS_LABELS[controlStatus]}
+                            {CHRONIC_DISEASE_CONTROL_STATUS_LABELS[dailyIndicators.controlStatus]}
                         </Text>
                     </Flex>
                 </Flex>

@@ -15,6 +15,10 @@ export type ChatDetailItem = {
   thinkList?: { name?: string; text?: string }[];
   action?: string;
   deepMode?: string;
+  interfaceData?: {
+    reqParams?: Record<string, unknown>;
+    respData?: unknown;
+  };
 };
 
 export type ChatGuideInfo = {
@@ -78,6 +82,9 @@ export function buildSignedChatPayload(extra: Record<string, unknown> = {}) {
 
 export const saveChatMessage = (payload: Record<string, unknown>) =>
   request.post('/patient/chat/stop/saveMessage', payload);
+
+export const saveChatAction = (payload: Record<string, unknown>) =>
+  request.post('/patient/chat/saveAction', payload);
 
 export async function disconnectChatStream(chatId: string) {
   try {

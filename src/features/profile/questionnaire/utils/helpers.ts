@@ -35,6 +35,16 @@ export function canStartAssessment(type: QuestionnaireType, lastDate?: string) {
     return moment().isSameOrAfter(last.clone().add(months, 'months'), 'day');
 }
 
+export function getNextAssessmentDate(type: QuestionnaireType, lastDate?: string): string | undefined {
+    const months = ASSESSMENT_INTERVAL_MONTHS[type];
+    if (months == null || !lastDate) return undefined;
+    const last = moment(lastDate);
+    if (!last.isValid()) return undefined;
+    const next = last.clone().add(months, 'months').startOf('day');
+    if (moment().isSameOrAfter(next, 'day')) return undefined;
+    return next.format('YYYY-MM-DD');
+}
+
 const MAX_SCORE_BY_TYPE: Partial<Record<QuestionnaireType, number>> = {
     0: 100,
     1: 60,

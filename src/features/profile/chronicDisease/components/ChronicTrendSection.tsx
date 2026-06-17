@@ -5,16 +5,13 @@ import styles from '@/css/chronicDisease/detail';
 import ChronicBloodPressureChart from './ChronicBloodPressureChart';
 import ChronicSingleLineChart from './ChronicSingleLineChart';
 import type { ChronicDetailData } from './chronicData';
-import {
-    CHRONIC_DISEASE_CONTROL_STATUS_LABELS,
-    resolveChronicDiseaseControlStatus,
-} from './chronicData';
+import { CHRONIC_DISEASE_CONTROL_STATUS_LABELS } from './chronicData';
 
 type Props = {
     detail: ChronicDetailData;
 };
 
-function getControlStatusStyles(status: ReturnType<typeof resolveChronicDiseaseControlStatus>) {
+function getControlStatusStyles(status: ChronicDetailData['controlStatus']) {
     switch (status) {
         case 'attention':
             return {
@@ -22,11 +19,11 @@ function getControlStatusStyles(status: ReturnType<typeof resolveChronicDiseaseC
                 icon: styles.infoStatusIconAttention,
                 text: styles.infoStatusTextAttention,
             };
-        case 'recovering':
+        case 'highRisk':
             return {
-                box: styles.infoStatusBoxRecovering,
-                icon: styles.infoStatusIconRecovering,
-                text: styles.infoStatusTextRecovering,
+                box: styles.infoStatusBoxHighRisk,
+                icon: styles.infoStatusIconHighRisk,
+                text: styles.infoStatusTextHighRisk,
             };
         default:
             return {
@@ -96,8 +93,7 @@ function renderChart(detail: ChronicDetailData) {
 }
 
 export default function ChronicTrendSection({ detail }: Props) {
-    const { config, stats, record } = detail;
-    const controlStatus = resolveChronicDiseaseControlStatus(record);
+    const { config, stats, controlStatus } = detail;
     const statusStyles = getControlStatusStyles(controlStatus);
 
     return (

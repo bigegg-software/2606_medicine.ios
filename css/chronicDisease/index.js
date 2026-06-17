@@ -26,10 +26,10 @@ const styles = StyleSheet.create({
     infoStatusBoxAttention: { height: 25, backgroundColor: "rgba(255,139,7,0.14)", borderRadius: 12, paddingHorizontal: 15 },
     infoStatusIconAttention: { marginRight: 8, backgroundColor: "#FF8B07", borderRadius: 50, width: 5, height: 5 },
     infoStatusTextAttention: { fontWeight: 500, fontSize: 12, color: "#FF8B07" },
-    /* 康复中 */
-    infoStatusBoxRecovering: { height: 25, backgroundColor: "rgba(79,134,238,0.14)", borderRadius: 12, paddingHorizontal: 15 },
-    infoStatusIconRecovering: { marginRight: 8, backgroundColor: "#4F86EE", borderRadius: 50, width: 5, height: 5 },
-    infoStatusTextRecovering: { fontWeight: 500, fontSize: 12, color: "#4F86EE" },
+    /* 高风险 */
+    infoStatusBoxHighRisk: { height: 25, backgroundColor: "rgba(216,0,16,0.13)", borderRadius: 12, paddingHorizontal: 15 },
+    infoStatusIconHighRisk: { marginRight: 8, backgroundColor: "#D80010", borderRadius: 50, width: 5, height: 5 },
+    infoStatusTextHighRisk: { fontWeight: 500, fontSize: 12, color: "#D80010" },
     infoContent: { marginTop: 12, paddingHorizontal: 8 },
     infoContentImage: { width: 24, height: 24, marginRight: 5 },
     infoContentText: { fontWeight: 500, fontSize: 12, color: "#999999" },
