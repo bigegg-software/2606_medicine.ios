@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     addText: { height: 19, fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
     switch: { width: 43, height: 21 },
     rowText: {
+        marginTop: 12,
         fontWeight: 400,
         fontSize: 12,
         color: "#999999"

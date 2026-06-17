@@ -187,6 +187,7 @@ export type MedicationPlanFormValues = {
   takeTimes: string[];
   weekDays: string[];
   cycleStartDate: string;
+  cycleEndDate: string;
   continuousMedication: boolean;
 };
 
@@ -200,6 +201,12 @@ export function mapMedicationPlanToFormValues(plan: MedicationPlan): MedicationP
   const startMoment = plan.startDate
     ? moment(plan.startDate, ['YYYY-MM-DD', 'YYYYMMDD'], true)
     : null;
+  const endMoment = plan.endDate
+    ? moment(plan.endDate, ['YYYY-MM-DD', 'YYYYMMDD'], true)
+    : null;
+  const cycleStartDate = startMoment?.isValid()
+    ? startMoment.format('YYYY-MM-DD')
+    : moment().format('YYYY-MM-DD');
 
   return {
     drugName: plan.name?.trim() ?? '',
@@ -211,9 +218,10 @@ export function mapMedicationPlanToFormValues(plan: MedicationPlan): MedicationP
     dailyFrequency,
     takeTimes,
     weekDays: weekDays.length > 0 ? weekDays : [...WEEKDAY_LABELS],
-    cycleStartDate: startMoment?.isValid()
-      ? startMoment.format('YYYY-MM-DD')
-      : moment().format('YYYY-MM-DD'),
+    cycleStartDate,
+    cycleEndDate: endMoment?.isValid()
+      ? endMoment.format('YYYY-MM-DD')
+      : moment(cycleStartDate).add(7, 'day').format('YYYY-MM-DD'),
     continuousMedication: plan.courseTreatment === 0,
   };
 }
@@ -444,6 +452,7 @@ export function buildMedicationPlanPayload(input: {
   timeList: string[];
   weekDays: string[];
   startDate: string;
+  endDate?: string;
   continuousMedication: boolean;
   reminderEnabled: boolean;
 }): MedicationPlanPayload {
@@ -457,6 +466,7 @@ export function buildMedicationPlanPayload(input: {
     medicationFrequency: input.medicationFrequency,
     timeList: input.timeList.map(time => moment(time, 'HH:mm', true).format('HH:mm')),
     startDate: input.startDate,
+    endDate: input.continuousMedication ? undefined : input.endDate,
     daysWeek: weekDayLabelsToApi(input.weekDays),
     courseTreatment: input.continuousMedication ? 0 : -1,
     isEnable: input.reminderEnabled ? 1 : 0,
