@@ -39,11 +39,9 @@ const styles = StyleSheet.create({
   modelTitle: {
     marginTop: 14,
     marginLeft: 17,
-    height: 19,
     fontWeight: 500,
     fontSize: 16,
     color: AppTheme.textPrimary,
-    lineHeight: 19,
   },
   familyBox: {
     marginTop: 8,
@@ -64,19 +62,15 @@ const styles = StyleSheet.create({
     marginLeft: 14,
   },
   familyItemName: {
-    height: 19,
     fontWeight: 400,
     fontSize: 16,
     color: AppTheme.textPrimary,
-    lineHeight: 19,
   },
   familyItemRelation: {
-    marginTop: 2,
-    height: 19,
+    marginTop: 4,
     fontWeight: 400,
     fontSize: 12,
     color: "#999",
-    lineHeight: 19,
   },
   logout: { marginTop: 12, backgroundColor: "#FEFFFF", shadowColor: "#0C3D9A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, borderRadius: 8, padding: 18, alignItems: 'center' },
   logoutText: { color: AppTheme.primaryColor, fontSize: 17, fontWeight: '600' },

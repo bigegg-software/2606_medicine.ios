@@ -69,20 +69,17 @@ const styles = StyleSheet.create({
         marginLeft: 9,
     },
     healthTitle: {
-        height: 24,
         fontWeight: 400,
         fontSize: 16,
         color: "#333333",
-        lineHeight: 24,
     },
     healthTime: {
-        height: 18,
         fontWeight: 400,
         fontSize: 12,
         color: "#999999",
-        lineHeight: 18,
     },
     healthStatus: {
+        marginTop: 2,
         fontWeight: 400,
         fontSize: 14,
         color: "#66CA98"
@@ -98,7 +95,6 @@ const styles = StyleSheet.create({
         marginTop: 12,
     },
     healthSlide: {
-        height: 86,
         paddingHorizontal: 12,
     },
     swiperIcon: {
@@ -108,19 +104,16 @@ const styles = StyleSheet.create({
     healthSlideLabel: {
         fontSize: 14,
         color: '#333333',
-        lineHeight: 18,
         fontWeight: 500,
         marginLeft: 6,
     },
     healthSlideValue: {
-        height: 22,
         fontWeight: 500,
         fontSize: 16,
         color: "#000000",
         marginTop: 5
     },
     healthSlideUnit: {
-        height: 17,
         fontWeight: 400,
         fontSize: 12,
         marginTop: 2,
@@ -128,7 +121,6 @@ const styles = StyleSheet.create({
     },
     healthSlideStatus: {
         marginTop: 4,
-        height: 17,
         fontWeight: 500,
         fontSize: 12,
         color: "#FFBA1D",
@@ -216,12 +208,10 @@ const styles = StyleSheet.create({
         height: 23
     },
     sportTitle: {
-        height: 23,
         marginLeft: 4,
         fontWeight: 400,
         fontSize: 16,
         color: "#000000",
-        lineHeight: 23,
     },
     sportLineBox: {
         marginTop: 12,
@@ -238,11 +228,9 @@ const styles = StyleSheet.create({
     },
     sportText: {
         marginTop: 6,
-        height: 20,
         fontWeight: 400,
         fontSize: 14,
         color: "#999999",
-        lineHeight: 20,
     },
     mapBox: {
         marginTop: 14,
@@ -262,7 +250,6 @@ const styles = StyleSheet.create({
         paddingTop: 9
     },
     mapBoxItemTitle: {
-        height: 22,
         fontWeight: 500,
         fontSize: 16,
         color: "#333333"
@@ -278,11 +265,9 @@ const styles = StyleSheet.create({
     mapText: {
         marginLeft: 2,
         marginRight: 7,
-        height: 19,
         fontWeight: 400,
         fontSize: 14,
         color: "rgba(43,18,13,0.75)",
-        lineHeight: 19,
     },
 
 

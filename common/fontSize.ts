@@ -5,13 +5,13 @@ export type FontSizeOption = 'small' | 'medium' | 'large';
 const STORAGE_KEY = 'appFontSize';
 
 export const FONT_SIZE_OPTIONS: { key: FontSizeOption; label: string; scale: number }[] = [
-    { key: 'small', label: '小', scale: 0.9 },
-    { key: 'medium', label: '中', scale: 1 },
-    { key: 'large', label: '大', scale: 1.15 },
+    { key: 'small', label: '小', scale: 1 },
+    { key: 'medium', label: '中', scale: 1.15 },
+    { key: 'large', label: '大', scale: 1.3 },
 ];
 
 export function getFontSizeLabel(option: FontSizeOption) {
-    return FONT_SIZE_OPTIONS.find(item => item.key === option)?.label ?? '中';
+    return FONT_SIZE_OPTIONS.find(item => item.key === option)?.label ?? '小';
 }
 
 export function getFontSizeScale(option: FontSizeOption) {
@@ -23,7 +23,7 @@ export async function getFontSizeOption(): Promise<FontSizeOption> {
     if (value === 'small' || value === 'medium' || value === 'large') {
         return value;
     }
-    return 'medium';
+    return 'small';
 }
 
 export async function setFontSizeOption(option: FontSizeOption) {

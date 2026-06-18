@@ -16,7 +16,7 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
     },
-    rowTitle: { marginTop: 12, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
+    rowTitle: { marginTop: 12, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary },
     rowLineInHeader: { height: 1, backgroundColor: '#E8DED2', marginTop: 12 },
     textareaBox: {
         minHeight: 90,
@@ -61,9 +61,9 @@ const styles = StyleSheet.create({
     dateValue: { fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary },
     calendarIcon: { width: 19, height: 19, marginLeft: 8 },
     addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: '#053A93', borderRadius: 8 },
-    addText: { height: 19, fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
-    btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, lineHeight: 19, textAlign: 'center' },
-    btmText: { fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, lineHeight: 19, textAlign: 'center' },
+    addText: { fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
+    btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, textAlign: 'center' },
+    btmText: { fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, textAlign: 'center' },
 });
 
 export default styles;

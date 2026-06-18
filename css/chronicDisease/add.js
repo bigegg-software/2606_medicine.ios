@@ -73,9 +73,9 @@ const styles = StyleSheet.create({
         color: AppTheme.textSecondary,
     },
     addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: '#173F7D', borderRadius: 30 },
-    addText: { height: 19, fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
+    addText: { fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
     cancelBtn: { marginTop: 12, marginBottom: 18, marginHorizontal: 18, height: 45, borderRadius: 30, backgroundColor: 'rgba(79,134,238,0.14)' },
-    cancelText: { height: 19, fontWeight: 500, fontSize: 16, color: '#173F7D' },
+    cancelText: { fontWeight: 500, fontSize: 16, color: '#173F7D' },
 })
 
 export default styles;

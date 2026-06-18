@@ -278,7 +278,7 @@ export default function HomeTab() {
           <Flex justify='between' style={styles.mapBoxItem}>
             <View style={styles.mapLeftBox}>
               <Text style={styles.mapBoxItemTitle}>公园太极拳活动</Text>
-              <Flex>
+              <Flex style={{marginTop:2}}>
                 <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
                 <Text style={styles.mapText}>明天9:00</Text>
                 <Image style={styles.mapIcon} source={require('@/assets/images/home/dw.png')} />
