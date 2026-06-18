@@ -143,6 +143,7 @@ export default function RegisterPage() {
         regUseInviteCode: inviteCode.trim(),
         phonenumber: phone.trim(),
         smsCode: code.trim(),
+        authAction: 'register',
       })) as {
         code?: number;
         msg?: string;

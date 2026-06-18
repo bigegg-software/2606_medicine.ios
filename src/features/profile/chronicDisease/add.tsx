@@ -66,7 +66,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     const isEdit = recordId != null;
     const navigation = useNavigation<Nav>();
     const [diseaseType, setDiseaseType] = useState('');
-    const [diagnosisDate, setDiagnosisDate] = useState(moment().format('YYYY-MM'));
+    const [diagnosisDate, setDiagnosisDate] = useState('');
     const [mainSymptoms, setMainSymptoms] = useState('');
     const [selectedPlanIds, setSelectedPlanIds] = useState<number[]>([]);
     const [diseaseTypeOptions, setDiseaseTypeOptions] = useState<DiseaseTypeOption[]>([]);
@@ -94,8 +94,8 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
                         res as { code?: number; data?: ChronicDiseaseRecord },
                     );
                     if (data) {
-                        setDiseaseType(data.diseaseType ?? options[0]?.value ?? '');
-                        setDiagnosisDate(data.diagnosisTime?.slice(0, 7) ?? moment().format('YYYY-MM'));
+                        setDiseaseType(data.diseaseType ?? '');
+                        setDiagnosisDate(data.diagnosisTime?.slice(0, 7) ?? '');
                         setMainSymptoms(data.mainSymptoms ?? '');
                         setSelectedPlanIds(
                             (data.associationMedicationPlanIds ?? [])
@@ -103,8 +103,6 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
                                 .filter(id => !Number.isNaN(id)),
                         );
                     }
-                } else if (options.length > 0) {
-                    setDiseaseType(options[0].value);
                 }
             } catch {
                 Alert.alert('错误', '加载数据失败');
@@ -120,6 +118,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     );
 
     const diagnosisDisplay = useMemo(() => {
+        if (!diagnosisDate) return '--年--月';
         const [year, month] = diagnosisDate.split('-');
         if (year && month) {
             return `${year}年${Number(month)}月`;
@@ -210,10 +209,10 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
                     <Text style={styles.rowTitle}>确诊日期</Text>
                     <DatePicker
                         precision="month"
-                        value={moment(`${diagnosisDate}-01`).toDate()}
+                        value={diagnosisDate ? moment(`${diagnosisDate}-01`).toDate() : undefined}
                         onOk={date => setDiagnosisDate(moment(date).format('YYYY-MM'))}>
                         <Flex style={styles.inpitBox}>
-                            <Text style={[styles.placeholderText, styles.valueText]}>{diagnosisDisplay}</Text>
+                            <Text style={[styles.placeholderText, diagnosisDate ? styles.valueText : null]}>{diagnosisDisplay}</Text>
                             <MaterialIcons name="keyboard-arrow-down" size={24} color={AppTheme.primaryColor} />
                         </Flex>
                     </DatePicker>

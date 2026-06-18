@@ -121,6 +121,7 @@ export default function LoginPage() {
       const res = (await login({
         phonenumber: phone.trim(),
         smsCode: code.trim(),
+        authAction: 'login',
       })) as {
         code?: number;
         msg?: string;

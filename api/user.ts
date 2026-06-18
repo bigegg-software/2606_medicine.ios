@@ -76,3 +76,30 @@ type UserInfoResponse = {
 };
 
 export const getUserInfo = () => request.get<UserInfoResponse>('/system/user/getInfo');
+
+export type UpdateExtrInfoPayload = {
+  language?: string;
+  regDeviceType?: number;
+  acceptAi?: number;
+  appVersion?: string;
+  utcOffset?: number;
+  iphoneDeviceToken?: string;
+  params?: Record<string, unknown>;
+  sleepGoals?: number;
+  stepGoals?: number;
+  energyGoals?: number;
+  calorieGoals?: number;
+  longitude?: string;
+  latitude?: string;
+  drugIsTip?: number;
+  drugBeforeTipTime?: number;
+  drugTipTypes?: string;
+  questionAiSuggestion?: string;
+  isSendSysMsg?: number;
+  autoSyncData?: number;
+  synWdataDays?: number;
+  countryCode?: string;
+};
+
+export const updateExtrInfo = (data: UpdateExtrInfoPayload) =>
+  request.put<{ code?: number; msg?: string }>('/system/user/updateExtrInfo', data);

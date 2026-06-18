@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { View, ScrollView, TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -27,6 +27,7 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
     const loadDetail = useCallback(async () => {
         try {
             const data = await loadChronicDetailData(recordId);
+            console.log(data);
             setDetail(data);
         } catch {
             setDetail(null);
@@ -59,6 +60,18 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
         detail?.record?.diseaseType,
         detail?.diseaseTypeLabels ?? {},
     );
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerRight: () => (
+                <TouchableOpacity
+                    onPress={() => navigation.navigate('ChronicDiseaseAddPage', { id: recordId })}
+                    style={{ marginRight: 16 }}>
+                    <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>编辑慢病</Text>
+                </TouchableOpacity>
+            ),
+        });
+    }, [navigation]);
 
     useEffect(() => {
         navigation.setOptions({ title: diseaseLabel });

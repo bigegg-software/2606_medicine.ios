@@ -21,11 +21,6 @@ export default function MedicationPlanSection({ medications, recordId }: Props) 
         <>
             <Flex justify="between" style={{ marginTop: 18 }}>
                 <Text style={styles.sectionTitle}>用药方案</Text>
-                <TouchableOpacity
-                    disabled={recordId == null}
-                    onPress={() => recordId != null && navigation.navigate('ChronicDiseaseAddPage', { id: recordId })}>
-                    <Text style={styles.more}>编辑用药</Text>
-                </TouchableOpacity>
             </Flex>
             <View style={styles.infoBox}>
                 {medications.length === 0 ? (

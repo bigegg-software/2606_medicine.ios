@@ -40,6 +40,7 @@
     "expo-image-picker": "~56.0.15",
     "expo-linear-gradient": "~56.0.4",
     "expo-media-library": "~56.0.6",
+    "expo-notifications": "^56.0.18",
     "expo-splash-screen": "~56.0.10",
     "expo-status-bar": "~56.0.4",
     "moment": "^2.30.1",

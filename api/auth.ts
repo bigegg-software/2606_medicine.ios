@@ -14,14 +14,16 @@ export type LoginParams = {
   phonenumber: string;
   smsCode: string;
   regUseInviteCode?: string;
+  authAction: 'login' | 'register';
 };
 
-export const login = ({ phonenumber, smsCode, regUseInviteCode }: LoginParams) =>
+export const login = ({ phonenumber, smsCode, regUseInviteCode, authAction }: LoginParams) =>
   request.post('/auth/login', {
     phonenumber,
     smsCode,
     clientId: smsClientId,
     grantType: smsGrantType,
+    authAction,
     ...(regUseInviteCode ? { regUseInviteCode } : {}),
   });
 

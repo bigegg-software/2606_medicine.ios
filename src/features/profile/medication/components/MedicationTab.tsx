@@ -27,6 +27,7 @@ import {
     type MedicationPlanItemView,
     type MedicationProgressView,
 } from '../medicationHelpers';
+import moment from 'moment';
 
 const TIME_LIST = [
     { label: '5分钟', value: '5' },
@@ -69,13 +70,16 @@ function ActionStatus({ taken }: { taken: boolean }) {
             <View style={styles.medicationStatusIconWrap}>
                 <View style={styles.medicationStatusCircle} />
             </View>
-            <Text style={styles.medicationWfyText}>未服用</Text>
+            <Text style={styles.medicationWfyText}>已服用</Text>
         </Flex>
     );
 }
 
 function ProgressRing({ progress }: { progress: number }) {
     const value = Math.min(100, Math.max(0, Math.round(progress)));
+    const isComplete = value >= 100;
+    const ringColor = isComplete ? "rgba(0,201,80,0.14)" : "rgba(255,139,7,0.14)";
+    const progressColor = isComplete ? "#00C950" : "#FF8B07";
     const progressRadius = (PROGRESS_SIZE - PROGRESS_STROKE) / 2;
     const progressCenter = PROGRESS_SIZE / 2;
     const progressPath = useMemo(() => {
@@ -100,13 +104,13 @@ function ProgressRing({ progress }: { progress: number }) {
                     cx={progressCenter}
                     cy={progressCenter}
                     r={progressRadius}
-                    color="rgba(255,139,7,0.14)"
+                    color={ringColor}
                     style="stroke"
                     strokeWidth={PROGRESS_STROKE}
                 />
                 <Path
                     path={progressPath}
-                    color="#FF8B07"
+                    color={progressColor}
                     style="stroke"
                     strokeWidth={PROGRESS_STROKE}
                     strokeCap="round"
@@ -306,6 +310,15 @@ export default function MedicationTab() {
         }
     }, [checkingInKey]);
 
+    function formatDayLabel(yyyyMMdd?: string): string {
+        if (!yyyyMMdd) return '--';
+        const parsed = moment(yyyyMMdd, ['YYYYMMDD', 'YYYY-MM-DD'], true);
+        if (!parsed.isValid()) return yyyyMMdd;
+        if (parsed.isSame(moment(), 'day')) return '今天';
+        if (parsed.isSame(moment().subtract(1, 'day'), 'day')) return '昨天';
+        return parsed.format('M月D日');
+    }
+
     return (
         <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
             {loading ? (
@@ -315,7 +328,7 @@ export default function MedicationTab() {
             ) : null}
 
             <Flex justify="between">
-                <Text style={styles.sectionTitle}>当前用药</Text>
+                <Text style={[styles.sectionTitle, { marginTop: 6 }]}>当前用药</Text>
                 <TouchableOpacity
                     style={{ marginRight: 16 }}
                     onPress={() => navigation.navigate('MedicationAddPage')}>
@@ -339,7 +352,7 @@ export default function MedicationTab() {
                             <Text style={styles.medicationTimeText}>{group.eventBasedLabel}</Text>
                         ) : null}
                     </Flex>
-                    <View style={styles.rowLine} />
+                    <View style={[styles.rowLine, { marginBottom: 16 }]} />
                     <View style={styles.medicationInfo}>
                         {group.items.map((item, index) => (
                             <View key={item.key} style={index > 0 ? { marginTop: 8 } : undefined}>
@@ -428,7 +441,7 @@ export default function MedicationTab() {
 
             <Flex justify="between">
                 <Text style={[styles.sectionTitle, { marginTop: 18 }]}>服药历史</Text>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('MedicationHistoryPage')}>
                     <Text style={styles.more}>全部</Text>
                 </TouchableOpacity>
             </Flex>
@@ -443,7 +456,7 @@ export default function MedicationTab() {
                 <View style={styles.medicationBox}>
                     {historyDays.map((day, dayIndex) => (
                         <View key={day.key}>
-                            <Text style={styles.colTitle}>{day.label}</Text>
+                            <Text style={styles.colTitle}>{formatDayLabel(day.label)}</Text>
                             <View style={styles.listBox}>
                                 {day.items.map(item => (
                                     <Flex justify="between" style={styles.listItem} key={item.key}>

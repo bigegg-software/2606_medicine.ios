@@ -34,29 +34,29 @@ export default function MedicationPage() {
     return (
         <PageLayout style={styles.container} contentStyle={styles.pageBody}>
             <Flex style={styles.navBox}>
-                    {MEDICATION_NAV_LIST.map(item => (
-                        <TouchableOpacity
-                            style={styles.navCol}
-                            key={item.value}
-                            onPress={() => {
-                                if (item.value === activeNav) return;
-                                setActiveNav(item.value);
-                            }}>
-                            <View style={styles.navItemWrap}>
-                                <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>
-                                    {item.label}
-                                </Text>
-                                {activeNav === item.value ? (
-                                    <View style={styles.navIndicatorWrap}>
-                                        <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
-                                    </View>
-                                ) : null}
-                            </View>
-                        </TouchableOpacity>
-                    ))}
-                </Flex>
+                {MEDICATION_NAV_LIST.map(item => (
+                    <TouchableOpacity
+                        style={styles.navCol}
+                        key={item.value}
+                        onPress={() => {
+                            if (item.value === activeNav) return;
+                            setActiveNav(item.value);
+                        }}>
+                        <View style={styles.navItemWrap}>
+                            <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>
+                                {item.label}
+                            </Text>
+                            {activeNav === item.value ? (
+                                <View style={styles.navIndicatorWrap}>
+                                    <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
+                                </View>
+                            ) : null}
+                        </View>
+                    </TouchableOpacity>
+                ))}
+            </Flex>
 
-                {activeNav === 'medication' ? <MedicationTab /> : <MealTab />}
+            {activeNav === 'medication' ? <MedicationTab /> : <MealTab />}
         </PageLayout>
     );
 }

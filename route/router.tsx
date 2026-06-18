@@ -42,6 +42,8 @@ import NutritionPage from '@/src/features/home/nutrition';
 import MedicationPage from '@/src/features/profile/medication';
 import MedicationAddPage from '@/src/features/profile/medication/add';
 import MedicationAllPage from '@/src/features/profile/medication/all';
+import MedicationHistoryPage from '@/src/features/profile/medication/history';
+import MedicationDetailPage from '@/src/features/profile/medication/detail';
 
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
@@ -106,6 +108,8 @@ export type RootStackParamList = {
   Medication: undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
+  MedicationHistoryPage: undefined;
+  MedicationDetailPage: { drugPatientRuleId: number } | undefined;
   AssistantPage: undefined;
   MyFamily: undefined;
   FamilyDetail: undefined;
@@ -113,46 +117,6 @@ export type RootStackParamList = {
 
 const Stack: any = createNativeStackNavigator<RootStackParamList>();
 
-const STACK_ROUTE_TITLES: Partial<Record<keyof RootStackParamList, string>> = {
-  Home: '首页',
-  ExercisePage: '运动处方',
-  NutritionPage: '饮食运动',
-  ProfileEditPage: '个人信息修改',
-  AssistantPage: 'AI健康管家',
-  MyFamily: '我的家人',
-  FamilyDetail: '家人详情',
-  HealthRecord: '健康档案',
-  Emergency: '紧急联系人',
-  EmergencyAdd: '添加紧急联系人',
-  CaseNotes: '病例记录',
-  CaseAdd: '添加病例',
-  CaseCameraPage: '拍照',
-  CaseAlbumPage: '相册',
-  CaseDetail: '病例详情',
-  Allergies: '过敏记录',
-  AllergiesAdd: '添加过敏史',
-  FamilyHistory: '家族病史',
-  FamilyHistoryAdd: '添加家族病史',
-  ChronicDisease: '慢病管理',
-  ChronicDiseaseAddPage: '新增慢病',
-  ChronicDiseaseDetailPage: '慢病详情',
-  VitalsPage: '体征监测',
-  AddDataPage: '新增记录',
-  AllDataPage: '血压记录',
-  Medication: '用药记录',
-  MedicationAddPage: '添加用药记录',
-  MedicationAllPage: '所有用药',
-  QuestionnairePage: '评估问卷',
-  QuestionnaireList: '评估问卷',
-  QuestionnaireDetail: '评估问卷详情',
-  QuestionnaireResult: '评估问卷结果',
-  QuestionnaireHistory: '评估问卷历史',
-  SettingsPage: '设置',
-};
-
-function getStackRouteTitle(routeName: string) {
-  return STACK_ROUTE_TITLES[routeName as keyof RootStackParamList] ?? routeName;
-}
 
 function StackHeader({ route, options, back, navigation }: any) {
   const { scaleSize } = useFontSize();
@@ -161,16 +125,7 @@ function StackHeader({ route, options, back, navigation }: any) {
     [scaleSize],
   );
 
-  const state = navigation.getState();
   const canGoBack = navigation.canGoBack();
-  const previousRoute = state.index > 0 ? state.routes[state.index - 1] : undefined;
-  const backLabel =
-    previousRoute?.name === 'Home'
-      ? getActiveMainTabTitle()
-      : previousRoute
-        ? getStackRouteTitle(previousRoute.name)
-        : undefined;
-
   return (
     <View style={styles.stackHeader}>
       <Header
@@ -186,7 +141,6 @@ function StackHeader({ route, options, back, navigation }: any) {
             ? props => (
               <HeaderBackButton
                 {...props}
-                label={backLabel}
                 tintColor={AppTheme.primaryColor}
                 onPress={navigation.goBack}
               />
@@ -266,7 +220,7 @@ export default function RootStack() {
       initialRouteName={isLogin ? 'Home' : 'Login'}>
       <Stack.Screen name="Login" component={LoginPage} options={{ headerShown: false, title: "登录" }} />
       <Stack.Screen name="Register" component={RegisterPage} options={{ headerShown: false, title: "注册" }} />
-      <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false, title: "首页" }} />
+      <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false, title: "" }} />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
@@ -291,19 +245,13 @@ export default function RootStack() {
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
-      <Stack.Screen
-        name="Medication"
-        component={MedicationPage}
-        options={{ title: '用药记录' }}
-      />
+      <Stack.Screen name="Medication" component={MedicationPage} options={{ title: '用药记录' }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: '添加用药记录' }} />
       <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />
+      <Stack.Screen name="MedicationHistoryPage" component={MedicationHistoryPage} options={{ title: '用药历史' }} />
+      <Stack.Screen name="MedicationDetailPage" component={MedicationDetailPage} options={{ title: '处方详情' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ headerShown: false }} />
-      <Stack.Screen
-        name="QuestionnairePage"
-        component={QuestionnairePage}
-        options={{ title: '评估问卷', gestureEnabled: false }}
-      />
+      <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />

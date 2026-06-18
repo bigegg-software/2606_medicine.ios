@@ -167,8 +167,8 @@ async function loadMeasureItems(
             range === 'today'
                 ? endDate
                 : range === '7days'
-                  ? moment().subtract(6, 'days').format('YYYY-MM-DD')
-                  : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
+                    ? moment().subtract(6, 'days').format('YYYY-MM-DD')
+                    : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
         const res = await getMeasureDataDetailByDateRange({ startDate, endDate, type });
         if (!isResourceApiOk(res as { code?: number })) return [];
         const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res as { code?: number; data?: unknown }));
@@ -188,8 +188,8 @@ async function loadWearableItems(
             range === 'today'
                 ? endDate
                 : range === '7days'
-                  ? moment().subtract(6, 'days').format('YYYY-MM-DD')
-                  : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
+                    ? moment().subtract(6, 'days').format('YYYY-MM-DD')
+                    : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
         const res = await getWearableDataDetailByDateRange({ startDate, endDate, type });
         if (!isResourceApiOk(res as { code?: number })) return [];
         const data = apiResourceData<WearableDataItem[]>(
@@ -513,17 +513,11 @@ function buildAssociatedMedicationRows(
         group.items.forEach(item => {
             if (!associationIds.has(item.medicationPlanId)) return;
             seenPlanIds.add(item.medicationPlanId);
-            const plan = planById.get(item.medicationPlanId);
             const time = item.medicationPlanTime || group.time;
             rows.push({
                 key: item.key,
                 name: item.name,
-                doseText: formatSingleDoseText(
-                    plan,
-                    dictMaps,
-                    time,
-                    group.eventBasedLabel || item.eventBasedLabel,
-                ),
+                doseText: item.doseText,
                 taken: item.taken,
                 planType: item.planType,
                 planTypeLabel: item.planTypeLabel,
@@ -562,13 +556,13 @@ function resolveVitalsTodayStatus(
     const overview =
         config.wearableType && (config.chartKind === 'heartRate' || config.chartKind === 'bloodOxygen')
             ? buildTodayOverviewFromWearable(
-                  config,
-                  wearableItems,
-                  config.overviewMeasureName,
-                  config.chartKind === 'heartRate'
-                      ? v => `${Math.round(v)} 次/分`
-                      : v => `${Math.round(v)}%`,
-              )
+                config,
+                wearableItems,
+                config.overviewMeasureName,
+                config.chartKind === 'heartRate'
+                    ? v => `${Math.round(v)} 次/分`
+                    : v => `${Math.round(v)}%`,
+            )
             : buildTodayOverviewFromMeasure(config, measureItems);
     return overview.mode === 'full' ? 'measured' : 'notMeasured';
 }
@@ -579,6 +573,13 @@ function countPendingMedicationDoses(
     dictMaps: MedicationDictMaps,
     planGroups: MedicationPlanGroupView[],
 ): number {
+
+    // console.log('Counting pending medication doses...');
+    // console.log('Record:', record);
+    // console.log('Plans:', plans);
+    // console.log('Dict Maps:', dictMaps);
+    // console.log('Plan Groups:', planGroups);
+
     return buildAssociatedMedicationRows(record, plans, dictMaps, planGroups).filter(row => !row.taken).length;
 }
 
@@ -675,29 +676,29 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
         config.measureType && config.chartKind !== 'bloodPressure' && config.chartKind !== 'bloodLipids'
             ? buildSingleValueSeries(measureItems, '30Days')
             : config.chartKind === 'heartRate'
-              ? buildWearableHeartRateSeries(wearableItems, '30Days')
-              : config.chartKind === 'bloodOxygen'
-                ? buildWearableOxygenSeries(wearableItems, '30Days')
-                : [];
+                ? buildWearableHeartRateSeries(wearableItems, '30Days')
+                : config.chartKind === 'bloodOxygen'
+                    ? buildWearableOxygenSeries(wearableItems, '30Days')
+                    : [];
     const ldlSeries = config.chartKind === 'bloodLipids' ? buildLdlSeries(measureItems) : [];
 
     const todayOverview =
         config.wearableType && (config.chartKind === 'heartRate' || config.chartKind === 'bloodOxygen')
             ? buildTodayOverviewFromWearable(
-                  config,
-                  wearableItems,
-                  config.overviewMeasureName,
-                  config.chartKind === 'heartRate' ? v => `${Math.round(v)} 次/分` : v => `${Math.round(v)}%`,
-              )
+                config,
+                wearableItems,
+                config.overviewMeasureName,
+                config.chartKind === 'heartRate' ? v => `${Math.round(v)} 次/分` : v => `${Math.round(v)}%`,
+            )
             : buildTodayOverviewFromMeasure(config, measureItems);
 
     const todayGroups = isResourceApiOk(planGroupsRes as { code?: number })
         ? mapIndexPlanGroups(
-              apiResourceData<IndexMedicationPlanGroupItem[]>(
-                  planGroupsRes as unknown as { code?: number; data?: IndexMedicationPlanGroupItem[] },
-              ),
-              dictMaps,
-          )
+            apiResourceData<IndexMedicationPlanGroupItem[]>(
+                planGroupsRes as unknown as { code?: number; data?: IndexMedicationPlanGroupItem[] },
+            ),
+            dictMaps,
+        )
         : [];
 
     return {

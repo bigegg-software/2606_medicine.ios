@@ -103,3 +103,31 @@ export const updateMedicationPlanTimeList = (data: {
   medicationPlanId: string | number;
   timeList: string[];
 }) => request.put<ApiResult>('/patient/medicationPlan/updateTimeList', data);
+
+// --- Drug Patient Rule (处方详情) ---
+
+export type DrugPatientRuleInfo = {
+  drugPatientRuleId?: number;
+  patientUserId?: number;
+  prescriptionName?: string;
+  diagnosis?: string;
+  startDate?: string;
+  endDate?: string;
+  drugTemplateId?: number;
+  precautions?: string;
+  status?: number; // 0.进行中 1.已暂停 2.已结束
+  stopReason?: string;
+  drugRuleList?: MedicationPlan[];
+  createBy?: number;
+  createByName?: string;
+  createTime?: string;
+};
+
+export type DrugPatientRuleInfoResult = ApiResult & {
+  data?: DrugPatientRuleInfo;
+};
+
+export const getDrugPatientRuleInfo = (drugPatientRuleId: string | number) =>
+  request.get<DrugPatientRuleInfoResult>('/patient/drugPatientRule/getInfo', {
+    params: { drugPatientRuleId: String(drugPatientRuleId) },
+  });

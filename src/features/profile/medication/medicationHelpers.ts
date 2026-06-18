@@ -90,7 +90,7 @@ function toQueryId(id?: string | number | null) {
   return String(id);
 }
 
-function resolveDictLabel(map: Record<string, string>, value?: string) {
+export function resolveDictLabel(map: Record<string, string>, value?: string) {
   const key = value?.trim();
   if (!key) return '';
   return map[key] ?? key;
@@ -411,7 +411,7 @@ export async function loadMedicationHistory(limitDays = 7) {
       action: 1,
       startDate,
       endDate,
-      pageSize: 50,
+      pageSize: 1,
       pageNum: 1,
     });
     return mapMedicationHistoryRows(getResourceRows(res));

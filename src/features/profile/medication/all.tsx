@@ -80,20 +80,22 @@ function MedicationPlanCard({
         </>
     );
 
-    if (!editable || !onPress) {
+    if (!onPress) {
         return <View style={styles.medicationBox}>{content}</View>;
     }
 
+    const inSwipe = editable && !!onDelete;
+
     const card = (
         <TouchableOpacity
-            style={[styles.medicationBox, onDelete ? styles.medicationBoxInSwipe : null]}
+            style={[styles.medicationBox, inSwipe ? styles.medicationBoxInSwipe : null]}
             activeOpacity={0.7}
             onPress={onPress}>
             {content}
         </TouchableOpacity>
     );
 
-    if (!onDelete) {
+    if (!inSwipe) {
         return card;
     }
 
@@ -190,54 +192,54 @@ export default function MedicationAllPage() {
 
     return (
         <PageLayout style={styles.container} contentStyle={styles.pageBody}>
-                {!hasLoadedOnce && loading ? (
-                    <View style={styles.center}>
-                        <ActivityIndicator color={AppTheme.primaryColor} />
-                    </View>
-                ) : (
-                    <ScrollView
-                        contentContainerStyle={[
-                            styles.body,
-                            activePlans.length === 0 && styles.bodyEmpty,
-                        ]}
-                        keyboardShouldPersistTaps="handled"
-                        onScrollBeginDrag={closeActiveSwipeRow}
-                        refreshControl={
-                            <RefreshControl
-                                refreshing={refreshing}
-                                onRefresh={() => loadRef.current('refresh')}
-                                tintColor={AppTheme.primaryColor}
+            {!hasLoadedOnce && loading ? (
+                <View style={styles.center}>
+                    <ActivityIndicator color={AppTheme.primaryColor} />
+                </View>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={[
+                        styles.body,
+                        activePlans.length === 0 && styles.bodyEmpty,
+                    ]}
+                    keyboardShouldPersistTaps="handled"
+                    onScrollBeginDrag={closeActiveSwipeRow}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={() => loadRef.current('refresh')}
+                            tintColor={AppTheme.primaryColor}
+                        />
+                    }>
+                    {/* <Text style={styles.sectionTitle}>当前用药</Text> */}
+                    {activePlans.length === 0 ? (
+                        <View style={styles.emptyWrap}>
+                            <NoData text="暂无用药计划" />
+                        </View>
+                    ) : (
+                        activePlans.map(plan => (
+                            <MedicationPlanCard
+                                key={String(plan.medicationPlanId ?? `${plan.name}-${plan.startDate}`)}
+                                plan={plan}
+                                dictMaps={dictMaps ?? { amountUnit: {}, eventBased: {}, amountUnitOptions: [], eventBasedOptions: [] }}
+                                onPress={() => {
+                                    if (plan.medicationPlanId == null) return;
+                                    if (plan.planType === 1) {
+                                        navigation.navigate('MedicationDetailPage', { drugPatientRuleId: plan.drugPatientRuleId! });
+                                    } else if (isPersonalMedicationPlan(plan)) {
+                                        navigation.navigate('MedicationAddPage', { medicationPlanId: plan.medicationPlanId });
+                                    }
+                                }}
+                                onDelete={
+                                    isPersonalMedicationPlan(plan) && plan.medicationPlanId != null
+                                        ? () => handleDelete(plan)
+                                        : undefined
+                                }
                             />
-                        }>
-                        <Text style={styles.sectionTitle}>当前用药</Text>
-                        {activePlans.length === 0 ? (
-                            <View style={styles.emptyWrap}>
-                                <NoData text="暂无用药计划" />
-                            </View>
-                        ) : (
-                            activePlans.map(plan => (
-                                <MedicationPlanCard
-                                    key={String(plan.medicationPlanId ?? `${plan.name}-${plan.startDate}`)}
-                                    plan={plan}
-                                    dictMaps={dictMaps ?? { amountUnit: {}, eventBased: {}, amountUnitOptions: [], eventBasedOptions: [] }}
-                                    onPress={
-                                        isPersonalMedicationPlan(plan) && plan.medicationPlanId != null
-                                            ? () =>
-                                                navigation.navigate('MedicationAddPage', {
-                                                    medicationPlanId: plan.medicationPlanId!,
-                                                })
-                                            : undefined
-                                    }
-                                    onDelete={
-                                        isPersonalMedicationPlan(plan) && plan.medicationPlanId != null
-                                            ? () => handleDelete(plan)
-                                            : undefined
-                                    }
-                                />
-                            ))
-                        )}
-                    </ScrollView>
-                )}
+                        ))
+                    )}
+                </ScrollView>
+            )}
         </PageLayout>
     );
 }
