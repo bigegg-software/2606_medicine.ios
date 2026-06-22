@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { GlassView } from 'expo-glass-effect';
 import { Flex } from '@ant-design/react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import MilestoneRings from './components/MilestoneRings';
+import TaskProgressRing from './components/TaskProgressRing';
 import styles from '@/css/schedule/schedule';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import moment from "moment"
 
@@ -27,13 +29,19 @@ const getThisWeekData = () => {
 };
 
 export default function SchedulePage() {
-
+  const navigation: any = useNavigation();
   const [weekData, setWeekData] = useState(getThisWeekData());
 
 
   return (
     <TabPageLayout style={styles.container}>
-      <Text style={styles.pageTitle}>里程碑</Text>
+      <Flex justify='between' align='center'>
+        <Flex style={styles.navIcon}></Flex>
+        <Text style={styles.pageTitle}>里程碑</Text>
+        <TouchableOpacity style={{ marginRight: 18 }} onPress={() => navigation.navigate('CalendarPage')}>
+          <Image style={styles.navIcon} source={require('@/assets/images/schedule/time.png')}></Image>
+        </TouchableOpacity>
+      </Flex>
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.glassCardWrap}>
@@ -146,6 +154,10 @@ export default function SchedulePage() {
                 <Text style={styles.tasksTitle}>有氧心肺</Text>
               </Flex>
               <Text style={styles.tasksIntro}>快走40分钟</Text>
+
+              <View style={styles.taskProgressWrap}>
+                <TaskProgressRing progress={0} />
+              </View>
             </View>
             <View style={styles.tasksCol}>
               <Flex>
@@ -153,6 +165,9 @@ export default function SchedulePage() {
                 <Text style={styles.tasksTitle}>抗阻增肌</Text>
               </Flex>
               <Text style={styles.tasksIntro}>快走40分钟</Text>
+              <View style={styles.taskProgressWrap}>
+                <TaskProgressRing progress={100} />
+              </View>
             </View>
             <View style={styles.tasksCol}>
               <Flex>
@@ -160,6 +175,9 @@ export default function SchedulePage() {
                 <Text style={styles.tasksTitle}>柔韧拉伸</Text>
               </Flex>
               <Text style={styles.tasksIntro}>快走40分钟</Text>
+              <View style={styles.taskProgressWrap}>
+                <TaskProgressRing progress={100} />
+              </View>
             </View>
             <View style={styles.tasksCol}>
               <Flex>
@@ -167,6 +185,9 @@ export default function SchedulePage() {
                 <Text style={styles.tasksTitle}>平衡控制</Text>
               </Flex>
               <Text style={styles.tasksIntro}>快走40分钟</Text>
+              <View style={styles.taskProgressWrap}>
+                <TaskProgressRing progress={100} />
+              </View>
             </View>
           </Flex>
 

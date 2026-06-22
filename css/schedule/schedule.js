@@ -5,6 +5,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
   headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 310 },
   pageTitle: { height: 27, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 27, textAlign: "center", },
+  navIcon:{width:24,height:24},
   pageLine: { marginTop: 18, height: 1, backgroundColor: "#053A93", opacity: 0.06 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { padding: 18, paddingBottom: 40 },
@@ -89,6 +90,10 @@ const styles = StyleSheet.create({
     fontWeight: 400,
     fontSize: 14,
     color: "#999999"
+  },
+  taskProgressWrap: {
+    marginTop: 14,
+    alignSelf: 'center',
   },
   dayBox: {
     marginTop: 14,

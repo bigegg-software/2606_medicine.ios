@@ -35,6 +35,9 @@ import FamilyDetail from '@/src/features/profile/myFamily/detail';
 // AI健康管家
 import AssistantPage from '@/src/features/assistant/AssistantPage';
 
+// 里程碑
+import CalendarPage from '@/src/features/schedule/calendarPage';
+
 // 饮食运动
 import NutritionPage from '@/src/features/home/nutrition';
 
@@ -105,6 +108,7 @@ export type RootStackParamList = {
   VitalsPage: undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' };
+  CalendarPage: undefined;
   Medication: undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
@@ -245,6 +249,7 @@ export default function RootStack() {
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
+      <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="Medication" component={MedicationPage} options={{ title: '用药记录' }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: '添加用药记录' }} />
       <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />
