@@ -749,10 +749,10 @@ export function getSleepSummary(items: WearableDataItem[], range: VitalsRange) {
   };
 }
 
-export function getStepsDisplay(items: WearableDataItem[]) {
+export function getStepsDisplay(items: WearableDataItem[], goalOverride?: number) {
   const item = getTodayWearableItem(items);
   const steps = parseStepsFromItem(item);
-  const goal = parseMeasureNumber(item?.stepGoals) ?? 10000;
+  const goal = parseMeasureNumber(item?.stepGoals) ?? goalOverride ?? 10000;
   if (steps <= 0) {
     return { value: `--/${goal}`, status: '・暂无数据', statusColor: '#999999' };
   }
@@ -783,10 +783,10 @@ export function buildStepsBarSeries(items: WearableDataItem[], range: VitalsRang
   });
 }
 
-export function getStepsSummary(items: WearableDataItem[], range: VitalsRange) {
+export function getStepsSummary(items: WearableDataItem[], range: VitalsRange, goalOverride?: number) {
   const barSeries = range === 'today' ? [] : buildStepsBarSeries(items, range);
   if (range === 'today') {
-    return { ...getStepsDisplay(items), barSeries, unit: '步' as const };
+    return { ...getStepsDisplay(items, goalOverride), barSeries, unit: '步' as const };
   }
 
   const dailyValues = barSeries.map(item => item.value).filter(value => value > 0);

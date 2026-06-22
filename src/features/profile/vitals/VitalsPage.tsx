@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type ImageSourcePropType } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useSelector } from 'react-redux';
+import GoalTargetModal from './components/GoalTargetModal';
+import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AppTheme } from '@/common/theme';
 import UploadProgressBar from '@/src/components/UploadProgressBar';
 import updateHealthKit from '@/utils/healthKit';
 import type { RootState } from '@/store/store';
+import { SET_USER_EXTR } from '@/store/type/user';
 import BloodPressureChart from '@/src/features/home/components/BloodPressureChart';
 import BloodGlucoseChart from '@/src/features/home/components/BloodGlucoseChart';
 import BloodOxygenChart from '@/src/features/home/components/BloodOxygenChart';
@@ -33,6 +35,7 @@ import {
   type WearableDataType,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { updateExtrInfo } from '@/api/user';
 import {
   VITALS_NAV_LIST,
   buildBloodPressureSeriesFromItems,
@@ -69,10 +72,17 @@ const EMPTY_MEASURE_DATA: Record<VitalKey, MeasureDataItem[]> = {
   bloodLipids: [],
 };
 
+const DEFAULT_SLEEP_TARGET_HOURS = 8;
+const DEFAULT_STEP_TARGET = 10000;
+const DEFAULT_ENERGY_TARGET = 2000;
+const ENERGY_GOAL_MAX = 5000;
+
 export default function VitalsPage() {
+  const dispatch = useDispatch();
   const navigation: any = useNavigation();
   const uploading = useSelector((state: RootState) => state.upload.uploading);
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
+  const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const [activeNav, setActiveNav] = useState<VitalsRange>('today');
   const [loading, setLoading] = useState(false);
   const [measureData, setMeasureData] = useState<Record<VitalKey, MeasureDataItem[]>>(EMPTY_MEASURE_DATA);
@@ -83,6 +93,27 @@ export default function VitalsPage() {
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
   const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
   const [uricAcidCompare, setUricAcidCompare] = useState<{ text: string; color: string } | null>(null);
+  const [showSleepTargetModal, setShowSleepTargetModal] = useState(false);
+  const [showStepTargetModal, setShowStepTargetModal] = useState(false);
+  const [showEnergyTargetModal, setShowEnergyTargetModal] = useState(false);
+  const [sleepTarget, setSleepTarget] = useState(DEFAULT_SLEEP_TARGET_HOURS);
+  const [stepTarget, setStepTarget] = useState(DEFAULT_STEP_TARGET);
+  const [energyTarget, setEnergyTarget] = useState(DEFAULT_ENERGY_TARGET);
+  const [savingSleep, setSavingSleep] = useState(false);
+  const [savingStep, setSavingStep] = useState(false);
+  const [savingEnergy, setSavingEnergy] = useState(false);
+
+  useEffect(() => {
+    if (userExtr?.sleepGoals != null && userExtr.sleepGoals > 0) {
+      setSleepTarget(Math.round((userExtr.sleepGoals / 60) * 2) / 2);
+    }
+    if (userExtr?.stepGoals != null && userExtr.stepGoals >= 0) {
+      setStepTarget(Math.round(userExtr.stepGoals / 500) * 500);
+    }
+    if (userExtr?.energyGoals != null && userExtr.energyGoals >= 0) {
+      setEnergyTarget(Math.round(userExtr.energyGoals / 50) * 50);
+    }
+  }, [userExtr?.sleepGoals, userExtr?.stepGoals, userExtr?.energyGoals]);
 
   const chartLabels = useMemo(() => getChartLabels(activeNav), [activeNav]);
 
@@ -213,7 +244,10 @@ export default function VitalsPage() {
     () => getSleepSummary(wearableSleep, activeNav),
     [wearableSleep, activeNav],
   );
-  const stepsSummary = useMemo(() => getStepsSummary(wearableSteps, activeNav), [wearableSteps, activeNav]);
+  const stepsSummary = useMemo(
+    () => getStepsSummary(wearableSteps, activeNav, stepTarget),
+    [wearableSteps, activeNav, stepTarget],
+  );
   const energySummary = useMemo(
     () => getEnergySummary(wearableActiveEnergy, wearableBasalEnergy, activeNav),
     [wearableActiveEnergy, wearableBasalEnergy, activeNav],
@@ -309,6 +343,73 @@ export default function VitalsPage() {
     }
   }, [uploading]);
 
+  const handleSaveSleepTarget = useCallback(async (target: number) => {
+    setSavingSleep(true);
+    try {
+      const sleepGoalsMinutes = Math.round(target * 60);
+      const res = await updateExtrInfo({ sleepGoals: sleepGoalsMinutes });
+      if (isResourceApiOk(res as { code?: number })) {
+        setSleepTarget(target);
+        if (userExtr) {
+          dispatch({ type: SET_USER_EXTR, payload: { ...userExtr, sleepGoals: sleepGoalsMinutes } });
+        }
+        Alert.alert('成功', '睡眠目标已保存');
+        setShowSleepTargetModal(false);
+        await loadMeasureDataRef.current();
+      } else {
+        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存失败，请稍后重试');
+      }
+    } catch {
+      Alert.alert('错误', '保存睡眠目标失败，请稍后重试');
+    } finally {
+      setSavingSleep(false);
+    }
+  }, [dispatch, userExtr]);
+
+  const handleSaveStepTarget = useCallback(async (target: number) => {
+    setSavingStep(true);
+    try {
+      const res = await updateExtrInfo({ stepGoals: target });
+      if (isResourceApiOk(res as { code?: number })) {
+        setStepTarget(target);
+        if (userExtr) {
+          dispatch({ type: SET_USER_EXTR, payload: { ...userExtr, stepGoals: target } });
+        }
+        Alert.alert('成功', '步数目标已保存');
+        setShowStepTargetModal(false);
+        await loadMeasureDataRef.current();
+      } else {
+        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存失败，请稍后重试');
+      }
+    } catch {
+      Alert.alert('错误', '保存步数目标失败，请稍后重试');
+    } finally {
+      setSavingStep(false);
+    }
+  }, [dispatch, userExtr]);
+
+  const handleSaveEnergyTarget = useCallback(async (target: number) => {
+    setSavingEnergy(true);
+    try {
+      const res = await updateExtrInfo({ energyGoals: target });
+      if (isResourceApiOk(res as { code?: number })) {
+        setEnergyTarget(target);
+        if (userExtr) {
+          dispatch({ type: SET_USER_EXTR, payload: { ...userExtr, energyGoals: target } });
+        }
+        Alert.alert('成功', '消耗目标已保存');
+        setShowEnergyTargetModal(false);
+        await loadMeasureDataRef.current();
+      } else {
+        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存失败，请稍后重试');
+      }
+    } catch {
+      Alert.alert('错误', '保存消耗目标失败，请稍后重试');
+    } finally {
+      setSavingEnergy(false);
+    }
+  }, [dispatch, userExtr]);
+
   return (
     <PageLayout style={styles.container}>
       <UploadProgressBar />
@@ -384,10 +485,10 @@ export default function VitalsPage() {
               <Text style={styles.vLabel}>睡眠</Text>
             </Flex>
             <Flex>
-              <TouchableOpacity>
-                <Text style={styles.vMore}>详情</Text>
+              <TouchableOpacity onPress={() => setShowSleepTargetModal(true)}>
+                <Text style={styles.vMore}>目标</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ marginLeft: 12 }}>
+              <TouchableOpacity>
                 <Text style={styles.vMore}>全部记录</Text>
               </TouchableOpacity>
             </Flex>
@@ -454,7 +555,7 @@ export default function VitalsPage() {
               <Text style={styles.vLabel}>步数</Text>
             </Flex>
             <Flex>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowStepTargetModal(true)}>
                 <Text style={styles.vMore}>目标</Text>
               </TouchableOpacity>
               <TouchableOpacity style={{ marginLeft: 12 }}>
@@ -487,7 +588,7 @@ export default function VitalsPage() {
               <Text style={styles.vLabel}>消耗</Text>
             </Flex>
             <Flex>
-              <TouchableOpacity>
+              <TouchableOpacity onPress={() => setShowEnergyTargetModal(true)}>
                 <Text style={styles.vMore}>目标</Text>
               </TouchableOpacity>
               <TouchableOpacity style={{ marginLeft: 12 }}>
@@ -569,7 +670,7 @@ export default function VitalsPage() {
               <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '血脂' })}>
                 <Text style={styles.vMore}>新增记录</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ marginLeft: 12 }} onPress={() => navigation.navigate('AllDataPage', { type: '血脂' })}>
+              <TouchableOpacity onPress={() => navigation.navigate('AllDataPage', { type: '血脂' })}>
                 <Text style={styles.vMore}>全部记录</Text>
               </TouchableOpacity>
             </Flex>
@@ -610,6 +711,51 @@ export default function VitalsPage() {
         </Flex>
       </TouchableOpacity>
 
+      <GoalTargetModal
+        visible={showSleepTargetModal}
+        title="设置睡眠目标"
+        label="每日目标（小时）"
+        unit="小时"
+        initialValue={sleepTarget}
+        saving={savingSleep}
+        min={1}
+        max={10}
+        step={0.5}
+        onCancel={() => setShowSleepTargetModal(false)}
+        onConfirm={handleSaveSleepTarget}
+      />
+
+      <GoalTargetModal
+        visible={showStepTargetModal}
+        title="设置步数目标"
+        label="每日目标（步）"
+        unit="步"
+        initialValue={stepTarget}
+        saving={savingStep}
+        min={0}
+        max={20000}
+        step={500}
+        patternUnitSize={1000}
+        formatDisplay={value => value.toLocaleString()}
+        onCancel={() => setShowStepTargetModal(false)}
+        onConfirm={handleSaveStepTarget}
+      />
+
+      <GoalTargetModal
+        visible={showEnergyTargetModal}
+        title="设置消耗目标"
+        label="每日目标（千卡）"
+        unit="千卡"
+        initialValue={energyTarget}
+        saving={savingEnergy}
+        min={0}
+        max={ENERGY_GOAL_MAX}
+        step={50}
+        patternUnitSize={100}
+        formatDisplay={value => value.toLocaleString()}
+        onCancel={() => setShowEnergyTargetModal(false)}
+        onConfirm={handleSaveEnergyTarget}
+      />
     </PageLayout>
   );
 }

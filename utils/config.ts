@@ -1,4 +1,4 @@
-export const baseURL = 'https://dnai-web2.bigeggtec.com/kf-dev-api/';
+export const baseURL = 'https://dna.bigeggtec.com/kf-dev-api/';
 
 export const aiBaseURL = 'https://dnai-web2.bigeggtec.com/';
 
