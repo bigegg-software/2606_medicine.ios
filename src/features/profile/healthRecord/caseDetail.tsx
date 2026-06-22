@@ -1,14 +1,18 @@
-import React, { useEffect, useState } from 'react';
-import { Text, Image, View, ScrollView, ActivityIndicator, type ImageSourcePropType } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Text, Image, View, ScrollView, ActivityIndicator, TouchableOpacity, Alert, type ImageSourcePropType, } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import moment from 'moment';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { getMedicalRecordInfo, type MedicalRecord } from '@/api/medicalRecord';
+import { getMedicalRecordInfo, type MedicalRecord, type MedicalRecordAttachment } from '@/api/medicalRecord';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/caseAdd';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
+import { getAttachmentDisplayName, isImageAttachment, partitionAttachments, } from './medicalRecordAttachmentHelpers';
+import RNFS from 'react-native-fs';
+import FileViewer from 'react-native-file-viewer';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import type { RootStackParamList } from '@/route/router';
@@ -54,6 +58,77 @@ function DetailSection({
     );
 }
 
+
+function sanitizeFileName(fileName: string) {
+    return fileName.replace(/[/\\?%*:|"<>]/g, '_').trim() || 'file';
+}
+
+export async function openRemoteFile(url: string, fileName: string) {
+    const safeName = sanitizeFileName(fileName);
+    const localPath = `${RNFS.DocumentDirectoryPath}/${Date.now()}_${safeName}`;
+
+    const downloadResult = await RNFS.downloadFile({
+        fromUrl: url,
+        toFile: localPath,
+    }).promise;
+
+    if (downloadResult.statusCode !== 200) {
+        throw new Error('download failed');
+    }
+
+    await FileViewer.open(localPath);
+}
+
+async function openAttachment(att: MedicalRecordAttachment) {
+    if (!att.ossUrl) {
+        Alert.alert('提示', '文件地址无效');
+        return;
+    }
+
+    const loadingKey = Toast.loading('加载中', 0);
+    try {
+        await openRemoteFile(att.ossUrl, getAttachmentDisplayName(att));
+    } catch {
+        Alert.alert('提示', '打开文件失败');
+    } finally {
+        Toast.remove(loadingKey);
+    }
+}
+
+function AttachmentPreviewItem({ att, index }: { att: MedicalRecordAttachment; index: number }) {
+    if (!att.ossUrl) {
+        return null;
+    }
+
+    const displayName = getAttachmentDisplayName(att);
+
+    if (isImageAttachment(att)) {
+        return (
+            <TouchableOpacity
+                key={`${att.ossId ?? att.ossUrl}-${index}`}
+                activeOpacity={0.8}
+                onPress={() => openAttachment(att)}>
+                <Image source={{ uri: att.ossUrl }} style={styles.attachmentImg} />
+            </TouchableOpacity>
+        );
+    }
+
+    return (
+        <TouchableOpacity
+            key={`${att.ossId ?? att.ossUrl}-${index}`}
+            activeOpacity={0.8}
+            style={styles.attachmentFileItem}
+            onPress={() => openAttachment(att)}>
+            <Flex align="center">
+                <MaterialIcons name="description" size={28} color={AppTheme.textSecondary} />
+                <Text style={styles.attachmentFileName} numberOfLines={2}>
+                    {displayName}
+                </Text>
+            </Flex>
+        </TouchableOpacity>
+    );
+}
+
 export default function CaseDetailPage({ route }: Props) {
     const { id } = route.params;
     const user = useSelector((state: RootState) => state.user.info);
@@ -80,6 +155,11 @@ export default function CaseDetailPage({ route }: Props) {
     const ageText = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '暂无';
     const gender = displayValue(user?.gender);
     const bloodType = displayValue(user?.bloodType);
+    const { images: imageAttachments, files: fileAttachments } = useMemo(
+        () => partitionAttachments(record?.attachmentList ?? []),
+        [record?.attachmentList],
+    );
+    const hasAttachments = imageAttachments.length > 0 || fileAttachments.length > 0;
 
     if (loading) {
         return (
@@ -166,18 +246,31 @@ export default function CaseDetailPage({ route }: Props) {
                     <Text style={styles.medicalTitle}>附件</Text>
                 </Flex>
                 <View style={styles.medicalBox}>
-                    {record.attachmentList && record.attachmentList.length > 0 ? (
-                        <View style={styles.attachmentList}>
-                            {record.attachmentList.map((att, index) =>
-                                att.ossUrl ? (
-                                    <Image
-                                        key={`${att.ossId ?? att.ossUrl}-${index}`}
-                                        source={{ uri: att.ossUrl }}
-                                        style={styles.attachmentImg}
-                                    />
-                                ) : null,
-                            )}
-                        </View>
+                    {hasAttachments ? (
+                        <>
+                            {imageAttachments.length > 0 ? (
+                                <View style={styles.attachmentList}>
+                                    {imageAttachments.map((att, index) => (
+                                        <AttachmentPreviewItem
+                                            key={`img-${att.ossId ?? att.ossUrl}-${index}`}
+                                            att={att}
+                                            index={index}
+                                        />
+                                    ))}
+                                </View>
+                            ) : null}
+                            {fileAttachments.length > 0 ? (
+                                <View style={[styles.attachmentFileList, imageAttachments.length > 0 && styles.attachmentFileListGap]}>
+                                    {fileAttachments.map((att, index) => (
+                                        <AttachmentPreviewItem
+                                            key={`file-${att.ossId ?? att.ossUrl}-${index}`}
+                                            att={att}
+                                            index={index}
+                                        />
+                                    ))}
+                                </View>
+                            ) : null}
+                        </>
                     ) : (
                         <Text style={[styles.medicalInfoValue, { color: AppTheme.textSecondary }]}>暂无</Text>
                     )}

@@ -89,14 +89,14 @@ const styles = StyleSheet.create({
     //ranking
     rankingBpx: {},
     headImgBox: { width: 54, height: 54, position: "relative" },
-    headImg: { width: 54, height: 54 },
+    headImg: { width: 54, height: 54, borderRadius: 27 },
     headBg: { position: "absolute", width: 32, height: 19, bottom: 0, left: 11 },
     rankingItem: {
         width: '30%', paddingVertical: 17, backgroundColor: '#FFF', borderRadius: 8, shadowColor: '#053A93',
         shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12,
     },
     rankingItemText: { marginTop: 7, fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, },
-    avatarIcon: { width: 18, height: 18 },
+    avatarIcon: { width: 18, height: 18},
     avatarValue: { marginLeft: 5, height: 19, fontWeight: 400, fontSize: 14, color: "#053A93", lineHeight: 19 },
     rankingItemBox: {
         marginTop: 12,
@@ -109,8 +109,8 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     numBox: {
-        width:40,
-        textAlign:"left",
+        width: 40,
+        textAlign: "left",
         fontWeight: 400,
         fontSize: 20,
         color: "#A4A4A4",
@@ -143,7 +143,7 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
     },
-    listImg:{width:42,height:42}
+    listImg: { width: 42, height: 42, borderRadius: 22 }
 
 
 

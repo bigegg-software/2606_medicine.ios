@@ -18,6 +18,7 @@ import { consumePendingAttachments } from '@/src/utils/attachmentUploadSession';
 import { consumePendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
 import { MEDICAL_RECORD_TYPE_LIST } from './caseConstants';
+import { isImageAttachment } from './medicalRecordAttachmentHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -69,11 +70,6 @@ function sanitizeFileName(fileName: string) {
             .replace(/_+/g, '_')
             .replace(/^_+|_+$/g, '') + ext
     );
-}
-
-function isImageAttachment(att: MedicalRecordAttachment) {
-    const name = att.originalName ?? att.ossUrl ?? '';
-    return /\.(jpe?g|png|gif|webp|heic|bmp)$/i.test(name);
 }
 
 const KS_LIST = [
