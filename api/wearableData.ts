@@ -113,3 +113,12 @@ export type WearableUploadResult = {
 
 export const uploadWearableData = (data: WearableUploadPayload) =>
   request.post<WearableUploadResult>('/patient/wearableData/upload', data);
+
+export type LatestUploadTimeResult = {
+  code?: number;
+  msg?: string;
+  data?: string | number | null;
+};
+
+export const getLatestWearableUploadTime = () =>
+  request.get<LatestUploadTimeResult>('/patient/wearableData/latestUploadTime');

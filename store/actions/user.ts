@@ -34,6 +34,7 @@ async function applyUserBaseInfo(dispatch: AppDispatch, res: unknown) {
 export const fetchUserInfo = () => async (dispatch: AppDispatch) => {
   try {
     const res = await getUserInfo();
+    console.log(res)
     await applySystemUserInfo(dispatch, res);
   } catch {
     /* ignore */
@@ -46,6 +47,7 @@ export const fetchUserBaseInfo = () => async (dispatch: AppDispatch, getState: (
   dispatch({ type: SET_USER_LOADING, payload: true });
   try {
     const res = await getUserBaseInfo();
+    console.log(res)
     await applyUserBaseInfo(dispatch, res);
   } catch {
     /* ignore */

@@ -45,7 +45,7 @@ async function postBatch(item: HealthBatchItem, last = false) {
   return uploadWearableData(toUploadPayload(item, last));
 }
 
-export default async function updateHealthKit(syncDays = 7) {
+export default async function updateHealthKit(syncDays: number | null = null) {
   if (Platform.OS !== 'ios') {
     Alert.alert('提示', '当前仅支持 iOS 健康数据同步');
     return;
@@ -69,7 +69,7 @@ export default async function updateHealthKit(syncDays = 7) {
     (isResourceApiOk(userRes as { code?: number }) ? (userRes as { data?: { userId?: number } }).data?.userId : undefined) ??
     state.user.info?.userId ??
     (await AsyncStorage.getItem('userId'));
-  const synWdataDays = syncDays || 7;
+  const synWdataDays = syncDays ?? state.user.userExtr?.synWdataDays ?? 7;
   const loginExpired = state.login.loginExpired;
   const batchNum = generateUUID();
 

@@ -1,9 +1,12 @@
 import React, { type ReactNode } from 'react';
 import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
-import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AppTheme } from '@/common/theme';
 import HeaderBack from './HeaderBack';
+import UploadProgressBar from './UploadProgressBar';
+
+const STACK_HEADER_CONTENT_HEIGHT = 44;
 
 const styles = StyleSheet.create({
     container: {
@@ -33,6 +36,10 @@ export default function PageLayout({
     withStackHeader = true,
 }: Props) {
     const headerHeight = useHeaderHeight();
+    const insets = useSafeAreaInsets();
+    const topPadding = withStackHeader
+        ? (headerHeight > 0 ? headerHeight : insets.top + STACK_HEADER_CONTENT_HEIGHT)
+        : 0;
 
     return (
         <SafeAreaView style={[styles.container, style]} edges={edges}>
@@ -40,7 +47,7 @@ export default function PageLayout({
             <View
                 style={[
                     styles.content,
-                    withStackHeader ? { paddingTop: headerHeight } : null,
+                    topPadding > 0 ? { paddingTop: topPadding } : null,
                     contentStyle,
                 ]}>
                 {children}
@@ -55,7 +62,8 @@ export function TabPageLayout({
     contentStyle,
 }: Omit<Props, 'edges' | 'withStackHeader'>) {
     return (
-        <PageLayout edges={['top']} withStackHeader={false} style={style} contentStyle={contentStyle}>
+        <PageLayout withStackHeader style={style} contentStyle={contentStyle}>
+            <UploadProgressBar />
             {children}
         </PageLayout>
     );

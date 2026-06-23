@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { GlassView } from 'expo-glass-effect';
 import { Flex } from '@ant-design/react-native';
@@ -6,7 +6,9 @@ import { TabPageLayout } from '@/src/components/PageLayout';
 import MilestoneRings from './components/MilestoneRings';
 import TaskProgressRing from './components/TaskProgressRing';
 import styles from '@/css/schedule/schedule';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
 import moment from "moment"
 
@@ -29,20 +31,27 @@ const getThisWeekData = () => {
 };
 
 export default function SchedulePage() {
-  const navigation: any = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [weekData, setWeekData] = useState(getThisWeekData());
 
+  useFocusEffect(
+    useCallback(() => {
+      const stackNavigation = navigation.getParent()?.getParent() ?? navigation.getParent();
+      stackNavigation?.setOptions({
+        headerRight: () => (
+          <TouchableOpacity style={{ marginRight: 18 }} onPress={() => navigation.navigate('CalendarPage')}>
+            <Image style={styles.navIcon} source={require('@/assets/images/schedule/time.png')} />
+          </TouchableOpacity>
+        ),
+      });
+      return () => {
+        stackNavigation?.setOptions({ headerRight: undefined });
+      };
+    }, [navigation]),
+  );
 
   return (
     <TabPageLayout style={styles.container}>
-      <Flex justify='between' align='center'>
-        <Flex style={styles.navIcon}></Flex>
-        <Text style={styles.pageTitle}>里程碑</Text>
-        <TouchableOpacity style={{ marginRight: 18 }} onPress={() => navigation.navigate('CalendarPage')}>
-          <Image style={styles.navIcon} source={require('@/assets/images/schedule/time.png')}></Image>
-        </TouchableOpacity>
-      </Flex>
-
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.glassCardWrap}>
           <GlassView style={styles.glassCard} glassEffectStyle="regular" tintColor="#F8FAFF">

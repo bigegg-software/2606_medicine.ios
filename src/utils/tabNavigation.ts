@@ -8,8 +8,8 @@ export type MainTabParamList = {
 
 export const MAIN_TAB_TITLES: Record<keyof MainTabParamList, string> = {
   Home: '首页',
-  Schedule: '安排',
-  Community: '社区',
+  Schedule: '里程碑',
+  Community: '社区服务',
   Assistant: '首页',
   Profile: '我的',
 };

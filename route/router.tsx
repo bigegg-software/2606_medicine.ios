@@ -6,7 +6,6 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
-import { getActiveMainTabTitle } from '@/src/utils/tabNavigation';
 import type { QuestionnaireType } from '@/api/questionTemplate';
 import type { MeasureDataItem } from '@/api/measureData';
 
@@ -140,6 +139,7 @@ function StackHeader({ route, options, back, navigation }: any) {
         headerTitleStyle={headerTitleStyle}
         headerStyle={{ backgroundColor: 'transparent' }}
         headerShadowVisible={false}
+        headerRight={options.headerRight}
         headerLeft={
           canGoBack
             ? props => (
@@ -224,7 +224,7 @@ export default function RootStack() {
       initialRouteName={isLogin ? 'Home' : 'Login'}>
       <Stack.Screen name="Login" component={LoginPage} options={{ headerShown: false, title: "登录" }} />
       <Stack.Screen name="Register" component={RegisterPage} options={{ headerShown: false, title: "注册" }} />
-      <Stack.Screen name="Home" component={MainTabs} options={{ headerShown: false, title: "" }} />
+      <Stack.Screen name="Home" component={MainTabs} options={{ title: '首页' }} />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
@@ -255,7 +255,7 @@ export default function RootStack() {
       <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />
       <Stack.Screen name="MedicationHistoryPage" component={MedicationHistoryPage} options={{ title: '用药历史' }} />
       <Stack.Screen name="MedicationDetailPage" component={MedicationDetailPage} options={{ title: '处方详情' }} />
-      <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ headerShown: false }} />
+      <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />

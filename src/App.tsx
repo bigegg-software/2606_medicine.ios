@@ -8,7 +8,7 @@ import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { Provider, useSelector } from 'react-redux';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import store, { type AppDispatch, type RootState } from '@/store/store';
 import { fetchUserSession } from '@/store/actions/user';
 import { navigationRef } from '@/utils/navigationRef';
@@ -19,6 +19,31 @@ import { buildScaledAntdTheme } from '@/common/antdTheme';
 import { FontSizeProvider, useFontSize } from '@/common/FontSizeContext';
 import { AppTheme } from '@/common/theme';
 import { updateExtrInfo } from '@/api/user';
+import { checkAutoSyncOnLaunch } from '@/utils/checkAutoSyncOnLaunch';
+import SyncReminderWatcher from '@/src/components/SyncReminderWatcher';
+
+function AutoSyncOnLaunch() {
+  const isLogin = useSelector((state: RootState) => state.login.isLogin);
+  const userExtr = useSelector((state: RootState) => state.user.userExtr);
+  const userId = useSelector((state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId);
+  const autoSyncData = userExtr?.autoSyncData;
+  const checkedRef = React.useRef(false);
+
+  useEffect(() => {
+    if (checkedRef.current || !isLogin || !userId || userExtr == null) return;
+    if (Platform.OS !== 'ios') {
+      checkedRef.current = true;
+      return;
+    }
+
+    checkedRef.current = true;
+    if (autoSyncData === 1) {
+      void checkAutoSyncOnLaunch(userId, autoSyncData);
+    }
+  }, [autoSyncData, isLogin, userExtr, userId]);
+
+  return null;
+}
 
 function PushTokenReporter() {
   const isLogin = useSelector((state: RootState) => state.login.isLogin);
@@ -64,11 +89,11 @@ function AppShell() {
     <AntdProvider locale={zhCN} theme={theme}>
       <Provider store={store}>
         <PushTokenReporter />
-        <SafeAreaProvider>
-          <NavigationContainer ref={navigationRef}>
-            <RootStack />
-          </NavigationContainer>
-        </SafeAreaProvider>
+        <AutoSyncOnLaunch />
+        <SyncReminderWatcher />
+        <NavigationContainer ref={navigationRef}>
+          <RootStack />
+        </NavigationContainer>
       </Provider>
     </AntdProvider>
   );
@@ -103,9 +128,11 @@ export default function App() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <FontSizeProvider>
-        <AppShell />
-      </FontSizeProvider>
+      <SafeAreaProvider>
+        <FontSizeProvider>
+          <AppShell />
+        </FontSizeProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

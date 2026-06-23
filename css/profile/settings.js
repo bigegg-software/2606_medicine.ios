@@ -32,7 +32,8 @@ const styles = StyleSheet.create({
     imgItem: { width: 24, height: 24 },
     itemText: { marginLeft: 12, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, },
     delText: { fontWeight: 500, fontSize: 16, color: AppTheme.primaryColor, },
-    rowTitle: { fontWeight: 400, fontSize: 16, color: "#333333" }
+    rowTitle: { fontWeight: 400, fontSize: 16, color: "#333333" },
+    switch: { width: 43, height: 21 },
 });
 
 export default styles;

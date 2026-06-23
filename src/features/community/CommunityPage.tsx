@@ -61,8 +61,8 @@ export default function CommunityPage() {
   ]
   return (
     <TabPageLayout style={styles.container}>
-      <Text style={styles.pageTitle}>社区服务</Text>
-      <View style={styles.pageLine} />
+      {/* <Text style={styles.pageTitle}></Text>
+      <View style={styles.pageLine} /> */}
 
 
       <Flex justify='center'>

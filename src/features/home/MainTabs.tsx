@@ -7,7 +7,6 @@ import HomeTab from '@/src/features/home/HomeTab';
 import SchedulePage from '@/src/features/schedule/SchedulePage';
 import CommunityPage from '@/src/features/community/CommunityPage';
 import ProfilePage from '@/src/features/profile/ProfilePage';
-import withUploadProgress from '@/src/components/withUploadProgress';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import { getMainTabTitle, setActiveMainTabTitle, type MainTabParamList } from '@/src/utils/tabNavigation';
@@ -15,10 +14,10 @@ import type { RootStackParamList } from '@/route/router';
 
 export type { MainTabParamList };
 
-const HomeTabScreen = withUploadProgress(HomeTab);
-const ScheduleTabScreen = withUploadProgress(SchedulePage);
-const CommunityTabScreen = withUploadProgress(CommunityPage);
-const ProfileTabScreen = withUploadProgress(ProfilePage);
+const HomeTabScreen = HomeTab;
+const ScheduleTabScreen = SchedulePage;
+const CommunityTabScreen = CommunityPage;
+const ProfileTabScreen = ProfilePage;
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
@@ -61,7 +60,11 @@ export default function MainTabs() {
   const syncMainTabTitle = (routeName: string) => {
     const title = getMainTabTitle(routeName);
     setActiveMainTabTitle(title);
-    navigation.setOptions({ title });
+    navigation.setOptions({
+      title,
+      headerShown: true,
+      ...(routeName !== 'Schedule' ? { headerRight: undefined } : {}),
+    });
   };
 
   useEffect(() => {

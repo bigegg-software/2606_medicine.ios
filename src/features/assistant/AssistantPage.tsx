@@ -320,7 +320,7 @@ export default function AssistantPage() {
   return (
     <PageLayout>
       <KeyboardDoneAccessory />
-      <View style={styles.headerWrap}>
+      {/* <View style={styles.headerWrap}>
         <Header
           title="AI健康管家"
           headerTransparent
@@ -336,7 +336,7 @@ export default function AssistantPage() {
           )}
         />
         <View style={styles.pageLine} />
-      </View>
+      </View> */}
 
       <View style={styles.chatBody}>
         {initializing ? (

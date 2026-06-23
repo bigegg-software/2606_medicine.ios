@@ -9,7 +9,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { logout as logoutApi } from '@/api/auth';
 import { clearAll } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
-import { fetchUserBaseInfo, clearUser } from '@/store/actions/user';
+import { fetchUserSession, clearUser } from '@/store/actions/user';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
@@ -56,7 +56,7 @@ export default function ProfilePage() {
   const { label: fontSizeLabel } = useFontSize();
 
   useEffect(() => {
-    dispatch(fetchUserBaseInfo());
+    dispatch(fetchUserSession());
   }, [dispatch]);
 
   const logout = () => {
@@ -98,8 +98,6 @@ export default function ProfilePage() {
 
   return (
     <TabPageLayout style={styles.container}>
-      <Text style={styles.pageTitle}>我的</Text>
-      <View style={styles.pageLine} />
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Flex justify='between' style={styles.avatarBox}>

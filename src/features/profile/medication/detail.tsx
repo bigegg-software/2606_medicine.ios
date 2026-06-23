@@ -9,6 +9,7 @@ import {
 } from '@/api/medicationPlan';
 import {
     loadMedicationDictMaps,
+    formatMedicationDoseText,
     type MedicationDictMaps,
 } from './medicationHelpers';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -124,7 +125,10 @@ export default function MedicationDetailPage({ route }: Props) {
                                     <View>
                                         <Text style={styles.medicationTitle}>剂量</Text>
                                         <Text style={styles.medicationText}>
-                                            {item.amount ?? '--'}{item.amountUnit ?? ''}
+                                            {formatMedicationDoseText(
+                                                { amount: item.amount, amountUnit: item.amountUnit },
+                                                dict,
+                                            )}
                                         </Text>
                                     </View>
                                     <View>

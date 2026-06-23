@@ -10,6 +10,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { MainTabParamList } from '@/src/features/home/MainTabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import moment from 'moment';
+import { useDispatch, useSelector } from 'react-redux';
 import { getLatestMetrics } from '@/api/health';
 import { getSchedules } from '@/api/schedule';
 import { getActivities } from '@/api/community';
@@ -25,6 +26,8 @@ import { AppTheme } from '@/common/theme';
 import { isApiOk, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { fetchUserInfo } from '@/store/actions/user';
+import type { AppDispatch, RootState } from '@/store/store';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -55,6 +58,8 @@ function greeting(): string {
 
 export default function HomeTab() {
   const navigation = useNavigation<Nav>();
+  const dispatch = useDispatch<AppDispatch>();
+  const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [metrics, setMetrics] = useState<HealthMetricModel[]>([]);
@@ -94,6 +99,12 @@ export default function HomeTab() {
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (userExtr == null) {
+      void dispatch(fetchUserInfo());
+    }
+  }, [dispatch, userExtr]);
 
   const userName = getDisplayUserName({
     name: String(profile.name ?? profile.nickname ?? ''),
@@ -278,7 +289,7 @@ export default function HomeTab() {
           <Flex justify='between' style={styles.mapBoxItem}>
             <View style={styles.mapLeftBox}>
               <Text style={styles.mapBoxItemTitle}>公园太极拳活动</Text>
-              <Flex style={{marginTop:2}}>
+              <Flex style={{ marginTop: 2 }}>
                 <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
                 <Text style={styles.mapText}>明天9:00</Text>
                 <Image style={styles.mapIcon} source={require('@/assets/images/home/dw.png')} />

@@ -3,13 +3,15 @@ import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Ale
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import GoalTargetModal from './components/GoalTargetModal';
+import SyncDaysPickerModal from './components/SyncDaysPickerModal';
+import AutoSyncPromptModal from './components/AutoSyncPromptModal';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AppTheme } from '@/common/theme';
 import UploadProgressBar from '@/src/components/UploadProgressBar';
 import updateHealthKit from '@/utils/healthKit';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
 import BloodPressureChart from '@/src/features/home/components/BloodPressureChart';
 import BloodGlucoseChart from '@/src/features/home/components/BloodGlucoseChart';
@@ -78,11 +80,12 @@ const DEFAULT_ENERGY_TARGET = 2000;
 const ENERGY_GOAL_MAX = 5000;
 
 export default function VitalsPage() {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation: any = useNavigation();
   const uploading = useSelector((state: RootState) => state.upload.uploading);
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
+  const synWdataDays = userExtr?.synWdataDays ?? 0;
   const [activeNav, setActiveNav] = useState<VitalsRange>('today');
   const [loading, setLoading] = useState(false);
   const [measureData, setMeasureData] = useState<Record<VitalKey, MeasureDataItem[]>>(EMPTY_MEASURE_DATA);
@@ -102,6 +105,11 @@ export default function VitalsPage() {
   const [savingSleep, setSavingSleep] = useState(false);
   const [savingStep, setSavingStep] = useState(false);
   const [savingEnergy, setSavingEnergy] = useState(false);
+  const [dayPickerVisible, setDayPickerVisible] = useState(false);
+  const [autoSyncPromptVisible, setAutoSyncPromptVisible] = useState(false);
+  const [savingSynWdataDays, setSavingSynWdataDays] = useState(false);
+  const [pendingSyncDays, setPendingSyncDays] = useState<number | null>(null);
+  const openAutoSyncAfterDayPickerRef = useRef(false);
 
   useEffect(() => {
     if (userExtr?.sleepGoals != null && userExtr.sleepGoals > 0) {
@@ -327,12 +335,10 @@ export default function VitalsPage() {
     );
   }
 
-  const handleUploadData = useCallback(async () => {
-    if (uploading) {
-      return;
-    }
+  const runHealthKitSync = useCallback(async (days: number | null) => {
+    if (uploading) return;
     try {
-      const res = (await updateHealthKit(7)) as { code?: number; msg?: string } | undefined;
+      const res = (await updateHealthKit(days)) as { code?: number; msg?: string } | undefined;
       if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
         Alert.alert('同步失败', res.msg ?? '请稍后重试');
         return;
@@ -342,6 +348,89 @@ export default function VitalsPage() {
       Alert.alert('错误', '健康数据同步失败，请稍后重试');
     }
   }, [uploading]);
+
+  const syncData = useCallback((days: number) => {
+    setTimeout(() => {
+      void runHealthKitSync(days);
+    }, 300);
+  }, [runHealthKitSync]);
+
+  const handleUploadData = useCallback(() => {
+    if (uploading) return;
+    if (synWdataDays === 0) {
+      setDayPickerVisible(true);
+      return;
+    }
+    void runHealthKitSync(synWdataDays);
+  }, [uploading, runHealthKitSync, synWdataDays]);
+
+  const handleSaveSyncDays = useCallback(async (days: number) => {
+    setSavingSynWdataDays(true);
+    try {
+      const res = await updateExtrInfo({ synWdataDays: days });
+      if (!isResourceApiOk(res as { code?: number })) {
+        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存同步周期失败，请稍后重试');
+        return;
+      }
+
+      if (userExtr) {
+        dispatch({
+          type: SET_USER_EXTR,
+          payload: { ...userExtr, synWdataDays: days },
+        });
+      }
+
+      setPendingSyncDays(days);
+      openAutoSyncAfterDayPickerRef.current = true;
+      setDayPickerVisible(false);
+    } catch {
+      Alert.alert('错误', '保存同步周期失败，请稍后重试');
+    } finally {
+      setSavingSynWdataDays(false);
+    }
+  }, [dispatch, userExtr]);
+
+  const handleDayPickerDismissed = useCallback(() => {
+    if (!openAutoSyncAfterDayPickerRef.current) return;
+    openAutoSyncAfterDayPickerRef.current = false;
+    setAutoSyncPromptVisible(true);
+  }, []);
+
+  const handleDayPickerCancel = useCallback(() => {
+    openAutoSyncAfterDayPickerRef.current = false;
+    setDayPickerVisible(false);
+  }, []);
+
+  const handleAutoSyncClose = useCallback(() => {
+    setAutoSyncPromptVisible(false);
+    setPendingSyncDays(null);
+  }, []);
+
+  const handleAutoSyncCancel = useCallback(() => {
+    const days = pendingSyncDays ?? (synWdataDays || 7);
+    setAutoSyncPromptVisible(false);
+    syncData(days);
+    setPendingSyncDays(null);
+  }, [pendingSyncDays, synWdataDays, syncData]);
+
+  const handleAutoSyncConfirm = useCallback(async () => {
+    const days = pendingSyncDays ?? (synWdataDays || 7);
+    setAutoSyncPromptVisible(false);
+    syncData(days);
+    setPendingSyncDays(null);
+
+    try {
+      const res = await updateExtrInfo({ autoSyncData: 1 });
+      if (isResourceApiOk(res as { code?: number }) && userExtr) {
+        dispatch({
+          type: SET_USER_EXTR,
+          payload: { ...userExtr, autoSyncData: 1 },
+        });
+      }
+    } catch {
+      /* silent */
+    }
+  }, [dispatch, pendingSyncDays, synWdataDays, syncData, userExtr]);
 
   const handleSaveSleepTarget = useCallback(async (target: number) => {
     setSavingSleep(true);
@@ -755,6 +844,22 @@ export default function VitalsPage() {
         formatDisplay={value => value.toLocaleString()}
         onCancel={() => setShowEnergyTargetModal(false)}
         onConfirm={handleSaveEnergyTarget}
+      />
+
+      <SyncDaysPickerModal
+        visible={dayPickerVisible}
+        initialValue={synWdataDays > 0 ? synWdataDays : 7}
+        saving={savingSynWdataDays}
+        onCancel={handleDayPickerCancel}
+        onConfirm={handleSaveSyncDays}
+        onDismissed={handleDayPickerDismissed}
+      />
+
+      <AutoSyncPromptModal
+        visible={autoSyncPromptVisible}
+        onClose={handleAutoSyncClose}
+        onCancel={handleAutoSyncCancel}
+        onConfirm={handleAutoSyncConfirm}
       />
     </PageLayout>
   );

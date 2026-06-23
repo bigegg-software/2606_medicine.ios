@@ -27,9 +27,9 @@ const styles = StyleSheet.create({
     medicationTime: { width: 24, height: 24, marginRight: 6 },
     medicationText: { fontWeight: 400, fontSize: 14, color: "#000" },
 
-    medicationCF: { height: 20, backgroundColor: "rgba(5,58,147,0.14)", borderRadius: 10, paddingHorizontal: 7, marginLeft: 11 },
+    medicationCF: { height: 20, backgroundColor: "rgba(5,58,147,0.14)", borderRadius: 7, paddingHorizontal: 7, marginLeft: 11 },
     medicationCFText: { fontWeight: 500, fontSize: 12, color: "#053A93" },
-    medicationGR: { height: 20, backgroundColor: "rgba(52,182,159,0.12)", borderRadius: 10, paddingHorizontal: 7, marginLeft: 11 },
+    medicationGR: { height: 20, backgroundColor: "rgba(52,182,159,0.12)", borderRadius: 7, paddingHorizontal: 7, marginLeft: 11 },
     medicationGRText: { fontWeight: 400, fontSize: 12, color: "#34B69F" },
 
     swipeRow: {
