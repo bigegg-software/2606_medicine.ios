@@ -134,6 +134,21 @@ const styles = StyleSheet.create({
   dayTimeColor: {
     color: "#333333"
   },
+  dayTimeCompleted: {
+    backgroundColor: '#34B69F',
+  },
+  dayTimeIncomplete: {
+    backgroundColor: '#FF8B07',
+  },
+  dayTimeToday: {
+    backgroundColor: '#053A93',
+  },
+  dayTimeBadgeText: {
+    fontWeight: 400,
+    fontSize: 14,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
   statRow: { marginTop: 17, gap: 10 },
   statBox: { flex: 1, marginTop: 0 },
   allBtn: { fontWeight: 400, fontSize: 14, color: "#053A93" },
@@ -163,7 +178,13 @@ const styles = StyleSheet.create({
     fontWeight: 500,
     fontSize: 12,
     color: "#FFFFFF"
-  }
+  },
+  yjsBox: {
+    backgroundColor: "#053A93",
+    borderRadius: 19,
+    paddingHorizontal: 16,
+    paddingVertical: 6
+  },
 })
 
 export default styles

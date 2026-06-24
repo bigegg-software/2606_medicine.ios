@@ -58,12 +58,14 @@ export default function MainTabs() {
   );
 
   const syncMainTabTitle = (routeName: string) => {
-    const title = getMainTabTitle(routeName);
+    const title = routeName === 'Home' ? '' : getMainTabTitle(routeName);
     setActiveMainTabTitle(title);
     navigation.setOptions({
       title,
       headerShown: true,
+      ...(routeName === 'Home' ? { headerTitle: () => null } : { headerTitle: undefined }),
       ...(routeName !== 'Schedule' ? { headerRight: undefined } : {}),
+      ...(routeName !== 'Home' ? { headerLeft: undefined } : {}),
     });
   };
 

@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, type ImageSourcePropType } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flex, Carousel } from '@ant-design/react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -11,20 +11,8 @@ import type { MainTabParamList } from '@/src/features/home/MainTabs';
 import { MaterialIcons } from '@expo/vector-icons';
 import moment from 'moment';
 import { useDispatch, useSelector } from 'react-redux';
-import { getLatestMetrics } from '@/api/health';
-import { getSchedules } from '@/api/schedule';
-import { getActivities } from '@/api/community';
-import { getUserBaseInfo } from '@/api/patient';
 import styles from '@/css/home/home';
-import BloodPressureChart from './components/BloodPressureChart';
-import BloodGlucoseChart from './components/BloodGlucoseChart';
-import HeartRateChart from './components/HeartRateChart';
-import BloodOxygenChart from './components/BloodOxygenChart';
-import BodyTemperatureChart from './components/BodyTemperatureChart';
-import { parseHealthMetrics, type HealthMetricModel, type ScheduleItem, type ActivityItem } from '@/common/models';
-import { AppTheme } from '@/common/theme';
-import { isApiOk, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDisplayUserName } from '@/src/utils/userHelpers';
+import MiniProgressRing from './components/MiniProgressRing';
 import type { RootStackParamList } from '@/route/router';
 import { fetchUserInfo } from '@/store/actions/user';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -34,71 +22,23 @@ type Nav = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
-type SportPrescription = {
-  icon: ImageSourcePropType;
-  title: string;
-  color: string;
-  progress: number;
-  desc: string;
-};
-
-const SPORT_PRESCRIPTIONS: SportPrescription[] = [
-  { icon: require('@/assets/images/home/img1.png'), title: '有氧心肺', color: '#FF2056', progress: 0.2, desc: '快走30分钟' },
-  { icon: require('@/assets/images/home/img2.png'), title: '抗阻增肌', color: '#00A6F4', progress: 0.2, desc: '弹力带训练' },
-  { icon: require('@/assets/images/home/img3.png'), title: '柔韧拉伸', color: '#FD9A00', progress: 0.2, desc: '瑜伽拉伸' },
-  { icon: require('@/assets/images/home/img4.png'), title: '平衡控制', color: '#00C950', progress: 0.2, desc: '单脚站立' },
-];
-
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h >= 5 && h < 12) return '早上好';
-  if (h >= 12 && h < 18) return '下午好';
-  return '晚上好';
-}
+const HOME_BANNER_ASPECT = 434 / 750;
 
 export default function HomeTab() {
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
-  const userExtr = useSelector((state: RootState) => state.user.userExtr);
-  const [loading, setLoading] = useState(true);
+  const { width: windowWidth } = useWindowDimensions();
+  const bannerSize = useMemo(() => {
+    const width = windowWidth;
+    return { width, height: Math.round(width * HOME_BANNER_ASPECT) };
+  }, [windowWidth]);
+  const colBoxWidth = useMemo(
+    () => Math.floor((windowWidth - 36) * 0.3),
+    [windowWidth],
+  );
   const [refreshing, setRefreshing] = useState(false);
-  const [metrics, setMetrics] = useState<HealthMetricModel[]>([]);
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
-  const [activities, setActivities] = useState<ActivityItem[]>([]);
-  const [profile, setProfile] = useState<Record<string, unknown>>({});
+  const userExtr = useSelector((state: RootState) => state.user.userExtr);
 
-  const load = useCallback(async () => {
-    const [mRes, sRes, aRes, pRes] = await Promise.all([
-      getLatestMetrics().catch(() => ({})),
-      getSchedules(moment().format('YYYY-MM-DD')).catch(() => ({})),
-      getActivities({ limit: 5 }).catch(() => ({})),
-      getUserBaseInfo().catch(() => ({})),
-    ]);
-    if (isApiOk(mRes as { code?: number })) {
-      setMetrics(parseHealthMetrics((mRes as { data?: unknown }).data ?? mRes));
-    }
-    if (isApiOk(sRes as { code?: number })) {
-      const d = (sRes as { data?: unknown }).data;
-      setSchedules(Array.isArray(d) ? (d as ScheduleItem[]) : []);
-    }
-    if (isApiOk(aRes as { code?: number })) {
-      let raw = (aRes as { data?: unknown }).data;
-      if (raw && typeof raw === 'object' && !Array.isArray(raw) && 'content' in (raw as object)) {
-        raw = (raw as { content: unknown }).content;
-      }
-      setActivities(Array.isArray(raw) ? (raw as ActivityItem[]) : []);
-    }
-    if (isResourceApiOk(pRes as { code?: number })) {
-      const d = (pRes as { data?: Record<string, unknown> }).data;
-      if (d && typeof d === 'object') setProfile(d);
-    }
-    setLoading(false);
-    setRefreshing(false);
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
 
   useEffect(() => {
     if (userExtr == null) {
@@ -106,314 +46,201 @@ export default function HomeTab() {
     }
   }, [dispatch, userExtr]);
 
-  const userName = getDisplayUserName({
-    name: String(profile.name ?? profile.nickname ?? ''),
-    userId: typeof profile.userId === 'number' ? profile.userId : undefined,
-  });
-  const weekday = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'][moment().day()];
-  const timeStr = moment().format('HH:mm');
+  useFocusEffect(
+    useCallback(() => {
+      const stackNavigation = navigation.getParent()?.getParent() ?? navigation.getParent();
+      stackNavigation?.setOptions({
+        title: '',
+        headerTitle: () => null,
+        headerLeft: () => (
+          <View style={{ marginLeft: 18 }}>
+            <Image source={require('@/assets/images/home/homeLogo.png')} style={styles.miniLogo} />
+          </View>
+        ),
+        headerRight: () => (
+          <TouchableOpacity style={styles.topRight} activeOpacity={0.8}>
+            <Image source={require('@/assets/images/home/tip.png')} style={styles.rightImg} />
+            <View style={styles.redDot} />
+          </TouchableOpacity>
+        ),
+      });
+      return () => {
+        stackNavigation?.setOptions({
+          headerTitle: undefined,
+          headerLeft: undefined,
+          headerRight: undefined,
+        });
+      };
+    }, [navigation]),
+  );
 
-  if (loading) {
-    return (
-      <TabPageLayout style={styles.container} contentStyle={styles.center}>
-        <ActivityIndicator size="large" color={AppTheme.primaryColor} />
-      </TabPageLayout>
-    );
-  }
+
+  // return (
+  //   <TabPageLayout style={styles.container} contentStyle={styles.center}>
+  //     <ActivityIndicator size="large" color={AppTheme.primaryColor} />
+  //   </TabPageLayout>
+  // );
 
   return (
     <TabPageLayout style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); }} />}
         contentContainerStyle={styles.scroll}>
-        <View style={styles.topBar}>
-          <View style={styles.topLeft}>
-            <Image source={require('@/assets/images/home/homeLogo.png')} style={styles.miniLogo} />
-          </View>
-          <TouchableOpacity style={styles.topRight}>
-            <Image source={require('@/assets/images/home/tip.png')} style={styles.rightImg} />
-            <View style={styles.redDot}></View>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.nameBox}>
-          <View style={styles.glassBox}>
-            <Flex>
-              <View style={styles.headBox}>
-                <Image source={require('@/assets/images/home/head.png')} style={styles.headImg} />
-              </View>
-              <Text style={styles.greeting}>{greeting()},{userName}</Text>
-            </Flex>
-
-            <Text style={styles.greetingTime}>{weekday} {timeStr}</Text>
-          </View>
-          <Text style={styles.glassText}>
-            今日状态良好！但血糖略高，请注意晚饭主食摄入，坚持散步可以有效增强心肺功能哦！
-          </Text>
-        </View>
-
-
-        <View style={styles.healthBox}>
-          <Flex justify='between'>
-            <Flex>
-              <Image source={require('@/assets/images/home/icon-xin.png')} style={styles.healthIcon} />
-              <View style={styles.healthTitleBox}>
-                <Text style={styles.healthTitle}>健康状态</Text>
-                <Text style={styles.healthTime}>更新于15.56</Text>
-              </View>
-            </Flex>
-            <Text style={styles.healthStatus}>一切良好</Text>
+        <Image
+          source={require('@/assets/images/home/banner.png')}
+          style={[styles.banner, bannerSize]}
+          resizeMode="cover"
+        />
+        <View style={styles.pd18}>
+          <Flex justify='between' style={styles.colBoxes}>
+            <ImageBackground
+              source={require('@/assets/images/home/back1.png')}
+              style={[styles.colBox, { width: colBoxWidth }]}
+              imageStyle={styles.colBg}
+              resizeMode="cover">
+              <Image source={require('@/assets/images/home/rl_w.png')} style={styles.imgIcon} />
+              <Text style={styles.colText}>心率</Text>
+              <Text style={styles.colValue}>72次/分钟</Text>
+            </ImageBackground>
+            <ImageBackground
+              source={require('@/assets/images/home/back2.png')}
+              style={[styles.colBox, { width: colBoxWidth }]}
+              imageStyle={styles.colBg}
+              resizeMode="cover">
+              <Image source={require('@/assets/images/home/xl_w.png')} style={styles.imgIcon} />
+              <Text style={styles.colText}>卡路里</Text>
+              <Text style={styles.colValue}>2000千卡</Text>
+            </ImageBackground>
+            <ImageBackground
+              source={require('@/assets/images/home/back3.png')}
+              style={[styles.colBox, { width: colBoxWidth }]}
+              imageStyle={styles.colBg}
+              resizeMode="cover">
+              <Image source={require('@/assets/images/home/xt_w.png')} style={styles.imgIcon} />
+              <Text style={styles.colText}>血糖</Text>
+              <Text style={styles.colValue}>6.8mmol/L</Text>
+            </ImageBackground>
           </Flex>
-          <View style={styles.healthLine} />
-
-          <Carousel
-            style={styles.healthSwiper}
-            // autoplay
-            infinite
-            autoplayInterval={4000}
-            dotStyle={styles.swiperDot}
-            dotActiveStyle={styles.swiperDotActive}>
-            <Flex style={styles.healthSlide} justify="between" align="center">
-              <View>
-                <Flex>
-                  <Image source={require('@/assets/images/home/bp.png')} style={styles.swiperIcon} />
-                  <Text style={styles.healthSlideLabel}>血压</Text>
+          <View style={styles.scheduleBox}>
+            <Flex justify='between'>
+              <Flex>
+                <Flex justify='center' style={styles.cfIconBox}>
+                  <Image source={require('@/assets/images/home/yd.png')} style={styles.cfIcon} />
                 </Flex>
-                <Text style={styles.healthSlideValue}>142/92</Text>
-                <Text style={styles.healthSlideUnit}>mmHg</Text>
-                <Text style={styles.healthSlideStatus}>・偏高</Text>
-              </View>
-              <BloodPressureChart />
-            </Flex>
-            <Flex style={styles.healthSlide} justify="between" align="center">
-              <View>
-                <Flex>
-                  <Image source={require('@/assets/images/home/xt.png')} style={styles.swiperIcon} />
-                  <Text style={styles.healthSlideLabel}>血糖</Text>
-                </Flex>
-                <Text style={styles.healthSlideValue}>6.8</Text>
-                <Text style={styles.healthSlideUnit}>mmol/L</Text>
-                <Text style={styles.healthSlideStatus}>・偏高</Text>
-              </View>
-              <BloodGlucoseChart />
-            </Flex>
-            <Flex style={styles.healthSlide} justify="between" align="center">
-              <View>
-                <Flex>
-                  <Image source={require('@/assets/images/home/xl.png')} style={styles.swiperIcon} />
-                  <Text style={styles.healthSlideLabel}>心率</Text>
-                </Flex>
-                <Text style={styles.healthSlideValue}>72</Text>
-                <Text style={styles.healthSlideUnit}>次/分钟</Text>
-                <Text style={styles.healthSlideStatus}>・正常</Text>
-              </View>
-              <HeartRateChart />
-            </Flex>
-            <Flex style={styles.healthSlide} justify="between" align="center">
-              <View>
-                <Flex>
-                  <Image source={require('@/assets/images/home/xy.png')} style={styles.swiperIcon} />
-                  <Text style={styles.healthSlideLabel}>血氧</Text>
-                </Flex>
-                <Text style={styles.healthSlideValue}>98%</Text>
-                <Text style={styles.healthSlideUnit}>百分比</Text>
-                <Text style={styles.healthSlideStatus}>・正常</Text>
-              </View>
-              <BloodOxygenChart />
-            </Flex>
-            <Flex style={styles.healthSlide} justify="between" align="center">
-              <View>
-                <Flex>
-                  <Image source={require('@/assets/images/home/tw.png')} style={styles.swiperIcon} />
-                  <Text style={styles.healthSlideLabel}>体温</Text>
-                </Flex>
-                <Text style={styles.healthSlideValue}>36.5</Text>
-                <Text style={styles.healthSlideUnit}>℃</Text>
-                <Text style={styles.healthSlideStatus}>・正常</Text>
-              </View>
-              <BodyTemperatureChart />
-            </Flex>
-          </Carousel>
-        </View>
-
-        <Text style={styles.sectionTitle}>营养处方</Text>
-        <Flex style={styles.nutritionBox} justify="between">
-          <Flex style={styles.nutritionCard}>
-            <Image style={styles.nutritionIcon} source={require('@/assets/images/home/jn.png')} />
-            <View style={{ marginLeft: 8, flex: 1 }}>
-              <Text style={styles.nutritionTitle} numberOfLines={1}>服用降压药</Text>
-              <Text style={styles.nutritionSub} numberOfLines={1}>8:00 5mg/次</Text>
-            </View>
-            <Image style={styles.nutritionRadio} source={require('@/assets/images/home/radio.png')} />
-          </Flex>
-
-          <Flex style={styles.nutritionCard}>
-            <Image style={styles.nutritionIcon} source={require('@/assets/images/home/jn.png')} />
-            <View style={{ marginLeft: 8, flex: 1 }}>
-              <Text style={styles.nutritionTitle} numberOfLines={1}>早餐处方</Text>
-              <Text style={styles.nutritionSub} numberOfLines={1}>7:30 饮用牛奶 1 杯</Text>
-            </View>
-            <Image style={styles.nutritionRadio} source={require('@/assets/images/home/selectRadio.png')} />
-          </Flex>
-        </Flex>
-
-        <Flex justify='between'>
-          <Text style={styles.sectionTitle}>运动处方</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('ExercisePage')}>
-            {/* <TouchableOpacity onPress={() => navigation.navigate('NutritionPage')}> */}
-            <Flex style={{ marginTop: 16 }}>
-              <Text style={styles.more}>查看全部</Text>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-            </Flex>
-          </TouchableOpacity>
-        </Flex>
-
-        <Flex wrap="wrap" style={styles.sportBox}>
-          {SPORT_PRESCRIPTIONS.map(item => (
-            <SportPrescriptionRow key={item.title} {...item} />
-          ))}
-        </Flex>
-
-        <Flex justify='between'>
-          <Text style={styles.sectionTitle}>社区活动</Text>
-          <TouchableOpacity>
-            <Flex style={{ marginTop: 16 }}>
-              <Text style={styles.more}>查看全部</Text>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-            </Flex>
-          </TouchableOpacity>
-        </Flex>
-
-        <View style={styles.mapBox}>
-          <Flex justify='between' style={styles.mapBoxItem}>
-            <View style={styles.mapLeftBox}>
-              <Text style={styles.mapBoxItemTitle}>公园太极拳活动</Text>
-              <Flex style={{ marginTop: 2 }}>
-                <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
-                <Text style={styles.mapText}>明天9:00</Text>
-                <Image style={styles.mapIcon} source={require('@/assets/images/home/dw.png')} />
-                <Text style={styles.mapText}>朝阳公园正门</Text>
+                <Text style={styles.cfIconText}>运动处方</Text>
               </Flex>
-            </View>
-            <Image source={require('@/assets/images/home/head.png')} style={styles.mapBoxItemImg} />
-          </Flex>
-        </View>
-
-
-
-
-
-
-
-        {/* <LinearGradient colors={['#1A3A4A', '#2D5A5A']} style={styles.hero} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}>
-          <View style={styles.heroTop}>
-            <Text style={styles.heroTime}>{weekday} {timeStr}</Text>
-            <View style={styles.healthPill}>
-              <View style={styles.greenDot} />
-              <Text style={styles.healthPillText}>健康良好</Text>
-            </View>
+              <MaterialIcons name="arrow-forward-ios" size={16} color="#333333" />
+            </Flex>
+            <Flex justify='between' style={styles.cfContent}>
+              <View>
+                <Text style={styles.cfValue}>65%</Text>
+                <Text style={styles.cfText}>有氧心肺</Text>
+              </View>
+              <View>
+                <Text style={styles.cfValue}>15%</Text>
+                <Text style={styles.cfText}>抗阻增肌</Text>
+              </View>
+              <View>
+                <Text style={styles.cfValue}>100%</Text>
+                <Text style={styles.cfText}>平衡控制</Text>
+              </View>
+              <View>
+                <Text style={styles.cfValue}>15%</Text>
+                <Text style={styles.cfText}>柔韧拉伸</Text>
+              </View>
+            </Flex>
+            <View style={styles.cfLine} />
+            <Flex justify='center' style={{ marginTop: 16 }}>
+              <Text style={styles.btm1}>血糖控制目标</Text>
+              <Text style={styles.btmText}>30</Text>
+              <Text style={styles.btm1}>天</Text>
+              <Flex style={styles.ydbBox}>
+                <Text style={styles.ydbText}>已达标15天</Text>
+              </Flex>
+            </Flex>
           </View>
-          <Text style={styles.heroTitle}>健康，从预防开始</Text>
-          <View style={styles.heroStats}>
-            <HeroStat icon="directions-walk" label={formatMetric(steps, '步', false)} />
-            <HeroStat icon="favorite-border" label={formatMetric(heart, '/分', false)} />
-            <HeroStat icon="local-fire-department" label={formatMetric(calories, '卡', false)} />
+          <View style={styles.scheduleBox}>
+            <TouchableOpacity onPress={() => navigation.navigate('Medication', { tab: 'meal' })}>
+              <Flex justify='between'>
+                <Flex>
+                  <Flex justify='center' style={styles.cfIconBox}>
+                    <Image source={require('@/assets/images/home/yy.png')} style={styles.cfIcon} />
+                  </Flex>
+                  <Text style={styles.cfIconText}>营养处方</Text>
+                </Flex>
+                <MaterialIcons name="arrow-forward-ios" size={16} color="#333333" />
+              </Flex>
+            </TouchableOpacity>
+            <Flex justify='between' style={styles.yyContent}>
+              <View style={styles.yyItem}>
+                <Flex justify="center" align="center">
+                  <Text style={styles.yyTitle}>热量</Text>
+                  <MiniProgressRing progress={65} />
+                </Flex>
+                <Flex justify="center" style={{ marginTop: 6 }}>
+                  <Text style={styles.yyValue}>300</Text>
+                  <Text style={styles.yyUnit}> /1200千卡</Text>
+                </Flex>
+              </View>
+              <View style={styles.yyItem}>
+                <Flex justify="center" align="center">
+                  <Text style={styles.yyTitle}>蛋白</Text>
+                  <MiniProgressRing progress={40} />
+                </Flex>
+                <Flex justify="center" style={{ marginTop: 6 }}>
+                  <Text style={styles.yyValue}>30</Text>
+                  <Text style={styles.yyUnit}> /70克</Text>
+                </Flex>
+              </View>
+              <View style={styles.yyItem}>
+                <Flex justify="center" align="center">
+                  <Text style={styles.yyTitle}>饮水</Text>
+                  <MiniProgressRing progress={80} />
+                </Flex>
+                <Flex justify="center" style={{ marginTop: 6 }}>
+                  <Text style={styles.yyValue}>1300</Text>
+                  <Text style={styles.yyUnit}> /1600毫升</Text>
+                </Flex>
+              </View>
+            </Flex>
+            <Flex style={styles.ysBox}>
+              <View>
+                <Flex>
+                  <Image style={styles.ysIcon} source={require('@/assets/images/home/zao.png')} />
+                  <Text style={styles.ysText}>早餐</Text>
+                </Flex>
+                <Flex justify='center' style={styles.wlrBox}>
+                  <Text style={styles.wlrText}>未录入</Text>
+                </Flex>
+              </View>
+              <View style={styles.line}>
+                {Array.from({ length: 5 }, (_, index) => (
+                  <View key={index} style={styles.lineDash} />
+                ))}
+              </View>
+              <View style={{ flex: 1 }}>
+                <Flex justify='between'>
+                  <Flex style={styles.foodBox} justify='center'>
+                    <Text style={styles.foodText}>小米粥</Text>
+                  </Flex>
+                  <Flex style={styles.foodBox} justify='center'>
+                    <Text style={styles.foodText}>鸡蛋</Text>
+                  </Flex>
+                  <Flex style={styles.foodBox} justify='center'>
+                    <Text style={styles.foodText}>玉米</Text>
+                  </Flex>
+                </Flex>
+                <Flex style={styles.jyBox} justify='center'>
+                  <Image source={require('@/assets/images/home/jy.png')} style={styles.jyIcon} />
+                  <Text style={styles.jyText}>建议热量：523千卡</Text>
+                </Flex>
+              </View>
+            </Flex>
           </View>
-        </LinearGradient>
-
-        <Text style={styles.sectionTitle}>康复训练</Text>
-        <View style={styles.trainingRow}>
-          <TrainingCard
-            title="肌少症"
-            sub="抗阻力训练"
-            color="#E0F2FE"
-            iconColor="#0EA5E9"
-            onPress={() => navigation.navigate('Training', { catalogId: 'sarcopenia' })}
-          />
-          <TrainingCard
-            title="心血管"
-            sub="有氧运动"
-            color="#FFE4E6"
-            iconColor="#FB7185"
-            onPress={() => navigation.navigate('Training', { catalogId: 'cardio' })}
-          />
         </View>
 
-        <TouchableOpacity style={styles.statusCard} onPress={() => navigation.navigate('Health')}>
-          <MaterialIcons name="check-circle" size={28} color="#22C55E" />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.statusTitle}>今日健康状态</Text>
-            <Text style={styles.statusSub}>一切良好，继续保持</Text>
-          </View>
-          <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-        </TouchableOpacity>
-
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>今日安排</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Schedule')}>
-            <Text style={styles.more}>查看全部</Text>
-          </TouchableOpacity>
-        </View>
-        {schedules.length === 0 ? (
-          <Text style={styles.emptyLine}>今日暂无安排</Text>
-        ) : (
-          schedules.slice(0, 3).map((s, i) => (
-            <View key={String(s.id ?? i)} style={styles.scheduleRow}>
-              <Text style={styles.scheduleTime}>{s.scheduledTime?.slice(11, 16) ?? '--:--'}</Text>
-              <Text style={styles.scheduleTitle}>{s.title ?? '安排事项'}</Text>
-            </View>
-          ))
-        )}
-
-        <Text style={[styles.sectionTitle, { marginTop: 20 }]}>核心功能</Text>
-        <View style={styles.grid}>
-          <FeatureCell label="健康管理" enabled onPress={() => navigation.navigate('Health')} />
-          <FeatureCell label="康复训练" enabled onPress={() => navigation.navigate('Training')} />
-          <FeatureCell label="用药提醒" enabled onPress={() => navigation.navigate('Medication')} />
-          <FeatureCell label="紧急求助" enabled={false} />
-        </View>
-
-        <LinearGradient colors={['#FFF7ED', '#FFEDD5']} style={styles.aiTip} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-          <MaterialIcons name="lightbulb" size={24} color="#EA580C" />
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.aiTipTitle}>AI 健康小贴士</Text>
-            <Text style={styles.aiTipBody}>{AI_TIP}</Text>
-          </View>
-        </LinearGradient>
-
-        <View style={styles.sectionHead}>
-          <Text style={styles.sectionTitle}>社区动态</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Community')}>
-            <Text style={styles.more}>更多</Text>
-          </TouchableOpacity>
-        </View>
-        {activities.slice(0, 1).map(a => (
-          <TouchableOpacity
-            key={String(a.id)}
-            style={styles.activityCard}
-            onPress={() => navigation.navigate('ActivityDetail', { id: a.id! })}>
-            <Text style={styles.activityTitle}>{a.title ?? '社区活动'}</Text>
-            <Text style={styles.activitySub}>{a.location ?? ''} · {a.startTime?.slice(0, 10) ?? ''}</Text>
-          </TouchableOpacity>
-        ))}
-        {activities.length === 0 ? <Text style={styles.emptyLine}>暂无社区活动</Text> : null} */}
       </ScrollView>
     </TabPageLayout>
-  );
-}
-
-function SportPrescriptionRow({ icon, title, color, progress, desc }: SportPrescription) {
-  return (
-    <View style={styles.sportRow}>
-      <Flex>
-        <Image style={styles.sportIcon} source={icon} />
-        <Text style={styles.sportTitle}>{title}</Text>
-      </Flex>
-      <View style={styles.sportLineBox}>
-        <View style={[styles.sportProgressFill, { width: `${progress * 100}%`, backgroundColor: color }]} />
-      </View>
-      <Text style={styles.sportText}>{desc}</Text>
-    </View>
   );
 }

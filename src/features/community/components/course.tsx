@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { GlassView } from 'expo-glass-effect';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -18,48 +19,14 @@ export default function CommunityPage() {
     const navigation: any = useNavigation<Nav>();
     const dispatch = useDispatch<AppDispatch>();
 
-    const [activeNav, setActiveNav] = useState('all');
-    const navList = [
-        {
-            label: '全部',
-            value: 'all'
-        },
-        {
-            label: '运动健身',
-            value: 'sports'
-        },
-        {
-            label: '健康讲座',
-            value: 'healthLecture'
-        },
-        {
-            label: '兴趣活动',
-            value: 'interestActivity'
-        }
-    ]
     return (
         <View>
-            <Flex justify="around" style={styles.navBox}>
-                {navList.map((item, index) => (
-                    <TouchableOpacity style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
-                        <View style={styles.navItemWrap}>
-                            <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>{item.label}</Text>
-                            {activeNav === item.value ? (
-                                <View style={styles.navIndicatorWrap}>
-                                    <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
-                                </View>
-                            ) : null}
-                        </View>
-                    </TouchableOpacity>
-                ))}
-            </Flex>
-
             <View style={styles.courseBox}>
                 <View style={styles.courseImgWrap}>
                     <Image source={require('@/assets/images/home/head.png')} style={styles.courseImg} />
-                    <Flex justify='center' style={styles.liveTopCategoryTag}>
+                    <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
                         <Text style={styles.liveTopCategoryText}>慢病管理</Text>
-                    </Flex>
+                    </GlassView>
                     <Text style={styles.gkrsText}>3280人次观看</Text>
                     <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
                 </View>
@@ -80,9 +47,9 @@ export default function CommunityPage() {
             <View style={styles.courseBox}>
                 <View style={styles.courseImgWrap}>
                     <Image source={require('@/assets/images/home/head.png')} style={styles.courseImg} />
-                    <Flex justify='center' style={styles.liveTopCategoryTag}>
+                    <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
                         <Text style={styles.liveTopCategoryText}>慢病管理</Text>
-                    </Flex>
+                    </GlassView>
                     <Text style={styles.gkrsText}>3280人次观看</Text>
                     <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
                 </View>
@@ -103,9 +70,9 @@ export default function CommunityPage() {
             <View style={styles.courseBox}>
                 <View style={styles.courseImgWrap}>
                     <Image source={require('@/assets/images/home/head.png')} style={styles.courseImg} />
-                    <Flex justify='center' style={styles.liveTopCategoryTag}>
+                    <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
                         <Text style={styles.liveTopCategoryText}>慢病管理</Text>
-                    </Flex>
+                    </GlassView>
                     <Text style={styles.gkrsText}>3280人次观看</Text>
                     <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
                 </View>

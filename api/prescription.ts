@@ -1,8 +1,5 @@
 import request from '@/utils/axios';
 
-export const getAppPrescriptions = () => request.get('/patient/prescriptions/current');
-export const getAppPrescriptionDetail = (id: number) => request.get(`/patient/prescriptions/${id}`);
-export const getPatientTodayTraining = () => request.get('/training/today');
 export const submitPatientTrainingRecord = (data: {
   prescriptionId: number;
   exerciseId?: number;

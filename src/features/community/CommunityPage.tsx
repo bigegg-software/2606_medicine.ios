@@ -15,10 +15,10 @@ import RankingPage from './components/ranking';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const NAV_LIST = [
-  { label: '活动', value: 'activity', path: ActivityPage },
+  { label: '排行榜', value: 'ranking', path: RankingPage },
   { label: '直播', value: 'live', path: LivePage },
   { label: '课程', value: 'course', path: CoursePage },
-  { label: '排行榜', value: 'ranking', path: RankingPage },
+  { label: '福利', value: 'activity', path: ActivityPage },
 ] as const;
 
 function getNavBackground(index: number, total: number) {
@@ -41,57 +41,24 @@ export default function CommunityPage() {
 
   const [activeNav, setActiveNav] = useState<string>(NAV_LIST[0].value);
 
-  const navList = [
-    {
-      label: '全部',
-      value: 'all'
-    },
-    {
-      label: '社区活动',
-      value: 'communityActivity'
-    },
-    {
-      label: '课程学习',
-      value: 'courseLearning'
-    },
-    {
-      label: '通知',
-      value: 'notice'
-    }
-  ]
   return (
     <TabPageLayout style={styles.container}>
-      {/* <Text style={styles.pageTitle}></Text>
-      <View style={styles.pageLine} /> */}
-
-
       <Flex justify='center'>
         <View style={styles.topNavBox}>
-          {NAV_LIST.map((item, index) => {
-            const isActive = activeNav === item.value;
-            const label = (
-              <Text style={[styles.topNavItemText, isActive && styles.topNavItemTextActive]}>{item.label}</Text>
-            );
-
-            return (
-              <TouchableOpacity
-                style={styles.topNavItem}
-                key={item.value}
-                activeOpacity={0.8}
-                onPress={() => setActiveNav(item.value)}>
-                {isActive ? (
-                  <ImageBackground
-                    source={getNavBackground(index, NAV_LIST.length)}
-                    style={styles.topNavItemBg}
-                    resizeMode="stretch">
-                    {label}
-                  </ImageBackground>
-                ) : (
-                  label
-                )}
+          <Flex justify="around" style={styles.navBox}>
+            {NAV_LIST.map((item, index) => (
+              <TouchableOpacity style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
+                <View style={styles.navItemWrap}>
+                  <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>{item.label}</Text>
+                  {activeNav === item.value ? (
+                    <View style={styles.navIndicatorWrap}>
+                      <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
+                    </View>
+                  ) : null}
+                </View>
               </TouchableOpacity>
-            );
-          })}
+            ))}
+          </Flex>
         </View>
       </Flex>
       <View style={styles.pageContent}>

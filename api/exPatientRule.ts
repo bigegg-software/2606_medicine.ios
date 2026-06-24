@@ -26,6 +26,9 @@ export type ExPatientRuleInfo = {
   status?: number;
   progress?: number;
   stopReason?: string;
+  stopTime?: string;
+  updateTime?: string;
+  createTime?: string;
 };
 
 export const getInUseExPatientRuleInfo = () =>

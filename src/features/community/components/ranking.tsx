@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Image, ActivityIndicator, ImageSourcePropType } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Flex } from '@ant-design/react-native';
 import { useSelector } from 'react-redux';
 import { AppTheme } from '@/common/theme';
@@ -15,6 +16,34 @@ const PODIUM_FRAMES = [
     require('@/assets/images/community/image3.png'),
 ] as const;
 const PODIUM_ORDER = [1, 0, 2] as const;
+
+const PODIUM_GRADIENT_END = '#F5F8FF';
+
+type PodiumGradient = {
+    colors: [string, string, string, string];
+    locations: [number, number, number, number];
+};
+
+const PODIUM_GRADIENTS: Record<number, PodiumGradient> = {
+    0: {
+        colors: ['#C9DBFF', '#DCE8FF', '#EDF2FA', PODIUM_GRADIENT_END],
+        locations: [0, 0.32, 0.68, 1],
+    },
+    1: {
+        colors: ['#FFE8B5', '#FFF0D4', '#F3F0EB', PODIUM_GRADIENT_END],
+        locations: [0, 0.32, 0.68, 1],
+    },
+    2: {
+        colors: ['#FFCFCF', '#FFE4E4', '#F3ECEC', PODIUM_GRADIENT_END],
+        locations: [0, 0.32, 0.68, 1],
+    },
+};
+
+const PODIUM_SCORE_COLORS: Record<number, string> = {
+    0: '#4F86EE',
+    1: '#FFBD07',
+    2: '#FF8989',
+};
 
 type RankingRowProps = {
     rankLabel: string;
@@ -70,8 +99,8 @@ function RankingRow({
                 <Text style={styles.rankingItemText}>{name}</Text>
                 <Text style={styles.rankingItemText2}>{streak}</Text>
             </View>
-            <Flex style={styles.rankingScoreRow}>
-                <Image style={styles.avatarIcon} tintColor="#333" source={require('@/assets/images/user/img1.png')} />
+            <Flex>
+                <Image style={styles.avatarIcon} tintColor="#053A93" source={require('@/assets/images/community/jf.png')} />
                 <Text style={[styles.avatarValue, { color: scoreColor }]}>{formatScore(score)}</Text>
             </Flex>
         </Flex>
@@ -80,32 +109,57 @@ function RankingRow({
 
 function PodiumItem({
     item,
+    rankIndex,
     frameSource,
-    marginTop,
-    scoreColor,
 }: {
     item?: RankingItem;
+    rankIndex: number;
     frameSource: ImageSourcePropType;
-    marginTop?: number;
-    scoreColor?: string;
 }) {
     const name = item?.nickName?.trim() || '暂无';
     const score = item?.tokens ?? 0;
+    const gradient: PodiumGradient = PODIUM_GRADIENTS[rankIndex] ?? PODIUM_GRADIENTS[2];
+    const scoreColor = PODIUM_SCORE_COLORS[rankIndex] ?? PODIUM_SCORE_COLORS[2];
 
     return (
-        <Flex direction="column" style={[styles.rankingItem, marginTop != null && { marginTop }]}>
-            <Flex style={styles.headImgBox}>
-                <Image source={resolveAvatarSource(item?.avatar)} style={styles.headImg} />
-                <Image style={styles.headBg} source={frameSource} />
+        <View style={[
+            styles.podiumWrap,
+            rankIndex === 0 && styles.podiumWrapFirst,
+        ]}>
+            <LinearGradient
+                colors={gradient.colors}
+                locations={gradient.locations}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={styles.podiumBg}
+            />
+            <Flex
+                direction="column"
+                align="center"
+                style={styles.podiumInner}>
+                <Image
+                    style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}
+                    source={frameSource}
+                />
+                <Image
+                    source={resolveAvatarSource(item?.avatar)}
+                    style={styles.headImg}
+                />
+                <Text
+                    style={[styles.rankingItemText, rankIndex === 0 && styles.rankingItemTextFirst]}
+                    numberOfLines={1}>
+                    {name}
+                </Text>
+                <Flex style={styles.rankingScoreRow}>
+                    <Image
+                        style={styles.avatarIcon}
+                        tintColor={scoreColor}
+                        source={require('@/assets/images/community/jf.png')}
+                    />
+                    <Text style={[styles.avatarValue, { color: scoreColor }]}>{formatScore(score)}</Text>
+                </Flex>
             </Flex>
-            <Text style={styles.rankingItemText} numberOfLines={1}>
-                {name}
-            </Text>
-            <Flex style={styles.rankingScoreRow}>
-                <Image style={styles.avatarIcon} tintColor="#053A93" source={require('@/assets/images/user/img1.png')} />
-                <Text style={[styles.avatarValue, scoreColor ? { color: scoreColor } : null]}>{formatScore(score)}</Text>
-            </Flex>
-        </Flex>
+        </View>
     );
 }
 
@@ -143,7 +197,7 @@ export default function RankingPage() {
     }, [loadRanking]);
 
     const topThree = useMemo(() => rankingList.slice(0, 3), [rankingList]);
-    const listItems = useMemo(() => rankingList.slice(0, 10), [rankingList]);
+    const listItems = useMemo(() => rankingList.slice(3, 10), [rankingList]);
 
     const myEntry = useMemo(
         () => rankingList.find(item => item.userId != null && item.userId === currentUserId),
@@ -157,8 +211,8 @@ export default function RankingPage() {
     const myAvatarSource = myEntry?.avatar
         ? resolveAvatarSource(myEntry.avatar)
         : currentUserAvatar
-          ? { uri: currentUserAvatar }
-          : DEFAULT_AVATAR;
+            ? { uri: currentUserAvatar }
+            : DEFAULT_AVATAR;
 
     if (loading) {
         return (
@@ -178,15 +232,14 @@ export default function RankingPage() {
                     {PODIUM_ORDER.map((rankIndex, displayIndex) => (
                         <PodiumItem
                             key={rankIndex}
+                            rankIndex={rankIndex}
                             item={topThree[rankIndex]}
                             frameSource={PODIUM_FRAMES[displayIndex]}
-                            marginTop={displayIndex === 1 ? undefined : 20}
-                            scoreColor={displayIndex === 1 ? '#053A93' : '#053A93'}
                         />
                     ))}
                 </Flex>
 
-                {listItems.length === 0 ? (
+                {rankingList.length === 0 ? (
                     <View style={[styles.center, { marginTop: 24 }]}>
                         <Text style={styles.rankingItemText2}>暂无排行榜数据</Text>
                     </View>
@@ -212,12 +265,11 @@ export default function RankingPage() {
                         <Text style={styles.rankingItemText}>{myName}</Text>
                         <Text style={styles.rankingItemText2}>{myStreak}</Text>
                     </View>
-                    <Flex style={styles.rankingScoreRow}>
+                    <Flex>
                         <Image
-                            style={[styles.avatarIcon, { width: 26, height: 26 }]}
-                            tintColor="#333"
-                            source={require('@/assets/images/user/img1.png')}
-                        />
+                            style={styles.avatarIcon}
+                            tintColor="#053A93"
+                            source={require('@/assets/images/community/jf.png')} />
                         <Text style={[styles.avatarValue, { color: '#333', fontSize: 18 }]}>{formatScore(myScore)}</Text>
                     </Flex>
                 </Flex>

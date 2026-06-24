@@ -108,7 +108,7 @@ export type RootStackParamList = {
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' };
   CalendarPage: undefined;
-  Medication: undefined;
+  Medication: { tab?: 'medication' | 'meal' } | undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
   MedicationHistoryPage: undefined;
@@ -133,7 +133,8 @@ function StackHeader({ route, options, back, navigation }: any) {
     <View style={styles.stackHeader}>
       <Header
         {...options}
-        title={getHeaderTitle(options, route.name)}
+        title={options.headerTitle != null ? undefined : getHeaderTitle(options, route.name)}
+        headerTitle={options.headerTitle}
         headerTransparent
         headerTintColor={AppTheme.primaryColor}
         headerTitleStyle={headerTitleStyle}
@@ -149,7 +150,7 @@ function StackHeader({ route, options, back, navigation }: any) {
                 onPress={navigation.goBack}
               />
             )
-            : undefined
+            : options.headerLeft
         }
         back={back}
       />
@@ -224,7 +225,7 @@ export default function RootStack() {
       initialRouteName={isLogin ? 'Home' : 'Login'}>
       <Stack.Screen name="Login" component={LoginPage} options={{ headerShown: false, title: "登录" }} />
       <Stack.Screen name="Register" component={RegisterPage} options={{ headerShown: false, title: "注册" }} />
-      <Stack.Screen name="Home" component={MainTabs} options={{ title: '首页' }} />
+      <Stack.Screen name="Home" component={MainTabs} options={{ title: '' }} />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />

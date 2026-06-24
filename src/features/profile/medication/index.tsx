@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Text, Image, TouchableOpacity, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { Flex } from '@ant-design/react-native';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/medication/index';
 import PageLayout from '@/src/components/PageLayout';
+import type { RootStackParamList } from '@/route/router';
 import MealTab from './components/MealTab';
 import MedicationTab from './components/MedicationTab';
 export const MEDICATION_NAV_LIST = [
@@ -14,9 +15,20 @@ export const MEDICATION_NAV_LIST = [
 
 export type MedicationNavValue = (typeof MEDICATION_NAV_LIST)[number]['value'];
 
+type MedicationRouteProp = RouteProp<RootStackParamList, 'Medication'>;
+
 export default function MedicationPage() {
-    const [activeNav, setActiveNav] = useState<MedicationNavValue>('medication');
+    const route = useRoute<MedicationRouteProp>();
+    const [activeNav, setActiveNav] = useState<MedicationNavValue>(
+        () => route.params?.tab ?? 'medication',
+    );
     const navigation: any = useNavigation();
+
+    useEffect(() => {
+        if (route.params?.tab) {
+            setActiveNav(route.params.tab);
+        }
+    }, [route.params?.tab]);
 
     useEffect(() => {
         navigation.setOptions({

@@ -62,7 +62,7 @@ export function TabPageLayout({
     contentStyle,
 }: Omit<Props, 'edges' | 'withStackHeader'>) {
     return (
-        <PageLayout withStackHeader style={style} contentStyle={contentStyle}>
+        <PageLayout withStackHeader edges={[]} style={style} contentStyle={contentStyle}>
             <UploadProgressBar />
             {children}
         </PageLayout>
