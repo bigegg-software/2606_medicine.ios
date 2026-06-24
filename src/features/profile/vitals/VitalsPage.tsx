@@ -647,7 +647,9 @@ export default function VitalsPage() {
               <TouchableOpacity onPress={() => setShowStepTargetModal(true)}>
                 <Text style={styles.vMore}>目标</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ marginLeft: 12 }}>
+              <TouchableOpacity
+                style={{ marginLeft: 12 }}
+                onPress={() => navigation.navigate('AllDataPage', { type: '步数' })}>
                 <Text style={styles.vMore}>全部记录</Text>
               </TouchableOpacity>
             </Flex>
@@ -680,7 +682,9 @@ export default function VitalsPage() {
               <TouchableOpacity onPress={() => setShowEnergyTargetModal(true)}>
                 <Text style={styles.vMore}>目标</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={{ marginLeft: 12 }}>
+              <TouchableOpacity
+                style={{ marginLeft: 12 }}
+                onPress={() => navigation.navigate('AllDataPage', { type: '消耗' })}>
                 <Text style={styles.vMore}>全部记录</Text>
               </TouchableOpacity>
             </Flex>

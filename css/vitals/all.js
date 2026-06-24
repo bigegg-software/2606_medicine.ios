@@ -49,6 +49,10 @@ const styles = StyleSheet.create({
     mapItemValue: { fontWeight: 500, fontSize: 20, color: AppTheme.textPrimary, textAlign: 'left' },
     mapItemBz: { marginTop: 8, fontWeight: 500, fontSize: 12, color: AppTheme.textSecondary, lineHeight: 18 },
     mapItemUnit: { marginTop: 8, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, textAlign: 'left' },
+    lipidMetricRow: { marginTop: 10 },
+    lipidMetricLabel: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
+    lipidMetricValue: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary },
+    lipidMetricUnit: { marginLeft: 4, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary },
     rowLine: { height: 1, backgroundColor: '#E8DED2' },
     mapLeftText: {
         marginTop:12,

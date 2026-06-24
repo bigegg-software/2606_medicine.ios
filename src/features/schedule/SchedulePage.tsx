@@ -29,6 +29,7 @@ import {
   getHistoryStatusLabel,
   getInUseStatusText,
   loadScheduleDictMaps,
+  loadExerciseTypeRingProgress,
   loadScheduleWeekCalendar,
   loadTodayTaskProgressMap,
   normalizeProgress,
@@ -108,6 +109,7 @@ export default function SchedulePage() {
   const [historyTotal, setHistoryTotal] = useState(0);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [todayTaskProgressMap, setTodayTaskProgressMap] = useState<Record<string, number>>({});
+  const [ringProgress, setRingProgress] = useState<[number, number, number, number]>([0, 0, 0, 0]);
 
   const prescriptionProgress = normalizeProgress(prescription?.progress ?? prescription?.progressInfo?.complateRatio);
   const todayTasks = useMemo(
@@ -120,16 +122,6 @@ export default function SchedulePage() {
     () => (prescription?.ruleRatioList ?? []).map((rule, index) => toGoalItem(rule, index, dictMaps ?? undefined)),
     [prescription?.ruleRatioList, dictMaps],
   );
-  const ringProgress = useMemo((): [number, number, number, number] => {
-    const ratios = prescription?.ruleRatioList ?? [];
-    return [
-      normalizeProgress(ratios[0]?.ratio) / 100,
-      normalizeProgress(ratios[1]?.ratio) / 100,
-      normalizeProgress(ratios[2]?.ratio) / 100,
-      normalizeProgress(ratios[3]?.ratio) / 100,
-    ];
-  }, [prescription?.ruleRatioList]);
-
   const historyItems = useMemo(
     () => historyPlans.map(toHistoryPlanItem),
     [historyPlans],
@@ -143,22 +135,24 @@ export default function SchedulePage() {
       let current: InUseExPatientRule | null = null;
       if (isResourceApiOk(payload)) {
         current = apiResourceData<InUseExPatientRule>(payload) ?? null;
-        console.log(current)
         setPrescription(current);
       } else {
         setPrescription(null);
       }
 
-      const [calendarDays, progressMap] = await Promise.all([
+      const [calendarDays, progressMap, typeRingProgress] = await Promise.all([
         loadScheduleWeekCalendar(current?.exPatientRuleId),
         loadTodayTaskProgressMap(current?.exPatientRuleId),
+        loadExerciseTypeRingProgress(current?.exPatientRuleId, current?.ruleRatioList),
       ]);
       setWeekDays(calendarDays);
       setTodayTaskProgressMap(progressMap);
+      setRingProgress(typeRingProgress);
     } catch {
       setPrescription(null);
       setWeekDays(buildScheduleWeekDays());
       setTodayTaskProgressMap({});
+      setRingProgress([0, 0, 0, 0]);
     } finally {
       setPrescriptionLoading(false);
     }

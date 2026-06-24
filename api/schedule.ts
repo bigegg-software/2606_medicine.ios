@@ -98,6 +98,17 @@ export type DayTypeDetailResult = {
   data?: DayTypeDetailItem[];
 };
 
+export type ExerciseTypeStatisItem = {
+  exerciseType?: string;
+  complateRatio?: number;
+};
+
+export type ExerciseTypeStatisResult = {
+  code?: number;
+  msg?: string;
+  data?: ExerciseTypeStatisItem[];
+};
+
 export const getInUseExPatientRuleInfo = () =>
   request.get<{ code?: number; data?: InUseExPatientRule }>('/patient/exPatientRule/getInUseInfo');
 
@@ -109,3 +120,6 @@ export const getScheduleWeekCalendarList = (params: WeekCalendarParams) =>
 
 export const getDayTypeListDetailByCustomerLocalDate = (params: DayTypeDetailParams) =>
   request.get<DayTypeDetailResult>('/patient/exRecordDayType/dayTypeListDetailByCustomerLocalDate', { params });
+
+export const getExerciseTypeStatis = (params: { exPatientRuleId: string }) =>
+  request.get<ExerciseTypeStatisResult>('/patient/exRecordDay/exerciseTypeStatis', { params });

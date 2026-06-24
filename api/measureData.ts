@@ -1,7 +1,7 @@
 import request from '@/utils/axios';
 
 export type MeasureDataType = '血压' | '血糖' | '体温' | '尿酸' | '血脂';
-export type VitalsMeasureType = MeasureDataType | '血氧' | '心率';
+export type VitalsMeasureType = MeasureDataType | '血氧' | '心率' | '步数' | '消耗';
 
 export type VitalKey =
   | 'bloodPressure'

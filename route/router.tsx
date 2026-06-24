@@ -46,6 +46,8 @@ import MedicationAddPage from '@/src/features/profile/medication/add';
 import MedicationAllPage from '@/src/features/profile/medication/all';
 import MedicationHistoryPage from '@/src/features/profile/medication/history';
 import MedicationDetailPage from '@/src/features/profile/medication/detail';
+//饮食
+import MealDetailPage from '@/src/features/profile/medication/meal/detail';
 
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
@@ -106,13 +108,14 @@ export type RootStackParamList = {
   ChronicDiseaseDetailPage: { id: number } | undefined;
   VitalsPage: undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
-  AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' };
+  AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' };
   CalendarPage: undefined;
   Medication: { tab?: 'medication' | 'meal' } | undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
   MedicationHistoryPage: undefined;
   MedicationDetailPage: { drugPatientRuleId: number } | undefined;
+  MealDetailPage: { mealId: number } | undefined;
   AssistantPage: undefined;
   MyFamily: undefined;
   FamilyDetail: undefined;
@@ -256,6 +259,7 @@ export default function RootStack() {
       <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />
       <Stack.Screen name="MedicationHistoryPage" component={MedicationHistoryPage} options={{ title: '用药历史' }} />
       <Stack.Screen name="MedicationDetailPage" component={MedicationDetailPage} options={{ title: '处方详情' }} />
+      <Stack.Screen name="MealDetailPage" component={MealDetailPage} options={{ title: '营养目标详情' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />

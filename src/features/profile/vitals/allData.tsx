@@ -49,6 +49,8 @@ const PAGE_TITLES: Record<VitalsMeasureType, string> = {
   血脂: '血脂记录',
   血氧: '血氧记录',
   心率: '心率记录',
+  步数: '步数记录',
+  消耗: '消耗记录',
 };
 
 const MEASURE_UNITS: Record<MeasureDataType, string> = {
@@ -116,6 +118,18 @@ function sortRecordsDesc(items: MeasureDataItem[]) {
   });
 }
 
+function formatLipidValue(value?: number | null) {
+  if (value == null || Number.isNaN(Number(value))) return '--';
+  return Number(value).toFixed(2);
+}
+
+const LIPID_METRIC_ROWS = [
+  { key: 'tc', label: '总胆固醇 TC', getValue: (item: MeasureDataItem) => item.xuezhiTc ?? item.val },
+  { key: 'tg', label: 'TG', getValue: (item: MeasureDataItem) => item.xuezhiTg },
+  { key: 'hdl', label: 'HDL-C', getValue: (item: MeasureDataItem) => item.xuezhiHdlC },
+  { key: 'ldl', label: 'LDL-C', getValue: (item: MeasureDataItem) => item.xuezhiLdlC },
+] as const;
+
 function formatMeasureValue(item: MeasureDataItem, type: MeasureDataType) {
   if (type === '血压') {
     return `${Number(item.val) ?? '--'}/${Number(item.val2) ?? '--'}`;
@@ -166,6 +180,12 @@ type WearableReadingRecord = {
   value: number;
   level: string;
   sourceName?: string;
+  label?: string;
+};
+
+type WearableDetailOptions = {
+  stepGoals?: number;
+  energyGoals?: number;
 };
 
 type WearableDetailConfig = {
@@ -173,10 +193,10 @@ type WearableDetailConfig = {
   label: string;
   unit: string;
   parseValue: (raw: number) => number | null;
-  getLevelLabel: (value: number, highLowLabel?: string) => string;
+  getLevelLabel: (value: number, highLowLabel?: string, options?: WearableDetailOptions) => string;
 };
 
-const WEARABLE_DETAIL_CONFIG: Partial<Record<Extract<VitalsMeasureType, '血氧' | '心率'>, WearableDetailConfig>> = {
+const WEARABLE_DETAIL_CONFIG: Partial<Record<Extract<VitalsMeasureType, '血氧' | '心率' | '步数'>, WearableDetailConfig>> = {
   血氧: {
     apiType: WEARABLE_DATA_TYPES.oxygen,
     label: '血氧',
@@ -203,7 +223,148 @@ const WEARABLE_DETAIL_CONFIG: Partial<Record<Extract<VitalsMeasureType, '血氧'
       return '正常';
     },
   },
+  步数: {
+    apiType: WEARABLE_DATA_TYPES.steps,
+    label: '步数',
+    unit: '步',
+    parseValue: raw => (raw > 0 ? Math.round(raw) : null),
+    getLevelLabel: (value, highLowLabel, options) => {
+      const label = highLowLabel?.trim();
+      if (label) return label;
+      const goal = options?.stepGoals ?? 10000;
+      const ratio = goal > 0 ? value / goal : 0;
+      if (ratio >= 1) return '达标';
+      if (ratio >= 0.6) return '进行中';
+      return '偏少';
+    },
+  },
 };
+
+const ENERGY_WEARABLE_CONFIG: WearableDetailConfig = {
+  apiType: WEARABLE_DATA_TYPES.activeEnergy,
+  label: '消耗',
+  unit: '千卡',
+  parseValue: raw => (raw > 0 ? Math.round(raw) : null),
+  getLevelLabel: (value, highLowLabel) => {
+    const label = highLowLabel?.trim();
+    if (label) return label;
+    return '正常';
+  },
+};
+
+function getEnergyGoalLevelLabel(value: number, energyGoals?: number) {
+  if (energyGoals == null || energyGoals <= 0) return '正常';
+  const ratio = value / energyGoals;
+  if (ratio >= 1) return '达标';
+  if (ratio >= 0.6) return '进行中';
+  return '偏少';
+}
+
+function sumEnergyFromWearableItem(
+  data: WearableDataItem | undefined,
+  field: 'activeEnergyBurned' | 'basalEnergyBurned',
+) {
+  if (!data) return 0;
+
+  const readings = flattenWearableOriginalData(data.originalData);
+  if (readings.length) {
+    const total = readings.reduce((sum, reading) => {
+      const value = Number(reading.value);
+      return sum + (Number.isFinite(value) ? value : 0);
+    }, 0);
+    if (total > 0) return Math.round(total);
+  }
+
+  return Math.round(Number(data[field] ?? 0));
+}
+
+function buildEnergyAggregateRecord(
+  key: string,
+  label: string,
+  value: number,
+  selectedDate: string,
+  timeText: string,
+  energyGoals: number | undefined,
+  useGoalLabel = false,
+  sourceName?: string,
+): WearableReadingRecord {
+  const recordTime = /^\d{4}-\d{2}-\d{2}/.test(timeText) ? timeText : `${selectedDate} ${timeText}`;
+  return {
+    key,
+    label,
+    time: /^\d{2}:\d{2}/.test(timeText) ? timeText.slice(0, 5) : '--',
+    recordTime,
+    value,
+    level: useGoalLabel ? getEnergyGoalLevelLabel(value, energyGoals) : '正常',
+    sourceName,
+  };
+}
+
+function buildEnergyWearableRecords(
+  activeData: WearableDataItem | undefined,
+  basalData: WearableDataItem | undefined,
+  selectedDate: string,
+  energyGoals?: number,
+): WearableReadingRecord[] {
+  const activeRecords = buildWearableRecords(activeData?.originalData, ENERGY_WEARABLE_CONFIG).map(record => ({
+    ...record,
+    key: `active-${record.key}`,
+    label: '活动消耗',
+  }));
+  const basalRecords = buildWearableRecords(basalData?.originalData, ENERGY_WEARABLE_CONFIG).map(record => ({
+    ...record,
+    key: `basal-${record.key}`,
+    label: '静息消耗',
+  }));
+
+  const records = [...activeRecords, ...basalRecords].sort((a, b) => b.recordTime.localeCompare(a.recordTime));
+  if (records.length > 0) return records;
+
+  const fallbackRecords: WearableReadingRecord[] = [];
+  const active = sumEnergyFromWearableItem(activeData, 'activeEnergyBurned');
+  const basal = sumEnergyFromWearableItem(basalData, 'basalEnergyBurned');
+  const timeText = activeData?.endTimeStr ?? activeData?.startTimeStr ?? basalData?.endTimeStr ?? basalData?.startTimeStr ?? '--';
+
+  const total = active + basal;
+  const useGoalOnSingle = total > 0 && (active <= 0 || basal <= 0);
+
+  if (active > 0) {
+    fallbackRecords.push(buildEnergyAggregateRecord(
+      'active-energy-total',
+      '活动消耗',
+      active,
+      selectedDate,
+      timeText,
+      energyGoals,
+      useGoalOnSingle,
+    ));
+  }
+  if (basal > 0) {
+    fallbackRecords.push(buildEnergyAggregateRecord(
+      'basal-energy-total',
+      '静息消耗',
+      basal,
+      selectedDate,
+      timeText,
+      energyGoals,
+      useGoalOnSingle,
+    ));
+  }
+
+  if (total > 0 && fallbackRecords.length > 1) {
+    fallbackRecords.unshift(buildEnergyAggregateRecord(
+      'energy-total',
+      '总消耗',
+      total,
+      selectedDate,
+      timeText,
+      energyGoals,
+      true,
+    ));
+  }
+
+  return fallbackRecords;
+}
 
 function flattenWearableOriginalData(readings?: WearableOriginalReading[] | WearableOriginalReading[][]) {
   if (!readings?.length) return [] as WearableOriginalReading[];
@@ -216,6 +377,7 @@ function flattenWearableOriginalData(readings?: WearableOriginalReading[] | Wear
 function buildWearableRecords(
   originalData: WearableOriginalReading[] | WearableOriginalReading[][] | undefined,
   config: WearableDetailConfig,
+  options?: WearableDetailOptions,
 ): WearableReadingRecord[] {
   const records: WearableReadingRecord[] = [];
 
@@ -231,12 +393,39 @@ function buildWearableRecords(
       time: ts.isValid() ? ts.format('HH:mm') : '--',
       recordTime,
       value,
-      level: config.getLevelLabel(value, reading.highLowLabel),
+      level: config.getLevelLabel(value, reading.highLowLabel, options),
       sourceName: reading.sourceName,
     });
   }
 
   return records.sort((a, b) => b.recordTime.localeCompare(a.recordTime));
+}
+
+function buildWearableRecordsFromItem(
+  data: WearableDataItem | undefined,
+  config: WearableDetailConfig,
+  selectedDate: string,
+  options?: WearableDetailOptions,
+): WearableReadingRecord[] {
+  const records = buildWearableRecords(data?.originalData, config, options);
+  if (records.length > 0 || config.apiType !== WEARABLE_DATA_TYPES.steps) {
+    return records;
+  }
+
+  const steps = Math.round(Number(data?.stepCount ?? 0));
+  if (steps <= 0) return [];
+
+  const timeText = data?.endTimeStr ?? data?.startTimeStr ?? '--';
+  const recordTime = /^\d{4}-\d{2}-\d{2}/.test(timeText) ? timeText : `${selectedDate} ${timeText}`;
+
+  return [{
+    key: 'step-count-total',
+    time: /^\d{2}:\d{2}/.test(timeText) ? timeText.slice(0, 5) : '--',
+    recordTime,
+    value: steps,
+    level: config.getLevelLabel(steps, undefined, options),
+    sourceName: undefined,
+  }];
 }
 
 function MeasureRecordCard({
@@ -278,18 +467,40 @@ function MeasureRecordCard({
           </Flex>
         </Flex>
         <Flex justify="between" align="start" style={styles.mapItem}>
-          <View style={styles.mapItemLeft}>
-            <Text style={styles.mapItemText}>{type}</Text>
-            {item.remark ? (
-              <Text style={styles.mapItemBz} numberOfLines={2} ellipsizeMode="tail">
-                {item.remark}
-              </Text>
-            ) : null}
-          </View>
-          <View style={styles.mapItemRight}>
-            <Text style={styles.mapItemValue}>{formatMeasureValue(item, type)}</Text>
-            <Text style={styles.mapItemUnit}>{MEASURE_UNITS[type]}</Text>
-          </View>
+          {type === '血脂' ? (
+            <View style={styles.mapItemLeft}>
+              <Text style={styles.mapItemText}>{type}</Text>
+              {LIPID_METRIC_ROWS.map(row => (
+                <Flex key={row.key} justify="between" align="center" style={styles.lipidMetricRow}>
+                  <Text style={styles.lipidMetricLabel}>{row.label}</Text>
+                  <Flex align="baseline">
+                    <Text style={styles.lipidMetricValue}>{formatLipidValue(row.getValue(item))}</Text>
+                    <Text style={styles.lipidMetricUnit}>{MEASURE_UNITS[type]}</Text>
+                  </Flex>
+                </Flex>
+              ))}
+              {item.remark ? (
+                <Text style={styles.mapItemBz} numberOfLines={2} ellipsizeMode="tail">
+                  {item.remark}
+                </Text>
+              ) : null}
+            </View>
+          ) : (
+            <>
+              <View style={styles.mapItemLeft}>
+                <Text style={styles.mapItemText}>{type}</Text>
+                {item.remark ? (
+                  <Text style={styles.mapItemBz} numberOfLines={2} ellipsizeMode="tail">
+                    {item.remark}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.mapItemRight}>
+                <Text style={styles.mapItemValue}>{formatMeasureValue(item, type)}</Text>
+                <Text style={styles.mapItemUnit}>{MEASURE_UNITS[type]}</Text>
+              </View>
+            </>
+          )}
         </Flex>
       </TouchableOpacity>
       <TouchableOpacity
@@ -347,12 +558,14 @@ function WearableRecordCard({
   unit,
   expanded,
   onToggle,
+  showLevel = true,
 }: {
   item: WearableReadingRecord;
   label: string;
   unit: string;
   expanded: boolean;
   onToggle: () => void;
+  showLevel?: boolean;
 }) {
   const levelColor = getLevelColor(item.level);
 
@@ -367,13 +580,15 @@ function WearableRecordCard({
           />
           <Text style={styles.mapTime}>{item.time}</Text>
         </Flex>
-        <Flex style={[styles.mapValueBox, { backgroundColor: getLevelBgColor(item.level) }]}>
-          <Text style={[styles.mapValue, { color: levelColor }]}>{item.level}</Text>
-        </Flex>
+        {showLevel ? (
+          <Flex style={[styles.mapValueBox, { backgroundColor: getLevelBgColor(item.level) }]}>
+            <Text style={[styles.mapValue, { color: levelColor }]}>{item.level}</Text>
+          </Flex>
+        ) : null}
       </Flex>
       <Flex justify="between" align="start" style={styles.mapItem}>
         <View style={styles.mapItemLeft}>
-          <Text style={styles.mapItemText}>{label}</Text>
+          <Text style={styles.mapItemText}>{item.label ?? label}</Text>
         </View>
         <View style={styles.mapItemRight}>
           <Text style={styles.mapItemValue}>{item.value}</Text>
@@ -416,8 +631,9 @@ function WearableRecordCard({
 export default function AllDataPage({ route }: Props) {
   const measureType = (route.params?.type ?? '血压') as VitalsMeasureType;
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
-  const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率'];
-  const isWearableType = Boolean(wearableConfig);
+  const isEnergyType = measureType === '消耗';
+  const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率' | '步数'];
+  const isWearableType = Boolean(wearableConfig) || isEnergyType;
   const navigation = useNavigation<Nav>();
   const [currentMonth, setCurrentMonth] = useState(moment());
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
@@ -447,6 +663,31 @@ export default function AllDataPage({ route }: Props) {
     setLoading(true);
     setExpandedKey(null);
     try {
+      if (isEnergyType) {
+        const [activeRes, basalRes] = await Promise.all([
+          getWearableDataDetailByCustomerLocalDate({
+            customerLocalDate: selectedDate,
+            type: WEARABLE_DATA_TYPES.activeEnergy,
+          }),
+          getWearableDataDetailByCustomerLocalDate({
+            customerLocalDate: selectedDate,
+            type: WEARABLE_DATA_TYPES.basalEnergy,
+          }),
+        ]);
+
+        const activeData = isResourceApiOk(activeRes)
+          ? apiResourceData<WearableDataItem>(activeRes as unknown as WearableDataDetailResult)
+          : undefined;
+        const basalData = isResourceApiOk(basalRes)
+          ? apiResourceData<WearableDataItem>(basalRes as unknown as WearableDataDetailResult)
+          : undefined;
+        const energyGoalsRaw = activeData?.energyGoals ?? basalData?.energyGoals;
+        const energyGoals = energyGoalsRaw != null ? Number(energyGoalsRaw) : undefined;
+
+        setWearableRecords(buildEnergyWearableRecords(activeData, basalData, selectedDate, energyGoals));
+        return;
+      }
+
       if (wearableConfig) {
         const res = (await getWearableDataDetailByCustomerLocalDate({
           customerLocalDate: selectedDate,
@@ -457,7 +698,11 @@ export default function AllDataPage({ route }: Props) {
           return;
         }
         const data = apiResourceData<WearableDataItem>(res);
-        setWearableRecords(buildWearableRecords(data?.originalData, wearableConfig));
+        const wearableOptions: WearableDetailOptions | undefined =
+          measureType === '步数' && data?.stepGoals != null
+            ? { stepGoals: Number(data.stepGoals) }
+            : undefined;
+        setWearableRecords(buildWearableRecordsFromItem(data, wearableConfig, selectedDate, wearableOptions));
         return;
       }
 
@@ -477,7 +722,7 @@ export default function AllDataPage({ route }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [measureType, selectedDate, wearableConfig]);
+  }, [isEnergyType, measureType, selectedDate, wearableConfig]);
 
   const loadRecordsRef = useRef(loadRecords);
   loadRecordsRef.current = loadRecords;
@@ -579,13 +824,14 @@ export default function AllDataPage({ route }: Props) {
           </View>
         ) : null}
 
-        {isWearableType && wearableConfig
+        {isWearableType
           ? wearableRecords.map(item => (
             <WearableRecordCard
               key={item.key}
               item={item}
-              label={wearableConfig.label}
-              unit={wearableConfig.unit}
+              label={item.label ?? wearableConfig?.label ?? ENERGY_WEARABLE_CONFIG.label}
+              unit={wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
+              showLevel={measureType !== '消耗' && measureType !== '步数'}
               expanded={expandedKey === item.key}
               onToggle={() => setExpandedKey(prev => (prev === item.key ? null : item.key))}
             />

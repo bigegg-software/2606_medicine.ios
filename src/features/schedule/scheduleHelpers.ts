@@ -9,9 +9,11 @@ import {
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   getDayTypeListDetailByCustomerLocalDate,
+  getExerciseTypeStatis,
   getScheduleWeekCalendarList,
   type DayTypeDetailItem,
   type ExPatientRuleRatio,
+  type ExerciseTypeStatisItem,
   type HistoryExPatientRule,
   type InUseExPatientRule,
   type WeekCalendarItem,
@@ -46,6 +48,10 @@ const EXERCISE_TYPE_LABELS: Record<string, string> = {
   flexibility: '柔韧拉伸',
   balance: '平衡控制',
 };
+
+const EXERCISE_TYPE_RING_ORDER = ['cardio', 'strength', 'flexibility', 'balance'] as const;
+
+const EMPTY_RING_PROGRESS: [number, number, number, number] = [0, 0, 0, 0];
 
 export const EXERCISE_TYPE_IMAGES: Record<string, number> = {
   cardio: require('@/assets/images/schedule/exercise2.png'),
@@ -161,6 +167,51 @@ export function calcDayTypeProgress(need?: number, done?: number) {
   const doneValue = Number(done ?? 0);
   if (!Number.isFinite(needValue) || needValue <= 0) return 0;
   return normalizeProgress((doneValue / needValue) * 100);
+}
+
+export function buildExerciseTypeRingProgress(
+  stats: ExerciseTypeStatisItem[] | undefined,
+  ruleRatioList?: ExPatientRuleRatio[],
+): [number, number, number, number] {
+  const statMap = new Map(
+    (stats ?? [])
+      .filter(item => item.exerciseType?.trim())
+      .map(item => [item.exerciseType!.trim(), normalizeProgress(item.complateRatio) / 100]),
+  );
+
+  const ruleOrder = (ruleRatioList ?? [])
+    .map(rule => rule.exerciseType?.trim())
+    .filter((type): type is string => Boolean(type))
+    .slice(0, 4);
+
+  const order = ruleOrder.length > 0 ? ruleOrder : [...EXERCISE_TYPE_RING_ORDER];
+  while (order.length < 4) {
+    order.push(EXERCISE_TYPE_RING_ORDER[order.length] ?? '');
+  }
+
+  return [
+    statMap.get(order[0]!) ?? 0,
+    statMap.get(order[1]!) ?? 0,
+    statMap.get(order[2]!) ?? 0,
+    statMap.get(order[3]!) ?? 0,
+  ];
+}
+
+export async function loadExerciseTypeRingProgress(
+  exPatientRuleId?: string | number,
+  ruleRatioList?: ExPatientRuleRatio[],
+): Promise<[number, number, number, number]> {
+  const ruleId = toQueryId(exPatientRuleId);
+  if (!ruleId) return EMPTY_RING_PROGRESS;
+
+  try {
+    const res = await getExerciseTypeStatis({ exPatientRuleId: ruleId });
+    if (!isResourceApiOk(res)) return EMPTY_RING_PROGRESS;
+    const list = apiResourceData<ExerciseTypeStatisItem[]>(res as any) ?? [];
+    return buildExerciseTypeRingProgress(list, ruleRatioList);
+  } catch {
+    return EMPTY_RING_PROGRESS;
+  }
 }
 
 export async function loadTodayTaskProgressMap(
