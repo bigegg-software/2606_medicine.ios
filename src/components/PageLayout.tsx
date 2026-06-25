@@ -26,6 +26,8 @@ type Props = {
     contentStyle?: StyleProp<ViewStyle>;
     /** Stack 页为 true（预留导航栏高度）；Tab 页为 false */
     withStackHeader?: boolean;
+    /** 键盘「完成」工具栏，需挂在 SafeAreaView 顶层以保证 iOS InputAccessoryView 及时显示 */
+    keyboardAccessory?: ReactNode;
 };
 
 export default function PageLayout({
@@ -34,6 +36,7 @@ export default function PageLayout({
     style,
     contentStyle,
     withStackHeader = true,
+    keyboardAccessory,
 }: Props) {
     const headerHeight = useHeaderHeight();
     const insets = useSafeAreaInsets();
@@ -52,6 +55,7 @@ export default function PageLayout({
                 ]}>
                 {children}
             </View>
+            {keyboardAccessory}
         </SafeAreaView>
     );
 }

@@ -45,7 +45,10 @@ const styles = StyleSheet.create({
     yyContent: {
         marginTop: 16,
     },
-    yyItem: {},
+    yyItem: {
+        width: '33.33%',
+        alignItems: 'center',
+    },
     yyTitle: {
         fontWeight: 500,
         fontSize: 12,
@@ -84,6 +87,9 @@ const styles = StyleSheet.create({
         backgroundColor: "#FF8B07",
         borderRadius: 12,
     },
+    wlrBoxLogged: {
+        backgroundColor: '#34B69F',
+    },
     wlrText: {
         fontWeight: 400,
         fontSize: 12,
@@ -101,15 +107,28 @@ const styles = StyleSheet.create({
         backgroundColor: '#999999',
     },
     foodBox: {
-        width: 56,
-        height: 25,
+        minHeight: 25,
+        paddingHorizontal: 8,
+        paddingVertical: 4,
         backgroundColor: "rgba(153,153,153,0.08)",
         borderRadius: 7,
+        justifyContent: 'center',
+        maxWidth: '100%',
     },
     foodText: {
         fontWeight: 500,
         fontSize: 12,
         color: "#333333",
+        flexShrink: 1,
+    },
+    foodArea: {
+        flex: 1,
+        minWidth: 0,
+    },
+    foodList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        gap: 6,
     },
     jyBox: {
         marginTop: 6,

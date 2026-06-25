@@ -32,6 +32,7 @@ export default function MedicationPage() {
 
     useEffect(() => {
         navigation.setOptions({
+            title: activeNav === 'meal' ? '营养处方' : '用药记录',
             headerRight: () =>
                 activeNav === 'medication' ? (
                     <TouchableOpacity

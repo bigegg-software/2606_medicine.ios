@@ -46,8 +46,15 @@ import MedicationAddPage from '@/src/features/profile/medication/add';
 import MedicationAllPage from '@/src/features/profile/medication/all';
 import MedicationHistoryPage from '@/src/features/profile/medication/history';
 import MedicationDetailPage from '@/src/features/profile/medication/detail';
+
 //饮食
 import MealDetailPage from '@/src/features/profile/medication/meal/detail';
+import MealWaterPage from '@/src/features/profile/medication/meal/water';
+import MealRecognitionPage from '@/src/features/profile/medication/meal/recognition';
+import MealRecognizingPage from '@/src/features/profile/medication/meal/mealRecognizing';
+import MealResultPage from '@/src/features/profile/medication/meal/mealResult';
+import ManualCorrectionPage from '@/src/features/profile/medication/meal/manualCorrection';
+import MealRecordDetailPage from '@/src/features/profile/medication/meal/mealRecordDetail';
 
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
@@ -115,7 +122,27 @@ export type RootStackParamList = {
   MedicationAllPage: undefined;
   MedicationHistoryPage: undefined;
   MedicationDetailPage: { drugPatientRuleId: number } | undefined;
-  MealDetailPage: { mealId: number } | undefined;
+  MealDetailPage: undefined;
+  MealRecordDetailPage: { mealDetailId: number };
+  MealWaterPage: undefined;
+  MealRecognitionPage: { text?: string } | undefined;
+  MealRecognizingPage:
+  | { mode: 'text'; text: string }
+  | { mode: 'image'; imageUri: string; text?: string };
+  ManualCorrectionPage: {
+    itemIndex: number;
+    item: import('@/api/mealRecognition').FoodIdentifyItem;
+    state: import('@/src/features/profile/medication/meal/components/FoodDetailCard').FoodItemEditState;
+    recordTime: string;
+    onSave?: (payload: import('@/src/features/profile/medication/meal/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
+  };
+  MealResultPage: {
+    ossUrl?: string;
+    ossId?: number;
+    foodIdentifyId?: number;
+    analysisResult?: import('@/api/mealRecognition').FoodIdentifyItem[];
+    hasFood?: boolean;
+  } | undefined;
   AssistantPage: undefined;
   MyFamily: undefined;
   FamilyDetail: undefined;
@@ -260,6 +287,12 @@ export default function RootStack() {
       <Stack.Screen name="MedicationHistoryPage" component={MedicationHistoryPage} options={{ title: '用药历史' }} />
       <Stack.Screen name="MedicationDetailPage" component={MedicationDetailPage} options={{ title: '处方详情' }} />
       <Stack.Screen name="MealDetailPage" component={MealDetailPage} options={{ title: '营养目标详情' }} />
+      <Stack.Screen name="MealRecordDetailPage" component={MealRecordDetailPage} options={{ title: '用餐详情' }} />
+      <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
+      <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', ...darkMediaScreenOptions }} />
+      <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别' }} />
+      <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食' }} />
+      <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />

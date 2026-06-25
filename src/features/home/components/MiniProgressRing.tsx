@@ -24,12 +24,18 @@ function getProgressDotPosition(progressPercent: number) {
 
 type MiniProgressRingProps = {
   progress: number;
+  color?: string;
+  trackColor?: string;
 };
 
-export default function MiniProgressRing({ progress }: MiniProgressRingProps) {
+export default function MiniProgressRing({
+  progress,
+  color,
+  trackColor = TRACK_COLOR,
+}: MiniProgressRingProps) {
   const value = Math.min(100, Math.max(0, Math.round(progress)));
   const isComplete = value >= 100;
-  const progressColor = isComplete ? COMPLETE_COLOR : PROGRESS_COLOR;
+  const progressColor = color ?? (isComplete ? COMPLETE_COLOR : PROGRESS_COLOR);
   const progressSweep = value >= 100 ? 360 : (360 * value) / 100;
 
   const progressPath = useMemo(() => {
@@ -56,7 +62,7 @@ export default function MiniProgressRing({ progress }: MiniProgressRingProps) {
           cx={CANVAS_CENTER}
           cy={CANVAS_CENTER}
           r={RING_RADIUS}
-          color={TRACK_COLOR}
+          color={trackColor}
           style="stroke"
           strokeWidth={STROKE_WIDTH}
         />

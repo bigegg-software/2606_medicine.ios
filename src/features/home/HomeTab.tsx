@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator, useWindowDimensions, type ImageSourcePropType } from 'react-native';
+import { View, Text, Image, ImageBackground, ScrollView, TouchableOpacity, RefreshControl, useWindowDimensions, type ImageSourcePropType } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flex, Carousel } from '@ant-design/react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
@@ -16,6 +16,25 @@ import MiniProgressRing from './components/MiniProgressRing';
 import type { RootStackParamList } from '@/route/router';
 import { fetchUserInfo } from '@/store/actions/user';
 import type { AppDispatch, RootState } from '@/store/store';
+import { getInUseDietPatientRuleInfo, type DietMealItem, type DietPatientRuleInfo } from '@/api/dietPatientRule';
+import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
+import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
+import {
+  calcNutritionPercent,
+  calcNutritionProgress,
+  getCalorieNutritionDisplay,
+  getDietRuleSummary,
+  getProteinNutritionDisplay,
+  getWaterNutritionDisplay,
+  NUTRITION_COLOR,
+} from '@/src/features/profile/medication/meal/dietRuleHelpers';
+import {
+  formatNutritionInteger,
+  getFoodRecordsByCategory,
+  sumCalories,
+  sumProtein,
+  sumWaterIntake,
+} from '@/src/features/profile/medication/meal/mealDetailHelpers';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -23,6 +42,56 @@ type Nav = CompositeNavigationProp<
 >;
 
 const HOME_BANNER_ASPECT = 434 / 750;
+
+type HomeMealKey = 'breakfast' | 'lunch' | 'dinner';
+
+const HOME_MEAL_META: Record<
+  HomeMealKey,
+  { title: string; icon: ImageSourcePropType; category: number }
+> = {
+  breakfast: {
+    title: '早餐',
+    icon: require('@/assets/images/home/zao.png'),
+    category: 1,
+  },
+  lunch: {
+    title: '中餐',
+    icon: require('@/assets/images/home/sun.png'),
+    category: 2,
+  },
+  dinner: {
+    title: '晚餐',
+    icon: require('@/assets/images/home/yl.png'),
+    category: 3,
+  },
+};
+
+function getCurrentMealKey(date = new Date()): HomeMealKey {
+  const hour = date.getHours();
+  if (hour < 10) return 'breakfast';
+  if (hour < 16) return 'lunch';
+  return 'dinner';
+}
+
+function parseFoodNames(foods?: string): string[] {
+  if (!foods?.trim()) return [];
+  return foods
+    .split(/[,，、]/)
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function getSuggestedMealItem(
+  mealList: DietMealItem[] | undefined,
+  category: number,
+): DietMealItem | null {
+  const today = moment().isoWeekday();
+  return mealList?.find(item => item.day === today && item.mealCategory === category) ?? null;
+}
+
+function sumMealCalories(records: MealDetailItem[]): number {
+  return records.reduce((sum, item) => sum + Number(item.calorie ?? 0), 0);
+}
 
 export default function HomeTab() {
   const navigation = useNavigation<Nav>();
@@ -37,7 +106,70 @@ export default function HomeTab() {
     [windowWidth],
   );
   const [refreshing, setRefreshing] = useState(false);
+  const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
+  const [todayMealList, setTodayMealList] = useState<MealDetailItem[]>([]);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
+
+  const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
+  const todayWaterMl = useMemo(() => sumWaterIntake(todayMealList), [todayMealList]);
+  const todayCalories = useMemo(() => sumCalories(todayMealList), [todayMealList]);
+  const todayProtein = useMemo(() => sumProtein(todayMealList), [todayMealList]);
+
+  const currentMealKey = getCurrentMealKey();
+  const currentMealMeta = HOME_MEAL_META[currentMealKey];
+  const currentMealRecords = useMemo(
+    () => getFoodRecordsByCategory(todayMealList, currentMealKey),
+    [currentMealKey, todayMealList],
+  );
+  const suggestedMeal = useMemo(
+    () => getSuggestedMealItem(dietRule?.mealList, currentMealMeta.category),
+    [currentMealMeta.category, dietRule?.mealList],
+  );
+  const hasLoggedCurrentMeal = currentMealRecords.length > 0;
+  const displayFoods = hasLoggedCurrentMeal
+    ? currentMealRecords.map(item => item.mealName || '--').filter(Boolean)
+    : parseFoodNames(suggestedMeal?.foods);
+  const displayCalories = hasLoggedCurrentMeal
+    ? sumMealCalories(currentMealRecords)
+    : Number(suggestedMeal?.calories ?? 0);
+
+  const caloriePercent = calcNutritionPercent(todayCalories, dietSummary.targetCalories);
+  const proteinPercent = calcNutritionPercent(todayProtein, dietSummary.targetProtein);
+  const waterPercent = calcNutritionPercent(todayWaterMl, dietSummary.targetWater);
+  const calorieProgress = calcNutritionProgress(todayCalories, dietSummary.targetCalories);
+  const proteinProgress = calcNutritionProgress(todayProtein, dietSummary.targetProtein);
+  const waterProgress = calcNutritionProgress(todayWaterMl, dietSummary.targetWater);
+  const calorieDisplay = getCalorieNutritionDisplay(caloriePercent);
+  const proteinDisplay = getProteinNutritionDisplay(proteinPercent);
+  const waterDisplay = getWaterNutritionDisplay(waterPercent);
+
+  const loadMealData = useCallback(async () => {
+    try {
+      const [ruleRes, todayRes] = await Promise.all([
+        getInUseDietPatientRuleInfo(),
+        getTodayMealDetailList(),
+      ]);
+      setDietRule(apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as ApiResult<DietPatientRuleInfo>) ?? null);
+      setTodayMealList(
+        apiResourceData<MealDetailItem[]>(todayRes as unknown as ApiResult<MealDetailItem[]>) ?? [],
+      );
+    } catch {
+      setDietRule(null);
+      setTodayMealList([]);
+    }
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([
+        userExtr == null ? dispatch(fetchUserInfo()) : Promise.resolve(),
+        loadMealData(),
+      ]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [dispatch, loadMealData, userExtr]);
 
 
   useEffect(() => {
@@ -45,6 +177,12 @@ export default function HomeTab() {
       void dispatch(fetchUserInfo());
     }
   }, [dispatch, userExtr]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadMealData();
+    }, [loadMealData]),
+  );
 
   useFocusEffect(
     useCallback(() => {
@@ -85,7 +223,7 @@ export default function HomeTab() {
     <TabPageLayout style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); }} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         contentContainerStyle={styles.scroll}>
         <Image
           source={require('@/assets/images/home/banner.png')}
@@ -176,42 +314,53 @@ export default function HomeTab() {
               <View style={styles.yyItem}>
                 <Flex justify="center" align="center">
                   <Text style={styles.yyTitle}>热量</Text>
-                  <MiniProgressRing progress={65} />
+                  <MiniProgressRing
+                    progress={calorieProgress}
+                    color={NUTRITION_COLOR[calorieDisplay.tone]}
+                  />
                 </Flex>
                 <Flex justify="center" style={{ marginTop: 6 }}>
-                  <Text style={styles.yyValue}>300</Text>
-                  <Text style={styles.yyUnit}> /1200千卡</Text>
+                  <Text style={styles.yyValue}>{formatNutritionInteger(todayCalories)}</Text>
+                  <Text style={styles.yyUnit}> /{dietSummary.targetCalories ?? '--'}千卡</Text>
                 </Flex>
               </View>
               <View style={styles.yyItem}>
                 <Flex justify="center" align="center">
                   <Text style={styles.yyTitle}>蛋白</Text>
-                  <MiniProgressRing progress={40} />
+                  <MiniProgressRing
+                    progress={proteinProgress}
+                    color={NUTRITION_COLOR[proteinDisplay.tone]}
+                  />
                 </Flex>
                 <Flex justify="center" style={{ marginTop: 6 }}>
-                  <Text style={styles.yyValue}>30</Text>
-                  <Text style={styles.yyUnit}> /70克</Text>
+                  <Text style={styles.yyValue}>{formatNutritionInteger(todayProtein)}</Text>
+                  <Text style={styles.yyUnit}> /{dietSummary.targetProtein ?? '--'}克</Text>
                 </Flex>
               </View>
               <View style={styles.yyItem}>
                 <Flex justify="center" align="center">
                   <Text style={styles.yyTitle}>饮水</Text>
-                  <MiniProgressRing progress={80} />
+                  <MiniProgressRing
+                    progress={waterProgress}
+                    color={NUTRITION_COLOR[waterDisplay.tone]}
+                  />
                 </Flex>
                 <Flex justify="center" style={{ marginTop: 6 }}>
-                  <Text style={styles.yyValue}>1300</Text>
-                  <Text style={styles.yyUnit}> /1600毫升</Text>
+                  <Text style={styles.yyValue}>{formatNutritionInteger(todayWaterMl)}</Text>
+                  <Text style={styles.yyUnit}> /{dietSummary.targetWater ?? '--'}毫升</Text>
                 </Flex>
               </View>
             </Flex>
             <Flex style={styles.ysBox}>
               <View>
                 <Flex>
-                  <Image style={styles.ysIcon} source={require('@/assets/images/home/zao.png')} />
-                  <Text style={styles.ysText}>早餐</Text>
+                  <Image style={styles.ysIcon} source={currentMealMeta.icon} />
+                  <Text style={styles.ysText}>{currentMealMeta.title}</Text>
                 </Flex>
-                <Flex justify='center' style={styles.wlrBox}>
-                  <Text style={styles.wlrText}>未录入</Text>
+                <Flex
+                  justify='center'
+                  style={[styles.wlrBox, hasLoggedCurrentMeal ? styles.wlrBoxLogged : null]}>
+                  <Text style={styles.wlrText}>{hasLoggedCurrentMeal ? '已录入' : '未录入'}</Text>
                 </Flex>
               </View>
               <View style={styles.line}>
@@ -219,21 +368,27 @@ export default function HomeTab() {
                   <View key={index} style={styles.lineDash} />
                 ))}
               </View>
-              <View style={{ flex: 1 }}>
-                <Flex justify='between'>
-                  <Flex style={styles.foodBox} justify='center'>
-                    <Text style={styles.foodText}>小米粥</Text>
-                  </Flex>
-                  <Flex style={styles.foodBox} justify='center'>
-                    <Text style={styles.foodText}>鸡蛋</Text>
-                  </Flex>
-                  <Flex style={styles.foodBox} justify='center'>
-                    <Text style={styles.foodText}>玉米</Text>
-                  </Flex>
-                </Flex>
+              <View style={styles.foodArea}>
+                <View style={styles.foodList}>
+                  {displayFoods.length > 0 ? (
+                    displayFoods.map((food, index) => (
+                      <View key={`${food}-${index}`} style={styles.foodBox}>
+                        <Text style={styles.foodText}>{food}</Text>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.foodBox}>
+                      <Text style={styles.foodText}>暂无建议</Text>
+                    </View>
+                  )}
+                </View>
                 <Flex style={styles.jyBox} justify='center'>
                   <Image source={require('@/assets/images/home/jy.png')} style={styles.jyIcon} />
-                  <Text style={styles.jyText}>建议热量：523千卡</Text>
+                  <Text style={styles.jyText}>
+                    {hasLoggedCurrentMeal
+                      ? `本餐热量：${formatNutritionInteger(displayCalories)}千卡`
+                      : `建议热量：${formatNutritionInteger(displayCalories)}千卡`}
+                  </Text>
                 </Flex>
               </View>
             </Flex>

@@ -12,7 +12,7 @@ import { Flex, Picker } from '@ant-design/react-native';
 import moment, { type Moment } from 'moment';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/schedule/calendar';
-import { getScheduleMonthlyOverview } from '@/api/schedule';
+// import { getScheduleMonthlyOverview } from '@/api/schedule';
 import { isApiOk } from '@/src/utils/apiHelpers';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -188,20 +188,20 @@ export default function ScheduleCalendarPage() {
   const dateHeader = `${moment(selectedDate).format('YYYY.MM.DD')} ${WEEKDAY_LABELS[moment(selectedDate).day()]}`;
 
   const loadMonthlyOverview = useCallback(async (month: Moment) => {
-    setLoadingMonth(true);
-    try {
-      const res = await getScheduleMonthlyOverview(month.format('YYYY-MM'));
-      if (isApiOk(res as { code?: number })) {
-        const data = (res as { data?: unknown }).data;
-        setMarkedDates(normalizeMarkedDates(data));
-      } else {
-        setMarkedDates(new Set());
-      }
-    } catch {
-      setMarkedDates(new Set());
-    } finally {
-      setLoadingMonth(false);
-    }
+    // setLoadingMonth(true);
+    // try {
+    //   const res = await getScheduleMonthlyOverview(month.format('YYYY-MM'));
+    //   if (isApiOk(res as { code?: number })) {
+    //     const data = (res as { data?: unknown }).data;
+    //     setMarkedDates(normalizeMarkedDates(data));
+    //   } else {
+    //     setMarkedDates(new Set());
+    //   }
+    // } catch {
+    //   setMarkedDates(new Set());
+    // } finally {
+    //   setLoadingMonth(false);
+    // }
   }, []);
 
   useEffect(() => {

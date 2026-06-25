@@ -56,15 +56,9 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#666666",
     },
-    downText: {
+    statusText: {
         fontWeight: 500,
         fontSize: 12,
-        color: "#F33F3E",
-    },
-    statusUpText: {
-        fontWeight: 500,
-        fontSize: 12,
-        color: '#34B69F',
     },
     statusIcon: {
         width: 14,
@@ -113,6 +107,12 @@ const styles = StyleSheet.create({
     },
     ysRight: {
         flex: 1,
+        minWidth: 0,
+    },
+    foodList: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'flex-start',
     },
     ysIcon: {
         width: 24,
@@ -137,7 +137,8 @@ const styles = StyleSheet.create({
         color: "#FFF"
     },
     line: {
-        marginHorizontal: 14,
+        marginLeft: 14,
+        marginRight: 6,
         height: 30,
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -148,19 +149,30 @@ const styles = StyleSheet.create({
         backgroundColor: '#999999',
     },
     foodBox: {
-        width: 56,
-        height: 25,
-        backgroundColor: "rgba(153,153,153,0.08)",
+        flexGrow: 0,
+        flexShrink: 0,
+        alignSelf: 'flex-start',
+        maxWidth: '100%',
+        marginLeft: 8,
+        marginBottom: 8,
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(153,153,153,0.08)',
         borderRadius: 7,
+        justifyContent: 'center',
     },
     foodText: {
         fontWeight: 500,
         fontSize: 12,
-        color: "#333333",
+        color: '#333333',
+        lineHeight: 18,
     },
     jyBox: {
         marginTop: 6,
+        marginLeft: 8,
+        alignSelf: 'flex-start',
         height: 25,
+        paddingHorizontal: 10,
         backgroundColor: "rgba(153,153,153,0.08)",
         borderRadius: 7,
     },
@@ -295,8 +307,94 @@ const styles = StyleSheet.create({
         fontWeight: 400,
         fontSize: 12,
         color: "#999999"
-    }
+    },
+    waterValue: {
+        fontWeight: "bold",
+        fontSize: 24,
+        color: "#333333",
+    },
+    waterTarget: {
+        marginTop: 10,
+        fontWeight: 400,
+        fontSize: 16,
+        color: "#999999",
+    },
+    waterTextCol: {
+        flex: 1,
+        alignItems: 'flex-start',
+        justifyContent: 'flex-end',
+    },
+    waterRow: {
+        marginTop: 16,
+        marginBottom: 20
+    },
+    waterCupWrap: {
+        alignItems: 'center',
+    },
 
+    rowBox: { marginTop: 13 },
+    colImg: {
+        width: 20,
+        height: 20
+    },
+    colText: {
+        marginLeft: 4,
+        fontWeight: 500,
+        fontSize: 14,
+        color: "#999999"
+    },
+    mealTabContainer: {
+        flex: 1,
+    },
+    mealScroll: {
+        paddingHorizontal: 18,
+        paddingTop: 0,
+    },
+    mealScrollContent: {
+        paddingBottom: 85,
+    },
+    mealBottomBar: {
+        position: 'absolute',
+        left: 18,
+        right: 18,
+        bottom: 16,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 27,
+        shadowColor: '#173F7D',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.14,
+        shadowRadius: 8,
+        elevation: 4,
+        paddingHorizontal: 20,
+        paddingVertical: 8,
+        alignItems: 'center',
+        zIndex: 2,
+    },
+    bottomInputWrapper: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginRight: 12,
+        paddingVertical: 4,
+    },
+    dinnerInput: {
+        flex: 1,
+        height: 36,
+        borderRadius: 18,
+        paddingHorizontal: 12,
+        fontSize: 14,
+        color: '#333333',
+    },
+    btmIconBox: {
+        width: 36,
+        height: 36,
+        backgroundColor: "rgba(79,134,238,0.14)",
+        borderRadius: 18
+    },
+    btmIcon: {
+        width: 20,
+        height: 20
+    },
 })
 
 export default styles

@@ -27,6 +27,7 @@ interface SpeechToTextProps {
   onTextChange?: (text: string) => void;
   onStart?: () => void;
   onMicPress?: () => void;
+  onListeningChange?: (listening: boolean) => void;
   disabled?: boolean;
 }
 
@@ -121,7 +122,7 @@ async function resetVoiceSession() {
 }
 
 const SpeechToText = forwardRef<SpeechToTextRef, SpeechToTextProps>(
-  ({ onTextChange, onStart, onMicPress, disabled }, ref) => {
+  ({ onTextChange, onStart, onMicPress, onListeningChange, disabled }, ref) => {
     const [isListening, setIsListening] = useState(false);
     const [language, setLanguage] = useState('zh-CN');
     const onTextChangeRef = useRef(onTextChange);
@@ -139,7 +140,8 @@ const SpeechToText = forwardRef<SpeechToTextRef, SpeechToTextProps>(
 
     useEffect(() => {
       isListeningRef.current = isListening;
-    }, [isListening]);
+      onListeningChange?.(isListening);
+    }, [isListening, onListeningChange]);
 
     useEffect(() => {
       Voice.onSpeechStart = () => {
