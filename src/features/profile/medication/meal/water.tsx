@@ -140,10 +140,10 @@ export default function MealWaterPage() {
     const [targetWater, setTargetWater] = useState<number>();
     const [todayWaterMl, setTodayWaterMl] = useState(0);
 
-    const waterSummary = useMemo(
-        () => getWaterSummary(todayWaterMl, targetWater),
-        [targetWater, todayWaterMl],
-    );
+    const previewWaterSummary = useMemo(() => {
+        const inputMl = Number(waterVolume) || 0;
+        return getWaterSummary(todayWaterMl + inputMl, targetWater);
+    }, [targetWater, todayWaterMl, waterVolume]);
 
     const loadWaterData = useCallback(async () => {
         try {
@@ -269,9 +269,9 @@ export default function MealWaterPage() {
                     </View>
                 </View>
                 <Flex justify='center' style={styles.lineBoxWrap}>
-                    <Text style={styles.lineBoxText}>今日完成：{waterSummary.percent}%</Text>
+                    <Text style={styles.lineBoxText}>今日完成：{previewWaterSummary.percent}%</Text>
                     <View style={styles.lineBox} />
-                    <Text style={styles.lineBoxText}>剩余{waterSummary.remainingMl}ml</Text>
+                    <Text style={styles.lineBoxText}>剩余{previewWaterSummary.remainingMl}ml</Text>
                 </Flex>
 
                 <View style={styles.cupScene}>
@@ -292,7 +292,7 @@ export default function MealWaterPage() {
                                 source={require('@/assets/images/medication/meal/jian.png')}
                             />
                         </TouchableOpacity>
-                        <WaterCup fillPercent={waterSummary.percent} />
+                        <WaterCup fillPercent={previewWaterSummary.percent} />
                         <TouchableOpacity
                             activeOpacity={0.7}
                             style={styles.cupAdjustBtnRight}

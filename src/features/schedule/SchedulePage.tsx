@@ -312,8 +312,19 @@ export default function SchedulePage() {
                 <Text style={styles.titleText}>今日任务</Text>
               </Flex>
               <Flex wrap="wrap" justify='between' style={styles.tasksBox}>
-                {todayTasks.map(task => (
-                  <View style={styles.tasksCol} key={task.key}>
+                {todayTasks.map((task, index) => (
+                  <TouchableOpacity
+                    style={styles.tasksCol}
+                    key={task.key}
+                    onPress={() => {
+                      const rule = prescription?.ruleRatioList?.[index];
+                      navigation.navigate('PlayerPage', {
+                        exerciseType: rule?.exerciseType,
+                        exerciseChildType: rule?.exerciseChildType,
+                        strengthLevel: rule?.strengthLevel,
+                        taskIndex: index,
+                      });
+                    }}>
                     <Flex>
                       <Image style={styles.exerciseImg} source={task.icon} />
                       <Text style={styles.tasksTitle}>{task.title}</Text>
@@ -323,7 +334,7 @@ export default function SchedulePage() {
                     <View style={styles.taskProgressWrap}>
                       <TaskProgressRing progress={task.progress} />
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </Flex>
             </>
@@ -366,8 +377,9 @@ export default function SchedulePage() {
               <View style={styles.borderBox}></View>
               <Text style={styles.titleText}>历史计划</Text>
             </Flex>
+            {/* navigation.navigate('ExercisePage') */}
             {historyTotal > 0 ? (
-              <TouchableOpacity onPress={() => navigation.navigate('ExercisePage')}>
+              <TouchableOpacity onPress={() => navigation.navigate('ScheduleHistoryPage')}>
                 <Text style={styles.allBtn}>全部</Text>
               </TouchableOpacity>
             ) : null}

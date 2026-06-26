@@ -7,6 +7,7 @@ import {
   buildLastAssessmentMap,
   canStartAssessment,
   getNextAssessmentDate,
+  QUESTIONNAIRE_CONFIG,
   QUESTIONNAIRE_TITLES,
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import type { ChatGuideState } from './types';
@@ -22,12 +23,6 @@ export const QUESTIONNAIRE_ASSISTANT_ICONS: ImageSourcePropType[] = [
   require('@/assets/images/assistant/icon2.png'),
 ];
 
-const ASSISTANT_QUESTIONNAIRE_BASE_LIST: { type: QuestionnaireType; duration: string }[] = [
-  { type: 0, duration: '2-4分钟' },
-  { type: 1, duration: '2-3分钟' },
-  { type: 2, duration: '3-5分钟' },
-];
-
 export type AssistantQuestionnaireItem = {
   type: QuestionnaireType;
   title: string;
@@ -39,13 +34,13 @@ export type AssistantQuestionnaireItem = {
 
 export function buildAssistantQuestionnaireItems(records: UserQuestionRecord[]): AssistantQuestionnaireItem[] {
   const lastMap = buildLastAssessmentMap(records);
-  return ASSISTANT_QUESTIONNAIRE_BASE_LIST.map((item, index) => {
+  return QUESTIONNAIRE_CONFIG.map((item, index) => {
     const lastDate = lastMap[item.type]?.date;
     return {
       type: item.type,
       title: QUESTIONNAIRE_TITLES[item.type],
       duration: item.duration,
-      iconIndex: index,
+      iconIndex: index % QUESTIONNAIRE_ASSISTANT_ICONS.length,
       canStart: canStartAssessment(item.type, lastDate),
       nextAssessmentDate: getNextAssessmentDate(item.type, lastDate),
     };

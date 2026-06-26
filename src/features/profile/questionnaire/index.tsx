@@ -122,6 +122,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         try {
             const res = (await getQuestionTemplateList(type)) as unknown as QuestionTemplateListResult;
             const list = (apiResourceData<QuestionTemplate[]>(res) ?? [])
+                .filter(item => item.delFlag !== '1')
                 .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
             setTemplates(list);
             setCurrentIndex(0);

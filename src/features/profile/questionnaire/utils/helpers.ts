@@ -17,8 +17,18 @@ export const QUESTIONNAIRE_TITLES: Record<QuestionnaireType, string> = {
     0: '跌倒风险评估问卷',
     1: '日常生活能力评估',
     2: '营养风险评估',
-    3: '认知功能评估',
+    3: 'EQ-5D生活质量评估',
 };
+
+export const QUESTIONNAIRE_CONFIG: ReadonlyArray<{
+    type: QuestionnaireType;
+    duration: string;
+}> = [
+    { type: 0, duration: '2-4分钟' },
+    { type: 1, duration: '2-3分钟' },
+    { type: 2, duration: '3-5分钟' },
+    { type: 3, duration: '3-5分钟' },
+];
 
 const ASSESSMENT_INTERVAL_MONTHS: Partial<Record<QuestionnaireType, number>> = {
     0: 3,
@@ -177,8 +187,8 @@ export type AssessmentSummary = {
     statusStyle: StatusStyleKey;
 };
 
-function isListQuestionnaireType(type?: QuestionnaireType): type is 0 | 1 | 2 {
-    return type === 0 || type === 1 || type === 2;
+function isListQuestionnaireType(type?: QuestionnaireType): type is QuestionnaireType {
+    return type != null && QUESTIONNAIRE_CONFIG.some(item => item.type === type);
 }
 
 export function formatAssessmentResult(record: UserQuestionRecord): ScoreLevel | undefined {

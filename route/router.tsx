@@ -36,6 +36,8 @@ import AssistantPage from '@/src/features/assistant/AssistantPage';
 
 // 里程碑
 import CalendarPage from '@/src/features/schedule/calendarPage';
+import ScheduleHistoryPage from '@/src/features/schedule/scheduleHistoryPage';
+import PlayerPage from '@/src/features/schedule/player';
 
 // 饮食运动
 import NutritionPage from '@/src/features/home/nutrition';
@@ -117,6 +119,13 @@ export type RootStackParamList = {
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' };
   CalendarPage: undefined;
+  ScheduleHistoryPage: undefined;
+  PlayerPage: {
+    exerciseType?: string;
+    exerciseChildType?: string;
+    strengthLevel?: string;
+    taskIndex?: number;
+  } | undefined;
   Medication: { tab?: 'medication' | 'meal'; resetMealInput?: boolean } | undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
@@ -281,6 +290,8 @@ export default function RootStack() {
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
+      <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
+      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '' }} />
       <Stack.Screen name="Medication" component={MedicationPage} options={{ title: '用药记录' }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: '添加用药记录' }} />
       <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />

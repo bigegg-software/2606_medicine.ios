@@ -185,6 +185,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 6
   },
+  historyPage: { padding: 18, paddingBottom: 40 },
+  historyPageBody: { flex: 1 },
+  historyFilterSection: { paddingHorizontal: 18, paddingTop: 18 },
+  historyListScroll: { flex: 1 },
+  historyListContent: { paddingHorizontal: 18, paddingBottom: 40 },
+  historyListContentEmpty: { flexGrow: 1 },
+  historyEmptyWrap: { flex: 1, justifyContent: 'center', paddingTop: 40 },
+  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  filterItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#F1F6FF',
+  },
+  filterItemActive: {
+    backgroundColor: AppTheme.primaryColor,
+  },
+  filterText: {
+    fontWeight: 400,
+    fontSize: 14,
+    color: '#333333',
+  },
+  filterTextActive: {
+    color: '#FFFFFF',
+  },
+  loadMoreText: {
+    textAlign: 'center',
+    fontSize: 14,
+    color: AppTheme.textSecondary,
+    marginTop: 16,
+  },
 })
 
 export default styles

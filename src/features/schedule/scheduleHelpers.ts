@@ -6,15 +6,17 @@ import {
   getDictDataByType,
   type DictDataItem,
 } from '@/api/dict';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   getDayTypeListDetailByCustomerLocalDate,
   getExerciseTypeStatis,
+  getHistoryExPatientRuleList,
   getScheduleWeekCalendarList,
   type DayTypeDetailItem,
   type ExPatientRuleRatio,
   type ExerciseTypeStatisItem,
   type HistoryExPatientRule,
+  type HistoryListResult,
   type InUseExPatientRule,
   type WeekCalendarItem,
 } from '@/api/schedule';
@@ -392,4 +394,47 @@ export function sortHistoryPlans(items: HistoryExPatientRule[]) {
   return [...items].sort(
     (a, b) => moment(getHistorySortTime(b)).valueOf() - moment(getHistorySortTime(a)).valueOf(),
   );
+}
+
+export type HistoryPlanFilter = 'all' | 'paused' | 'ended';
+
+export const HISTORY_PLAN_FILTER_OPTIONS: { label: string; value: HistoryPlanFilter }[] = [
+  { label: '全部', value: 'all' },
+  { label: '已暂停', value: 'paused' },
+  { label: '已结束', value: 'ended' },
+];
+
+export async function fetchHistoryPlanPage(
+  filter: HistoryPlanFilter,
+  pageNum: number,
+  pageSize: number,
+): Promise<{ rows: HistoryExPatientRule[]; hasMore: boolean }> {
+  if (filter === 'paused') {
+    const res = await getHistoryExPatientRuleList({ status: 1, pageSize, pageNum });
+    const rows = getResourceRows<HistoryExPatientRule>(res);
+    const total = (res as unknown as HistoryListResult).total ?? 0;
+    return { rows, hasMore: pageNum * pageSize < total };
+  }
+
+  if (filter === 'ended') {
+    const res = await getHistoryExPatientRuleList({ status: 2, pageSize, pageNum });
+    const rows = getResourceRows<HistoryExPatientRule>(res);
+    const total = (res as unknown as HistoryListResult).total ?? 0;
+    return { rows, hasMore: pageNum * pageSize < total };
+  }
+
+  const [pausedRes, endedRes] = await Promise.all([
+    getHistoryExPatientRuleList({ status: 1, pageSize, pageNum }),
+    getHistoryExPatientRuleList({ status: 2, pageSize, pageNum }),
+  ]);
+  const rows = sortHistoryPlans([
+    ...getResourceRows<HistoryExPatientRule>(pausedRes),
+    ...getResourceRows<HistoryExPatientRule>(endedRes),
+  ]);
+  const pausedTotal = (pausedRes as unknown as HistoryListResult).total ?? 0;
+  const endedTotal = (endedRes as unknown as HistoryListResult).total ?? 0;
+  return {
+    rows,
+    hasMore: pageNum * pageSize < pausedTotal || pageNum * pageSize < endedTotal,
+  };
 }

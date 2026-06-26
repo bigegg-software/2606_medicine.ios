@@ -118,14 +118,18 @@ const SWIPE_TRANSITION = 16;
 const SWIPE_ANIM_DURATION = 180;
 const MEAL_KEYBOARD_GAP = 12;
 
-function MealStackSwiper({ meals }: { meals: MealCardData[] }) {
+function MealStackSwiper({ meals, initialIndex = 0 }: { meals: MealCardData[]; initialIndex?: number }) {
     const [activeIndex, setActiveIndex] = useState(0);
     const translateY = useSharedValue(0);
     const isAnimating = useSharedValue(false);
 
     useEffect(() => {
-        setActiveIndex(0);
-    }, [meals]);
+        if (meals.length === 0) {
+            setActiveIndex(0);
+            return;
+        }
+        setActiveIndex(Math.min(Math.max(initialIndex, 0), meals.length - 1));
+    }, [meals, initialIndex]);
 
     const changeIndex = useCallback((direction: 1 | -1) => {
         if (meals.length === 0) return;
@@ -241,10 +245,6 @@ function getCurrentMealKey(date = new Date()): CurrentMealKey {
     return 'dinner';
 }
 
-function getMealCardsByTime(meals: MealCardData[], mealKey: CurrentMealKey) {
-    return meals.filter(meal => meal.key.startsWith(mealKey));
-}
-
 const MEAL_LABEL_KEYS = Object.keys(MEAL_LABELS);
 const MEAL_ARROW_WIDTH = 22;
 const MEAL_ARROW_HALF = MEAL_ARROW_WIDTH / 2;
@@ -343,10 +343,10 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
 
     const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
     const currentMealKey = getCurrentMealKey();
-    const currentMealSuggestionCards = useMemo(
-        () => getMealCardsByTime(dietSummary.mealCards, currentMealKey),
-        [currentMealKey, dietSummary.mealCards],
-    );
+    const mealSuggestionInitialIndex = useMemo(() => {
+        const index = dietSummary.mealCards.findIndex(meal => meal.key.startsWith(currentMealKey));
+        return index >= 0 ? index : 0;
+    }, [currentMealKey, dietSummary.mealCards]);
     const todayWaterMl = useMemo(() => sumWaterIntake(todayMealList), [todayMealList]);
     const todayCalories = useMemo(() => sumCalories(todayMealList), [todayMealList]);
     const todayProtein = useMemo(() => sumProtein(todayMealList), [todayMealList]);
@@ -586,7 +586,10 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                         <Flex justify='between'>
                             <Text style={[styles.cfIconText, { marginLeft: 9 }]}>餐食建议</Text>
                         </Flex>
-                        <MealStackSwiper meals={currentMealSuggestionCards} />
+                        <MealStackSwiper
+                            meals={dietSummary.mealCards}
+                            initialIndex={mealSuggestionInitialIndex}
+                        />
                     </View>
 
                     <Flex justify='between' style={{ marginTop: 19 }}>

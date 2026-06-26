@@ -16,9 +16,14 @@ export const FOOD_UNIT_LABELS = [
     '盘',
 ] as const;
 
-export type FoodUnitValue = (typeof FOOD_UNIT_LABELS)[number];
+export type FoodUnitOption = {
+    label: string;
+    value: string;
+};
 
-export const FOOD_UNITS = FOOD_UNIT_LABELS.map(label => ({
+export type FoodUnitValue = string;
+
+export const FOOD_UNITS: FoodUnitOption[] = FOOD_UNIT_LABELS.map(label => ({
     label,
     value: label,
 }));
@@ -33,7 +38,7 @@ export const FOOD_UNIT = {
 
 const DEFAULT_UNIT = FOOD_UNIT.portion;
 
-const LEGACY_UNIT_MAP: Record<number, FoodUnitValue> = {
+const LEGACY_UNIT_MAP: Record<number, string> = {
     1: FOOD_UNIT.portion,
     2: FOOD_UNIT.gram,
     3: FOOD_UNIT.bowl,
@@ -41,17 +46,35 @@ const LEGACY_UNIT_MAP: Record<number, FoodUnitValue> = {
     5: FOOD_UNIT.cup,
 };
 
+function normalizeFoodUnit(unit?: string) {
+    const normalized = unit?.trim();
+    return normalized || undefined;
+}
+
+function isKnownFoodUnit(unit: string) {
+    return (FOOD_UNIT_LABELS as readonly string[]).includes(unit);
+}
+
+/** AI 识别单位不在预设列表时，将其插入到单位选项第一位。 */
+export function buildFoodUnitOptions(recognizedUnit?: string): FoodUnitOption[] {
+    const normalized = normalizeFoodUnit(recognizedUnit);
+    if (!normalized || isKnownFoodUnit(normalized)) {
+        return FOOD_UNITS;
+    }
+    return [{ label: normalized, value: normalized }, ...FOOD_UNITS];
+}
+
 export function resolveFoodUnitValue(
     servingUnit?: number | string,
     unit?: string,
 ): FoodUnitValue {
-    if (unit && FOOD_UNITS.some(item => item.value === unit)) {
-        return unit as FoodUnitValue;
+    const normalizedUnit = normalizeFoodUnit(unit);
+    if (normalizedUnit) {
+        return normalizedUnit;
     }
     if (typeof servingUnit === 'string') {
-        return FOOD_UNITS.some(item => item.value === servingUnit)
-            ? (servingUnit as FoodUnitValue)
-            : DEFAULT_UNIT;
+        const normalizedServingUnit = normalizeFoodUnit(servingUnit);
+        return normalizedServingUnit ?? DEFAULT_UNIT;
     }
     if (typeof servingUnit === 'number') {
         return LEGACY_UNIT_MAP[servingUnit] ?? DEFAULT_UNIT;

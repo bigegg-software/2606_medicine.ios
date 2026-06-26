@@ -13,7 +13,7 @@ import type { ManualCorrectionSavePayload } from '../manualCorrectionHelpers';
 import { useNavigation } from '@react-navigation/native';
 import {
     FOOD_UNIT,
-    FOOD_UNITS,
+    buildFoodUnitOptions,
     isGramUnit,
     resolveFoodUnitValue,
     type FoodUnitValue,
@@ -22,6 +22,7 @@ import {
 export {
     FOOD_UNIT_LABELS,
     FOOD_UNITS,
+    buildFoodUnitOptions,
     isGramUnit,
     resolveFoodUnitValue,
     type FoodUnitValue,
@@ -97,6 +98,7 @@ export default function FoodDetailCard({
 }: Props) {
     const navigation: any = useNavigation();
     const sliderConfig = useMemo(() => getSliderConfig(state.unitValue), [state.unitValue]);
+    const unitOptions = useMemo(() => buildFoodUnitOptions(item.unit), [item.unit]);
     const [sliderKey, setSliderKey] = useState(0);
 
     const calorie = toNumber(item.calorie);
@@ -255,11 +257,11 @@ export default function FoodDetailCard({
                                 horizontal
                                 showsHorizontalScrollIndicator={false}
                                 contentContainerStyle={styles.unitRow}>
-                                {FOOD_UNITS.map(unit => {
+                                {unitOptions.map(unit => {
                                     const selected = state.unitValue === unit.value;
                                     return (
                                         <TouchableOpacity
-                                            key={unit.label}
+                                            key={unit.value}
                                             activeOpacity={0.7}
                                             onPress={() => handleUnitChange(unit.value)}>
                                             <View style={[styles.unitChip, selected && styles.unitChipSelected]}>

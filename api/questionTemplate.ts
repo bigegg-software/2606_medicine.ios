@@ -1,6 +1,6 @@
 import request from '@/utils/axios';
 
-/** 0 跌倒 1 ADL 2 营养 3 认知 */
+/** 0 跌倒风险评估 1 日常生活能力评估 2 营养风险评估 3 EQ-5D生活质量评估 */
 export type QuestionnaireType = 0 | 1 | 2 | 3;
 
 export type QuestionOptionItem = {

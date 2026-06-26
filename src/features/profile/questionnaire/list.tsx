@@ -18,22 +18,13 @@ import {
     buildLastAssessmentMap,
     canStartAssessment,
     getNextAssessmentDate,
+    QUESTIONNAIRE_CONFIG,
     QUESTIONNAIRE_TITLES,
     sortRecordsByTime,
     toHistoryItem,
     type AssessmentSummary,
     type HistoryItem,
 } from './utils/helpers';
-
-const QUESTIONNAIRE_LIST: {
-    type: QuestionnaireType;
-    title: string;
-    duration: string;
-}[] = [
-        { type: 0, title: QUESTIONNAIRE_TITLES[0], duration: '2-4分钟' },
-        { type: 1, title: QUESTIONNAIRE_TITLES[1], duration: '2-3分钟' },
-        { type: 2, title: QUESTIONNAIRE_TITLES[2], duration: '3-5分钟' },
-    ];
 
 export default function QuestionnaireListPage() {
     const navigation: any = useNavigation();
@@ -92,7 +83,7 @@ export default function QuestionnaireListPage() {
                     />
                 }>
                 <Text style={styles.sectionTitle}>评估问卷</Text>
-                {QUESTIONNAIRE_LIST.map(item => {
+                {QUESTIONNAIRE_CONFIG.map(item => {
                     const lastAssessment = lastAssessmentByType[item.type];
                     const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
                     const statusStyle = styles[lastAssessment?.statusStyle ?? 'rowStatus'];
@@ -102,7 +93,7 @@ export default function QuestionnaireListPage() {
                     return (
                         <View key={item.type} style={styles.rowBox}>
                             <Flex justify="between">
-                                <Text style={styles.rowTitle}>{item.title}</Text>
+                                <Text style={styles.rowTitle}>{QUESTIONNAIRE_TITLES[item.type]}</Text>
                                 <Text style={styles.rowText}>预计时间：{item.duration}</Text>
                             </Flex>
                             <Flex justify="between" style={styles.btmBox}>
