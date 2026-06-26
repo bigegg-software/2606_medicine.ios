@@ -10,7 +10,8 @@ export type FoodIdentifyItem = {
     carbs?: number | string;
     fiber?: number | string;
     amount?: number;
-    servingUnit?: number;
+    unit?: string;
+    servingUnit?: number | string;
     weight?: number;
     mealCategory?: number;
     othersNutrition?: Record<string, unknown>;

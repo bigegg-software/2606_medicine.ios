@@ -23,12 +23,20 @@ export default function MedicationPage() {
         () => route.params?.tab ?? 'medication',
     );
     const navigation: any = useNavigation();
+    const [mealInputResetToken, setMealInputResetToken] = useState(0);
 
     useEffect(() => {
         if (route.params?.tab) {
             setActiveNav(route.params.tab);
         }
     }, [route.params?.tab]);
+
+    useEffect(() => {
+        if (!route.params?.resetMealInput) return;
+        setActiveNav('meal');
+        setMealInputResetToken(prev => prev + 1);
+        navigation.setParams({ resetMealInput: undefined });
+    }, [navigation, route.params?.resetMealInput]);
 
     useEffect(() => {
         navigation.setOptions({
@@ -69,7 +77,7 @@ export default function MedicationPage() {
                 ))}
             </Flex>
 
-            {activeNav === 'medication' ? <MedicationTab /> : <MealTab />}
+            {activeNav === 'medication' ? <MedicationTab /> : <MealTab resetToken={mealInputResetToken} />}
         </PageLayout>
     );
 }

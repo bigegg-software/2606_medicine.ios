@@ -14,6 +14,7 @@ import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
 import FoodDetailCard, {
     createFoodItemState,
+    isGramUnit,
     type FoodItemEditState,
 } from './components/FoodDetailCard';
 import NutritionTable from './components/NutritionTable';
@@ -42,7 +43,8 @@ function buildMealDetailItems(
             mealName: item.mealName || '未知食物',
             servingAmount: state.amount,
             servingUnit: state.unitValue,
-            weight: state.unitValue === 2 ? state.amount : toNumber(item.weight),
+            unit: state.unitValue,
+            weight: isGramUnit(state.unitValue) ? state.amount : toNumber(item.weight),
             mealCategory: item.mealCategory ?? getMealCategoryByTime(),
             calorie: toNumber(item.calorie),
             protein: toNumber(item.protein),
@@ -141,7 +143,7 @@ export default function MealResultPage() {
             })) as { code?: number; msg?: string; message?: string };
             if (isResourceApiOk(res)) {
                 Toast.success('记录成功');
-                navigation.goBack();
+                navigation.navigate('Medication', { tab: 'meal', resetMealInput: true });
                 return;
             }
             Toast.fail(res?.msg || res?.message || '保存失败');

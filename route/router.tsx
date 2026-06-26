@@ -117,7 +117,7 @@ export type RootStackParamList = {
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' };
   CalendarPage: undefined;
-  Medication: { tab?: 'medication' | 'meal' } | undefined;
+  Medication: { tab?: 'medication' | 'meal'; resetMealInput?: boolean } | undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
   MedicationHistoryPage: undefined;

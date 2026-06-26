@@ -17,7 +17,6 @@ import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
-import { FOOD_UNITS } from './components/FoodDetailCard';
 import {
     ADDABLE_NUTRIENT_OPTIONS,
     adjustServingAmount,
@@ -58,10 +57,7 @@ export default function ManualCorrectionPage() {
         });
     }, []);
 
-    const unitLabel = useMemo(
-        () => FOOD_UNITS.find(unit => unit.value === form.servingUnit)?.label ?? '份',
-        [form.servingUnit],
-    );
+    const unitLabel = form.servingUnit;
 
     const availableNutrients = useMemo(
         () => ADDABLE_NUTRIENT_OPTIONS.filter(option => !form.visibleNutrients.includes(option.key)),

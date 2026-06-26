@@ -325,7 +325,7 @@ function WaterCupIcon({ fillRatio = 500 / 2000 }: { fillRatio?: number }) {
     );
 }
 
-export default function MealTab() {
+export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const navigation: any = useNavigation();
     const insets = useSafeAreaInsets();
     const [selectedMeal, setSelectedMeal] = useState<string>(getCurrentMealKey);
@@ -460,12 +460,23 @@ export default function MealTab() {
         Keyboard.dismiss();
     }, []);
 
-    const handleClearInput = useCallback(() => {
+    const resetMealInputState = useCallback(() => {
         setDinnerNote('');
         voiceBaseTextRef.current = '';
+        setIsVoiceListening(false);
         void speechToTextRef.current?.stopListening();
         Keyboard.dismiss();
     }, []);
+
+    useEffect(() => {
+        if (resetToken > 0) {
+            resetMealInputState();
+        }
+    }, [resetToken, resetMealInputState]);
+
+    const handleClearInput = useCallback(() => {
+        resetMealInputState();
+    }, [resetMealInputState]);
 
     const handleTextRecognize = useCallback(() => {
         const text = dinnerNote.trim();

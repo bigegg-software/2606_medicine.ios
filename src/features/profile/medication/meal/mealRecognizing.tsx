@@ -119,7 +119,7 @@ export default function MealRecognizingPage() {
                     <AvatarRingRipple size={INNER_RING_SIZE} index={1} />
                     <View style={styles.iconWrap}>
                         <Image
-                            source={imageUri ? { uri: imageUri } : require('@/assets/icon.png')}
+                            source={imageUri ? { uri: imageUri } : require('@/assets/images/medication/default1.png')}
                             style={styles.icon}
                         />
                     </View>

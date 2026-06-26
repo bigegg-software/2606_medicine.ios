@@ -3,6 +3,7 @@ import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
+import type { MealDetailItem } from '@/api/mealDetail';
 import styles from '@/css/medication/deal/mealResult';
 import { toNumber } from '@/src/features/profile/medication/meal/mealDetailHelpers';
 import SleepRulerSlider from '@/src/features/profile/vitals/components/SleepRulerSlider';
@@ -10,59 +11,67 @@ import NutritionTable from './NutritionTable';
 import { buildItemNutritionEntries } from '../mealNutritionHelpers';
 import type { ManualCorrectionSavePayload } from '../manualCorrectionHelpers';
 import { useNavigation } from '@react-navigation/native';
+import {
+    FOOD_UNIT,
+    FOOD_UNITS,
+    isGramUnit,
+    resolveFoodUnitValue,
+    type FoodUnitValue,
+} from '../foodUnitHelpers';
 
-export const FOOD_UNITS = [
-    { label: '份', value: 1 },
-    { label: '克', value: 2 },
-    { label: '碗', value: 3 },
-    { label: '袋', value: 4 },
-    { label: '杯', value: 5 },
-] as const;
+export {
+    FOOD_UNIT_LABELS,
+    FOOD_UNITS,
+    isGramUnit,
+    resolveFoodUnitValue,
+    type FoodUnitValue,
+} from '../foodUnitHelpers';
 
 export type FoodItemEditState = {
     expanded: boolean;
     editMode: boolean;
     amount: number;
-    unitValue: number;
+    unitValue: FoodUnitValue;
 };
 
 export function createFoodItemState(item: FoodIdentifyItem): FoodItemEditState {
-    const unitValue = item.servingUnit ?? 1;
-    const matchedUnit = FOOD_UNITS.find(unit => unit.value === unitValue);
     return {
         expanded: true,
         editMode: false,
         amount: toNumber(item.amount ?? 1) || 1,
-        unitValue: matchedUnit?.value ?? 1,
+        unitValue: resolveFoodUnitValue(item.servingUnit, item.unit),
     };
 }
 
-function getUnitLabel(unitValue: number) {
-    return FOOD_UNITS.find(unit => unit.value === unitValue)?.label ?? '份';
+export function createFoodItemStateFromMealDetail(item: MealDetailItem): FoodItemEditState {
+    return {
+        expanded: true,
+        editMode: true,
+        amount: toNumber(item.servingAmount ?? 1) || 1,
+        unitValue: resolveFoodUnitValue(item.servingUnit, item.unit),
+    };
 }
 
-function getSliderConfig(unitValue: number) {
-    if (unitValue === 2) {
+function getSliderConfig(unitValue: FoodUnitValue) {
+    if (isGramUnit(unitValue)) {
         return { min: 10, max: 500, step: 10, patternUnitSize: 50 };
     }
     return { min: 0.5, max: 10, step: 0.5, patternUnitSize: 1 };
 }
 
-function formatAmountLabel(amount: number, unitValue: number) {
-    const unitLabel = getUnitLabel(unitValue);
-    const displayAmount = unitValue === 2 ? Math.round(amount) : amount;
-    return `${displayAmount}${unitLabel}`;
+function formatAmountLabel(amount: number, unitValue: FoodUnitValue) {
+    const displayAmount = isGramUnit(unitValue) ? Math.round(amount) : amount;
+    return `${displayAmount}${unitValue}`;
 }
 
 function formatServingMeta(item: FoodIdentifyItem, state: FoodItemEditState) {
-    const unitLabel = getUnitLabel(state.unitValue);
+    const amountText = `${state.amount}${state.unitValue}`;
     const weight = toNumber(item.weight);
-    const amountText = `${state.amount}${unitLabel}`;
-    if (weight > 0 && state.unitValue !== 2) {
-        return `${amountText}·约${weight}克`;
+    if (weight > 0 && !isGramUnit(state.unitValue)) {
+        return `${amountText}·约${weight}${FOOD_UNIT.gram}`;
     }
-    if (state.unitValue === 2) {
-        return `${Math.round(state.amount)}克`;
+    if (isGramUnit(state.unitValue)) {
+        return `${Math.round(state.amount)}${FOOD_UNIT.gram}`;
     }
     return amountText;
 }
@@ -74,6 +83,7 @@ type Props = {
     recordTime: string;
     onChange: (next: FoodItemEditState) => void;
     onCorrected: (payload: ManualCorrectionSavePayload) => void;
+    readOnly?: boolean;
 };
 
 export default function FoodDetailCard({
@@ -83,6 +93,7 @@ export default function FoodDetailCard({
     recordTime,
     onChange,
     onCorrected,
+    readOnly = false,
 }: Props) {
     const navigation: any = useNavigation();
     const sliderConfig = useMemo(() => getSliderConfig(state.unitValue), [state.unitValue]);
@@ -115,12 +126,14 @@ export default function FoodDetailCard({
     };
 
     const handleExpand = () => {
-        onChange({ ...state, expanded: true });
+        onChange({ ...state, expanded: true, editMode: readOnly ? true : state.editMode });
     };
 
-    const handleUnitChange = (unitValue: number) => {
+    const showDetailContent = readOnly || (state.expanded && state.editMode);
+
+    const handleUnitChange = (unitValue: FoodUnitValue) => {
         const nextConfig = getSliderConfig(unitValue);
-        const nextAmount = unitValue === 2
+        const nextAmount = isGramUnit(unitValue)
             ? Math.max(nextConfig.min, Math.min(Math.round(state.amount) || nextConfig.min, nextConfig.max))
             : Math.max(nextConfig.min, Math.min(state.amount || nextConfig.min, nextConfig.max));
         setSliderKey(prev => prev + 1);
@@ -132,7 +145,7 @@ export default function FoodDetailCard({
         });
     };
 
-    const headerAction = !state.expanded ? (
+    const headerAction = readOnly ? null : !state.expanded ? (
         <TouchableOpacity activeOpacity={0.7} onPress={handleExpand}>
             <Flex align="center">
                 <Text style={styles.foodExpandText}>展开</Text>
@@ -174,7 +187,7 @@ export default function FoodDetailCard({
                 {headerAction}
             </Flex>
 
-            {state.expanded && state.editMode ? (
+            {showDetailContent ? (
                 <>
                     {showFoodInfo ? (
                         <Flex style={styles.foodInfo}>
@@ -199,7 +212,7 @@ export default function FoodDetailCard({
                                                 <Image style={styles.rlImg} source={row.icon} />
                                                 <Text style={styles.leftText}>{row.label}</Text>
                                             </Flex>
-                                            <Text style={styles.leftText}>{row.value.toFixed(1)}克</Text>
+                                            <Text style={styles.leftText}>{row.value.toFixed(1)}{FOOD_UNIT.gram}</Text>
                                         </Flex>
                                     ))}
                                 </View>
@@ -213,60 +226,66 @@ export default function FoodDetailCard({
                             <NutritionTable entries={nutritionEntries} />
                         </>
                     ) : null}
-                    {showFoodInfo || nutritionEntries.length > 0 ? <View style={styles.btmLine} /> : null}
+                    {!readOnly && (showFoodInfo || nutritionEntries.length > 0) ? <View style={styles.btmLine} /> : null}
 
-                    <Flex style={styles.foodAmount} justify="center">
-                        <Text style={styles.foodAmountText}>
-                            {formatAmountLabel(state.amount, state.unitValue)}
-                        </Text>
-                    </Flex>
+                    {!readOnly ? (
+                        <>
+                            <Flex style={styles.foodAmount} justify="center">
+                                <Text style={styles.foodAmountText}>
+                                    {formatAmountLabel(state.amount, state.unitValue)}
+                                </Text>
+                            </Flex>
 
-                    <View style={styles.sliderWrap}>
-                        <SleepRulerSlider
-                            key={`${state.unitValue}-${sliderKey}`}
-                            min={sliderConfig.min}
-                            max={sliderConfig.max}
-                            step={sliderConfig.step}
-                            patternUnitSize={sliderConfig.patternUnitSize}
-                            initialValue={state.amount}
-                            formatLabel={value =>
-                                state.unitValue === 2 ? String(Math.round(value)) : String(value)
-                            }
-                            onValueChange={amount => onChange({ ...state, amount })}
-                        />
-                    </View>
+                            <View style={styles.sliderWrap}>
+                                <SleepRulerSlider
+                                    key={`${state.unitValue}-${sliderKey}`}
+                                    min={sliderConfig.min}
+                                    max={sliderConfig.max}
+                                    step={sliderConfig.step}
+                                    patternUnitSize={sliderConfig.patternUnitSize}
+                                    initialValue={state.amount}
+                                    formatLabel={value =>
+                                        isGramUnit(state.unitValue) ? String(Math.round(value)) : String(value)
+                                    }
+                                    onValueChange={amount => onChange({ ...state, amount })}
+                                />
+                            </View>
 
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.unitRow}>
-                        {FOOD_UNITS.map(unit => {
-                            const selected = state.unitValue === unit.value;
-                            return (
-                                <TouchableOpacity
-                                    key={unit.label}
-                                    activeOpacity={0.7}
-                                    onPress={() => handleUnitChange(unit.value)}>
-                                    <View style={[styles.unitChip, selected && styles.unitChipSelected]}>
-                                        <Text style={[styles.unitChipText, selected && styles.unitChipTextSelected]}>
-                                            {unit.label}
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                contentContainerStyle={styles.unitRow}>
+                                {FOOD_UNITS.map(unit => {
+                                    const selected = state.unitValue === unit.value;
+                                    return (
+                                        <TouchableOpacity
+                                            key={unit.label}
+                                            activeOpacity={0.7}
+                                            onPress={() => handleUnitChange(unit.value)}>
+                                            <View style={[styles.unitChip, selected && styles.unitChipSelected]}>
+                                                <Text style={[styles.unitChipText, selected && styles.unitChipTextSelected]}>
+                                                    {unit.label}
+                                                </Text>
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView>
+                        </>
+                    ) : null}
 
-                    <TouchableOpacity activeOpacity={0.7} style={styles.collapseToggle} onPress={handleCollapse}>
-                        <Flex justify="center" align="center">
-                            <Text style={styles.expandText}>收起</Text>
-                            <MaterialIcons
-                                name="keyboard-arrow-up"
-                                size={18}
-                                color="rgba(23,63,125,0.66)"
-                            />
-                        </Flex>
-                    </TouchableOpacity>
+                    {!readOnly ? (
+                        <TouchableOpacity activeOpacity={0.7} style={styles.collapseToggle} onPress={handleCollapse}>
+                            <Flex justify="center" align="center">
+                                <Text style={styles.expandText}>收起</Text>
+                                <MaterialIcons
+                                    name="keyboard-arrow-up"
+                                    size={18}
+                                    color="rgba(23,63,125,0.66)"
+                                />
+                            </Flex>
+                        </TouchableOpacity>
+                    ) : null}
                 </>
             ) : null}
         </View>

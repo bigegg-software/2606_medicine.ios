@@ -7,7 +7,8 @@ export type MealDetailItem = {
     customerLocalDate?: string;
     mealName?: string;
     servingAmount?: number;
-    servingUnit?: number;
+    unit?: string;
+    servingUnit?: number | string;
     weight?: number;
     mealCategory?: number;
     calorie?: number;
@@ -28,7 +29,7 @@ export type AddMealDetailItemPayload = {
     mealDetailId?: number;
     mealName?: string;
     servingAmount: number;
-    servingUnit: number;
+    servingUnit: number | string;
     weight: number;
     mealCategory: number;
     calorie: number;
@@ -51,8 +52,26 @@ export type AddMealDetailListPayload = {
     timeStr: string;
 };
 
+export type MealDetailMainInfo = {
+    calorie?: number;
+    protein?: number;
+    fat?: number;
+    carbs?: number;
+    fiber?: number;
+    mealCategory?: number;
+    othersNutrition?: Record<string, unknown>;
+    updateTime?: string;
+};
+
+export type MealDetailInfo = {
+    mainInfo?: MealDetailMainInfo;
+    mealDetailList: MealDetailItem[];
+    ossUrl?: string;
+    timeStr?: string;
+};
+
 export type TodayMealDetailListResult = ApiResult<MealDetailItem[]>;
-export type MealDetailInfoResult = ApiResult<MealDetailItem>;
+export type MealDetailInfoResult = ApiResult<MealDetailInfo | MealDetailItem>;
 
 export const getTodayMealDetailList = () =>
     request.get<TodayMealDetailListResult>('/patient/fitpulse/mealDetail/todayMealDetailList');

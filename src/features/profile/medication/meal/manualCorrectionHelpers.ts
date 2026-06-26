@@ -1,6 +1,7 @@
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
 import { toNumber } from '@/src/features/profile/medication/meal/mealDetailHelpers';
-import type { FoodItemEditState } from './components/FoodDetailCard';
+import type { FoodItemEditState, FoodUnitValue } from './components/FoodDetailCard';
+import { isGramUnit } from './foodUnitHelpers';
 import { ALL_NUTRITION_KEYS, getOtherNutrientValue, NUTRITION_LABELS } from './mealNutritionHelpers';
 
 export type CustomNutrientItem = {
@@ -13,7 +14,7 @@ export type CustomNutrientItem = {
 export type ManualCorrectionForm = {
     mealName: string;
     servingAmount: number;
-    servingUnit: number;
+    servingUnit: FoodUnitValue;
     recordTime: string;
     calorie: string;
     protein: string;
@@ -113,13 +114,14 @@ export function formToFoodIdentifyItem(
         ...original,
         mealName: form.mealName.trim(),
         amount: form.servingAmount,
+        unit: form.servingUnit,
         servingUnit: form.servingUnit,
         calorie: toNumber(form.calorie),
         protein: toNumber(form.protein),
         fat: toNumber(form.fat),
         carbs: toNumber(form.carbs),
         fiber: form.visibleNutrients.includes('fiber') ? toNumber(form.extraNutrition.fiber) : toNumber(original.fiber),
-        weight: form.servingUnit === 2 ? form.servingAmount : toNumber(original.weight),
+        weight: isGramUnit(form.servingUnit) ? form.servingAmount : toNumber(original.weight),
         othersNutrition,
     };
 
@@ -133,23 +135,23 @@ export function formToFoodIdentifyItem(
     return { item, state };
 }
 
-export function getServingStep(unitValue: number) {
-    return unitValue === 2 ? 10 : 0.5;
+export function getServingStep(unitValue: FoodUnitValue) {
+    return isGramUnit(unitValue) ? 10 : 0.5;
 }
 
-export function getServingLimits(unitValue: number) {
-    if (unitValue === 2) {
+export function getServingLimits(unitValue: FoodUnitValue) {
+    if (isGramUnit(unitValue)) {
         return { min: 10, max: 500 };
     }
     return { min: 0.5, max: 10 };
 }
 
-export function adjustServingAmount(amount: number, unitValue: number, delta: number) {
+export function adjustServingAmount(amount: number, unitValue: FoodUnitValue, delta: number) {
     const { min, max } = getServingLimits(unitValue);
     const step = getServingStep(unitValue);
     const next = amount + delta * step;
     const clamped = Math.max(min, Math.min(next, max));
-    return unitValue === 2 ? Math.round(clamped) : parseFloat(clamped.toFixed(1));
+    return isGramUnit(unitValue) ? Math.round(clamped) : parseFloat(clamped.toFixed(1));
 }
 
 export type ManualCorrectionSavePayload = {

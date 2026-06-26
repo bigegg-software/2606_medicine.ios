@@ -1,5 +1,7 @@
-import type { MealDetailItem } from '@/api/mealDetail';
+import type { MealDetailItem, MealDetailInfo, MealDetailMainInfo } from '@/api/mealDetail';
+import type { FoodIdentifyItem } from '@/api/mealRecognition';
 import { calcNutritionProgress } from './dietRuleHelpers';
+import { FOOD_UNIT, isGramUnit, resolveFoodUnitValue } from './foodUnitHelpers';
 
 export const MEAL_CATEGORY_BY_KEY: Record<string, number> = {
     breakfast: 1,
@@ -79,13 +81,109 @@ export function sumProtein(list: MealDetailItem[]): number {
         .reduce((sum, item) => sum + toNumber(item.protein), 0);
 }
 
+
+export function formatServingAmount(value: unknown): string {
+    const num = toNumber(value);
+    if (Number.isInteger(num)) {
+        return String(num);
+    }
+    return String(parseFloat(num.toFixed(4)));
+}
+
 export function formatMealServingText(item: MealDetailItem): string {
     const parts: string[] = [];
-    if (item.servingAmount != null && item.servingUnit != null) {
-        parts.push(`${item.servingAmount}份`);
+    if (item.servingAmount != null) {
+        const unit = resolveFoodUnitValue(item.servingUnit, item.unit);
+        const amount = isGramUnit(unit)
+            ? formatServingAmount(Math.round(toNumber(item.servingAmount)))
+            : formatServingAmount(item.servingAmount);
+        parts.push(`${amount}${unit}`);
     }
-    if (item.weight != null) {
-        parts.push(`约${item.weight}克`);
+    const weight = toNumber(item.weight);
+    if (weight > 0 && item.servingAmount != null) {
+        const unit = resolveFoodUnitValue(item.servingUnit, item.unit);
+        if (!isGramUnit(unit)) {
+            parts.push(`约${formatServingAmount(weight)}${FOOD_UNIT.gram}`);
+        }
     }
     return parts.join('  ') || '--';
+}
+
+function buildMainInfoFromItem(item: MealDetailItem): MealDetailMainInfo {
+    return {
+        calorie: toNumber(item.calorie),
+        protein: toNumber(item.protein),
+        fat: toNumber(item.fat),
+        carbs: toNumber(item.carbs),
+        fiber: toNumber(item.fiber),
+        mealCategory: item.mealCategory,
+        othersNutrition: item.othersNutrition,
+    };
+}
+
+function buildMainInfoFromList(list: MealDetailItem[]): MealDetailMainInfo {
+    return list.reduce<MealDetailMainInfo>(
+        (acc, item) => ({
+            calorie: toNumber(acc.calorie) + toNumber(item.calorie),
+            protein: toNumber(acc.protein) + toNumber(item.protein),
+            fat: toNumber(acc.fat) + toNumber(item.fat),
+            carbs: toNumber(acc.carbs) + toNumber(item.carbs),
+            fiber: toNumber(acc.fiber) + toNumber(item.fiber),
+            mealCategory: acc.mealCategory ?? item.mealCategory,
+            othersNutrition: acc.othersNutrition ?? item.othersNutrition,
+        }),
+        { calorie: 0, protein: 0, fat: 0, carbs: 0, fiber: 0 },
+    );
+}
+
+export function mealDetailItemToFoodItem(item: MealDetailItem): FoodIdentifyItem {
+    const unit =
+        typeof item.unit === 'string'
+            ? item.unit
+            : typeof item.servingUnit === 'string'
+              ? item.servingUnit
+              : undefined;
+
+    return {
+        mealName: item.mealName,
+        calorie: item.calorie,
+        protein: item.protein,
+        fat: item.fat,
+        carbs: item.carbs,
+        fiber: item.fiber,
+        amount: item.servingAmount,
+        unit,
+        servingUnit: item.servingUnit,
+        weight: item.weight,
+        mealCategory: item.mealCategory,
+        othersNutrition: item.othersNutrition,
+    };
+}
+
+export function normalizeMealDetailInfo(
+    data: MealDetailInfo | MealDetailItem | null | undefined,
+): MealDetailInfo | null {
+    if (!data) return null;
+
+    if ('mealDetailList' in data && Array.isArray(data.mealDetailList)) {
+        const mealDetailList = data.mealDetailList.filter(item => item.isWater !== 1);
+        if (mealDetailList.length === 0) return null;
+
+        return {
+            mainInfo: data.mainInfo ?? buildMainInfoFromList(mealDetailList),
+            mealDetailList,
+            ossUrl: data.ossUrl ?? mealDetailList.find(item => item.ossUrl)?.ossUrl,
+            timeStr: data.timeStr ?? mealDetailList.find(item => item.timeStr)?.timeStr,
+        };
+    }
+
+    const item = data as MealDetailItem;
+    if (item.isWater === 1) return null;
+
+    return {
+        mainInfo: buildMainInfoFromItem(item),
+        mealDetailList: [item],
+        ossUrl: item.ossUrl,
+        timeStr: item.timeStr,
+    };
 }

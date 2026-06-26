@@ -15,6 +15,8 @@ import {
     DRUG_TIP_TYPE_OPTIONS,
     buildDrugTipSettingsFromUserExtr,
     buildUpdateDrugTipInfoPayload,
+    applyMedicationCheckInToPlanGroups,
+    applyMedicationCheckInToProgress,
     loadMedicationDictMaps,
     loadMedicationHistory,
     loadMedicationPlanGroups,
@@ -302,7 +304,8 @@ export default function MedicationTab() {
                 return;
             }
             Toast.success('已记录服用', 1.5);
-            await loadPageDataRef.current();
+            setPlanGroups(prev => applyMedicationCheckInToPlanGroups(prev, item.key));
+            setProgress(prev => applyMedicationCheckInToProgress(prev));
         } catch {
             Toast.fail('打卡失败', 1.5);
         } finally {

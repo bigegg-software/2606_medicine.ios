@@ -337,6 +337,28 @@ export function mapMedicationProgress(data?: { takeCount?: number; notTakeCount?
   return { rate, takeCount, notTakeCount };
 }
 
+export function applyMedicationCheckInToPlanGroups(
+  groups: MedicationPlanGroupView[],
+  itemKey: string,
+): MedicationPlanGroupView[] {
+  return groups.map(group => ({
+    ...group,
+    items: group.items.map(planItem =>
+      planItem.key === itemKey
+        ? { ...planItem, taken: true, canCheckIn: false, action: 1 }
+        : planItem,
+    ),
+  }));
+}
+
+export function applyMedicationCheckInToProgress(progress: MedicationProgressView): MedicationProgressView {
+  const takeCount = progress.takeCount + 1;
+  const notTakeCount = Math.max(0, progress.notTakeCount - 1);
+  const total = takeCount + notTakeCount;
+  const rate = total > 0 ? Math.min(100, Math.round((takeCount / total) * 100)) : 0;
+  return { rate, takeCount, notTakeCount };
+}
+
 export async function loadMedicationDictMaps(): Promise<MedicationDictMaps> {
   const requests = [
     { key: 'amountUnit', dictType: DICT_TYPES.drugAmountUnit },
