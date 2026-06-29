@@ -143,7 +143,7 @@ export default function MealResultPage() {
             })) as { code?: number; msg?: string; message?: string };
             if (isResourceApiOk(res)) {
                 Toast.success('记录成功');
-                navigation.navigate('Medication', { tab: 'meal', resetMealInput: true });
+                navigation.replace('Medication', { tab: 'meal', resetMealInput: true });
                 return;
             }
             Toast.fail(res?.msg || res?.message || '保存失败');
@@ -158,7 +158,7 @@ export default function MealResultPage() {
         setFoodItemStates(prev => prev.map((item, itemIndex) => (itemIndex === index ? next : item)));
     }, []);
 
- 
+
     return (
         <PageLayout>
             <View style={styles.page}>
@@ -202,7 +202,7 @@ export default function MealResultPage() {
                             <View style={styles.medicationBox}>
                                 <Flex>
                                     <Image source={require('@/assets/images/medication/icon.png')} style={styles.cfIcon} />
-                                    <Text style={styles.cfIconText}>Life Medicine</Text>
+                                    <Text style={styles.cfIconText}>识别结果</Text>
                                 </Flex>
                                 <Flex style={styles.foodBox}>
                                     <Text style={styles.foodText}>识别到{foods.length}种食物</Text>

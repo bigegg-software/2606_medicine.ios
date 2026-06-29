@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
+    cancelAnimation,
     Easing,
     Extrapolation,
     interpolate,
@@ -42,6 +43,7 @@ import {
     getProteinNutritionDisplay,
     getWaterNutritionDisplay,
     NUTRITION_COLOR,
+    NUTRITION_RING_THEME,
     type MealCardData,
     type NutritionDisplay,
 } from '@/src/features/profile/medication/meal/dietRuleHelpers';
@@ -210,7 +212,13 @@ function MealStackSwiper({ meals, initialIndex = 0 }: { meals: MealCardData[]; i
         return (
             <View style={styles.stackWrap}>
                 <View style={styles.stackMainCard}>
-                    <Text style={styles.mealColText}>今日暂无餐食建议</Text>
+                    <View style={styles.mealSuggestEmpty}>
+                        <Image
+                            style={styles.mealSuggestEmptyIcon}
+                            source={require('@/assets/images/medication/icon.png')}
+                        />
+                        <Text style={styles.mealSuggestEmptyText}>今日暂无餐食建议</Text>
+                    </View>
                 </View>
             </View>
         );
@@ -271,30 +279,38 @@ function buildWaveLiquidPath(baseY: number, phase: number, amplitude: number, fr
     return `${parts.join(' ')} L 54 60 L 0 60 Z`;
 }
 
-function WaterCupIcon({ fillRatio = 500 / 2000 }: { fillRatio?: number }) {
+function WaterCupIcon({ fillRatio = 0 }: { fillRatio?: number }) {
     const targetRatio = Math.min(1, Math.max(0, fillRatio));
+    const hasWater = targetRatio > 0;
     const fillProgress = useSharedValue(targetRatio);
     const wavePhase = useSharedValue(0);
     const ripplePhase = useSharedValue(0);
 
     useEffect(() => {
-        fillProgress.value = 0;
         fillProgress.value = withTiming(targetRatio, {
-            duration: 900,
+            duration: hasWater ? 900 : 0,
             easing: Easing.out(Easing.cubic),
         });
 
-        wavePhase.value = withRepeat(
-            withTiming(Math.PI * 2, { duration: 2200, easing: Easing.linear }),
-            -1,
-            false,
-        );
-        ripplePhase.value = withRepeat(
-            withTiming(Math.PI * 2, { duration: 1600, easing: Easing.linear }),
-            -1,
-            false,
-        );
-    }, [fillProgress, ripplePhase, targetRatio, wavePhase]);
+        if (hasWater) {
+            wavePhase.value = withRepeat(
+                withTiming(Math.PI * 2, { duration: 2200, easing: Easing.linear }),
+                -1,
+                false,
+            );
+            ripplePhase.value = withRepeat(
+                withTiming(Math.PI * 2, { duration: 1600, easing: Easing.linear }),
+                -1,
+                false,
+            );
+            return;
+        }
+
+        cancelAnimation(wavePhase);
+        cancelAnimation(ripplePhase);
+        wavePhase.value = 0;
+        ripplePhase.value = 0;
+    }, [fillProgress, hasWater, ripplePhase, targetRatio, wavePhase]);
 
     const liquidProps = useAnimatedProps(() => ({
         d: buildWaveLiquidPath(60 * (1 - fillProgress.value), wavePhase.value, 1.4, 0.38),
@@ -317,10 +333,12 @@ function WaterCupIcon({ fillRatio = 500 / 2000 }: { fillRatio?: number }) {
                 </ClipPath>
             </Defs>
             <Path d={WATER_CUP_PATH} fill="#E2F2FF" />
-            <G clipPath="url(#waterCupClip)">
-                <AnimatedPath animatedProps={liquidProps} fill="#4F86EE" />
-                <AnimatedPath animatedProps={rippleProps} fill="rgba(255,255,255,0.22)" />
-            </G>
+            {hasWater ? (
+                <G clipPath="url(#waterCupClip)">
+                    <AnimatedPath animatedProps={liquidProps} fill="#4F86EE" />
+                    <AnimatedPath animatedProps={rippleProps} fill="rgba(255,255,255,0.22)" />
+                </G>
+            ) : null}
         </Svg>
     );
 }
@@ -516,7 +534,8 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                     <Text style={styles.yyTitle}>热量</Text>
                                     <MiniProgressRing
                                         progress={calorieProgress}
-                                        color={NUTRITION_COLOR[calorieDisplay.tone]}
+                                        trackColor={NUTRITION_RING_THEME.calorie.trackColor}
+                                        progressColors={NUTRITION_RING_THEME.calorie.progressColors}
                                     />
                                 </Flex>
                                 <Flex align="center" style={{ marginTop: 6 }}>
@@ -530,7 +549,8 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                     <Text style={styles.yyTitle}>蛋白</Text>
                                     <MiniProgressRing
                                         progress={proteinProgress}
-                                        color={NUTRITION_COLOR[proteinDisplay.tone]}
+                                        trackColor={NUTRITION_RING_THEME.protein.trackColor}
+                                        progressColors={NUTRITION_RING_THEME.protein.progressColors}
                                     />
                                 </Flex>
                                 <Flex align="center" style={{ marginTop: 6 }}>
@@ -544,7 +564,8 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                     <Text style={styles.yyTitle}>饮水</Text>
                                     <MiniProgressRing
                                         progress={waterProgress}
-                                        color={NUTRITION_COLOR[waterDisplay.tone]}
+                                        trackColor={NUTRITION_RING_THEME.water.trackColor}
+                                        progressColors={NUTRITION_RING_THEME.water.progressColors}
                                     />
                                 </Flex>
                                 <Flex align="center" style={{ marginTop: 6 }}>

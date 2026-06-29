@@ -97,6 +97,21 @@ export const NUTRITION_COLOR = {
     red: '#F33F3E',
 } as const;
 
+export const NUTRITION_RING_THEME = {
+    calorie: {
+        trackColor: 'rgba(131,174,255,0.14)',
+        progressColors: ['rgba(131, 174, 255, 1)', 'rgba(79, 134, 238, 1)'] as [string, string],
+    },
+    protein: {
+        trackColor: 'rgba(255,139,7,0.14)',
+        progressColors: ['rgba(255, 184, 103, 1)', 'rgba(255, 139, 7, 1)'] as [string, string],
+    },
+    water: {
+        trackColor: 'rgba(52,182,159,0.14)',
+        progressColors: ['rgba(64, 215, 188, 1)', 'rgba(52, 182, 159, 1)'] as [string, string],
+    },
+} as const;
+
 export type NutritionTone = keyof typeof NUTRITION_COLOR;
 export type NutritionArrow = 'up' | 'down' | 'none';
 

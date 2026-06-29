@@ -51,7 +51,7 @@ export default function ProfilePage() {
   const navigation: any = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.user.info);
-  const systemUser = useSelector((s: RootState) => s.user.systemUser);
+  const systemUser: any = useSelector((s: RootState) => s.user.systemUser);
   const loading = useSelector((s: RootState) => s.user.loading);
   const { label: fontSizeLabel } = useFontSize();
 
@@ -113,7 +113,7 @@ export default function ProfilePage() {
               <Text style={styles.name}>{name}</Text>
               <Flex style={{ marginTop: 7 }}>
                 <Image style={styles.avatarIcon} tintColor={"#999999"} source={require('@/assets/images/user/img1.png')} />
-                <Text style={styles.avatarValue}>{3211}</Text>
+                <Text style={styles.avatarValue}>{Number(systemUser?.tokens ?? 0).toFixed(2)}</Text>
               </Flex>
             </View>
           </Flex>

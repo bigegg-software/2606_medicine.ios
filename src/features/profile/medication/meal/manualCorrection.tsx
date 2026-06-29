@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Flex, Modal, Toast } from '@ant-design/react-native';
+import { Flex, Picker, Toast } from '@ant-design/react-native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import styles from '@/css/medication/deal/manualCorrection';
@@ -36,6 +36,8 @@ const MAIN_NUTRIENTS = [
     { key: 'fat', label: '脂肪', unit: 'g', icon: require('@/assets/images/medication/meal/zf.png') },
 ] as const;
 
+const CUSTOM_NUTRIENT_PICKER_VALUE = '__custom__';
+
 export default function ManualCorrectionPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'ManualCorrectionPage'>>();
@@ -44,7 +46,6 @@ export default function ManualCorrectionPage() {
     const [form, setForm] = useState<ManualCorrectionForm>(() =>
         buildManualCorrectionForm(item, state, initialRecordTime),
     );
-    const [addVisible, setAddVisible] = useState(false);
     const scrollRef = useRef<ScrollView>(null);
     const headerHeight = useHeaderHeight();
     const customNutrientCountRef = useRef(form.customNutrients.length);
@@ -62,6 +63,22 @@ export default function ManualCorrectionPage() {
     const availableNutrients = useMemo(
         () => ADDABLE_NUTRIENT_OPTIONS.filter(option => !form.visibleNutrients.includes(option.key)),
         [form.visibleNutrients],
+    );
+
+    const nutrientPickerData = useMemo(
+        () => [
+            ...availableNutrients.map(option => ({
+                label: option.label,
+                value: option.key,
+            })),
+            { label: '自定义', value: CUSTOM_NUTRIENT_PICKER_VALUE },
+        ],
+        [availableNutrients],
+    );
+
+    const nutrientPickerValue = useMemo(
+        () => [nutrientPickerData[0]?.value ?? CUSTOM_NUTRIENT_PICKER_VALUE],
+        [nutrientPickerData],
     );
 
     const updateMacro = useCallback((key: 'calorie' | 'protein' | 'fat' | 'carbs', value: string) => {
@@ -99,7 +116,6 @@ export default function ManualCorrectionPage() {
             visibleNutrients: [...prev.visibleNutrients, key],
             extraNutrition: { ...prev.extraNutrition, [key]: prev.extraNutrition[key] ?? '' },
         }));
-        setAddVisible(false);
     }, []);
 
     const handleRemoveNutrient = useCallback((key: string) => {
@@ -122,7 +138,6 @@ export default function ManualCorrectionPage() {
                 { id: String(Date.now()), name: '', amount: '' },
             ],
         }));
-        setAddVisible(false);
         scrollToFocusedInput();
     }, [scrollToFocusedInput]);
 
@@ -307,13 +322,27 @@ export default function ManualCorrectionPage() {
                         <View style={styles.medicationBox}>
                             <Flex justify="between" align="center">
                                 <Text style={styles.mainTitle}>其他营养成分</Text>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => setAddVisible(true)}
-                                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                                    style={styles.addButton}>
-                                    <Text style={styles.addText}>添加</Text>
-                                </TouchableOpacity>
+                                <Picker
+                                    title="添加营养成分"
+                                    data={nutrientPickerData}
+                                    cols={1}
+                                    cascade={false}
+                                    value={nutrientPickerValue}
+                                    onOk={values => {
+                                        const key = String(values[0]);
+                                        if (key === CUSTOM_NUTRIENT_PICKER_VALUE) {
+                                            handleAddCustomNutrient();
+                                            return;
+                                        }
+                                        handleAddNutrient(key);
+                                    }}>
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                                        style={styles.addButton}>
+                                        <Text style={styles.addText}>添加</Text>
+                                    </TouchableOpacity>
+                                </Picker>
                             </Flex>
                             {form.visibleNutrients.map(key => {
                                 const label =
@@ -388,32 +417,6 @@ export default function ManualCorrectionPage() {
                     </ScrollView>
                 </KeyboardAvoidingView>
             </View>
-
-            <Modal
-                popup
-                visible={addVisible}
-                maskClosable
-                animationType="slide-up"
-                onClose={() => setAddVisible(false)}>
-                <View style={styles.addModal}>
-                    <Text style={styles.addModalTitle}>添加营养成分</Text>
-                    {availableNutrients.map(option => (
-                        <TouchableOpacity
-                            key={option.key}
-                            activeOpacity={0.7}
-                            style={styles.addModalItem}
-                            onPress={() => handleAddNutrient(option.key)}>
-                            <Text style={styles.addModalItemText}>{option.label}</Text>
-                        </TouchableOpacity>
-                    ))}
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.addModalItem}
-                        onPress={handleAddCustomNutrient}>
-                        <Text style={styles.addModalItemText}>自定义</Text>
-                    </TouchableOpacity>
-                </View>
-            </Modal>
         </PageLayout>
     );
 }

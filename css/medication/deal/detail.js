@@ -40,6 +40,7 @@ const styles = StyleSheet.create({
         marginTop: 4,
         fontWeight: 500,
         fontSize: 12,
+        textAlign: "center",
         color: "#333333"
     },
     mealText: {

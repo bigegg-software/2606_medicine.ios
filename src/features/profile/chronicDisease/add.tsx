@@ -41,7 +41,7 @@ async function loadDiseaseTypeOptions(): Promise<DiseaseTypeOption[]> {
     }
 }
 
-async function loadAssociationMedicationPlans(): Promise<MedicationPlan[]> {
+async function loadAllMedicationPlans(): Promise<MedicationPlan[]> {
     try {
         const res = await getMyMedicationPlanList();
         const data = apiResourceData<MedicationPlan[]>(
@@ -51,6 +51,27 @@ async function loadAssociationMedicationPlans(): Promise<MedicationPlan[]> {
     } catch {
         return [];
     }
+}
+
+function isActiveMedicationPlan(plan: MedicationPlan, refDate = moment()): boolean {
+    if (plan.courseTreatment === 0) return true;
+    const endDate = plan.endDate?.trim();
+    if (!endDate) return true;
+    const endMoment = moment(endDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+    if (!endMoment.isValid()) return true;
+    return endMoment.endOf('day').isSameOrAfter(moment(refDate).startOf('day'));
+}
+
+function filterSelectableMedicationPlans(
+    plans: MedicationPlan[],
+    preservePlanIds: (string | number)[] = [],
+): MedicationPlan[] {
+    const preserveSet = new Set(preservePlanIds.map(id => String(id)));
+    return plans.filter(plan => {
+        const planId = plan.medicationPlanId;
+        if (planId != null && preserveSet.has(String(planId))) return true;
+        return isActiveMedicationPlan(plan);
+    });
 }
 
 function resolveDiseaseTypeLabel(
@@ -68,7 +89,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     const [diseaseType, setDiseaseType] = useState('');
     const [diagnosisDate, setDiagnosisDate] = useState('');
     const [mainSymptoms, setMainSymptoms] = useState('');
-    const [selectedPlanIds, setSelectedPlanIds] = useState<number[]>([]);
+    const [selectedPlanIds, setSelectedPlanIds] = useState<(string | number)[]>([]);
     const [diseaseTypeOptions, setDiseaseTypeOptions] = useState<DiseaseTypeOption[]>([]);
     const [medicationPlans, setMedicationPlans] = useState<MedicationPlan[]>([]);
     const [submitting, setSubmitting] = useState(false);
@@ -81,28 +102,32 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     useEffect(() => {
         (async () => {
             try {
-                const [options, plans] = await Promise.all([
+                const chronicPromise =
+                    isEdit && recordId != null
+                        ? getChronicDiseaseInfo(recordId).then(res =>
+                            apiResourceData<ChronicDiseaseRecord>(
+                                res as unknown as { code?: number; data?: ChronicDiseaseRecord },
+                            ),
+                        )
+                        : Promise.resolve(null);
+
+                const [options, allPlans, chronicData] = await Promise.all([
                     loadDiseaseTypeOptions(),
-                    loadAssociationMedicationPlans(),
+                    loadAllMedicationPlans(),
+                    chronicPromise,
                 ]);
                 setDiseaseTypeOptions(options);
-                setMedicationPlans(plans);
 
-                if (isEdit && recordId != null) {
-                    const res = await getChronicDiseaseInfo(recordId);
-                    const data = apiResourceData<ChronicDiseaseRecord>(
-                        res as { code?: number; data?: ChronicDiseaseRecord },
-                    );
-                    if (data) {
-                        setDiseaseType(data.diseaseType ?? '');
-                        setDiagnosisDate(data.diagnosisTime?.slice(0, 7) ?? '');
-                        setMainSymptoms(data.mainSymptoms ?? '');
-                        setSelectedPlanIds(
-                            (data.associationMedicationPlanIds ?? [])
-                                .map(id => Number(id))
-                                .filter(id => !Number.isNaN(id)),
-                        );
-                    }
+                const associationIds = (chronicData?.associationMedicationPlanIds ?? []).filter(
+                    id => id != null && id !== '',
+                );
+                setMedicationPlans(filterSelectableMedicationPlans(allPlans, associationIds));
+
+                if (chronicData) {
+                    setDiseaseType(chronicData.diseaseType ?? '');
+                    setDiagnosisDate(chronicData.diagnosisTime?.slice(0, 7) ?? '');
+                    setMainSymptoms(chronicData.mainSymptoms ?? '');
+                    setSelectedPlanIds(associationIds);
                 }
             } catch {
                 Alert.alert('错误', '加载数据失败');
@@ -126,9 +151,11 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
         return '--年--月';
     }, [diagnosisDate]);
 
-    const toggleMedicationPlan = (planId: number) => {
+    const toggleMedicationPlan = (planId: string | number) => {
         setSelectedPlanIds(prev =>
-            prev.includes(planId) ? prev.filter(id => id !== planId) : [...prev, planId],
+            prev.some(id => id == planId)
+                ? prev.filter(id => id != planId)
+                : [...prev, planId],
         );
     };
 
@@ -152,7 +179,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
                 diseaseType,
                 diagnosisTime: diagnosisDate,
                 mainSymptoms: mainSymptoms.trim(),
-                associationMedicationPlanIds: selectedPlanIds.map(String),
+                associationMedicationPlanIds: selectedPlanIds,
             };
             const res = isEdit && recordId != null
                 ? await updateChronicDisease({ ...payload, id: recordId })
@@ -241,7 +268,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
                             {medicationPlans.map(plan => {
                                 const planId = plan.medicationPlanId;
                                 if (planId == null) return null;
-                                const selected = selectedPlanIds.includes(planId);
+                                const selected = selectedPlanIds.some(id => id == planId);
                                 return (
                                     <TouchableOpacity
                                         key={String(planId)}

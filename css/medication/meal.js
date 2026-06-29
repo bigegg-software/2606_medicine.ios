@@ -84,6 +84,26 @@ const styles = StyleSheet.create({
         shadowRadius: 3,
         elevation: 3,
     },
+    mealSuggestEmpty: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 24,
+        paddingVertical: 32,
+        minHeight: 132,
+    },
+    mealSuggestEmptyIcon: {
+        width: 36,
+        height: 36,
+        marginBottom: 12,
+        opacity: 0.35,
+    },
+    mealSuggestEmptyText: {
+        fontWeight: 400,
+        fontSize: 14,
+        lineHeight: 20,
+        color: '#999999',
+        textAlign: 'center',
+    },
     stackPeek: {
         height: 10,
         backgroundColor: '#F1F6FF',

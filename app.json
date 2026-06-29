@@ -71,6 +71,7 @@
           "microphonePermission": "需要麦克风权限以进行语音识别"
         }
       ],
+      "expo-notifications",
       "expo-video",
       "expo-font"
     ],

@@ -9,6 +9,7 @@ import type { RootStackParamList } from '@/route/router';
 import ChronicTrendSection from './components/ChronicTrendSection';
 import TodayOverviewSection from './components/TodayOverviewSection';
 import MedicationPlanSection from './components/MedicationPlanSection';
+import TodayMealSection from './components/TodayMealSection';
 import {
     loadChronicDetailData,
     resolveDiseaseTypeLabel,
@@ -27,7 +28,6 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
     const loadDetail = useCallback(async () => {
         try {
             const data = await loadChronicDetailData(recordId);
-            console.log(data);
             setDetail(data);
         } catch {
             setDetail(null);
@@ -96,6 +96,7 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
                     medications={detail.associatedMedications}
                     recordId={recordId}
                 />
+                <TodayMealSection />
             </ScrollView>
         </PageLayout>
     );

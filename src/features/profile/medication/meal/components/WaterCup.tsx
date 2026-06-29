@@ -206,9 +206,9 @@ export default function WaterCup({ fillPercent = 0 }: WaterCupProps) {
                         id="cupLeftHighlightBlur"
                         x="-200%"
                         y="-20%"
-                        width="500%"
+                        width="800%"
                         height="140%">
-                        <FeGaussianBlur in="SourceGraphic" stdDeviation={4} />
+                        <FeGaussianBlur in="SourceGraphic" stdDeviation={10} />
                     </Filter>
                 </Defs>
 

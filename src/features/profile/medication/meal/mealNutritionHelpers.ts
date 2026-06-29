@@ -12,6 +12,16 @@ export const NUTRITION_LABELS: Record<string, string> = {
     alcohol: '酒精',
     caffeine: '咖啡因',
     addedSugar: '添加糖',
+    vitaminA: '维生素A',
+    vitaminB: '维生素B',
+    vitaminC: '维生素C',
+    vitaminE: '维生素E',
+    vitaminK: '维生素K',
+    vitaminB1: '维生素B1',
+    vitaminB2: '维生素B2',
+    vitaminB3: '维生素B3',
+    vitaminB5: '维生素B5',
+    vitaminB6: '维生素B6',
 };
 
 export const NUTRITION_UNITS: Record<string, string> = {
@@ -24,6 +34,16 @@ export const NUTRITION_UNITS: Record<string, string> = {
     alcohol: '克',
     caffeine: '克',
     addedSugar: '克',
+    vitaminA: '微克',
+    vitaminB: '微克',
+    vitaminC: '微克',
+    vitaminE: '微克',
+    vitaminK: '微克',
+    vitaminB1: '微克',
+    vitaminB2: '微克',
+    vitaminB3: '微克',
+    vitaminB5: '微克',
+    vitaminB6: '微克',
 };
 
 export const PREVIEW_NUTRITION_KEYS = ['fiber', 'calcium'] as const;
@@ -35,6 +55,16 @@ export const EXPANDED_NUTRITION_KEYS = [
     'alcohol',
     'caffeine',
     'addedSugar',
+    'vitaminA',
+    'vitaminB',
+    'vitaminC',
+    'vitaminE',
+    'vitaminK',
+    'vitaminB1',
+    'vitaminB2',
+    'vitaminB3',
+    'vitaminB5',
+    'vitaminB6',
 ] as const;
 
 export const ALL_NUTRITION_KEYS = [...PREVIEW_NUTRITION_KEYS, ...EXPANDED_NUTRITION_KEYS] as const;

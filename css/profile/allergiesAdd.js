@@ -39,11 +39,10 @@ const styles = StyleSheet.create({
     ygText: { fontWeight: 500, fontSize: 12, color: AppTheme.textSecondary },
 
 
-    rowBox: { padding: 24, paddingTop: 6, borderRadius: 8, marginTop: 12, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1},
-    rowCol:{ marginTop:18},
-    rowTitle: { fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary },
+    rowBox: { paddingHorizontal: 14, paddingVertical: 2, borderRadius: 8, marginTop: 12, backgroundColor: "#FFFFFF", shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, paddingBottom: 12 },
+    rowTitle: { marginTop: 12, height: 19, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
     switch: { width: 43, height: 21, marginTop: 12 },
-    inputBox: {   borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textPrimary },
+    inputBox: { height: 32, borderRadius: 24, backgroundColor: "#FFF", fontSize: 14, color: AppTheme.textPrimary },
     rowLine: { height: 1, backgroundColor: "#E8DED2" },
     yzBox: { marginTop: 10, height: 33, paddingHorizontal: 30, backgroundColor: "rgba(5,58,147,0.14)", borderRadius: 8 },
     yzBoxActive: { backgroundColor: "#053A93" },

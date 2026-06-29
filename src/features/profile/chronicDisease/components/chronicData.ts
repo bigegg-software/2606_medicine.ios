@@ -1,8 +1,9 @@
 import moment from 'moment';
 import { getMeasureDataDetailByDateRange, type MeasureDataDayGroup, type MeasureDataItem, type MeasureDataType } from '@/api/measureData';
 import { getWearableDataDetailByDateRange, type WearableDataItem, type WearableDataType } from '@/api/wearableData';
-import { getIndexMedicationPlanGroupByTime, type IndexMedicationPlanGroupItem, type MedicationPlan } from '@/api/medicationPlan';
+import { getIndexMedicationPlanGroupByTime, type IndexMedicationPlanGroupItem } from '@/api/medicationPlan';
 import { getChronicDiseaseInfo, type ChronicDiseaseRecord } from '@/api/chronicDisease';
+import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import { buildDictLabelMap, getDictDataByType, DICT_TYPES, type DictDataItem } from '@/api/dict';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -20,7 +21,6 @@ import type { HeartRatePoint } from '@/src/features/home/components/HeartRateCha
 import {
     loadMedicationDictMaps,
     loadMedicationPlanGroups,
-    loadMyMedicationPlans,
     mapIndexPlanGroups,
     type MedicationDictMaps,
     type MedicationPlanGroupView,
@@ -32,6 +32,10 @@ import {
     type ChronicDiseaseControlStatus,
     CHRONIC_DISEASE_CONTROL_STATUS_LABELS,
 } from './controlStatus';
+import {
+    getCurrentMealLabel,
+    isCurrentMealRecorded,
+} from '@/src/features/profile/medication/meal/mealDetailHelpers';
 
 export { type ChronicDiseaseControlStatus, CHRONIC_DISEASE_CONTROL_STATUS_LABELS };
 
@@ -68,7 +72,7 @@ export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndica
     vitalsToday: 'notMeasured',
     pendingMedicationCount: 0,
     mealRecorded: 'notRecorded',
-    mealLabel: '晚餐',
+    mealLabel: getCurrentMealLabel(),
     controlStatus: 'stable',
 };
 
@@ -453,38 +457,6 @@ function formatPlanTimeLabel(time?: string) {
     return parsed.isValid() ? parsed.format('HH:mm') : time;
 }
 
-function formatSingleDoseText(
-    plan: MedicationPlan | undefined,
-    dictMaps: MedicationDictMaps,
-    time?: string,
-    eventLabel?: string,
-): string {
-    const amount = plan?.amount?.trim() || '';
-    const unit = dictMaps.amountUnit[plan?.amountUnit ?? '']?.trim() || plan?.amountUnit?.trim() || '';
-    const resolvedEvent =
-        eventLabel?.trim() || dictMaps.eventBased[plan?.eventBased ?? '']?.trim() || '';
-    const dose = `${amount}${unit}` || '--';
-    if (resolvedEvent && resolvedEvent !== '无') return `${dose}（${resolvedEvent}）`;
-    const timeLabel = formatPlanTimeLabel(time);
-    if (timeLabel && timeLabel !== '--') return `${dose}（${timeLabel}）`;
-    return dose;
-}
-
-function expandPlanDoseSlots(plan: MedicationPlan): { key: string; time?: string }[] {
-    const planId = String(plan.medicationPlanId);
-    const eventBased = plan.eventBased?.trim();
-    if (eventBased && eventBased !== '无') {
-        return [{ key: `${planId}-event` }];
-    }
-    const dailyFrequency = Math.max(1, plan.medicationFrequency ?? 1);
-    const rawTimes = (plan.timeList ?? []).map(time => formatPlanTimeLabel(time)).filter(time => time !== '--');
-    const times = Array.from({ length: dailyFrequency }, (_, index) => rawTimes[index] ?? '--');
-    return times.map(time => ({
-        key: `${planId}-${time}`,
-        time: time === '--' ? undefined : time,
-    }));
-}
-
 function compareMedicationPlanTime(a?: string, b?: string) {
     const timeA = formatPlanTimeLabel(a);
     const timeB = formatPlanTimeLabel(b);
@@ -496,23 +468,14 @@ function compareMedicationPlanTime(a?: string, b?: string) {
 
 function buildAssociatedMedicationRows(
     record: ChronicDiseaseRecord | null,
-    plans: MedicationPlan[],
-    dictMaps: MedicationDictMaps,
     planGroups: MedicationPlanGroupView[],
 ): AssociatedMedicationRow[] {
     const associationIds = new Set((record?.associationMedicationPlanIds ?? []).map(id => String(id)));
-    const planById = new Map(
-        plans
-            .filter(plan => plan.medicationPlanId != null)
-            .map(plan => [String(plan.medicationPlanId), plan]),
-    );
     const rows: AssociatedMedicationRow[] = [];
-    const seenPlanIds = new Set<string>();
 
     planGroups.forEach(group => {
         group.items.forEach(item => {
             if (!associationIds.has(item.medicationPlanId)) return;
-            seenPlanIds.add(item.medicationPlanId);
             const time = item.medicationPlanTime || group.time;
             rows.push({
                 key: item.key,
@@ -525,25 +488,6 @@ function buildAssociatedMedicationRows(
             });
         });
     });
-
-    plans
-        .filter(plan => plan.medicationPlanId != null && associationIds.has(String(plan.medicationPlanId)))
-        .forEach(plan => {
-            const planId = String(plan.medicationPlanId);
-            if (seenPlanIds.has(planId)) return;
-            const planType = plan.planType ?? 0;
-            expandPlanDoseSlots(plan).forEach(slot => {
-                rows.push({
-                    key: slot.key,
-                    name: plan.name?.trim() || '未命名药品',
-                    doseText: formatSingleDoseText(plan, dictMaps, slot.time),
-                    taken: false,
-                    planType,
-                    planTypeLabel: planType === 1 ? '处方' : '个人',
-                    medicationPlanTime: slot.time,
-                });
-            });
-        });
 
     return rows.sort((a, b) => compareMedicationPlanTime(a.medicationPlanTime, b.medicationPlanTime));
 }
@@ -569,18 +513,9 @@ function resolveVitalsTodayStatus(
 
 function countPendingMedicationDoses(
     record: ChronicDiseaseRecord,
-    plans: MedicationPlan[],
-    dictMaps: MedicationDictMaps,
     planGroups: MedicationPlanGroupView[],
 ): number {
-
-    // console.log('Counting pending medication doses...');
-    // console.log('Record:', record);
-    // console.log('Plans:', plans);
-    // console.log('Dict Maps:', dictMaps);
-    // console.log('Plan Groups:', planGroups);
-
-    return buildAssociatedMedicationRows(record, plans, dictMaps, planGroups).filter(row => !row.taken).length;
+    return buildAssociatedMedicationRows(record, planGroups).filter(row => !row.taken).length;
 }
 
 export async function loadChronicIndexIndicators(
@@ -599,10 +534,16 @@ export async function loadChronicIndexIndicators(
         if (config.wearableType) wearableTypes.add(config.wearableType);
     });
 
-    const [plans, planGroups, measureTodayEntries, wearableTodayEntries, measureWeekEntries, wearableWeekEntries] =
+    const [planGroups, todayMealList, measureTodayEntries, wearableTodayEntries, measureWeekEntries, wearableWeekEntries] =
         await Promise.all([
-            loadMyMedicationPlans(),
             loadMedicationPlanGroups(dictMaps),
+            getTodayMealDetailList()
+                .then(res =>
+                    apiResourceData<MealDetailItem[]>(
+                        res as unknown as { code?: number; data?: MealDetailItem[] },
+                    ) ?? [],
+                )
+                .catch(() => [] as MealDetailItem[]),
             Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, 'today')] as const)),
             Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, 'today')] as const)),
             Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, '7days')] as const)),
@@ -613,6 +554,8 @@ export async function loadChronicIndexIndicators(
     const wearableTodayCache = new Map<WearableDataType, WearableDataItem[]>(wearableTodayEntries);
     const measureWeekCache = new Map<MeasureDataType, MeasureDataItem[]>(measureWeekEntries);
     const wearableWeekCache = new Map<WearableDataType, WearableDataItem[]>(wearableWeekEntries);
+    const currentMealLabel = getCurrentMealLabel();
+    const currentMealRecorded = isCurrentMealRecorded(todayMealList);
     const result = new Map<number, ChronicDiseaseDailyIndicators>();
 
     records.forEach(record => {
@@ -624,9 +567,9 @@ export async function loadChronicIndexIndicators(
         const wearableWeekItems = config.wearableType ? wearableWeekCache.get(config.wearableType) ?? [] : [];
         result.set(record.id, {
             vitalsToday: resolveVitalsTodayStatus(config, measureTodayItems, wearableTodayItems),
-            pendingMedicationCount: countPendingMedicationDoses(record, plans, dictMaps, planGroups),
-            mealRecorded: DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS.mealRecorded,
-            mealLabel: DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS.mealLabel,
+            pendingMedicationCount: countPendingMedicationDoses(record, planGroups),
+            mealRecorded: currentMealRecorded ? 'recorded' : 'notRecorded',
+            mealLabel: currentMealLabel,
             controlStatus: resolveChronicDiseaseControlStatusFromData(
                 config,
                 measureWeekItems,
@@ -648,9 +591,8 @@ export function resolveDiseaseTypeLabel(
 
 export async function loadChronicDetailData(recordId?: number): Promise<ChronicDetailData> {
     const dictMaps = await loadMedicationDictMaps();
-    const [labelMap, plansRes, planGroupsRes, recordRes] = await Promise.all([
+    const [labelMap, planGroupsRes, recordRes] = await Promise.all([
         loadDiseaseTypeLabelMap(),
-        loadMyMedicationPlans(),
         getIndexMedicationPlanGroupByTime(),
         recordId != null ? getChronicDiseaseInfo(recordId) : Promise.resolve(null),
     ]);
@@ -714,7 +656,7 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
         ldlSeries,
         stats: computeStats(config, measureItems, secondaryMeasureItems, wearableItems),
         todayOverview,
-        associatedMedications: buildAssociatedMedicationRows(record, plansRes, dictMaps, todayGroups),
+        associatedMedications: buildAssociatedMedicationRows(record, todayGroups),
         controlStatus: resolveChronicDiseaseControlStatusFromData(config, measureItems, wearableItems),
     };
 }

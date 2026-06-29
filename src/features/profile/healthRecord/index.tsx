@@ -7,7 +7,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, type AllergyItem } from '@/api/allergy';
 import { getFamilyMedicalInfo, type FamilyMedicalItem } from '@/api/familyMedical';
 import { getMedicalRecordFrontList, type MedicalRecord } from '@/api/medicalRecord';
-import { buildDictLabelMap } from '@/api/dict';
 import type { EmergencyContact } from '@/api/emergencyContact';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
@@ -20,7 +19,7 @@ import type { RootStackParamList } from '@/route/router';
 import {
   formatEmergencyContactName,
   loadEmergencyContacts,
-  loadRelationTypeOptions,
+  loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
 import moment from 'moment';
 
@@ -110,14 +109,15 @@ export default function HealthRecordPage() {
 
     const loadEmergency = useCallback(async () => {
         try {
-            const [list, relationOptions] = await Promise.all([
+            const [list, labels] = await Promise.all([
                 loadEmergencyContacts({ pageNum: 1, pageSize: 3 }),
-                loadRelationTypeOptions(),
+                loadRelationTypeLabelMap(),
             ]);
             setEmergencyContacts(list);
-            setRelationMap(buildDictLabelMap(relationOptions));
+            setRelationMap(labels);
         } catch {
             setEmergencyContacts([]);
+            setRelationMap({});
         }
     }, []);
 
@@ -233,7 +233,13 @@ export default function HealthRecordPage() {
                         emergencyContacts.map((contact, index) => (
                             <TouchableOpacity
                                 key={String(contact.id ?? index)}
-                                onPress={() => navigation.navigate('Emergency')}>
+                                onPress={() => {
+                                    if (contact.id != null) {
+                                        navigation.navigate('EmergencyAdd', { id: contact.id });
+                                    } else {
+                                        navigation.navigate('Emergency');
+                                    }
+                                }}>
                                 <Flex
                                     justify="between"
                                     style={[
@@ -241,9 +247,16 @@ export default function HealthRecordPage() {
                                         index === emergencyContacts.length - 1 && { borderBottomWidth: 0 },
                                     ]}>
                                     <View>
-                                        <Text style={styles.familyItemName}>
-                                            {formatEmergencyContactName(contact, relationMap)}
-                                        </Text>
+                                        <Flex align="center">
+                                            <Text style={styles.familyItemName}>
+                                                {formatEmergencyContactName(contact, relationMap)}
+                                            </Text>
+                                            {contact.isDefault === 1 ? (
+                                                <Flex style={styles.jzBox}>
+                                                    <Text style={styles.jzText}>默认</Text>
+                                                </Flex>
+                                            ) : null}
+                                        </Flex>
                                         <Text style={styles.familyItemRelation}>
                                             {contact.contactPhone || '—'}
                                         </Text>

@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useId, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
+import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
 const RING_SIZE = 28;
 const STROKE_WIDTH = 4;
@@ -13,6 +13,17 @@ const DOT_SIZE = 4;
 
 const RING_RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
 const CANVAS_CENTER = CANVAS_SIZE / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+
+function cssAngleToGradientPoints(angleDeg: number, cx: number, cy: number, radius: number) {
+  const rad = ((angleDeg - 90) * Math.PI) / 180;
+  return {
+    x1: cx - Math.cos(rad) * radius,
+    y1: cy - Math.sin(rad) * radius,
+    x2: cx + Math.cos(rad) * radius,
+    y2: cy + Math.sin(rad) * radius,
+  };
+}
 
 function getProgressDotPosition(progressPercent: number) {
   const angleRad = ((-90 + (360 * progressPercent) / 100) * Math.PI) / 180;
@@ -26,64 +37,100 @@ type MiniProgressRingProps = {
   progress: number;
   color?: string;
   trackColor?: string;
+  progressColors?: [string, string];
+  gradientAngle?: number;
 };
 
 export default function MiniProgressRing({
   progress,
   color,
   trackColor = TRACK_COLOR,
+  progressColors,
+  gradientAngle = 90,
 }: MiniProgressRingProps) {
+  const gradientId = useId().replace(/:/g, '');
   const value = Math.min(100, Math.max(0, Math.round(progress)));
   const isComplete = value >= 100;
   const progressColor = color ?? (isComplete ? COMPLETE_COLOR : PROGRESS_COLOR);
-  const progressSweep = value >= 100 ? 360 : (360 * value) / 100;
-
-  const progressPath = useMemo(() => {
-    const path = Skia.Path.Make();
-    path.addArc(
-      {
-        x: CANVAS_CENTER - RING_RADIUS,
-        y: CANVAS_CENTER - RING_RADIUS,
-        width: RING_RADIUS * 2,
-        height: RING_RADIUS * 2,
-      },
-      -90,
-      progressSweep,
-    );
-    return path;
-  }, [progressSweep]);
-
+  const clampedProgress = value / 100;
+  const dashLength = CIRCUMFERENCE * clampedProgress;
+  const gapLength = CIRCUMFERENCE - dashLength;
   const dotPosition = getProgressDotPosition(value);
+
+  const gradientPoints = useMemo(
+    () => cssAngleToGradientPoints(gradientAngle, CANVAS_CENTER, CANVAS_CENTER, RING_RADIUS),
+    [gradientAngle],
+  );
+
+  const progressStroke = progressColors ? `url(#${gradientId})` : progressColor;
+  const idleDotColor = progressColors?.[0] ?? progressColor;
 
   return (
     <View style={styles.ring}>
-      <Canvas style={styles.canvas}>
+      <Svg
+        width={CANVAS_SIZE}
+        height={CANVAS_SIZE}
+        viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}
+        style={styles.canvas}>
+        {progressColors ? (
+          <Defs>
+            <LinearGradient
+              id={gradientId}
+              x1={gradientPoints.x1}
+              y1={gradientPoints.y1}
+              x2={gradientPoints.x2}
+              y2={gradientPoints.y2}
+              gradientUnits="userSpaceOnUse">
+              <Stop offset="0" stopColor={progressColors[0]} />
+              <Stop offset="1" stopColor={progressColors[1]} />
+            </LinearGradient>
+          </Defs>
+        ) : null}
         <Circle
           cx={CANVAS_CENTER}
           cy={CANVAS_CENTER}
           r={RING_RADIUS}
-          color={trackColor}
-          style="stroke"
+          stroke={trackColor}
           strokeWidth={STROKE_WIDTH}
+          fill="none"
         />
         {value > 0 ? (
-          <Path
-            path={progressPath}
-            color={progressColor}
-            style="stroke"
-            strokeWidth={STROKE_WIDTH}
-            strokeCap="round"
-          />
+          <>
+            <Circle
+              cx={CANVAS_CENTER}
+              cy={CANVAS_CENTER}
+              r={RING_RADIUS}
+              stroke={progressStroke}
+              strokeWidth={STROKE_WIDTH}
+              fill="none"
+              strokeDasharray={`${dashLength} ${gapLength}`}
+              strokeLinecap="round"
+              transform={`rotate(-90 ${CANVAS_CENTER} ${CANVAS_CENTER})`}
+            />
+            <Circle
+              cx={dotPosition.x}
+              cy={dotPosition.y}
+              r={DOT_SIZE / 2}
+              fill="#FFFFFF"
+            />
+          </>
         ) : (
-          <Circle
-            cx={dotPosition.x}
-            cy={dotPosition.y}
-            r={STROKE_WIDTH / 2}
-            color={progressColor}
-          />
+          <>
+            <Circle
+              cx={dotPosition.x}
+              cy={dotPosition.y}
+              r={STROKE_WIDTH / 2}
+              fill={idleDotColor}
+            />
+            <Circle
+              cx={dotPosition.x}
+              cy={dotPosition.y}
+              r={DOT_SIZE / 2}
+              fill="#FFFFFF"
+            />
+          </>
         )}
-        <Circle cx={dotPosition.x} cy={dotPosition.y} r={DOT_SIZE / 2} color="#FFFFFF" />
-      </Canvas>
+      </Svg>
     </View>
   );
 }
@@ -95,8 +142,6 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   canvas: {
-    width: CANVAS_SIZE,
-    height: CANVAS_SIZE,
     position: 'absolute',
     left: -STROKE_INSET,
     top: -STROKE_INSET,

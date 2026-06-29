@@ -20,11 +20,11 @@ export default function MedicationPlanSection({ medications, recordId }: Props) 
     return (
         <>
             <Flex justify="between" style={{ marginTop: 18 }}>
-                <Text style={styles.sectionTitle}>用药方案</Text>
+                <Text style={styles.sectionTitle}>今日用药</Text>
             </Flex>
             <View style={styles.infoBox}>
                 {medications.length === 0 ? (
-                    <Text style={styles.emptyText}>暂无关联用药</Text>
+                    <Text style={styles.emptyText}>暂无待服</Text>
                 ) : (
                     medications.map((item, index) => (
                         <Flex

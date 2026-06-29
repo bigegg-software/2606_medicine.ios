@@ -20,13 +20,9 @@ import { getInUseDietPatientRuleInfo, type DietMealItem, type DietPatientRuleInf
 import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
 import {
-  calcNutritionPercent,
   calcNutritionProgress,
-  getCalorieNutritionDisplay,
   getDietRuleSummary,
-  getProteinNutritionDisplay,
-  getWaterNutritionDisplay,
-  NUTRITION_COLOR,
+  NUTRITION_RING_THEME,
 } from '@/src/features/profile/medication/meal/dietRuleHelpers';
 import {
   formatNutritionInteger,
@@ -133,15 +129,9 @@ export default function HomeTab() {
     ? sumMealCalories(currentMealRecords)
     : Number(suggestedMeal?.calories ?? 0);
 
-  const caloriePercent = calcNutritionPercent(todayCalories, dietSummary.targetCalories);
-  const proteinPercent = calcNutritionPercent(todayProtein, dietSummary.targetProtein);
-  const waterPercent = calcNutritionPercent(todayWaterMl, dietSummary.targetWater);
   const calorieProgress = calcNutritionProgress(todayCalories, dietSummary.targetCalories);
   const proteinProgress = calcNutritionProgress(todayProtein, dietSummary.targetProtein);
   const waterProgress = calcNutritionProgress(todayWaterMl, dietSummary.targetWater);
-  const calorieDisplay = getCalorieNutritionDisplay(caloriePercent);
-  const proteinDisplay = getProteinNutritionDisplay(proteinPercent);
-  const waterDisplay = getWaterNutritionDisplay(waterPercent);
 
   const loadMealData = useCallback(async () => {
     try {
@@ -316,7 +306,8 @@ export default function HomeTab() {
                   <Text style={styles.yyTitle}>热量</Text>
                   <MiniProgressRing
                     progress={calorieProgress}
-                    color={NUTRITION_COLOR[calorieDisplay.tone]}
+                    trackColor={NUTRITION_RING_THEME.calorie.trackColor}
+                    progressColors={NUTRITION_RING_THEME.calorie.progressColors}
                   />
                 </Flex>
                 <Flex justify="center" style={{ marginTop: 6 }}>
@@ -329,7 +320,8 @@ export default function HomeTab() {
                   <Text style={styles.yyTitle}>蛋白</Text>
                   <MiniProgressRing
                     progress={proteinProgress}
-                    color={NUTRITION_COLOR[proteinDisplay.tone]}
+                    trackColor={NUTRITION_RING_THEME.protein.trackColor}
+                    progressColors={NUTRITION_RING_THEME.protein.progressColors}
                   />
                 </Flex>
                 <Flex justify="center" style={{ marginTop: 6 }}>
@@ -342,7 +334,8 @@ export default function HomeTab() {
                   <Text style={styles.yyTitle}>饮水</Text>
                   <MiniProgressRing
                     progress={waterProgress}
-                    color={NUTRITION_COLOR[waterDisplay.tone]}
+                    trackColor={NUTRITION_RING_THEME.water.trackColor}
+                    progressColors={NUTRITION_RING_THEME.water.progressColors}
                   />
                 </Flex>
                 <Flex justify="center" style={{ marginTop: 6 }}>

@@ -8,7 +8,6 @@ import {
   removeEmergencyContact,
   type EmergencyContact,
 } from '@/api/emergencyContact';
-import { buildDictLabelMap } from '@/api/dict';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import NoData from '@/src/components/noData';
@@ -17,7 +16,7 @@ import type { RootStackParamList } from '@/route/router';
 import {
   formatEmergencyContactName,
   loadEmergencyContacts,
-  loadRelationTypeOptions,
+  loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -30,12 +29,12 @@ export default function EmergencyPage() {
 
   const load = useCallback(async () => {
     try {
-      const [list, relationOptions] = await Promise.all([
+      const [list, relationLabels] = await Promise.all([
         loadEmergencyContacts({ pageNum: 1, pageSize: 50 }),
-        loadRelationTypeOptions(),
+        loadRelationTypeLabelMap(),
       ]);
       setContacts(list);
-      setRelationMap(buildDictLabelMap(relationOptions));
+      setRelationMap(relationLabels);
     } catch {
       setContacts([]);
     } finally {

@@ -10,6 +10,29 @@ export const MEAL_CATEGORY_BY_KEY: Record<string, number> = {
     snack: 4,
 };
 
+export type CurrentMealKey = 'breakfast' | 'lunch' | 'dinner';
+
+export const CURRENT_MEAL_LABELS: Record<CurrentMealKey, string> = {
+    breakfast: '早餐',
+    lunch: '中餐',
+    dinner: '晚餐',
+};
+
+export function getCurrentMealKey(date = new Date()): CurrentMealKey {
+    const hour = date.getHours();
+    if (hour < 10) return 'breakfast';
+    if (hour < 16) return 'lunch';
+    return 'dinner';
+}
+
+export function getCurrentMealLabel(date = new Date()): string {
+    return CURRENT_MEAL_LABELS[getCurrentMealKey(date)];
+}
+
+export function isCurrentMealRecorded(list: MealDetailItem[], date = new Date()): boolean {
+    return getFoodRecordsByCategory(list, getCurrentMealKey(date)).length > 0;
+}
+
 export function isWaterRecord(item: MealDetailItem): boolean {
     return item.isWater === 1;
 }

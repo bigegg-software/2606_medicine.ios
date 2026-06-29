@@ -44,6 +44,30 @@ const styles = StyleSheet.create({
     dfy: { height: 20, backgroundColor: "rgba(255,139,7,0.12)", borderRadius: 10, paddingHorizontal: 7, marginLeft: 11 },
     dfyText: { fontWeight: 400, fontSize: 12, color: "#FF8B07" },
     emptyText: { fontWeight: 400, fontSize: 14, color: '#999999', textAlign: 'center' },
+    yyContent: {
+        flexDirection: 'row',
+        width: '100%',
+    },
+    yyItem: {
+        width: '33.33%',
+        alignItems: 'flex-start',
+    },
+    yyTitle: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#666666',
+        marginRight: 8,
+    },
+    yyValue: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#333333',
+    },
+    yyUnit: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#666666',
+    },
     summaryText: { marginBottom: 8, fontWeight: 500, fontSize: 14, color: '#173F7D' },
     colImg: { width: 24, height: 24, marginRight: 6, },
     colItem: { marginTop: 16 },

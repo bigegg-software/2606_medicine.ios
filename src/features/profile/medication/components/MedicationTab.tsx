@@ -118,7 +118,7 @@ function ProgressRing({ progress }: { progress: number }) {
                     strokeCap="round"
                 />
             </Canvas>
-            <Text style={styles.progressText}>{value}%</Text>
+            <Text style={[styles.progressText, isComplete && { color: progressColor }]}>{value}%</Text>
         </View>
     );
 }
@@ -306,6 +306,8 @@ export default function MedicationTab() {
             Toast.success('已记录服用', 1.5);
             setPlanGroups(prev => applyMedicationCheckInToPlanGroups(prev, item.key));
             setProgress(prev => applyMedicationCheckInToProgress(prev));
+            const history = await loadMedicationHistory();
+            setHistoryDays(history);
         } catch {
             Toast.fail('打卡失败', 1.5);
         } finally {

@@ -48,12 +48,9 @@ function AutoSyncOnLaunch() {
 function PushTokenReporter() {
   const isLogin = useSelector((state: RootState) => state.login.isLogin);
 
-  // Report APNs push token after login
-  useEffect(() => {
-    if (!isLogin) return;
-    if (Platform.OS !== 'ios') return;
 
-    let cancelled = false;
+  useEffect(() => {
+    if (!isLogin || Platform.OS !== 'ios') return;
 
     (async () => {
       try {
@@ -64,18 +61,16 @@ function PushTokenReporter() {
         }
         if (status !== 'granted') return;
 
-        const token = (await Notifications.getDevicePushTokenAsync()).data;
-        if (cancelled || !token) return;
-
+        const { data } = await Notifications.getDevicePushTokenAsync();
+        const token = typeof data === 'string' ? data : String(data ?? '');
+        if (!token) return;
         await updateExtrInfo({ iphoneDeviceToken: token });
-      } catch {
-        // silent
+      } catch (error) {
+        if (__DEV__) {
+          console.warn('[PushTokenReporter] register push token failed:', error);
+        }
       }
     })();
-
-    return () => {
-      cancelled = true;
-    };
   }, [isLogin]);
 
   return null;

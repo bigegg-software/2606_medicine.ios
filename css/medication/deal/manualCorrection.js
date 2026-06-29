@@ -83,28 +83,6 @@ const styles = StyleSheet.create({
         marginVertical: -10,
     },
     noteText: { fontWeight: 400, fontSize: 14, color: 'rgba(153,153,153,0.48)', textAlign: 'center', marginTop: 10 },
-    addModal: {
-        paddingHorizontal: 20,
-        paddingTop: 16,
-        paddingBottom: 24,
-    },
-    addModalTitle: {
-        fontWeight: '600',
-        fontSize: 16,
-        color: '#333333',
-        marginBottom: 12,
-        textAlign: 'center',
-    },
-    addModalItem: {
-        paddingVertical: 18,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(23,63,125,0.08)',
-    },
-    addModalItemText: {
-        fontSize: 15,
-        color: '#333333',
-        textAlign: 'center',
-    },
     customNameInput: {
         flex: 1,
         marginRight: 12,

@@ -54,27 +54,27 @@ export default function MealDetailPage() {
         <PageLayout style={styles.container} contentStyle={styles.pageBody}>
             <ScrollView contentContainerStyle={styles.body}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                    <Flex direction="column" style={styles.mealBox}>
+                    <Flex direction="column" justify="between" style={styles.mealBox}>
                         <Image style={styles.mealIcon} source={require('@/assets/images/medication/meal/rl.png')} />
                         <Text style={styles.mealTitle}>{formatDietNumber(summary.targetCalories, '千卡')}</Text>
                         <Text style={styles.mealText}>总热量</Text>
                     </Flex>
-                    <Flex direction="column" style={styles.mealBox}>
+                    <Flex direction="column" justify="between" style={styles.mealBox}>
                         <Image style={styles.mealIcon} source={require('@/assets/images/medication/meal/dbz.png')} />
                         <Text style={styles.mealTitle}>{formatDietNumber(summary.targetProtein, '克')}</Text>
                         <Text style={styles.mealText}>蛋白质</Text>
                     </Flex>
-                    <Flex direction="column" style={styles.mealBox}>
+                    <Flex direction="column" justify="between" style={styles.mealBox}>
                         <Image style={styles.mealIcon} source={require('@/assets/images/medication/meal/ts.png')} />
                         <Text style={styles.mealTitle}>{formatDietNumber(summary.carbsPercent, '%')}</Text>
                         <Text style={styles.mealText}>碳水化合物</Text>
                     </Flex>
-                    <Flex direction="column" style={styles.mealBox}>
+                    <Flex direction="column" justify="between" style={styles.mealBox}>
                         <Image style={styles.mealIcon} source={require('@/assets/images/medication/meal/shui.png')} />
                         <Text style={styles.mealTitle}>{formatDietNumber(summary.targetWater, '毫升')}</Text>
                         <Text style={styles.mealText}>饮水</Text>
                     </Flex>
-                    <Flex direction="column" style={styles.mealBox}>
+                    <Flex direction="column" justify="between" style={styles.mealBox}>
                         <Image style={styles.mealIcon} source={require('@/assets/images/medication/meal/zf.png')} />
                         <Text style={styles.mealTitle}>{formatDietNumber(summary.fatPercent, '%')}</Text>
                         <Text style={styles.mealText}>脂肪</Text>
