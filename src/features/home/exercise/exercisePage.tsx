@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState, type ReactNod
 import { Text, View, ScrollView, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import PageLayout from '@/src/components/PageLayout';
+import AutoScrollText from '@/src/components/AutoScrollText';
 import { Flex } from '@ant-design/react-native';
 import moment from 'moment';
 import { useFocusEffect } from '@react-navigation/native';
@@ -218,97 +219,6 @@ function DashedDivider() {
     );
 }
 
-function AutoScrollText({ children }: { children: string }) {
-    const scrollRef = useRef<ScrollView>(null);
-    const containerWidthRef = useRef(0);
-    const contentWidthRef = useRef(0);
-    const scrollXRef = useRef(0);
-    const directionRef = useRef(1);
-    const pauseUntilRef = useRef(0);
-    const frameRef = useRef<number | null>(null);
-
-    const stopScroll = useCallback(() => {
-        if (frameRef.current != null) {
-            cancelAnimationFrame(frameRef.current);
-            frameRef.current = null;
-        }
-    }, []);
-
-    const startScroll = useCallback(() => {
-        stopScroll();
-        scrollXRef.current = 0;
-        directionRef.current = 1;
-        pauseUntilRef.current = Date.now() + 1200;
-        scrollRef.current?.scrollTo({ x: 0, animated: false });
-
-        const tick = () => {
-            const maxScroll = contentWidthRef.current - containerWidthRef.current;
-            if (maxScroll <= 1) {
-                frameRef.current = null;
-                return;
-            }
-
-            const now = Date.now();
-            if (now >= pauseUntilRef.current) {
-                scrollXRef.current += directionRef.current * 0.5;
-
-                if (scrollXRef.current >= maxScroll) {
-                    scrollXRef.current = maxScroll;
-                    directionRef.current = -1;
-                    pauseUntilRef.current = now + 1200;
-                } else if (scrollXRef.current <= 0) {
-                    scrollXRef.current = 0;
-                    directionRef.current = 1;
-                    pauseUntilRef.current = now + 1200;
-                }
-
-                scrollRef.current?.scrollTo({ x: scrollXRef.current, animated: false });
-            }
-
-            frameRef.current = requestAnimationFrame(tick);
-        };
-
-        frameRef.current = requestAnimationFrame(tick);
-    }, [stopScroll]);
-
-    const updateScroll = useCallback(() => {
-        const maxScroll = contentWidthRef.current - containerWidthRef.current;
-        if (maxScroll > 1) {
-            startScroll();
-        } else {
-            stopScroll();
-            scrollRef.current?.scrollTo({ x: 0, animated: false });
-        }
-    }, [startScroll, stopScroll]);
-
-    useEffect(() => {
-        updateScroll();
-        return stopScroll;
-    }, [children, updateScroll, stopScroll]);
-
-    return (
-        <ScrollView
-            ref={scrollRef}
-            horizontal
-            nestedScrollEnabled
-            scrollEnabled={false}
-            showsHorizontalScrollIndicator={false}
-            style={styles.medicalInfoValueScroll}
-            onLayout={event => {
-                containerWidthRef.current = event.nativeEvent.layout.width;
-                updateScroll();
-            }}
-            onContentSizeChange={width => {
-                contentWidthRef.current = width;
-                updateScroll();
-            }}>
-            <Text style={[styles.medicalInfoValue, styles.medicalInfoValueText]} numberOfLines={1}>
-                {children}
-            </Text>
-        </ScrollView>
-    );
-}
-
 export default function ExercisePage() {
     const [loading, setLoading] = useState(true);
     const [prescription, setPrescription] = useState<ExPatientRuleInfo | null>(null);
@@ -415,7 +325,11 @@ export default function ExercisePage() {
                         <Flex>
                             <View style={[styles.medicalCol, styles.medicalColLeft]}>
                                 <Text style={styles.medicalInfoTitle}>康复师</Text>
-                                <AutoScrollText>{summary.doctor}</AutoScrollText>
+                                <AutoScrollText
+                                    scrollStyle={styles.medicalInfoValueScroll}
+                                    textStyle={[styles.medicalInfoValue, styles.medicalInfoValueText]}>
+                                    {summary.doctor}
+                                </AutoScrollText>
                             </View>
                             <View style={styles.medicalCol}>
                                 <Text style={styles.medicalInfoTitle}>时长</Text>
@@ -425,7 +339,11 @@ export default function ExercisePage() {
                         <Flex style={styles.medicalLine}>
                             <View style={[styles.medicalCol, styles.medicalColLeft]}>
                                 <Text style={styles.medicalInfoTitle}>周期</Text>
-                                <AutoScrollText>{summary.cycle}</AutoScrollText>
+                                <AutoScrollText
+                                    scrollStyle={styles.medicalInfoValueScroll}
+                                    textStyle={[styles.medicalInfoValue, styles.medicalInfoValueText]}>
+                                    {summary.cycle}
+                                </AutoScrollText>
                             </View>
                             <View style={styles.medicalCol}>
                                 <Text style={styles.medicalInfoTitle}>频率</Text>

@@ -14,10 +14,10 @@ import {
     filterMeasureItemsInRange,
     type LabeledValue,
 } from '@/src/features/profile/vitals/vitalsHelpers';
-import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
-import type { BloodGlucosePoint } from '@/src/features/home/components/BloodGlucoseChart';
-import type { BloodOxygenPoint } from '@/src/features/home/components/BloodOxygenChart';
-import type { HeartRatePoint } from '@/src/features/home/components/HeartRateChart';
+import type { BloodPressurePoint } from '../../components/BloodPressureChart';
+import type { BloodGlucosePoint } from '../../components/BloodGlucoseChart';
+import type { BloodOxygenPoint } from '../../components/BloodOxygenChart';
+import type { HeartRatePoint } from '../../components/HeartRateChart';
 import {
     loadMedicationDictMaps,
     loadMedicationPlanGroups,

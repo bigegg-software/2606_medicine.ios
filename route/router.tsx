@@ -88,7 +88,7 @@ import SettingsPage from '@/src/features/profile/settings';
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  Home: undefined;
+  MainTabs: undefined;
   ExercisePage: undefined;
   NutritionPage: undefined;
   ActivityDetail: { id: number | string };
@@ -261,10 +261,14 @@ export default function RootStack() {
         contentStyle: { backgroundColor: 'transparent' },
         statusBarStyle: 'dark',
       }}
-      initialRouteName={isLogin ? 'Home' : 'Login'}>
+      initialRouteName={isLogin ? 'MainTabs' : 'Login'}>
       <Stack.Screen name="Login" component={LoginPage} options={{ headerShown: false, title: "登录" }} />
       <Stack.Screen name="Register" component={RegisterPage} options={{ headerShown: false, title: "注册" }} />
-      <Stack.Screen name="Home" component={MainTabs} options={{ title: '' }} />
+      <Stack.Screen
+        name="MainTabs"
+        component={MainTabs}
+        options={{ title: '', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
+      />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />

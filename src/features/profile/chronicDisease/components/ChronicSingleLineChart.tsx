@@ -10,7 +10,7 @@ import {
     buildIsolatedLineScatterData,
     toChartValuePairs,
     type LineChartSeriesItem,
-} from '@/src/features/home/components/chartAxis';
+} from '../../components/chartAxis';
 import type { LabeledValue } from '@/src/features/profile/vitals/vitalsHelpers';
 
 const CHART_WIDTH = Dimensions.get('window').width - 84;

@@ -9,8 +9,8 @@ import {
     buildChartXAxis,
     buildIsolatedLineScatterData,
     toBloodPressureSeriesData,
-} from '@/src/features/home/components/chartAxis';
-import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
+} from '../../components/chartAxis';
+import type { BloodPressurePoint } from '../../components/BloodPressureChart';
 
 const CHART_WIDTH = Dimensions.get('window').width - 84;
 const CHART_HEIGHT = 120;

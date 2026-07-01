@@ -13,13 +13,13 @@ import UploadProgressBar from '@/src/components/UploadProgressBar';
 import updateHealthKit from '@/utils/healthKit';
 import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
-import BloodPressureChart from '@/src/features/home/components/BloodPressureChart';
-import BloodGlucoseChart from '@/src/features/home/components/BloodGlucoseChart';
-import BloodOxygenChart from '@/src/features/home/components/BloodOxygenChart';
-import BodyTemperatureChart from '@/src/features/home/components/BodyTemperatureChart';
-import HeartRateChart from '@/src/features/home/components/HeartRateChart';
-import SleepPieChart from '@/src/features/home/components/SleepPieChart';
-import SleepBarChart from '@/src/features/home/components/SleepBarChart';
+import BloodPressureChart from '../components/BloodPressureChart';
+import BloodGlucoseChart from '../components/BloodGlucoseChart';
+import BloodOxygenChart from '../components/BloodOxygenChart';
+import BodyTemperatureChart from '../components/BodyTemperatureChart';
+import HeartRateChart from '../components/HeartRateChart';
+import SleepPieChart from '../components/SleepPieChart';
+import SleepBarChart from '../components/SleepBarChart';
 import {
   getMeasureDataAllRecords,
   getMeasureDataDetailByDateRange,

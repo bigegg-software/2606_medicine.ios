@@ -158,7 +158,7 @@ export default function RegisterPage() {
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
         await dispatch(fetchUserSession());
-        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       } else {
         Alert.alert('注册失败', res.msg ?? res.message ?? '请检查信息后重试');
       }

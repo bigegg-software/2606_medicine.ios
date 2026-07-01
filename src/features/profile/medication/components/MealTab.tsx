@@ -43,7 +43,6 @@ import {
     getProteinNutritionDisplay,
     getWaterNutritionDisplay,
     NUTRITION_COLOR,
-    NUTRITION_RING_THEME,
     type MealCardData,
     type NutritionDisplay,
 } from '@/src/features/profile/medication/meal/dietRuleHelpers';
@@ -107,7 +106,7 @@ function MealCardContent({ meal }: { meal: MealCardData }) {
                     ))}
                 </View>
                 <Flex justify="center" style={styles.jyBox}>
-                    <Image source={require('@/assets/images/home/jy.png')} style={styles.jyIcon} />
+                    <Image tintColor={"#FF8B07"} source={require('@/assets/images/home/jy.png')} style={styles.jyIcon} />
                     <Text style={styles.jyText}>建议热量：{meal.calories}千卡</Text>
                 </Flex>
             </View>
@@ -563,9 +562,10 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                 <Flex align="center">
                                     <Text style={styles.yyTitle}>热量</Text>
                                     <MiniProgressRing
+                                        size={30}
                                         progress={calorieProgress}
-                                        trackColor={NUTRITION_RING_THEME.calorie.trackColor}
-                                        progressColors={NUTRITION_RING_THEME.calorie.progressColors}
+                                        trackColor="rgba(131,174,255,0.14)"
+                                        color="#6D925E"
                                     />
                                 </Flex>
                                 <Flex align="center" style={{ marginTop: 6 }}>
@@ -578,9 +578,10 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                 <Flex align="center">
                                     <Text style={styles.yyTitle}>蛋白</Text>
                                     <MiniProgressRing
+                                        size={30}
                                         progress={proteinProgress}
-                                        trackColor={NUTRITION_RING_THEME.protein.trackColor}
-                                        progressColors={NUTRITION_RING_THEME.protein.progressColors}
+                                        trackColor="rgba(131,174,255,0.14)"
+                                        color="#0951AE"
                                     />
                                 </Flex>
                                 <Flex align="center" style={{ marginTop: 6 }}>
@@ -593,9 +594,10 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                 <Flex align="center">
                                     <Text style={styles.yyTitle}>饮水</Text>
                                     <MiniProgressRing
+                                        size={30}
                                         progress={waterProgress}
-                                        trackColor={NUTRITION_RING_THEME.water.trackColor}
-                                        progressColors={NUTRITION_RING_THEME.water.progressColors}
+                                        trackColor="rgba(131,174,255,0.14)"
+                                        color="#EE9C44"
                                     />
                                 </Flex>
                                 <Flex align="center" style={{ marginTop: 6 }}>

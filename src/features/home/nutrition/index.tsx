@@ -55,7 +55,7 @@ export default function CommunityPage() {
             <Flex justify="between" style={styles.dietInfoItem}>
               <Flex style={{ flex: 1 }}>
                 <Flex style={styles.dietImgBox} justify='center'>
-                  <Image style={styles.dietImg} source={require('@/assets/images/home/rc.png')} />
+                  <Image style={styles.dietImg} source={require('@/assets/images/home/zao.png')} />
                 </Flex>
                 <View style={styles.dietInfoTitle}>
                   <Flex>

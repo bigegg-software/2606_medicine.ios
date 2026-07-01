@@ -136,7 +136,7 @@ export default function LoginPage() {
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
         await dispatch(fetchUserSession());
-        navigation.reset({ index: 0, routes: [{ name: 'Home' }] });
+        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
       } else {
         Alert.alert('登录失败', res.msg ?? res.message ?? '请检查验证码');
       }

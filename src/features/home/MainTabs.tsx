@@ -60,12 +60,26 @@ export default function MainTabs() {
   const syncMainTabTitle = (routeName: string) => {
     const title = routeName === 'Home' ? '' : getMainTabTitle(routeName);
     setActiveMainTabTitle(title);
+
+    if (routeName === 'Home') {
+      navigation.setOptions({
+        title: '',
+        headerTransparent: true,
+        headerStyle: { backgroundColor: 'transparent' },
+        headerTitle: () => null,
+        headerLeft: () => null,
+        headerRight: () => null,
+      });
+      return;
+    }
+
     navigation.setOptions({
       title,
-      headerShown: true,
-      ...(routeName === 'Home' ? { headerTitle: () => null } : { headerTitle: undefined }),
+      headerTransparent: true,
+      headerStyle: { backgroundColor: 'transparent' },
+      headerTitle: undefined,
+      headerLeft: undefined,
       ...(routeName !== 'Schedule' ? { headerRight: undefined } : {}),
-      ...(routeName !== 'Home' ? { headerLeft: undefined } : {}),
     });
   };
 

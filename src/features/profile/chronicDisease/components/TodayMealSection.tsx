@@ -9,7 +9,6 @@ import MiniProgressRing from '@/src/features/home/components/MiniProgressRing';
 import {
     calcNutritionProgress,
     getDietRuleSummary,
-    NUTRITION_RING_THEME,
 } from '@/src/features/profile/medication/meal/dietRuleHelpers';
 import {
     formatNutritionInteger,
@@ -74,9 +73,10 @@ export default function TodayMealSection() {
                             <Flex justify="center" align="center">
                                 <Text style={styles.yyTitle}>热量</Text>
                                 <MiniProgressRing
+                                    size={30}
                                     progress={calorieProgress}
-                                    trackColor={NUTRITION_RING_THEME.calorie.trackColor}
-                                    progressColors={NUTRITION_RING_THEME.calorie.progressColors}
+                                    trackColor="rgba(131,174,255,0.14)"
+                                    color="#6D925E"
                                 />
                             </Flex>
                             <Flex justify="center" style={{ marginTop: 6 }}>
@@ -88,9 +88,10 @@ export default function TodayMealSection() {
                             <Flex justify="center" align="center">
                                 <Text style={styles.yyTitle}>蛋白</Text>
                                 <MiniProgressRing
+                                    size={30}
                                     progress={proteinProgress}
-                                    trackColor={NUTRITION_RING_THEME.protein.trackColor}
-                                    progressColors={NUTRITION_RING_THEME.protein.progressColors}
+                                    trackColor="rgba(131,174,255,0.14)"
+                                    color="#0951AE"
                                 />
                             </Flex>
                             <Flex justify="center" style={{ marginTop: 6 }}>
@@ -102,9 +103,10 @@ export default function TodayMealSection() {
                             <Flex justify="center" align="center">
                                 <Text style={styles.yyTitle}>饮水</Text>
                                 <MiniProgressRing
+                                    size={30}
                                     progress={waterProgress}
-                                    trackColor={NUTRITION_RING_THEME.water.trackColor}
-                                    progressColors={NUTRITION_RING_THEME.water.progressColors}
+                                    trackColor="rgba(131,174,255,0.14)"
+                                    color="#EE9C44"
                                 />
                             </Flex>
                             <Flex justify="center" style={{ marginTop: 6 }}>

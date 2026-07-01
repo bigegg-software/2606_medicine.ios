@@ -1,140 +1,356 @@
 import { StyleSheet } from 'react-native'
-import { AppTheme } from '@/common/theme'
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F5F8FF' },
-    center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F5F8FF' },
     scrollView: { flex: 1 },
     scroll: { paddingBottom: 40 },
-    pd18: { paddingHorizontal: 18 },
-    banner: { marginTop: 18 },
-    topLeft: { flexDirection: 'row', alignItems: 'center' },
-    miniLogo: { width: 149, height: 30 },
-    topRight: { flexDirection: 'row', alignItems: 'center', position: 'relative', marginRight: 18 },
-    rightImg: { width: 26, height: 26 },
-    redDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: "#D80010", position: "absolute", top: 6, right: 6 },
-    colBoxes: { marginTop: 18 },
-    colBox: { height: 76, padding: 10, borderRadius: 16, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', },
-    colBg: { borderRadius: 16, },
-    imgIcon: { width: 26, height: 26, },
-    colText: { marginTop: 2, fontWeight: 500, fontSize: 12, color: '#FFFFFF', },
-    colValue: { marginTop: 4, fontWeight: 500, fontSize: 10, color: 'rgba(255,255,255,0.6)', },
-    scheduleBox: {
-        marginTop: 16,
-        backgroundColor: '#FEFFFF',
-        borderRadius: 16,
+    floatingHeader: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 20,
+    },
+    floatingHeaderInner: {
+        height: 44,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
         paddingHorizontal: 18,
-        paddingTop: 20,
-        paddingBottom: 18,
-        shadowColor: AppTheme.primaryColor,
+    },
+    pd18: { paddingHorizontal: 18, paddingTop: 260 },
+    miniLogo: { width: 99, height: 20 },
+    topRight: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minWidth: 40,
+        minHeight: 40,
+    },
+    rightImg: {
+        width: 20,
+        height: 20,
+    },
+    redDot: {
+        position: 'absolute',
+        top: 2,
+        right: -6,
+        paddingHorizontal: 5,
+        paddingVertical: 2,
+        backgroundColor: "#FF0000",
+        borderRadius: 13,
+        minWidth: 18,
+        alignItems: 'center',
+    },
+    redDotText: { fontWeight: "bold", fontSize: 10, color: "#FFFFFF" },
+    blurViewShadow: {
+        borderRadius: 12,
+        shadowColor: '#D0E6FF',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
-        shadowRadius: 12,
+        shadowRadius: 5,
+        elevation: 5,
+        overflow: 'hidden',
+        position: 'relative',
+
     },
-    cfIconBox: { width: 18, height: 18, borderRadius: 9, backgroundColor: "#173F7D", },
-    cfIcon: { width: 12, height: 12, },
-    cfIconText: { marginLeft: 6, fontWeight: 500, fontSize: 14, color: '#333333', },
-    cfContent: { paddingHorizontal: 9, marginTop: 25 },
-    cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 19, color: '#FF8B07', },
-    cfText: { textAlign: 'center', marginTop: 8, fontWeight: 400, fontSize: 12, color: "#666666" },
-    cfLine: { marginTop: 25, height: 1, backgroundColor: "rgba(23,63,125,0.06)" },
-    btmText: { fontWeight: "bold", fontSize: 18, color: "#333333", paddingHorizontal: 2, },
-    btm1: { fontWeight: 400, fontSize: 12, color: "#666666" },
-    ydbBox: { backgroundColor: "rgba(52,182,159,0.14)", borderRadius: 16, paddingHorizontal: 17, height: 21, marginLeft: 10, },
-    ydbText: { fontWeight: 400, fontSize: 12, color: "#34B69F" },
+    blurCardGradientFill: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    blurCardBlurFill: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    blurCardContent: { padding: 12, zIndex: 1 },
+    blurCardHeader: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    blurViewBorderSvg: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+    },
+    blurCardTitle: {
+        marginLeft: 4,
+        fontWeight: "bold",
+        fontSize: 15,
+        color: "#FFFFFF",
+    },
+    blurCardMore: {
+        fontWeight: 500,
+        fontSize: 13,
+        color: "#FFFFFF"
+    },
+    blurCardMoreIcon: {
+        width: 5,
+        height: 9,
+        marginLeft: 6,
+        marginRight: 4
+    },
+    blurCardContentListBox: {
+        marginTop: 10
+    },
+    blurCardContentList: {
+        padding: 11,
+        width: "31%",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 8,
+    },
+    blurCardListRow: {
+        width: '100%',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
+    blurCardListIcon: {
+        width: 24,
+        height: 24
+    },
+    blurCardListText: {
+        fontWeight: "bold",
+        fontSize: 11,
+        color: "#333333",
+        marginLeft: 4,
+    },
+    blurCardInfoIcon: {
+        width: 9,
+        height: 9,
+        marginLeft: 3,
+    },
+    blurCardListMoreIcon: {
+        width: 4,
+        height: 5,
+        marginLeft: 6,
+    },
+    blurCardValueCol: {
+        marginTop: 8
+    },
+    blurCardValue: {
+        fontWeight: "bold",
+        fontSize: 20,
+        color: "#333333"
+    },
+    blurCardUnit: {
+        fontWeight: 400,
+        fontSize: 10,
+        marginBottom: 3,
+        color: "#333333"
+    },
+    blurCardSparklineWrap: {
+        marginTop: 4,
+        height: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    blurCardProgressTrack: {
+        width: 74,
+        height: 5,
+        backgroundColor: '#EFEFEF',
+        borderRadius: 7,
+        overflow: 'hidden',
+    },
+    blurCardProgressFill: {
+        height: 5,
+        backgroundColor: '#72A1C5',
+        borderRadius: 7,
+    },
+    blurCardValueText: {
+        marginTop: 5,
+        fontWeight: 500,
+        fontSize: 9,
+        color: "#666666"
+    },
+    scheduleBoxShadow: {
+        marginTop: 8,
+        borderRadius: 12,
+        shadowColor: '#D0E6FF',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.1,
+        shadowRadius: 5,
+        elevation: 5,
+    },
+    scheduleBox: {
+        minHeight: 169,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: '#FFFFFF',
+        overflow: 'hidden',
+    },
+    scheduleBoxGradient: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+    },
+    scheduleBoxContent: {
+        padding: 12,
+    },
+    cfIcon: { width: 20, height: 20 },
+    cfIconText: { marginLeft: 4, fontWeight: "bold", fontSize: 15, color: "#131141", },
+    cfMore: { fontWeight: 500, fontSize: 13, color: "#666666" },
+    cfMoreIcon: { width: 5, height: 9, marginLeft: 6 },
+    cfContent: { paddingHorizontal: 3, marginTop: 18 },
+    cfItem: { alignItems: 'center' },
+    cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 18, color: '#333333', },
+    cfText: { textAlign: 'center', marginTop: 8, fontWeight: 500, fontSize: 12, color: "#666666" },
+    cfProgressTrack: {
+        width: 70,
+        height: 5,
+        marginTop: 8,
+        backgroundColor: '#ECF3FF',
+        borderRadius: 6,
+        overflow: 'hidden',
+    },
+    cfProgressFill: {
+        height: 5,
+        borderRadius: 6,
+    },
+    cfBottom: {
+        marginTop: 18,
+        backgroundColor: "#F6F8FB",
+        borderRadius: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+    },
+    btmText: { fontWeight: "bold", fontSize: 18, color: "#333333", paddingHorizontal: 4, },
+    btm1: { fontWeight: 500, fontSize: 12, color: "#666666" },
+    ydbBox: { backgroundColor: "rgba(109,146,94,0.16)", borderRadius: 4, paddingHorizontal: 19, height: 21, marginLeft: 12, },
+    ydbText: { fontWeight: 500, fontSize: 12, color: "#6D925E" },
     yyContent: {
-        marginTop: 16,
+        marginTop: 11,
+        paddingHorizontal: 6,
     },
     yyItem: {
         width: '33.33%',
+    },
+    yyItemRight: {
+        flex: 1,
+        minWidth: 0,
+        marginLeft: 6,
+    },
+    yyValueRow: {
         alignItems: 'center',
+    },
+    yyValueScroll: {
+        maxWidth: 36,
+    },
+    yyUnitScroll: {
+        maxWidth: 44,
+        flexShrink: 1,
     },
     yyTitle: {
         fontWeight: 500,
         fontSize: 12,
-        color: "#666666",
-        marginRight: 8,
+        marginTop: 4,
+        color: "#333333",
     },
     yyValue: {
-        fontWeight: 500,
-        fontSize: 12,
+        fontWeight: "bold",
+        fontSize: 13,
         color: "#333333",
     },
     yyUnit: {
         fontWeight: 500,
         fontSize: 12,
-        color: "#666666",
+        color: "#999999",
     },
     ysBox: {
         marginTop: 12,
-        paddingHorizontal: 21,
-        paddingVertical: 16,
-        backgroundColor: "rgba(79,134,238,0.04)",
-        borderRadius: 12,
+        paddingHorizontal: 12,
+        paddingVertical: 6,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 8,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.12,
+        shadowRadius: 3,
+        elevation: 2,
     },
     ysIcon: {
-        width: 24,
-        height: 24,
+        width: 22,
+        height: 22,
     },
     ysText: {
-        fontWeight: 500,
+        fontWeight: "bold",
         fontSize: 14,
+        marginLeft: 12,
         color: "#333333"
     },
     wlrBox: {
-        marginTop: 8,
+        marginLeft: 8,
         height: 25,
-        backgroundColor: "#FF8B07",
-        borderRadius: 12,
+        backgroundColor: "rgba(238,156,68,0.1)",
+        borderRadius: 4,
+        borderWidth: 1,
+        borderColor: "#EE9C44",
+        paddingHorizontal: 10
     },
     wlrBoxLogged: {
-        backgroundColor: '#34B69F',
+        backgroundColor: 'rgba(109,146,94,0.1)',
+        borderColor: "#6D925E",
     },
     wlrText: {
         fontWeight: 400,
         fontSize: 12,
-        color: "#FFF"
+        color: "#EE9C44"
+    },
+    wlrTextLogged: {
+        color: "#6D925E"
     },
     line: {
-        marginHorizontal: 14,
         height: 30,
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        width: 2,
+        marginHorizontal: 15,
+        backgroundColor: "#F0F4F7"
     },
-    lineDash: {
-        width: 1,
-        height: 3,
-        backgroundColor: '#999999',
-    },
-    foodBox: {
-        minHeight: 25,
+    foodChip: {
         paddingHorizontal: 8,
         paddingVertical: 4,
         backgroundColor: "rgba(153,153,153,0.08)",
         borderRadius: 7,
         justifyContent: 'center',
-        maxWidth: '100%',
+        flexShrink: 0,
+    },
+    foodChipShrink: {
+        flex: 1,
+        minWidth: 0,
+        flexShrink: 1,
     },
     foodText: {
         fontWeight: 500,
         fontSize: 12,
         color: "#333333",
-        flexShrink: 1,
     },
     foodArea: {
         flex: 1,
         minWidth: 0,
+        overflow: 'hidden',
     },
     foodList: {
         flexDirection: 'row',
-        flexWrap: 'wrap',
+        flexWrap: 'nowrap',
+        alignItems: 'center',
         gap: 6,
     },
+    foodEllipsis: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#333333",
+        flexShrink: 0,
+    },
     jyBox: {
-        marginTop: 6,
         height: 25,
-        backgroundColor: "rgba(153,153,153,0.08)",
-        borderRadius: 7,
     },
     jyIcon: {
         width: 15,
@@ -144,7 +360,7 @@ const styles = StyleSheet.create({
     jyText: {
         fontWeight: 500,
         fontSize: 12,
-        color: "#FF8B07",
+        color: "#6D925E",
     }
 
 })

@@ -2,13 +2,18 @@ import React, { useId, useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 
-const DEFAULT_RING_SIZE = 30;
+const RING_SIZE = 28;
 const STROKE_WIDTH = 4;
+const STROKE_INSET = STROKE_WIDTH / 2;
+const CANVAS_SIZE = RING_SIZE + STROKE_INSET * 2;
 const TRACK_COLOR = '#FFECD7';
 const PROGRESS_COLOR = '#FF8B07';
 const COMPLETE_COLOR = '#00B388';
-const PROGRESS_DOT_RADIUS = 1;
-const CENTER_DOT_RADIUS = 2;
+const DOT_SIZE = 4;
+
+const RING_RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
+const CANVAS_CENTER = CANVAS_SIZE / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
 
 function cssAngleToGradientPoints(angleDeg: number, cx: number, cy: number, radius: number) {
   const rad = ((angleDeg - 90) * Math.PI) / 180;
@@ -20,9 +25,16 @@ function cssAngleToGradientPoints(angleDeg: number, cx: number, cy: number, radi
   };
 }
 
+function getProgressDotPosition(progressPercent: number) {
+  const angleRad = ((-90 + (360 * progressPercent) / 100) * Math.PI) / 180;
+  return {
+    x: CANVAS_CENTER + RING_RADIUS * Math.cos(angleRad),
+    y: CANVAS_CENTER + RING_RADIUS * Math.sin(angleRad),
+  };
+}
+
 type MiniProgressRingProps = {
   progress: number;
-  size?: number;
   color?: string;
   trackColor?: string;
   progressColors?: [string, string];
@@ -31,49 +43,35 @@ type MiniProgressRingProps = {
 
 export default function MiniProgressRing({
   progress,
-  size = DEFAULT_RING_SIZE,
   color,
   trackColor = TRACK_COLOR,
   progressColors,
   gradientAngle = 90,
 }: MiniProgressRingProps) {
   const gradientId = useId().replace(/:/g, '');
-  const strokeInset = STROKE_WIDTH / 2;
-  const canvasSize = size + strokeInset * 2;
-  const ringRadius = (size - STROKE_WIDTH) / 2;
-  const canvasCenter = canvasSize / 2;
-  const circumference = 2 * Math.PI * ringRadius;
-
   const value = Math.min(100, Math.max(0, Math.round(progress)));
   const isComplete = value >= 100;
   const progressColor = color ?? (isComplete ? COMPLETE_COLOR : PROGRESS_COLOR);
   const clampedProgress = value / 100;
-  const dashLength = circumference * clampedProgress;
-  const gapLength = circumference - dashLength;
-
-  const dotPosition = useMemo(() => {
-    const angleRad = ((-90 + (360 * value) / 100) * Math.PI) / 180;
-    return {
-      x: canvasCenter + ringRadius * Math.cos(angleRad),
-      y: canvasCenter + ringRadius * Math.sin(angleRad),
-    };
-  }, [canvasCenter, ringRadius, value]);
+  const dashLength = CIRCUMFERENCE * clampedProgress;
+  const gapLength = CIRCUMFERENCE - dashLength;
+  const dotPosition = getProgressDotPosition(value);
 
   const gradientPoints = useMemo(
-    () => cssAngleToGradientPoints(gradientAngle, canvasCenter, canvasCenter, ringRadius),
-    [gradientAngle, canvasCenter, ringRadius],
+    () => cssAngleToGradientPoints(gradientAngle, CANVAS_CENTER, CANVAS_CENTER, RING_RADIUS),
+    [gradientAngle],
   );
 
   const progressStroke = progressColors ? `url(#${gradientId})` : progressColor;
   const idleDotColor = progressColors?.[0] ?? progressColor;
 
   return (
-    <View style={[styles.ring, { width: size, height: size }]}>
+    <View style={styles.ring}>
       <Svg
-        width={canvasSize}
-        height={canvasSize}
-        viewBox={`0 0 ${canvasSize} ${canvasSize}`}
-        style={[styles.canvas, { left: -strokeInset, top: -strokeInset }]}>
+        width={CANVAS_SIZE}
+        height={CANVAS_SIZE}
+        viewBox={`0 0 ${CANVAS_SIZE} ${CANVAS_SIZE}`}
+        style={styles.canvas}>
         {progressColors ? (
           <Defs>
             <LinearGradient
@@ -89,9 +87,9 @@ export default function MiniProgressRing({
           </Defs>
         ) : null}
         <Circle
-          cx={canvasCenter}
-          cy={canvasCenter}
-          r={ringRadius}
+          cx={CANVAS_CENTER}
+          cy={CANVAS_CENTER}
+          r={RING_RADIUS}
           stroke={trackColor}
           strokeWidth={STROKE_WIDTH}
           fill="none"
@@ -99,20 +97,20 @@ export default function MiniProgressRing({
         {value > 0 ? (
           <>
             <Circle
-              cx={canvasCenter}
-              cy={canvasCenter}
-              r={ringRadius}
+              cx={CANVAS_CENTER}
+              cy={CANVAS_CENTER}
+              r={RING_RADIUS}
               stroke={progressStroke}
               strokeWidth={STROKE_WIDTH}
               fill="none"
               strokeDasharray={`${dashLength} ${gapLength}`}
               strokeLinecap="round"
-              transform={`rotate(-90 ${canvasCenter} ${canvasCenter})`}
+              transform={`rotate(-90 ${CANVAS_CENTER} ${CANVAS_CENTER})`}
             />
             <Circle
               cx={dotPosition.x}
               cy={dotPosition.y}
-              r={PROGRESS_DOT_RADIUS}
+              r={DOT_SIZE / 2}
               fill="#FFFFFF"
             />
           </>
@@ -127,17 +125,11 @@ export default function MiniProgressRing({
             <Circle
               cx={dotPosition.x}
               cy={dotPosition.y}
-              r={PROGRESS_DOT_RADIUS}
+              r={DOT_SIZE / 2}
               fill="#FFFFFF"
             />
           </>
         )}
-        <Circle
-          cx={canvasCenter}
-          cy={canvasCenter}
-          r={CENTER_DOT_RADIUS}
-          fill="#FFFFFF"
-        />
       </Svg>
     </View>
   );
@@ -145,11 +137,13 @@ export default function MiniProgressRing({
 
 const styles = StyleSheet.create({
   ring: {
+    width: RING_SIZE,
+    height: RING_SIZE,
     overflow: 'visible',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   canvas: {
     position: 'absolute',
+    left: -STROKE_INSET,
+    top: -STROKE_INSET,
   },
 });
