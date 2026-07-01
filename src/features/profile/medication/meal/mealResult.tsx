@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TouchableOpacity, View, type ImageSourcePropType } from 'react-native';
 import { Flex, Picker, Toast } from '@ant-design/react-native';
 import moment from 'moment';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -23,6 +23,7 @@ import {
     PREVIEW_NUTRITION_KEYS,
 } from './mealNutritionHelpers';
 import type { ManualCorrectionSavePayload } from './manualCorrectionHelpers';
+import { markMealInputForReset } from './mealInputReset';
 
 function getMealCategoryByTime() {
     const hour = new Date().getHours();
@@ -36,6 +37,7 @@ function buildMealDetailItems(
     items: FoodIdentifyItem[],
     states: FoodItemEditState[],
     timeStr: string,
+    mealCategory: number,
 ) {
     return items.map((item, index) => {
         const state = states[index] ?? createFoodItemState(item);
@@ -45,7 +47,7 @@ function buildMealDetailItems(
             servingUnit: state.unitValue,
             unit: state.unitValue,
             weight: isGramUnit(state.unitValue) ? state.amount : toNumber(item.weight),
-            mealCategory: item.mealCategory ?? getMealCategoryByTime(),
+            mealCategory,
             calorie: toNumber(item.calorie),
             protein: toNumber(item.protein),
             fat: toNumber(item.fat),
@@ -59,6 +61,17 @@ function buildMealDetailItems(
         };
     });
 }
+
+const MEAL_PERIOD_OPTIONS: ReadonlyArray<{
+    category: number;
+    label: string;
+    icon: ImageSourcePropType;
+}> = [
+        { category: 1, label: '早餐', icon: require('@/assets/images/meal/zc.png') },
+        { category: 2, label: '中餐', icon: require('@/assets/images/meal/zzc.png') },
+        { category: 3, label: '晚餐', icon: require('@/assets/images/meal/wc.png') },
+        { category: 4, label: '加餐', icon: require('@/assets/images/meal/jc.png') },
+    ];
 
 const TIME_PICKER_DATA = [
     Array.from({ length: 24 }, (_, hour) => ({
@@ -87,9 +100,12 @@ export default function MealResultPage() {
     const [foodItemStates, setFoodItemStates] = useState<FoodItemEditState[]>(() =>
         initialAnalysisResult.map(createFoodItemState),
     );
+    const [mealCategory, setMealCategory] = useState(() => getMealCategoryByTime());
     const [saving, setSaving] = useState(false);
 
     const isError = !result.hasFood || foods.length === 0;
+    const isPhotoInput = Boolean(result.ossUrl?.trim());
+    const retryActionText = isPhotoInput ? '重新拍摄' : '重新录入';
 
     const applyCorrection = useCallback((correction: ManualCorrectionSavePayload) => {
         setFoods(prev => prev.map((food, index) => (index === correction.index ? correction.item : food)));
@@ -136,14 +152,15 @@ export default function MealResultPage() {
         setSaving(true);
         try {
             const res = (await addMealDetailList({
-                mealDetailList: buildMealDetailItems(foods, foodItemStates, timeStr),
+                mealDetailList: buildMealDetailItems(foods, foodItemStates, timeStr, mealCategory),
                 ossId: result.ossId,
                 foodIdentifyId: result.foodIdentifyId,
                 timeStr,
             })) as { code?: number; msg?: string; message?: string };
             if (isResourceApiOk(res)) {
                 Toast.success('记录成功');
-                navigation.replace('Medication', { tab: 'meal', resetMealInput: true });
+                markMealInputForReset();
+                navigation.goBack();
                 return;
             }
             Toast.fail(res?.msg || res?.message || '保存失败');
@@ -152,7 +169,7 @@ export default function MealResultPage() {
         } finally {
             setSaving(false);
         }
-    }, [foods, foodItemStates, recordTime, result.foodIdentifyId, result.ossId, navigation, saving]);
+    }, [foods, foodItemStates, recordTime, mealCategory, result.foodIdentifyId, result.ossId, navigation, saving]);
 
     const updateFoodItemState = useCallback((index: number, next: FoodItemEditState) => {
         setFoodItemStates(prev => prev.map((item, itemIndex) => (itemIndex === index ? next : item)));
@@ -160,14 +177,22 @@ export default function MealResultPage() {
 
 
     return (
-        <PageLayout>
+        <PageLayout edges={[]}>
             <View style={styles.page}>
-                <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
-                    {result.ossUrl ? (
-                        <View style={styles.imageBox}>
+                <ScrollView
+                    style={styles.body}
+                    contentContainerStyle={styles.bodyContent}
+                    showsVerticalScrollIndicator={false}>
+                    <View style={styles.imageBox}>
+                        {result.ossUrl ? (
                             <Image source={{ uri: result.ossUrl }} style={styles.image} />
-                        </View>
-                    ) : null}
+                        ) : (
+                            <Image
+                                source={require('@/assets/images/medication/default2.png')}
+                                style={styles.image}
+                            />
+                        )}
+                    </View>
 
                     {isError ? (
                         <>
@@ -278,26 +303,45 @@ export default function MealResultPage() {
                                     onCorrected={applyCorrection}
                                 />
                             ))}
-
-
                         </>
-
-
-
                     )}
                 </ScrollView>
 
                 <View style={styles.bottomBar}>
+                    {!isError ? (
+                        <Flex align="center" style={styles.mealPeriodRow}>
+                            <Text style={styles.timeText}>选择时间段：</Text>
+                            {MEAL_PERIOD_OPTIONS.map(option => {
+                                const selected = mealCategory === option.category;
+                                return (
+                                    <TouchableOpacity
+                                        key={option.category}
+                                        activeOpacity={0.7}
+                                        style={[
+                                            styles.mealPeriodChip,
+                                            selected && styles.mealPeriodChipActive,
+                                        ]}
+                                        onPress={() => setMealCategory(option.category)}>
+                                        <Flex align="center" justify="center">
+                                            <Image style={styles.csImg} source={option.icon} />
+                                            <Text style={styles.csText}>{option.label}</Text>
+                                        </Flex>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </Flex>
+                    ) : null}
+
                     {isError ? (
                         <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()}>
-                            <Text style={styles.primaryBtnText}>重新拍摄</Text>
+                            <Text style={styles.primaryBtnText}>{retryActionText}</Text>
                         </TouchableOpacity>
                     ) : (
                         <TouchableOpacity
                             style={[styles.primaryBtn, saving && { opacity: 0.6 }]}
                             disabled={saving}
                             onPress={handleSave}>
-                            <Text style={styles.primaryBtnText}>{saving ? '保存中...' : '保存到今日摄入'}</Text>
+                            <Text style={styles.primaryBtnText}>{saving ? '保存中...' : '保存'}</Text>
                         </TouchableOpacity>
                     )}
                 </View>

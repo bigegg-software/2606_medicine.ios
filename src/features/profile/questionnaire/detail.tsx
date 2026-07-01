@@ -14,6 +14,7 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import {
     formatAssessmentDate,
+    formatEq5dScore,
     formatHeightWeightDisplay,
     getRiskPercent,
     getScoreLevel,
@@ -203,7 +204,11 @@ export default function QuestionnaireDetailPage({ route }: { route: { params: { 
                             </Flex>
                             <Flex justify="between" style={styles.rowTextBox}>
                                 <Text style={styles.topText}>总分</Text>
-                                <Text style={styles.topText}>{detail.score}分</Text>
+                                <Text style={styles.topText}>
+                                    {detail.type === 3
+                                        ? formatEq5dScore(detail.score)
+                                        : `${detail.score}分`}
+                                </Text>
                             </Flex>
                         </>
                     ) : null}

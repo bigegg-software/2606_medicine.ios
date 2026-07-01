@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { Image, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { Toast } from '@ant-design/react-native';
@@ -73,7 +73,6 @@ function AvatarRingRipple({ size, index }: { size: number; index: number }) {
 export default function MealRecognizingPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'MealRecognizingPage'>>();
-    const startedRef = useRef(false);
     const imageUri = route.params.mode === 'image' ? route.params.imageUri : undefined;
 
     useEffect(() => {
@@ -81,8 +80,7 @@ export default function MealRecognizingPage() {
     }, [navigation]);
 
     useEffect(() => {
-        if (startedRef.current) return;
-        startedRef.current = true;
+        let cancelled = false;
 
         const run = async () => {
             const params = route.params;
@@ -93,6 +91,8 @@ export default function MealRecognizingPage() {
                         : await uploadFoodIdentifyImage(params.imageUri, params.text)
                 ) as FoodIdentifyResult;
 
+                if (cancelled) return;
+
                 if (isResourceApiOk(res) && res.data) {
                     const hasFood =
                         Array.isArray(res.data.analysisResult) && res.data.analysisResult.length > 0;
@@ -101,14 +101,21 @@ export default function MealRecognizingPage() {
                 }
 
                 Toast.fail(res?.msg || res?.message || '识别失败');
-                navigation.goBack();
+                if (!cancelled) {
+                    navigation.goBack();
+                }
             } catch {
+                if (cancelled) return;
                 Toast.fail('识别失败');
                 navigation.goBack();
             }
         };
 
         void run();
+
+        return () => {
+            cancelled = true;
+        };
     }, [navigation, route.params]);
 
     return (

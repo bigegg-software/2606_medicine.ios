@@ -44,7 +44,7 @@ export default function QuestionnaireListPage() {
         try {
             const [latestRes, historyRes] = await Promise.all([
                 getUserQuestionNewList(),
-                getUserQuestionFrontList({ pageSize: 3, pageNum: 1 }),
+                getUserQuestionFrontList({ pageSize: 4, pageNum: 1 }),
             ]);
             const latestRecords =
                 apiResourceData<UserQuestionRecord[]>(latestRes as unknown as UserQuestionNewListResult) ?? [];
@@ -103,7 +103,7 @@ export default function QuestionnaireListPage() {
                                             {lastAssessment?.date ? (
                                                 <Text style={styles.rowText}>上次评估：{lastAssessment.date}</Text>
                                             ) : null}
-                                             {!canStart && nextAssessmentDate ? (
+                                            {!canStart && nextAssessmentDate ? (
                                                 <Text style={[styles.rowText, { marginTop: 4 }]}>
                                                     下次评估：{nextAssessmentDate}
                                                 </Text>

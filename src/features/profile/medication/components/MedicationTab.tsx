@@ -463,7 +463,7 @@ export default function MedicationTab() {
                         <View key={day.key}>
                             <Text style={styles.colTitle}>{formatDayLabel(day.label)}</Text>
                             <View style={styles.listBox}>
-                                {day.items.map(item => (
+                                {[...day.items].reverse().map(item => (
                                     <Flex justify="between" style={styles.listItem} key={item.key}>
                                         <Flex>
                                             <Text style={styles.listItemText}>{item.name}</Text>

@@ -27,7 +27,7 @@ export const QUESTIONNAIRE_CONFIG: ReadonlyArray<{
     { type: 0, duration: '2-4分钟' },
     { type: 1, duration: '2-3分钟' },
     { type: 2, duration: '3-5分钟' },
-    { type: 3, duration: '3-5分钟' },
+    { type: 3, duration: '1-2分钟' },
 ];
 
 const ASSESSMENT_INTERVAL_MONTHS: Partial<Record<QuestionnaireType, number>> = {
@@ -61,6 +61,16 @@ const MAX_SCORE_BY_TYPE: Partial<Record<QuestionnaireType, number>> = {
     2: 10,
 };
 
+function normalizeEq5dScore(score: number): number {
+    if (score > 1) return score / 100;
+    return score;
+}
+
+export function formatEq5dScore(score: number): string {
+    const normalized = normalizeEq5dScore(score);
+    return normalized.toFixed(2);
+}
+
 export const PROGRESS_COLORS: Record<StatusStyleKey, { ring: string; arc: string; text: string }> = {
     rowStatus: { ring: 'rgba(0,201,80,0.12)', arc: '#00C950', text: '#00C950' },
     rowStatusWarn: { ring: 'rgba(237,194,98,0.12)', arc: '#EDC262', text: '#EDC262' },
@@ -85,6 +95,14 @@ export function getScoreLevel(type: QuestionnaireType, score: number): ScoreLeve
             if (score <= 2) return { result: '轻度风险', statusStyle: 'rowStatusWarn' };
             if (score <= 4) return { result: '中度风险', statusStyle: 'rowStatusOrange' };
             return { result: '高风险', statusStyle: 'rowStatusError' };
+        case 3: {
+            const normalized = normalizeEq5dScore(score);
+            if (normalized >= 0.9) return { result: '优秀', statusStyle: 'rowStatus' };
+            if (normalized >= 0.8) return { result: '良好', statusStyle: 'rowStatus' };
+            if (normalized >= 0.7) return { result: '一般', statusStyle: 'rowStatusWarn' };
+            if (normalized >= 0.5) return { result: '需重点关注', statusStyle: 'rowStatusOrange' };
+            return { result: '建议及时评估', statusStyle: 'rowStatusError' };
+        }
         default:
             return { result: `${score}分`, statusStyle: 'rowStatus' };
     }
@@ -98,6 +116,10 @@ export function formatAssessmentDate(record: UserQuestionRecord) {
 }
 
 export function getRiskPercent(type: QuestionnaireType, score: number) {
+    if (type === 3) {
+        const normalized = normalizeEq5dScore(score);
+        return Math.min(100, Math.round(normalized * 100));
+    }
     const maxScore = MAX_SCORE_BY_TYPE[type] ?? 100;
     return Math.min(100, Math.round((score / maxScore) * 100));
 }
@@ -125,6 +147,9 @@ export function isOptionSelected(optionIndex: number, answer: string, questionTy
 export function getScoreTip(type: QuestionnaireType, scoreLevel: ScoreLevel) {
     if (type === 1) {
         return `您的得分处于${scoreLevel.result}区间，建议根据日常能力情况合理安排照护支持。`;
+    }
+    if (type === 3) {
+        return `您的 EQ-5D 得分处于${scoreLevel.result}区间，建议关注生活质量相关指标。`;
     }
     return `得分越高，风险越大。您的得分处于${scoreLevel.result}区间，建议关注相关健康指标。`;
 }

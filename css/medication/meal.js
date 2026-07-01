@@ -72,6 +72,7 @@ const styles = StyleSheet.create({
     },
     stackWrap: {
         marginTop: 14,
+        position: 'relative',
         overflow: 'visible',
     },
     stackMainCard: {
@@ -103,6 +104,22 @@ const styles = StyleSheet.create({
         lineHeight: 20,
         color: '#999999',
         textAlign: 'center',
+    },
+    stackLayerCard: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        borderRadius: 12,
+        backgroundColor: '#F1F6FF',
+        shadowColor: '#4F86EE',
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.2,
+        shadowRadius: 2,
+        elevation: 1,
+    },
+    stackLayerMiddle: {
+        zIndex: 2,
     },
     stackPeek: {
         height: 10,
@@ -291,6 +308,7 @@ const styles = StyleSheet.create({
         fontWeight: 400,
         fontSize: 14,
         color: "#333333",
+        marginRight:14
     },
     mealValueNum: {
         fontWeight: 400,

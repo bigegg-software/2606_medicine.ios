@@ -30,7 +30,8 @@ const TICK_HEIGHT: Record<TickKind, number> = {
   minor: 7,
 };
 
-const CENTER_LINE_HEIGHT = 16;
+const CENTER_LINE_WIDTH = 3;
+const CENTER_LINE_HEIGHT = 20;
 
 const TICK_GRADIENT = {
   colors: ['rgba(79,134,238,0)', '#FFFFFF', '#FFFFFF', '#FFFFFF', 'rgba(79,134,238,0)'] as const,
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: RULER_WIDTH,
     position: 'relative',
-    overflow: 'visible',
+    overflow: 'hidden',
   },
   trackFrame: {
     position: 'absolute',
@@ -362,10 +363,11 @@ const styles = StyleSheet.create({
   centerLine: {
     position: 'absolute',
     top: TICK_TRACK_HEIGHT / 2 - CENTER_LINE_HEIGHT / 2,
-    left: RULER_TRACK_WIDTH / 2 - 0.5,
-    width: 1,
+    left: RULER_TRACK_WIDTH / 2 - CENTER_LINE_WIDTH / 2,
+    width: CENTER_LINE_WIDTH,
     height: CENTER_LINE_HEIGHT,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#4F86EE',
+    borderRadius: 1,
     zIndex: 4,
   },
 });

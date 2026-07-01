@@ -57,6 +57,7 @@ import {
     sumProtein,
     sumWaterIntake,
 } from '@/src/features/profile/medication/meal/mealDetailHelpers';
+import { consumeMealInputReset } from '@/src/features/profile/medication/meal/mealInputReset';
 import Svg, { ClipPath, Defs, G, Path, Polygon } from 'react-native-svg';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -206,7 +207,21 @@ function MealStackSwiper({ meals, initialIndex = 0 }: { meals: MealCardData[]; i
         ),
     }));
 
+    const nextCardStyle = useAnimatedStyle(() => ({
+        transform: [
+            {
+                translateY: interpolate(
+                    translateY.value,
+                    [-SWIPE_MAX_DRAG, 0, SWIPE_MAX_DRAG],
+                    [-4, 0, 0],
+                    Extrapolation.CLAMP,
+                ),
+            },
+        ],
+    }));
+
     const activeMeal = meals[activeIndex];
+    const nextMeal = meals.length > 1 ? meals[(activeIndex + 1) % meals.length] : null;
 
     if (meals.length === 0) {
         return (
@@ -227,11 +242,22 @@ function MealStackSwiper({ meals, initialIndex = 0 }: { meals: MealCardData[]; i
     return (
         <GestureDetector gesture={panGesture}>
             <View style={styles.stackWrap}>
+                {nextMeal ? (
+                    <Animated.View
+                        style={[styles.stackLayerCard, styles.stackLayerMiddle, nextCardStyle]}
+                        pointerEvents="none">
+                        <MealCardContent meal={nextMeal} />
+                    </Animated.View>
+                ) : null}
                 <Animated.View style={[styles.stackMainCard, mainCardStyle]}>
                     <MealCardContent meal={activeMeal} />
                 </Animated.View>
-                <Animated.View style={[styles.stackPeek, styles.stackPeekFirst, peek1Style]} />
-                <Animated.View style={[styles.stackPeek, styles.stackPeekSecond, peek2Style]} />
+                {meals.length >= 2 ? (
+                    <>
+                        <Animated.View style={[styles.stackPeek, styles.stackPeekFirst, peek1Style]} />
+                        <Animated.View style={[styles.stackPeek, styles.stackPeekSecond, peek2Style]} />
+                    </>
+                ) : null}
             </View>
         </GestureDetector>
     );
@@ -393,12 +419,23 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
         }
     }, []);
 
+    const resetMealInputState = useCallback(() => {
+        setDinnerNote('');
+        voiceBaseTextRef.current = '';
+        setIsVoiceListening(false);
+        void speechToTextRef.current?.stopListening();
+        Keyboard.dismiss();
+    }, []);
+
     useFocusEffect(
         useCallback(() => {
             void loadMealData();
             setMealNotePlaceholder(getMealNotePlaceholder());
             setSelectedMeal(getCurrentMealKey());
-        }, [loadMealData]),
+            if (consumeMealInputReset()) {
+                resetMealInputState();
+            }
+        }, [loadMealData, resetMealInputState]),
     );
 
     useEffect(() => {
@@ -478,14 +515,6 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
         Keyboard.dismiss();
     }, []);
 
-    const resetMealInputState = useCallback(() => {
-        setDinnerNote('');
-        voiceBaseTextRef.current = '';
-        setIsVoiceListening(false);
-        void speechToTextRef.current?.stopListening();
-        Keyboard.dismiss();
-    }, []);
-
     useEffect(() => {
         if (resetToken > 0) {
             resetMealInputState();
@@ -505,8 +534,9 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
 
         void speechToTextRef.current?.stopListening();
         Keyboard.dismiss();
+        resetMealInputState();
         navigation.navigate('MealRecognizingPage', { mode: 'text', text });
-    }, [dinnerNote, navigation]);
+    }, [dinnerNote, navigation, resetMealInputState]);
 
     return (
         <View style={styles.mealTabContainer}>

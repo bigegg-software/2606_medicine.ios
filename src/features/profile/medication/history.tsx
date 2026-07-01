@@ -372,7 +372,7 @@ export default function MedicationAllPage() {
                                 <View key={day.yyyyMMdd ?? dayIndex}>
                                     <Text style={styles.colTitle}>{formatDayLabel(day.yyyyMMdd)}</Text>
                                     <View style={styles.listBox}>
-                                        {day.list?.map((record) => (
+                                        {[...(day.list ?? [])].reverse().map((record) => (
                                             <Flex justify="between" style={styles.listItem} key={record.medicationRecordId}>
                                                 <View>
                                                     <Flex>

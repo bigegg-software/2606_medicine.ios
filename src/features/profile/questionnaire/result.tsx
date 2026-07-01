@@ -8,7 +8,7 @@ import { getUserQuestionDetail, type QuestionnaireType, type UserQuestionDetailR
 import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
 import { apiResourceData } from '@/src/utils/apiHelpers';
-import { getRiskPercent, getScoreLevel, getScoreTip, PROGRESS_COLORS, } from './utils/helpers';
+import { getRiskPercent, getScoreLevel, getScoreTip, formatEq5dScore, PROGRESS_COLORS, } from './utils/helpers';
 
 const PROGRESS_SIZE = 182;
 const PROGRESS_STROKE = 14;
@@ -128,7 +128,11 @@ export default function QuestionnaireResultPage({
                         <View style={styles.scoreBox}>
                             <Text style={styles.resultScoreTitle}>评分</Text>
                             <Text style={styles.resultScoreValue}>
-                                {detail?.score != null ? `${detail.score}分` : '-'}
+                                {detail?.score != null
+                                    ? questionnaireType === 3
+                                        ? formatEq5dScore(detail.score)
+                                        : `${detail.score}分`
+                                    : '-'}
                             </Text>
                         </View>
                     </Flex>
