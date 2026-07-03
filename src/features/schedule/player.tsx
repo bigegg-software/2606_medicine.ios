@@ -31,8 +31,8 @@ import {
     splitMultilineText,
     type TodayExerciseDuration,
 } from './playerHelpers';
-
-type PlayerTab = 'steps' | 'tips';
+import StepTimeline from './components/StepTimeline';
+import infoStyles from '@/css/schedule/testingPage';
 
 type PrescriptionContext = {
     exPatientRuleId?: string;
@@ -58,7 +58,6 @@ function safePlayVideoPlayer(player: { play: () => void }) {
 export default function PlayerPage() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const route = useRoute<RouteProp<RootStackParamList, 'PlayerPage'>>();
-    const [activeTab, setActiveTab] = useState<PlayerTab>('steps');
     const [loading, setLoading] = useState(true);
     const [videos, setVideos] = useState<ExVideoInfo[]>([]);
     const [activeVideoIndex, setActiveVideoIndex] = useState(0);
@@ -90,10 +89,14 @@ export default function PlayerPage() {
         instance.loop = true;
     });
 
-    const tabContent = activeTab === 'steps'
-        ? activeVideo?.trainingSteps?.trim()
-        : activeVideo?.trainingPrompt?.trim();
-    const tabLines = useMemo(() => splitMultilineText(tabContent), [tabContent]);
+    const stepLines = useMemo(
+        () => splitMultilineText(activeVideo?.trainingSteps),
+        [activeVideo?.trainingSteps],
+    );
+    const tipsLines = useMemo(
+        () => splitMultilineText(activeVideo?.trainingPrompt),
+        [activeVideo?.trainingPrompt],
+    );
     const precautionLines = useMemo(
         () => splitMultilineText(activeVideo?.precautions),
         [activeVideo?.precautions],
@@ -195,7 +198,6 @@ export default function PlayerPage() {
             setVideos(nextVideos);
             setTodayDuration(nextDuration);
             setActiveVideoIndex(0);
-            setActiveTab('steps');
         } catch {
             setPrescriptionContext({});
             setVideos([]);
@@ -349,60 +351,46 @@ export default function PlayerPage() {
                     </TouchableOpacity>
                 </Flex>
 
-                <Flex style={styles.tabBox} justify="center">
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.tabItem}
-                        onPress={() => setActiveTab('steps')}>
-                        <Text style={[styles.tabText, activeTab === 'steps' && styles.tabTextActive]}>
-                            训练步骤
-                        </Text>
-                        <View style={activeTab === 'steps' ? styles.tabIndicator : styles.tabIndicatorHidden} />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={[styles.tabItem, styles.tabItemGap]}
-                        onPress={() => setActiveTab('tips')}>
-                        <Text style={[styles.tabText, activeTab === 'tips' && styles.tabTextActive]}>
-                            训练提示
-                        </Text>
-                        <View style={activeTab === 'tips' ? styles.tabIndicator : styles.tabIndicatorHidden} />
-                    </TouchableOpacity>
-                </Flex>
-
-                <View style={styles.medicalBox}>
-                    {tabLines.length > 0 ? (
-                        tabLines.map((line, index) => (
-                            <Text
-                                key={`${activeTab}-${index}`}
-                                style={[styles.medicalInfoValue, index > 0 && { marginTop: 8 }]}>
-                                {tabLines.length > 1 ? `${index + 1}.${line}` : line}
-                            </Text>
-                        ))
+                <View style={infoStyles.infoBox}>
+                    <Text style={infoStyles.infoTitle}>训练步骤</Text>
+                    {stepLines.length > 0 ? (
+                        <StepTimeline steps={stepLines} />
                     ) : (
-                        <Text style={styles.medicalInfoValue}>
-                            {videos.length === 0 ? '暂无训练视频' : '暂无内容'}
-                        </Text>
+                        <View style={infoStyles.infoItem}>
+                            <Text style={infoStyles.infoItemText}>
+                                {videos.length === 0 ? '暂无训练视频' : '暂无训练步骤'}
+                            </Text>
+                        </View>
                     )}
                 </View>
-
-                {precautionLines.length > 0 ? (
-                    <View style={styles.medicalBox}>
-                        <Flex>
-                            <Image source={require('@/assets/images/medication/icon.png')} style={styles.cfIcon} />
-                            <Text style={styles.cfIconText}>注意事项</Text>
-                        </Flex>
-                        <View style={styles.suggestBox}>
-                            {precautionLines.map((line, index) => (
-                                <View key={`precaution-${index}`}>
-                                    <Text style={[styles.aiSuggest, index > 0 && { marginTop: 8 }]}>
-                                        {precautionLines.length > 1 ? `${index + 1}.${line}` : line}
-                                    </Text>
-                                </View>
-                            ))}
-                        </View>
+                <View style={infoStyles.infoBox}>
+                    <Text style={infoStyles.infoTitle}>训练提示</Text>
+                    <View style={infoStyles.infoItem}>
+                        {tipsLines.length > 0 ? tipsLines.map((line, index) => (
+                            <Flex key={`tips-${index}`}>
+                                <View style={[infoStyles.leftBor, { backgroundColor: '#6D925E' }]} />
+                                <Text style={infoStyles.infoItemText}>{line}</Text>
+                            </Flex>
+                        )) : (
+                            <Text style={infoStyles.infoItemText}>暂无训练提示</Text>
+                        )}
                     </View>
-                ) : null}
+                </View>
+                <View style={infoStyles.infoBox}>
+                    <Text style={infoStyles.infoTitle}>注意事项</Text>
+                    <Flex justify="between" style={[infoStyles.infoItem, { backgroundColor: '#FDF3E9' }]}>
+                        <View>
+                            {precautionLines.length > 0 ? precautionLines.map((line, index) => (
+                                <Flex key={`precaution-${index}`}>
+                                    <View style={infoStyles.leftBor} />
+                                    <Text style={infoStyles.infoItemText}>{line}</Text>
+                                </Flex>
+                            )) : (
+                                <Text style={infoStyles.infoItemText}>暂无注意事项</Text>
+                            )}
+                        </View>
+                    </Flex>
+                </View>
             </ScrollView>
         </PageLayout>
     );

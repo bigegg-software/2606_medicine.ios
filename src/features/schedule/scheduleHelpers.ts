@@ -18,8 +18,10 @@ import {
   type HistoryExPatientRule,
   type HistoryListResult,
   type InUseExPatientRule,
+  type ProgressInfo,
   type WeekCalendarItem,
 } from '@/api/schedule';
+import { getHealthGoalInfo, type HealthGoalInfo, type HealthGoalTarget } from '@/api/healthGoal';
 
 export type ScheduleDictMaps = {
   exerciseType: Record<string, string>;
@@ -40,6 +42,16 @@ export type HistoryPlanItem = {
   cycle: string;
   status?: number;
   stopReason: string;
+};
+
+export type HealthGoalDisplayItem = {
+  key: string;
+  title: string;
+  subtitle: string;
+  statusText: string;
+  icon: number;
+  backImage: number;
+  assessmentType: string;
 };
 
 export const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'] as const;
@@ -265,14 +277,168 @@ function formatExerciseChildTypes(
     .join('、');
 }
 
-function getGoalSubtitle(rule: ExPatientRuleRatio, dictMaps?: ScheduleDictMaps) {
-  const childText = formatExerciseChildTypes(rule.exerciseChildType, rule.exerciseType, dictMaps);
-  if (childText) return childText;
+const HEALTH_GOAL_ICONS: Record<string, number> = {
+  health_indicator_type: require('@/assets/images/schedule/yw.png'),
+  sys_health_test_item: require('@/assets/images/schedule/exercise3.png'),
+  question_type: require('@/assets/images/schedule/exercise4.png'),
+  assessment_type_other: require('@/assets/images/schedule/yw.png'),
+};
 
-  const durationText = rule.duration != null ? `${rule.duration}分钟` : '';
-  const strengthText = resolveDictLabel(dictMaps?.strengthLevel, rule.strengthLevel);
-  if (durationText && strengthText) return `${durationText}（${strengthText}）`;
-  return durationText || strengthText || '--';
+const COMPLIANT_TYPE_META: Record<string, {
+  label: string;
+  rateKey: keyof HealthGoalTarget;
+  dirKey: keyof HealthGoalTarget;
+}> = {
+  xuezhiTc: { label: '总胆固醇', rateKey: 'xuezhiTcRate', dirKey: 'xuezhiTcImproveDirection' },
+  xuezhiTg: { label: '甘油三酯', rateKey: 'xuezhiTgRate', dirKey: 'xuezhiTgImproveDirection' },
+  xuezhiHdlC: { label: 'HDL-C', rateKey: 'xuezhiHdlCRate', dirKey: 'xuezhiHdlCImproveDirection' },
+  xuezhiLdlC: { label: 'LDL-C', rateKey: 'xuezhiLdlCRate', dirKey: 'xuezhiLdlCImproveDirection' },
+};
+
+function formatImproveDirectionText(direction?: number) {
+  if (direction === 1) return '上升';
+  if (direction === -1) return '下降';
+  return '改善';
+}
+
+function formatLipidTargets(target: HealthGoalTarget) {
+  return (target.compliantTypes ?? [])
+    .map(type => {
+      const meta = COMPLIANT_TYPE_META[type];
+      if (!meta) return '';
+      const rate = target[meta.rateKey] as number | undefined;
+      const direction = target[meta.dirKey] as number | undefined;
+      if (rate == null) return '';
+      return `${meta.label}${formatImproveDirectionText(direction)}${rate}%`;
+    })
+    .filter(Boolean);
+}
+
+function formatHealthGoalSubtitle(target: HealthGoalTarget) {
+  const goalVo = target.healthGoalVo;
+  const indicatorName = goalVo?.assessmentValueName?.trim()
+    || goalVo?.healthTestItemVo?.testName?.trim();
+
+  if (goalVo?.assessmentType === 'sys_health_test_item' && target.improveDirectionVal != null) {
+    const unit = goalVo.healthTestItemVo?.unit?.trim();
+    const direction = goalVo.healthTestItemVo?.improveDirection;
+    const directionText = direction === 1 ? '提高' : direction === -1 ? '降低' : '改善';
+    const suffix = unit ? unit : '%';
+    return `${indicatorName ?? '健康测试'}${directionText}${target.improveDirectionVal}${suffix}`;
+  }
+
+  if (target.exImpRate != null) {
+    return `执行率目标 ${target.exImpRate}%`;
+  }
+
+  if (target.complianceImproveType === 0 && target.compliantPercent != null) {
+    return `${indicatorName ?? '指标'}达标率 ${target.compliantPercent}%`;
+  }
+
+  if (target.complianceImproveType === 1) {
+    const lipidTargets = formatLipidTargets(target);
+    if (lipidTargets.length > 0) {
+      return lipidTargets.join('、');
+    }
+  }
+
+  return indicatorName || goalVo?.goalName?.trim() || '--';
+}
+
+function resolveHealthGoalProgressState(
+  target: HealthGoalTarget,
+  progressInfo?: ProgressInfo,
+): { kind: 'no_data' } | { kind: 'declined' } | { kind: 'progress'; value: number } {
+  if (target.indicatorDeclined === 1) {
+    return { kind: 'declined' };
+  }
+
+  if (target.exImpRate != null) {
+    const ratio = progressInfo?.complateRatio;
+    if (ratio == null || Number.isNaN(Number(ratio))) {
+      return { kind: 'no_data' };
+    }
+    return { kind: 'progress', value: normalizeProgress(ratio) };
+  }
+
+  const rawProgress = target.improvePercent ?? target.compliantPercent;
+  if (rawProgress == null || Number.isNaN(Number(rawProgress))) {
+    return { kind: 'no_data' };
+  }
+
+  const progress = Number(rawProgress);
+  if (progress < 0) {
+    return { kind: 'declined' };
+  }
+
+  return { kind: 'progress', value: normalizeProgress(progress) };
+}
+
+function formatHealthGoalStatusByProgress(progress: number) {
+  if (progress >= 80) return '接近目标达成';
+  if (progress >= 60) return '改善明显';
+  if (progress >= 40) return '改善情况良好';
+  if (progress >= 20) return '持续改善中';
+  return '已开始改善';
+}
+
+function getHealthGoalStatusText(target: HealthGoalTarget, progressInfo?: ProgressInfo) {
+  const state = resolveHealthGoalProgressState(target, progressInfo);
+  if (state.kind === 'no_data') return '等待评估';
+  if (state.kind === 'declined') return '需关注';
+  return formatHealthGoalStatusByProgress(state.value);
+}
+
+function getHealthGoalIcon(target: HealthGoalTarget) {
+  const assessmentType = target.healthGoalVo?.assessmentType?.trim();
+  if (assessmentType && HEALTH_GOAL_ICONS[assessmentType]) {
+    return HEALTH_GOAL_ICONS[assessmentType];
+  }
+  return HEALTH_GOAL_ICONS.health_indicator_type;
+}
+
+export async function enrichHealthGoalTargets(targets?: HealthGoalTarget[]) {
+  if (!targets?.length) return [];
+
+  return Promise.all(
+    targets.map(async target => {
+      if (target.healthGoalVo?.goalName?.trim() || target.healthGoalId == null) {
+        return target;
+      }
+
+      try {
+        const res = await getHealthGoalInfo(target.healthGoalId);
+        if (!isResourceApiOk(res)) return target;
+        const info = apiResourceData<HealthGoalInfo>(res as any);
+        return info ? { ...target, healthGoalVo: info } : target;
+      } catch {
+        return target;
+      }
+    }),
+  );
+}
+
+export function toHealthGoalDisplayItem(
+  target: HealthGoalTarget,
+  index: number,
+  progressInfo?: ProgressInfo,
+): HealthGoalDisplayItem {
+  const goalVo = target.healthGoalVo;
+  const assessmentType = goalVo?.assessmentType?.trim();
+  const key = target.healthGoalId != null
+    ? String(target.healthGoalId)
+    : `${goalVo?.goalName ?? 'goal'}-${index}`;
+  return {
+    key,
+    title: goalVo?.goalName?.trim() || goalVo?.assessmentValueName?.trim() || '健康目标',
+    subtitle: formatHealthGoalSubtitle(target),
+    statusText: getHealthGoalStatusText(target, progressInfo),
+    icon: getHealthGoalIcon(target),
+    backImage: index % 2 === 0
+      ? require('@/assets/images/schedule/back1.png')
+      : require('@/assets/images/schedule/back2.png'),
+    assessmentType: assessmentType ?? '',
+  };
 }
 
 export function toTodayTaskItem(
@@ -293,19 +459,6 @@ export function toTodayTaskItem(
     intro: rule.duration != null ? `${typeLabel}${rule.duration}分钟` : '--',
     progress,
     icon: EXERCISE_TYPE_IMAGES[typeKey] ?? EXERCISE_TYPE_IMAGES.cardio,
-  };
-}
-
-export function toGoalItem(rule: ExPatientRuleRatio, index: number, dictMaps?: ScheduleDictMaps) {
-  const typeKey = rule.exerciseType?.trim() ?? '';
-  return {
-    key: `${typeKey}-${index}`,
-    title: dictMaps?.exerciseType[typeKey] ?? getExerciseTypeLabel(typeKey),
-    subtitle: getGoalSubtitle(rule, dictMaps),
-    icon: EXERCISE_TYPE_IMAGES[typeKey] ?? EXERCISE_TYPE_IMAGES.cardio,
-    backImage: index === 0
-      ? require('@/assets/images/schedule/back1.png')
-      : require('@/assets/images/schedule/back2.png'),
   };
 }
 

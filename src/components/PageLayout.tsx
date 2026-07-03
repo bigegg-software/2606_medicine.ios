@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { View, StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
+import { View, StyleSheet, type ImageSourcePropType, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AppTheme } from '@/common/theme';
@@ -11,7 +11,6 @@ const STACK_HEADER_CONTENT_HEIGHT = 44;
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: AppTheme.backgroundColor,
     },
     content: {
         flex: 1,
@@ -28,6 +27,10 @@ type Props = {
     withStackHeader?: boolean;
     /** 键盘「完成」工具栏，需挂在 SafeAreaView 顶层以保证 iOS InputAccessoryView 及时显示 */
     keyboardAccessory?: ReactNode;
+    /** 自定义顶部背景图，默认使用全局 bg.png；showHeaderBackground 为 false 时不渲染 */
+    headerBackSource?: ImageSourcePropType;
+    /** 为 false 时页面顶部使用 #FFFFFF，不显示背景图 */
+    showHeaderBackground?: boolean;
 };
 
 export default function PageLayout({
@@ -37,6 +40,8 @@ export default function PageLayout({
     contentStyle,
     withStackHeader = true,
     keyboardAccessory,
+    headerBackSource,
+    showHeaderBackground = true,
 }: Props) {
     const headerHeight = useHeaderHeight();
     const insets = useSafeAreaInsets();
@@ -45,8 +50,13 @@ export default function PageLayout({
         : 0;
 
     return (
-        <SafeAreaView style={[styles.container, style]} edges={edges}>
-            <HeaderBack />
+        <SafeAreaView
+            style={[
+                styles.container,
+                style,
+            ]}
+            edges={edges}>
+            {showHeaderBackground ? <HeaderBack source={headerBackSource} /> : null}
             <View
                 style={[
                     styles.content,

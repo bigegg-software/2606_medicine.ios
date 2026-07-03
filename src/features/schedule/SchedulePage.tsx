@@ -34,7 +34,8 @@ import {
   loadTodayTaskProgressMap,
   normalizeProgress,
   sortHistoryPlans,
-  toGoalItem,
+  enrichHealthGoalTargets,
+  toHealthGoalDisplayItem,
   toHistoryPlanItem,
   toTodayTaskItem,
   type ScheduleDictMaps,
@@ -119,8 +120,10 @@ export default function SchedulePage() {
     [prescription?.ruleRatioList, dictMaps, todayTaskProgressMap],
   );
   const goalItems = useMemo(
-    () => (prescription?.ruleRatioList ?? []).map((rule, index) => toGoalItem(rule, index, dictMaps ?? undefined)),
-    [prescription?.ruleRatioList, dictMaps],
+    () => (prescription?.healthGoalTargetList ?? []).map((target, index) =>
+      toHealthGoalDisplayItem(target, index, prescription?.progressInfo),
+    ),
+    [prescription?.healthGoalTargetList, prescription?.progressInfo],
   );
   const historyItems = useMemo(
     () => historyPlans.map(toHistoryPlanItem),
@@ -135,6 +138,10 @@ export default function SchedulePage() {
       let current: InUseExPatientRule | null = null;
       if (isResourceApiOk(payload)) {
         current = apiResourceData<InUseExPatientRule>(payload) ?? null;
+        if (current?.healthGoalTargetList?.length) {
+          const enrichedTargets = await enrichHealthGoalTargets(current.healthGoalTargetList);
+          current = { ...current, healthGoalTargetList: enrichedTargets };
+        }
         setPrescription(current);
       } else {
         setPrescription(null);
@@ -288,18 +295,24 @@ export default function SchedulePage() {
 
               <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scrollBox}>
                 {goalItems.map(item => (
-                  <View style={styles.backBox} key={item.key}>
+                  <TouchableOpacity style={styles.backBox} key={item.key} onPress={() => {
+                    if (item.assessmentType === "sys_health_test_item") {
+                      navigation.navigate("TestingPage", { id: String(item.key) });
+                    } else if (item.assessmentType === "question_type") {
+                      navigation.navigate("QuestionnaireTestingPage", { id: String(item.key) });
+                    }
+                  }}>
                     <Image style={styles.backImg} source={item.backImage} />
                     <Flex justify="between">
                       <Text style={styles.backText}>{item.title}</Text>
                       <Image style={styles.exerciseImg} source={item.icon} />
                     </Flex>
                     <Flex style={styles.statusColBox}>
-                      <Text style={styles.statusColText}>持续改善中</Text>
+                      <Text style={styles.statusColText}>{item.statusText}</Text>
                       <Image style={styles.statusIcon} source={require('@/assets/images/schedule/status1.png')} />
                     </Flex>
                     <Text style={styles.colBtmText} numberOfLines={1}>{item.subtitle}</Text>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </ScrollView>
             </>
@@ -411,7 +424,6 @@ export default function SchedulePage() {
               </Flex>
             </Flex>
           ))}
-
 
         </View>
       </ScrollView>

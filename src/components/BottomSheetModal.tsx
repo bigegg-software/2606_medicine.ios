@@ -17,6 +17,7 @@ type BottomSheetModalProps = {
   onClose: () => void;
   onDismissed?: () => void;
   dismissOnBackdropPress?: boolean;
+  overlayOpacity?: number;
   children: ReactNode;
   sheetStyle?: StyleProp<ViewStyle>;
 };
@@ -26,10 +27,12 @@ export default function BottomSheetModal({
   onClose,
   onDismissed,
   dismissOnBackdropPress = true,
+  overlayOpacity = 0.5,
   children,
   sheetStyle,
 }: BottomSheetModalProps) {
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const backdropAnim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(visible);
   const onDismissedRef = useRef(onDismissed);
 
@@ -41,27 +44,42 @@ export default function BottomSheetModal({
     if (visible) {
       setRendered(true);
       slideAnim.setValue(SCREEN_HEIGHT);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 280,
-        useNativeDriver: true,
-      }).start();
+      backdropAnim.setValue(0);
+      Animated.parallel([
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 280,
+          useNativeDriver: true,
+        }),
+        Animated.timing(backdropAnim, {
+          toValue: 1,
+          duration: 220,
+          useNativeDriver: true,
+        }),
+      ]).start();
       return;
     }
 
     if (!rendered) return;
 
-    Animated.timing(slideAnim, {
-      toValue: SCREEN_HEIGHT,
-      duration: 220,
-      useNativeDriver: true,
-    }).start(({ finished }) => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: SCREEN_HEIGHT,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+      Animated.timing(backdropAnim, {
+        toValue: 0,
+        duration: 180,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
       if (finished) {
         setRendered(false);
         onDismissedRef.current?.();
       }
     });
-  }, [rendered, slideAnim, visible]);
+  }, [backdropAnim, rendered, slideAnim, visible]);
 
   if (!rendered) return null;
 
@@ -74,6 +92,19 @@ export default function BottomSheetModal({
       statusBarTranslucent
       presentationStyle="overFullScreen">
       <View style={styles.overlay}>
+        <Animated.View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            styles.backdrop,
+            {
+              opacity: backdropAnim.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0, overlayOpacity],
+              }),
+            },
+          ]}
+        />
         {dismissOnBackdropPress ? (
           <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         ) : null}
@@ -89,7 +120,9 @@ const styles = StyleSheet.create({
   overlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  backdrop: {
+    backgroundColor: '#000000',
   },
   sheet: {
     width: '100%',

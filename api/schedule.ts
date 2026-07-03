@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import type { HealthGoalTarget } from './healthGoal';
 
 export type ExPatientRuleRatio = {
   exerciseType?: string;
@@ -24,6 +25,8 @@ export type InUseExPatientRule = {
   progress?: number;
   status?: number;
   ruleRatioList?: ExPatientRuleRatio[];
+  healthGoalIds?: number[];
+  healthGoalTargetList?: HealthGoalTarget[];
   progressInfo?: ProgressInfo;
   remark?: string;
 };

@@ -20,15 +20,16 @@ export const QUESTIONNAIRE_TITLES: Record<QuestionnaireType, string> = {
     3: 'EQ-5D生活质量评估',
 };
 
+// 问卷列表配置，用于显示问卷列表和计算下次评估时间
 export const QUESTIONNAIRE_CONFIG: ReadonlyArray<{
     type: QuestionnaireType;
     duration: string;
 }> = [
-    { type: 0, duration: '2-4分钟' },
-    { type: 1, duration: '2-3分钟' },
-    { type: 2, duration: '3-5分钟' },
-    { type: 3, duration: '1-2分钟' },
-];
+        { type: 0, duration: '2-4分钟' },
+        { type: 1, duration: '2-3分钟' },
+        { type: 2, duration: '3-5分钟' },
+        // { type: 3, duration: '1-2分钟' },
+    ];
 
 const ASSESSMENT_INTERVAL_MONTHS: Partial<Record<QuestionnaireType, number>> = {
     0: 3,
@@ -62,41 +63,48 @@ const MAX_SCORE_BY_TYPE: Partial<Record<QuestionnaireType, number>> = {
 };
 
 function normalizeEq5dScore(score: number): number {
-    if (score > 1) return score / 100;
-    return score;
+    const num = Number(score);
+    if (!Number.isFinite(num)) return 0;
+    if (num > 1) return num / 100;
+    return num;
 }
 
 export function formatEq5dScore(score: number): string {
     const normalized = normalizeEq5dScore(score);
+    if (!Number.isFinite(normalized)) return '--';
     return normalized.toFixed(2);
 }
 
 export const PROGRESS_COLORS: Record<StatusStyleKey, { ring: string; arc: string; text: string }> = {
-    rowStatus: { ring: 'rgba(0,201,80,0.12)', arc: '#00C950', text: '#00C950' },
+    rowStatus: { ring: '#6D925E', arc: '#6D925E', text: '#6D925E' },
     rowStatusWarn: { ring: 'rgba(237,194,98,0.12)', arc: '#EDC262', text: '#EDC262' },
     rowStatusOrange: { ring: 'rgba(249,115,22,0.12)', arc: '#F97316', text: '#F97316' },
     rowStatusError: { ring: 'rgba(216,0,16,0.12)', arc: '#D80010', text: '#D80010' },
 };
 
 export function getScoreLevel(type: QuestionnaireType, score: number): ScoreLevel {
+    const num = Number(score);
+    if (!Number.isFinite(num)) {
+        return { result: '--', statusStyle: 'rowStatus' };
+    }
     switch (type) {
         case 0:
-            if (score <= 24) return { result: '低风险', statusStyle: 'rowStatus' };
-            if (score <= 49) return { result: '中风险', statusStyle: 'rowStatusWarn' };
-            if (score <= 74) return { result: '较高风险', statusStyle: 'rowStatusOrange' };
+            if (num <= 24) return { result: '低风险', statusStyle: 'rowStatus' };
+            if (num <= 49) return { result: '中风险', statusStyle: 'rowStatusWarn' };
+            if (num <= 74) return { result: '较高风险', statusStyle: 'rowStatusOrange' };
             return { result: '高风险', statusStyle: 'rowStatusError' };
         case 1:
-            if (score <= 5) return { result: '完全独立', statusStyle: 'rowStatus' };
-            if (score <= 20) return { result: '轻度依赖', statusStyle: 'rowStatusWarn' };
-            if (score <= 40) return { result: '中度依赖', statusStyle: 'rowStatusOrange' };
+            if (num <= 5) return { result: '完全独立', statusStyle: 'rowStatus' };
+            if (num <= 20) return { result: '轻度依赖', statusStyle: 'rowStatusWarn' };
+            if (num <= 40) return { result: '中度依赖', statusStyle: 'rowStatusOrange' };
             return { result: '重度依赖', statusStyle: 'rowStatusError' };
         case 2:
-            if (score <= 0) return { result: '低风险', statusStyle: 'rowStatus' };
-            if (score <= 2) return { result: '轻度风险', statusStyle: 'rowStatusWarn' };
-            if (score <= 4) return { result: '中度风险', statusStyle: 'rowStatusOrange' };
+            if (num <= 0) return { result: '低风险', statusStyle: 'rowStatus' };
+            if (num <= 2) return { result: '轻度风险', statusStyle: 'rowStatusWarn' };
+            if (num <= 4) return { result: '中度风险', statusStyle: 'rowStatusOrange' };
             return { result: '高风险', statusStyle: 'rowStatusError' };
         case 3: {
-            const normalized = normalizeEq5dScore(score);
+            const normalized = normalizeEq5dScore(num);
             if (normalized >= 0.9) return { result: '优秀', statusStyle: 'rowStatus' };
             if (normalized >= 0.8) return { result: '良好', statusStyle: 'rowStatus' };
             if (normalized >= 0.7) return { result: '一般', statusStyle: 'rowStatusWarn' };
@@ -104,8 +112,27 @@ export function getScoreLevel(type: QuestionnaireType, score: number): ScoreLeve
             return { result: '建议及时评估', statusStyle: 'rowStatusError' };
         }
         default:
-            return { result: `${score}分`, statusStyle: 'rowStatus' };
+            return { result: `${num}分`, statusStyle: 'rowStatus' };
     }
+}
+
+/** 各问卷状态档位（由差到好），用于计算进度百分比 */
+export const SCORE_TIER_LABELS: Record<QuestionnaireType, readonly string[]> = {
+    0: ['高风险', '较高风险', '中风险', '低风险'],
+    1: ['重度依赖', '中度依赖', '轻度依赖', '完全独立'],
+    2: ['高风险', '中度风险', '轻度风险', '低风险'],
+    3: ['建议及时评估', '需重点关注', '一般', '良好', '优秀'],
+};
+
+/** 按当前状态档位计算进度：第 n 档 / 总档数 × 100，如 EQ-5D 良好为第 4/5 档 = 80% */
+export function getScoreLevelProgressPercent(type: QuestionnaireType, score: number) {
+    const num = Number(score);
+    if (!Number.isFinite(num)) return 0;
+    const { result } = getScoreLevel(type, num);
+    const tiers = SCORE_TIER_LABELS[type];
+    const index = tiers.indexOf(result);
+    if (index < 0) return 0;
+    return Math.round(((index + 1) / tiers.length) * 100);
 }
 
 export function formatAssessmentDate(record: UserQuestionRecord) {
@@ -116,12 +143,14 @@ export function formatAssessmentDate(record: UserQuestionRecord) {
 }
 
 export function getRiskPercent(type: QuestionnaireType, score: number) {
+    const num = Number(score);
+    if (!Number.isFinite(num)) return 0;
     if (type === 3) {
-        const normalized = normalizeEq5dScore(score);
+        const normalized = normalizeEq5dScore(num);
         return Math.min(100, Math.round(normalized * 100));
     }
     const maxScore = MAX_SCORE_BY_TYPE[type] ?? 100;
-    return Math.min(100, Math.round((score / maxScore) * 100));
+    return Math.min(100, Math.round((num / maxScore) * 100));
 }
 
 export function sortOptions(options: QuestionOptionItem[] = []) {

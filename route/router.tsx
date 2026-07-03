@@ -38,6 +38,11 @@ import AssistantPage from '@/src/features/assistant/AssistantPage';
 import CalendarPage from '@/src/features/schedule/calendarPage';
 import ScheduleHistoryPage from '@/src/features/schedule/scheduleHistoryPage';
 import PlayerPage from '@/src/features/schedule/player';
+import TestingPage from '@/src/features/schedule/testing/index';
+import TestingResultsPage from '@/src/features/schedule/testing/results';
+import TestingRecordPage from '@/src/features/schedule/testing/record';
+import QuestionnaireTestingPage from '@/src/features/schedule/testing/questionnaire';
+import QuestionnaireTestingRecordPage from '@/src/features/schedule/testing/questionnaireRecord';
 
 // 饮食运动
 import NutritionPage from '@/src/features/home/nutrition';
@@ -126,6 +131,11 @@ export type RootStackParamList = {
     strengthLevel?: string;
     taskIndex?: number;
   } | undefined;
+  TestingPage: { id: string },
+  TestingResultsPage: { healthTestItemId: string; recordOnly?: boolean },
+  TestingRecordPage: { healthTestItemId: string },
+  QuestionnaireTestingPage: { id: string },
+  QuestionnaireTestingRecordPage: { questionnaireType: QuestionnaireType; title?: string },
   Medication: { tab?: 'medication' | 'meal'; resetMealInput?: boolean } | undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
@@ -162,6 +172,7 @@ const Stack: any = createNativeStackNavigator<RootStackParamList>();
 
 function StackHeader({ route, options, back, navigation }: any) {
   const { scaleSize } = useFontSize();
+  const showHeaderBackground = options.showHeaderBackground !== false;
   const headerTitleStyle = useMemo(
     () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),
     [scaleSize],
@@ -169,27 +180,35 @@ function StackHeader({ route, options, back, navigation }: any) {
 
   const canGoBack = navigation.canGoBack();
   return (
-    <View style={styles.stackHeader}>
+    <View
+      style={[
+        styles.stackHeader,
+        !showHeaderBackground ? styles.stackHeaderPlain : null,
+      ]}>
       <Header
         {...options}
         title={options.headerTitle != null ? undefined : getHeaderTitle(options, route.name)}
         headerTitle={options.headerTitle}
-        headerTransparent
+        headerTransparent={showHeaderBackground}
         headerTintColor={AppTheme.primaryColor}
         headerTitleStyle={headerTitleStyle}
-        headerStyle={{ backgroundColor: 'transparent' }}
+        headerStyle={{
+          backgroundColor: showHeaderBackground ? 'transparent' : '#FFFFFF',
+        }}
         headerShadowVisible={false}
         headerRight={options.headerRight}
         headerLeft={
-          canGoBack
-            ? props => (
-              <HeaderBackButton
-                {...props}
-                tintColor={AppTheme.primaryColor}
-                onPress={navigation.goBack}
-              />
-            )
-            : options.headerLeft
+          options.headerLeft !== undefined
+            ? options.headerLeft
+            : canGoBack
+              ? props => (
+                <HeaderBackButton
+                  {...props}
+                  tintColor={AppTheme.primaryColor}
+                  onPress={navigation.goBack}
+                />
+              )
+              : undefined
         }
         back={back}
       />
@@ -232,6 +251,9 @@ const styles = StyleSheet.create({
   stackHeader: {
     paddingLeft: 10,
     overflow: 'hidden',
+  },
+  stackHeaderPlain: {
+    backgroundColor: '#FFFFFF',
   },
   darkStackHeader: {
     paddingLeft: 10,
@@ -296,6 +318,11 @@ export default function RootStack() {
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
       <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '' }} />
+      <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
+      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false  }} />
+      <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />
+      <Stack.Screen name="QuestionnaireTestingPage" component={QuestionnaireTestingPage} options={{ title: '评估问卷'}} />
+      <Stack.Screen name="QuestionnaireTestingRecordPage" component={QuestionnaireTestingRecordPage} options={{ title: '评估记录', showHeaderBackground: false }} />
       <Stack.Screen name="Medication" component={MedicationPage} options={{ title: '用药记录' }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: '添加用药记录' }} />
       <Stack.Screen name="MedicationAllPage" component={MedicationAllPage} options={{ title: '所有用药' }} />

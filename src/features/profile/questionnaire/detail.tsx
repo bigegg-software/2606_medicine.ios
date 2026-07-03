@@ -5,6 +5,7 @@ import PageLayout from '@/src/components/PageLayout';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import {
     getUserQuestionDetail,
+    type QuestionnaireType,
     type UserQuestionAnswerItem,
     type UserQuestionDetailResult,
     type UserQuestionRecord,
@@ -27,7 +28,17 @@ import {
 const PROGRESS_SIZE = 60;
 const PROGRESS_STROKE = 4;
 
-function renderQuestionBlock(item: UserQuestionAnswerItem, index: number) {
+function formatEq5dSelfHealthAnswer(answer: string) {
+    const score = Number(answer.trim());
+    if (!Number.isFinite(score)) return answer || null;
+    return `${Math.round(score)}分`;
+}
+
+function renderQuestionBlock(
+    item: UserQuestionAnswerItem,
+    index: number,
+    questionnaireType?: QuestionnaireType,
+) {
     const question = item.questions?.[0];
     const questionType = question?.type;
     const answer = item.answers?.[0]?.answer ?? '';
@@ -35,11 +46,24 @@ function renderQuestionBlock(item: UserQuestionAnswerItem, index: number) {
     const questionTitle = question?.question?.trim() || `问题${index + 1}`;
 
     if (questionType === 3 || options.length === 0) {
-        const heightWeightDisplay = questionType === 3 ? formatHeightWeightDisplay(answer) : null;
+        const eq5dSelfHealthDisplay =
+            questionnaireType === 3 && questionType === 3
+                ? formatEq5dSelfHealthAnswer(answer)
+                : null;
+        const heightWeightDisplay =
+            questionType === 3 && !eq5dSelfHealthDisplay
+                ? formatHeightWeightDisplay(answer)
+                : null;
         return (
             <View key={`${item.templateId ?? index}`} style={[styles.detailBox, index > 0 && { marginTop: 8 }]}>
                 <Text style={styles.detailMapTitle}>{index + 1}、{questionTitle}</Text>
-                {heightWeightDisplay ? (
+                {eq5dSelfHealthDisplay ? (
+                    <Flex style={[styles.detailMapItem, styles.detailMapItemActive]}>
+                        <Text style={[styles.detailMapItemText, styles.detailMapItemTextActive]}>
+                            自我健康评分: {eq5dSelfHealthDisplay}
+                        </Text>
+                    </Flex>
+                ) : heightWeightDisplay ? (
                     <>
                         <Flex style={[styles.detailMapItem, styles.detailMapItemActive]}>
                             <Text style={[styles.detailMapItemText, styles.detailMapItemTextActive]}>
@@ -217,7 +241,9 @@ export default function QuestionnaireDetailPage({ route }: { route: { params: { 
                 {questionsAnswer.length > 0 ? (
                     <>
                         <Text style={styles.sectionTitle}>作答详情</Text>
-                        {questionsAnswer.map((item, index) => renderQuestionBlock(item, index))}
+                        {questionsAnswer.map((item, index) =>
+                            renderQuestionBlock(item, index, detail.type),
+                        )}
                     </>
                 ) : null}
 

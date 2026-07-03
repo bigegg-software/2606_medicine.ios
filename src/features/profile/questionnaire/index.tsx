@@ -73,13 +73,24 @@ function calculateBmi(heightCm: number, weightKg: number) {
     return weightKg / (heightM * heightM);
 }
 
-function calculateScore(templates: QuestionTemplate[], answers: Record<number, string>) {
+function calculateScore(
+    questionnaireType: QuestionnaireType,
+    templates: QuestionTemplate[],
+    answers: Record<number, string>,
+) {
     return templates.reduce((total, template) => {
         const key = getTemplateKey(template);
         const answer = answers[key];
         if (!answer) return total;
         const questionType = template.questionOption?.questions?.[0]?.type;
-        if (questionType === 3) return total;
+        if (questionType === 3) {
+            if (questionnaireType === 3) {
+                const num = Number(answer);
+                if (!Number.isFinite(num)) return total;
+                return num > 1 ? num / 100 : num;
+            }
+            return total;
+        }
         const options = sortOptions(template.questionOption?.options);
         const indices =
             questionType === 4
@@ -90,6 +101,7 @@ function calculateScore(templates: QuestionTemplate[], answers: Record<number, s
 }
 
 function buildQuestionsAnswer(
+    questionnaireType: QuestionnaireType,
     templates: QuestionTemplate[],
     answers: Record<number, string>,
 ): UserQuestionAnswerItem[] {
@@ -97,7 +109,9 @@ function buildQuestionsAnswer(
         const key = getTemplateKey(template);
         const questionType = template.questionOption?.questions?.[0]?.type;
         const rawAnswer = answers[key] ?? '';
-        const answer = questionType === 3 ? normalizeHeightWeightAnswer(rawAnswer) : rawAnswer;
+        const answer = questionType === 3 && questionnaireType !== 3
+            ? normalizeHeightWeightAnswer(rawAnswer)
+            : rawAnswer.trim();
         return {
             templateId: key,
             answers: [{ answer }],
@@ -183,6 +197,9 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
     const hasCurrentAnswer = useMemo(() => {
         if (!currentQuestion) return false;
         if (currentQuestion.type === 3) {
+            if (type === 3) {
+                return Boolean(currentAnswer.trim());
+            }
             const { height, weight } = parseHeightWeightAnswer(currentAnswer);
             return Number(height) > 0 && Number(weight) > 0;
         }
@@ -218,12 +235,12 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         setSubmitting(true);
         const loadingKey = Toast.loading('提交中', 0);
         try {
-            const questionsAnswer = buildQuestionsAnswer(templates, answers);
+            const questionsAnswer = buildQuestionsAnswer(type, templates, answers);
             const res = (await addUserQuestion({
                 type,
                 questionsAnswer,
                 comments: '',
-                score: calculateScore(templates, answers),
+                score: calculateScore(type, templates, answers),
             })) as unknown as AddUserQuestionResult;
             if (!isResourceApiOk(res)) {
                 Alert.alert('提交失败', res?.msg || '请稍后重试');
@@ -248,6 +265,22 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         if (!currentQuestion) return null;
 
         if (currentQuestion.type === 3) {
+            if (type === 3) {
+                return (
+                    <View style={styles.fillBox}>
+                        <TextInput
+                            style={styles.fillInput}
+                            value={currentAnswer}
+                            onChangeText={setSingleAnswer}
+                            placeholder="请输入"
+                            placeholderTextColor={AppTheme.textSecondary}
+                            keyboardType="number-pad"
+                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                        />
+                    </View>
+                );
+            }
+
             const { height, weight } = parseHeightWeightAnswer(currentAnswer);
             const heightNum = Number(height);
             const weightNum = Number(weight);

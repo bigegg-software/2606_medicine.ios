@@ -535,7 +535,7 @@ export default function HomeTab() {
             ) : null}
           </View>
         </View>
-        <View style={styles.scheduleBoxShadow}>
+        <TouchableOpacity style={styles.scheduleBoxShadow} onPress={() => navigation.navigate('Schedule')}>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -549,12 +549,10 @@ export default function HomeTab() {
                   <Image source={require('@/assets/images/home/yd.png')} style={styles.cfIcon} />
                   <Text style={styles.cfIconText}>运动处方</Text>
                 </Flex>
-                <TouchableOpacity>
-                  <Flex>
-                    <Text style={styles.cfMore}>查看更多</Text>
-                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
-                  </Flex>
-                </TouchableOpacity>
+                <Flex>
+                  <Text style={styles.cfMore}>查看详情</Text>
+                  <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
+                </Flex>
               </Flex>
               <Flex justify='between' style={styles.cfContent}>
                 {EXERCISE_PRESCRIPTION_METRICS.map(item => (
@@ -585,8 +583,10 @@ export default function HomeTab() {
               </Flex>
             </View>
           </View>
-        </View>
-        <View style={styles.scheduleBoxShadow}>
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.scheduleBoxShadow} onPress={() => navigation.navigate('Medication', { tab: 'meal' })}>
+
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -600,12 +600,10 @@ export default function HomeTab() {
                   <Image source={require('@/assets/images/home/yy.png')} style={styles.cfIcon} />
                   <Text style={styles.cfIconText}>营养处方</Text>
                 </Flex>
-                <TouchableOpacity onPress={() => navigation.navigate('Medication', { tab: 'meal' })}>
-                  <Flex>
-                    <Text style={styles.cfMore}>查看更多</Text>
-                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
-                  </Flex>
-                </TouchableOpacity>
+                <Flex>
+                  <Text style={styles.cfMore}>查看详情</Text>
+                  <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
+                </Flex>
               </Flex>
               <Flex justify='between' style={styles.yyContent}>
                 <Flex style={styles.yyItem} align="center">
@@ -732,7 +730,7 @@ export default function HomeTab() {
               </Text>
             </Flex>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
 
 
