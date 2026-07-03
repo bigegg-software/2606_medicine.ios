@@ -261,6 +261,24 @@ export function getExerciseTypeLabel(type?: string) {
   return EXERCISE_TYPE_LABELS[key] ?? key;
 }
 
+export function getExerciseChildTypeLabel(
+  childType?: string,
+  exerciseType?: string,
+  dictMaps?: ScheduleDictMaps,
+) {
+  const key = childType?.trim();
+  if (!key) return '';
+  const childMap = exerciseType ? dictMaps?.childTypeByExercise[exerciseType] : undefined;
+  return resolveDictLabel(childMap, key);
+}
+
+export const PLAYER_SPORT_IMAGES: Record<string, number> = {
+  cardio: require('@/assets/images/player/sport1.png'),
+  strength: require('@/assets/images/player/sport2.png'),
+  flexibility: require('@/assets/images/player/sport3.png'),
+  balance: require('@/assets/images/player/sport4.png'),
+};
+
 function formatExerciseChildTypes(
   value?: string,
   exerciseType?: string,

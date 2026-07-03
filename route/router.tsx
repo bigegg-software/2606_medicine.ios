@@ -317,7 +317,7 @@ export default function RootStack() {
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
-      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '' }} />
+      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '' , showHeaderBackground: false }} />
       <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
       <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false  }} />
       <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />
