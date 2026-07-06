@@ -23,6 +23,7 @@ import {
     formatRecordDate,
     formatTestValue,
     getImproveLabel,
+    hasTestTimer,
 } from './testingHelpers';
 import StepTimeline from '../components/StepTimeline';
 
@@ -113,6 +114,7 @@ export default function TestingPage() {
         () => calcGaugeProgress(firstValue, latestValue, targetValue),
         [firstValue, latestValue, targetValue],
     );
+    const showTimerActions = hasTestTimer(detail?.timerType);
 
     const trackPath = useMemo(
         () => describeArc(GAUGE_SVG_CENTER_X, GAUGE_SVG_CENTER_Y, GAUGE_RADIUS, 180, 180),
@@ -404,32 +406,52 @@ export default function TestingPage() {
                         </View>
                     </View>
                 </ScrollView>
-                <Flex
-                    justify='between'
-                    style={[
-                        styles.bottomBar,
-                        { height: 86 + insets.bottom, paddingBottom: insets.bottom },
-                    ]}
-                >
-                    <TouchableOpacity
-                        style={styles.bottomBarButtonLeft}
-                        disabled={healthTestItemId == null}
-                        onPress={() => navigateToResults()}>
-                        <Flex justify='center' style={{ flex: 1 }} >
-                            <Image style={styles.bottomBarButtonImg} source={require('@/assets/images/schedule/icon_start.png')} />
-                            <Text style={styles.bottomBarButtonTextLeft}>开始测试</Text>
-                        </Flex>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.bottomBarButtonRight}
-                        disabled={healthTestItemId == null}
-                        onPress={openRecordModal}>
-                        <Flex justify='center' style={{ flex: 1 }} >
-                            <Image style={styles.bottomBarButtonImg} source={require('@/assets/images/schedule/icon_record.png')} />
-                            <Text style={styles.bottomBarButtonTextRight}>记录结果</Text>
-                        </Flex>
-                    </TouchableOpacity>
-                </Flex>
+                {showTimerActions ? (
+                    <Flex
+                        justify='between'
+                        style={[
+                            styles.bottomBar,
+                            { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+                        ]}
+                    >
+                        <TouchableOpacity
+                            style={styles.bottomBarButtonLeft}
+                            disabled={healthTestItemId == null}
+                            onPress={() => navigateToResults()}>
+                            <Flex justify='center' style={{ flex: 1 }} >
+                                <Image style={styles.bottomBarButtonImg} source={require('@/assets/images/schedule/icon_start.png')} />
+                                <Text style={styles.bottomBarButtonTextLeft}>开始计时</Text>
+                            </Flex>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.bottomBarButtonRight}
+                            disabled={healthTestItemId == null}
+                            onPress={openRecordModal}>
+                            <Flex justify='center' style={{ flex: 1 }} >
+                                <Image style={styles.bottomBarButtonImg} source={require('@/assets/images/schedule/icon_record.png')} />
+                                <Text style={styles.bottomBarButtonTextRight}>记录结果</Text>
+                            </Flex>
+                        </TouchableOpacity>
+                    </Flex>
+                ) : (
+                    <Flex
+                        justify='between'
+                        style={[
+                            styles.bottomBar,
+                            { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+                        ]}
+                    >
+                        <TouchableOpacity
+                            style={[styles.bottomBarButtonLeft, { flex: 1 }]}
+                            disabled={healthTestItemId == null}
+                            onPress={openRecordModal}>
+                            <Flex justify='center' style={{ flex: 1 }} >
+                                <Image tintColor="#FFFFFF" style={styles.bottomBarButtonImg} source={require('@/assets/images/schedule/icon_record.png')} />
+                                <Text style={styles.bottomBarButtonTextLeft}>记录结果</Text>
+                            </Flex>
+                        </TouchableOpacity>
+                    </Flex>
+                )}
             </View>
             <BottomSheetModal
                 visible={recordModalVisible}

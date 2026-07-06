@@ -1,11 +1,14 @@
 import { uploadOss } from '@/api/oss';
 import type { MedicalRecordAttachment } from '@/api/medicalRecord';
+import { decodeAttachmentName } from '@/src/features/profile/healthRecord/medicalRecordAttachmentHelpers';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 
 export async function uploadFileToAttachment(file: {
   uri: string;
   name: string;
   type?: string;
+  size?: number;
+  uploadType?: 'image' | 'file';
 }): Promise<MedicalRecordAttachment | null> {
   const res = await uploadOss({
     uri: file.uri,
@@ -22,6 +25,8 @@ export async function uploadFileToAttachment(file: {
   return {
     ossId: ossId || undefined,
     ossUrl: data.url,
-    originalName: data.fileName ?? file.name,
+    originalName: decodeAttachmentName(data.fileName ?? file.name),
+    length: file.size && file.size > 0 ? file.size : 1,
+    uploadType: file.uploadType,
   };
 }

@@ -1,11 +1,12 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
-import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator, Keyboard, Alert, type KeyboardEvent, } from 'react-native';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator, Keyboard, Alert, Modal, useWindowDimensions, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import PageLayout from '@/src/components/PageLayout';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Flex, Toast } from '@ant-design/react-native';
+import { MaterialIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import { Header, HeaderBackButton } from '@react-navigation/elements';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,11 +15,20 @@ import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import type { RootState } from '@/store/store';
 import type { RootStackParamList } from '@/route/router';
+import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import styles from '@/css/assistant/assistant';
 import { useAssistantChat } from './utils/useAssistantChat';
 import { renderAiMessageText } from './utils/renderAiMessage';
-import type { DisplayItem } from './utils/types';
+import type { DisplayItem, UploadPreview } from './utils/types';
+import {
+  firstUploadPreviewImageSource,
+  formatUploadFileSize,
+  getUploadPreviewDisplayName,
+  inferUploadPreviewType,
+  isFileUploadType,
+} from './utils/uploadPreviewHelpers';
+import { openRemoteFile } from '@/src/features/profile/healthRecord/caseDetail';
 import SpeechToText, { type SpeechToTextRef } from './components/SpeechToText';
 import MedicationReminderCards from './components/MedicationReminderCards';
 import QuestionnaireListCards from './components/QuestionnaireListCards';
@@ -61,24 +71,102 @@ function AiMessageContent({ text, streaming }: { text: string; streaming?: boole
   );
 }
 
+function UserUploadPreview({
+  uploadPreview,
+  onPreviewImage,
+}: {
+  uploadPreview: UploadPreview;
+  onPreviewImage: (files: UploadPreview['fileList']) => void;
+}) {
+  const firstFile = uploadPreview.fileList[0];
+  const isDocumentUpload = isFileUploadType(inferUploadPreviewType(uploadPreview));
+  const imageSource = firstUploadPreviewImageSource(uploadPreview);
+  const fileCount = uploadPreview.fileList.length;
+
+  const handlePress = useCallback(() => {
+    if (isDocumentUpload) {
+      if (!firstFile?.url) {
+        Toast.fail('文件地址无效', 1.5);
+        return;
+      }
+      const loadingKey = Toast.loading('加载中', 0);
+      void openRemoteFile(firstFile.url, getUploadPreviewDisplayName(firstFile))
+        .catch(() => Alert.alert('提示', '打开文件失败'))
+        .finally(() => Toast.remove(loadingKey));
+      return;
+    }
+    onPreviewImage(uploadPreview.fileList);
+  }, [firstFile, isDocumentUpload, onPreviewImage, uploadPreview.fileList]);
+
+  if (isDocumentUpload) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={handlePress}
+        style={[styles.myMessageBoxContent, styles.myMessageDocumentCard]}
+      >
+        <Flex align="center">
+          <View style={styles.myMessageDocumentIconWrap}>
+            <MaterialIcons name="description" size={28} color={AppTheme.textSecondary} />
+          </View>
+          <View style={styles.myMessageDocumentMeta}>
+            <Text style={styles.myMessageDocumentName} numberOfLines={1} ellipsizeMode="tail">
+              {getUploadPreviewDisplayName(firstFile)}
+            </Text>
+            <Text style={styles.myMessageDocumentSize}>
+              {formatUploadFileSize(firstFile?.length)}
+            </Text>
+          </View>
+        </Flex>
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <TouchableOpacity activeOpacity={0.85} onPress={handlePress} style={styles.myMessageImageWrap}>
+      {imageSource ? (
+        <Image source={imageSource} style={styles.myMessageImage} resizeMode="cover" />
+      ) : (
+        <Flex justify="center" align="center" style={styles.myMessageImageFallback}>
+          <MaterialIcons name="description" size={32} color={AppTheme.textSecondary} />
+        </Flex>
+      )}
+      {fileCount > 1 ? (
+        <View style={styles.myMessageImageCountBadge}>
+          <Text style={styles.myMessageImageCountText}>+{fileCount}</Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
+  );
+}
+
 function MessageRow({
   item,
   userAvatar,
+  onPreviewImage,
 }: {
   item: DisplayItem;
   userAvatar?: string;
+  onPreviewImage: (files: UploadPreview['fileList']) => void;
 }) {
   if (item.type === 'time') {
     return <Text style={styles.timeText}>{item.label}</Text>;
   }
 
   if (item.type === 'user') {
+    const hasUploadFiles = !!item.uploadPreview?.fileList?.length;
+
     return (
       <Flex align="start" justify="end" style={styles.myMessageBox}>
         <View style={styles.myMessageBubbleWrap}>
-          <View style={styles.myMessageBoxContent}>
-            <Text style={styles.aiMessageText}>{item.text}</Text>
-          </View>
+          {hasUploadFiles ? (
+            <UserUploadPreview uploadPreview={item.uploadPreview!} onPreviewImage={onPreviewImage} />
+          ) : null}
+          {item.text ? (
+            <View style={[styles.myMessageBoxContent, hasUploadFiles ? styles.myMessageTextWithAttachment : null]}>
+              <Text style={styles.aiMessageText}>{item.text}</Text>
+            </View>
+          ) : null}
           <View style={styles.myMessageBubbleArrow} />
         </View>
         {userAvatar ? (
@@ -126,6 +214,7 @@ function MessageRow({
 export default function AssistantPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { scaleSize } = useFontSize();
   const user = useSelector((state: RootState) => state.user.info);
   const scrollRef = useRef<ScrollView>(null);
@@ -136,6 +225,12 @@ export default function AssistantPage() {
   const attachmentPanelOpenRef = useRef(false);
   const bottomOffset = useSharedValue(0);
   const [attachmentPanelOpen, setAttachmentPanelOpen] = useState(false);
+  const [previewImages, setPreviewImages] = useState<UploadPreview['fileList']>([]);
+
+  const handlePreviewImage = useCallback((files: UploadPreview['fileList']) => {
+    if (!files.length) return;
+    setPreviewImages(files);
+  }, []);
 
   const getBottomInset = useCallback(
     (height: number) => Math.max(0, height - insets.bottom),
@@ -150,6 +245,7 @@ export default function AssistantPage() {
     displayItems,
     sendMessage,
     stopMessage,
+    sendAttachments,
     runMedicationReminder,
     runQuestionnaireQuickAction,
     scrollEndRef,
@@ -270,10 +366,28 @@ export default function AssistantPage() {
       if (result.canceled || !result.assets?.[0]) {
         return;
       }
+
+      const asset = result.assets[0];
+      const uploaded = await uploadFileToAttachment({
+        uri: asset.uri,
+        name: asset.name ?? `file_${Date.now()}`,
+        type: asset.mimeType ?? 'application/octet-stream',
+        size: asset.size,
+        uploadType: 'file',
+      });
+      if (!uploaded) {
+        Toast.fail('上传失败', 1.5);
+        return;
+      }
+
+      const sent = await sendAttachments([uploaded], input);
+      if (!sent) {
+        Toast.fail('发送失败，请稍后重试', 1.5);
+      }
     } catch {
       Alert.alert('错误', '选择文件失败');
     }
-  }, [closeAttachmentPanel]);
+  }, [closeAttachmentPanel, input, sendAttachments]);
 
   const handleQuickActionPress = useCallback(
     (item: (typeof QUICK_ACTIONS)[number]) => {
@@ -318,7 +432,7 @@ export default function AssistantPage() {
   }));
 
   return (
-    <PageLayout>
+    <PageLayout style={{ backgroundColor: AppTheme.backgroundColor }}>
       <KeyboardDoneAccessory />
       {/* <View style={styles.headerWrap}>
         <Header
@@ -353,30 +467,31 @@ export default function AssistantPage() {
                 key={item.key}
                 item={item}
                 userAvatar={user?.avatarOssUrl}
+                onPreviewImage={handlePreviewImage}
               />
             ))}
           </ScrollView>
         )}
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.quickActionRow}
-          contentContainerStyle={styles.quickActionContent}
-          keyboardShouldPersistTaps="handled">
-          {QUICK_ACTIONS.map(item => (
-            <TouchableOpacity
-              key={item.label}
-              style={styles.quickActionBtn}
-              activeOpacity={0.8}
-              disabled={loading || initializing}
-              onPress={() => handleQuickActionPress(item)}>
-              <Text style={styles.quickActionText}>{item.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
         <View style={styles.inputSection}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.quickActionRow}
+            contentContainerStyle={styles.quickActionContent}
+            keyboardShouldPersistTaps="handled">
+            {QUICK_ACTIONS.map(item => (
+              <TouchableOpacity
+                key={item.label}
+                style={styles.quickActionBtn}
+                activeOpacity={0.8}
+                disabled={loading || initializing}
+                onPress={() => handleQuickActionPress(item)}>
+                <Text style={styles.quickActionText}>{item.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
           <View style={styles.inputBar}>
             <View style={styles.inputWrap}>
               <TextInput
@@ -471,6 +586,32 @@ export default function AssistantPage() {
           </Reanimated.View>
         </View>
       </View>
+      <Modal visible={previewImages.length > 0} transparent animationType="fade" onRequestClose={() => setPreviewImages([])}>
+        <View style={styles.uploadPreviewModalBackdrop}>
+          <TouchableOpacity style={styles.uploadPreviewModalCloseArea} activeOpacity={1} onPress={() => setPreviewImages([])} />
+          <View style={styles.uploadPreviewModalContent}>
+            <ScrollView horizontal pagingEnabled showsHorizontalScrollIndicator={previewImages.length > 1}>
+              {previewImages.map((file, index) => (
+                <View key={`${file.url}-${index}`} style={[styles.uploadPreviewModalPage, { width: windowWidth }]}>
+                  <Image
+                    source={{ uri: file.url }}
+                    style={[styles.uploadPreviewModalImage, { width: windowWidth - 32, height: windowWidth * 1.1 }]}
+                    resizeMode="contain"
+                  />
+                  {file.originalName ? (
+                    <Text style={styles.uploadPreviewModalName} numberOfLines={2}>
+                      {getUploadPreviewDisplayName(file)}
+                    </Text>
+                  ) : null}
+                </View>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.uploadPreviewModalCloseBtn} onPress={() => setPreviewImages([])}>
+              <Text style={styles.uploadPreviewModalCloseText}>关闭</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </PageLayout>
   );
 }

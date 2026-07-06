@@ -3,6 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventSource from 'react-native-sse';
 import moment from 'moment';
+import type { MedicalRecordAttachment } from '@/api/medicalRecord';
 import {
   buildSignedChatPayload,
   CHAT_SSE_URL,
@@ -15,6 +16,7 @@ import {
   type ChatGuideInfo,
 } from '@/api/assistant';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { consumePendingAttachments, pushPendingAttachments } from '@/src/utils/attachmentUploadSession';
 import {
   clearIncompleteSession,
   getIncompleteSession,
@@ -25,7 +27,13 @@ import {
   type IncompleteSession,
 } from './chatSessionStorage';
 import { loadMedicationDictMaps } from '@/src/features/profile/medication/medicationHelpers';
-import type { AssistantMessage, ChatGuideState, DisplayItem } from './types';
+import type { AssistantMessage, ChatGuideState, DisplayItem, UploadPreview } from './types';
+import {
+  buildUploadFilePayloadFromAttachments,
+  buildUploadPreviewFromAttachments,
+  inferUploadPreviewType,
+} from './uploadPreviewHelpers';
+import { decodeAttachmentName } from '@/src/features/profile/healthRecord/medicalRecordAttachmentHelpers';
 import {
   MEDICATION_REMINDER_ACTION,
   parseMedicationGroupsFromInterfaceData,
@@ -54,6 +62,53 @@ function parseInterfaceData(raw: unknown) {
 
 const WELCOME_TEXT = '您好，我是 AI 健康管家，有什么可以帮您？';
 const CHAT_GUIDE_TYPE = 1;
+
+function normalizeUploadFileType(type: unknown): 'image' | 'file' | '' {
+  if (type === 'image') return 'image';
+  if (type === 'file' || type === 'document') return 'file';
+  return '';
+}
+
+function parseUploadFile(raw: ChatDetailItem['uploadFile']): UploadPreview | undefined {
+  if (raw == null) return undefined;
+  let parsed = raw;
+  if (typeof raw === 'string') {
+    try {
+      parsed = JSON.parse(raw) as NonNullable<ChatDetailItem['uploadFile']>;
+    } catch {
+      return undefined;
+    }
+  }
+  if (typeof parsed !== 'object' || !parsed) return undefined;
+  const fileList = (Array.isArray(parsed.fileList) ? parsed.fileList : [])
+    .map(item => ({
+      ossId: item.ossId,
+      url: String(item.url ?? ''),
+      originalName: decodeAttachmentName(item.originalName ?? ''),
+      length: Number(item.length) || 0,
+    }))
+    .filter(item => item.url);
+  if (!fileList.length) return undefined;
+  const preview: UploadPreview = {
+    type: normalizeUploadFileType(parsed.type),
+    fileList,
+  };
+  return {
+    ...preview,
+    type: preview.type || inferUploadPreviewType(preview),
+  };
+}
+
+function buildUploadFilePayload(attachments?: MedicalRecordAttachment[]) {
+  if (!attachments?.length) {
+    return { type: '', fileList: [] as Record<string, unknown>[] };
+  }
+  return buildUploadFilePayloadFromAttachments(attachments);
+}
+
+function buildUploadPreview(attachments: MedicalRecordAttachment[]): UploadPreview {
+  return buildUploadPreviewFromAttachments(attachments);
+}
 
 function createDefaultGuide(): ChatGuideState {
   return { userChatGuideId: null, userChatGuideText: WELCOME_TEXT };
@@ -111,6 +166,7 @@ function mapDetailItem(
     answer: item.answer,
     createTime: item.createTime,
     action: item.action,
+    uploadPreview: parseUploadFile(item.uploadFile),
     interfaceData: parsedInterfaceData,
     medicationGroups:
       item.action === MEDICATION_REMINDER_ACTION
@@ -141,11 +197,12 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
       items.push({ type: 'time', key: `time-${index}-${timeLabel}`, label: timeLabel });
       lastTime = timeLabel;
     }
-    if (msg.question?.trim()) {
+    if (msg.question?.trim() || msg.uploadPreview?.fileList?.length) {
       items.push({
         type: 'user',
         key: `user-${msg.frontId ?? msg.id ?? index}`,
-        text: msg.question.trim(),
+        text: msg.question?.trim() ?? '',
+        uploadPreview: msg.uploadPreview,
       });
     }
     if (msg.streaming || msg.answer?.trim()) {
@@ -191,6 +248,8 @@ export function useAssistantChat() {
   const frontIdRef = useRef('');
   const fullTextRef = useRef('');
   const scrollEndRef = useRef<(() => void) | null>(null);
+  const hasInitializedRef = useRef(false);
+  const initializingRef = useRef(true);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -207,6 +266,10 @@ export function useAssistantChat() {
   useEffect(() => {
     chatGuideRef.current = chatGuide;
   }, [chatGuide]);
+
+  useEffect(() => {
+    initializingRef.current = initializing;
+  }, [initializing]);
 
   const cleanupStream = useCallback(() => {
     if (esRef.current) {
@@ -232,22 +295,30 @@ export function useAssistantChat() {
   }, []);
 
   const sendStream = useCallback(
-    async (question: string, isResume = false, resumeFrontId = '') => {
+    async (
+      question: string,
+      isResume = false,
+      resumeFrontId = '',
+      attachments: MedicalRecordAttachment[] = [],
+    ) => {
       const currentChatId = chatIdRef.current;
-      if (!currentChatId || !question.trim()) return;
-      console.log(question)
+      const trimmedQuestion = question.trim();
+      if (!currentChatId || (!trimmedQuestion && attachments.length === 0)) return;
+
       cleanupStream();
       setLoading(true);
 
       const frontId = isResume && resumeFrontId ? resumeFrontId : generateUUID();
       frontIdRef.current = frontId;
+      const uploadPreview = attachments.length > 0 ? buildUploadPreview(attachments) : undefined;
 
       if (!isResume) {
         setMessages(prev => [
           ...prev,
           {
             frontId,
-            question: question.trim(),
+            question: trimmedQuestion,
+            uploadPreview,
             answer: '',
             createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
             streaming: true,
@@ -281,11 +352,12 @@ export function useAssistantChat() {
           buildSignedChatPayload({
             chatId: currentChatId,
             isNew: !isResume,
-            question: question.trim(),
+            question: trimmedQuestion,
             frontId,
             action: 'ai_chat',
             userChatGuideId: guide.userChatGuideId,
             userChatGuideText: guide.userChatGuideText,
+            uploadFile: buildUploadFilePayload(attachments),
           }),
         );
 
@@ -298,13 +370,7 @@ export function useAssistantChat() {
           cleanupStream();
           await clearIncompleteSession();
         };
-        console.log(CHAT_SSE_URL)
-        console.log(JSON.stringify({
-          method: 'POST',
-          headers,
-          body,
-        }))
-        console.log(JSON.stringify(body))
+
         const es = new EventSource(CHAT_SSE_URL, {
           method: 'POST',
           headers,
@@ -329,8 +395,7 @@ export function useAssistantChat() {
           }
         });
 
-        es.addEventListener('error', (err) => {
-          console.log(err)
+        es.addEventListener('error', () => {
           void finalize(fullTextRef.current || '回复失败，请稍后重试');
         });
 
@@ -433,6 +498,35 @@ export function useAssistantChat() {
     }
   }, [loadChat]);
 
+  const sendAttachments = useCallback(async (
+    attachments: MedicalRecordAttachment[],
+    question = '',
+  ) => {
+    if (!attachments.length || loadingRef.current || !chatIdRef.current) return false;
+    const text = question.trim();
+    if (text) {
+      setInput('');
+    }
+    await sendStream(text, false, '', attachments);
+    return true;
+  }, [sendStream]);
+
+  const handlePendingAttachments = useCallback(async () => {
+    const attachments = consumePendingAttachments();
+    if (!attachments.length) return;
+
+    if (!chatIdRef.current || loadingRef.current || initializingRef.current) {
+      pushPendingAttachments(attachments);
+      return;
+    }
+
+    const text = input.replace(/^\s+|\s+$/g, '');
+    if (text) {
+      setInput('');
+    }
+    await sendStream(text, false, '', attachments);
+  }, [input, sendStream]);
+
   const handleCleanup = useCallback(async () => {
     if (loadingRef.current) {
       const last = messagesRef.current[messagesRef.current.length - 1];
@@ -452,11 +546,19 @@ export function useAssistantChat() {
 
   useFocusEffect(
     useCallback(() => {
-      void initChatSession();
+      if (!hasInitializedRef.current) {
+        hasInitializedRef.current = true;
+        void initChatSession().finally(() => {
+          void handlePendingAttachments();
+        });
+      } else {
+        void handlePendingAttachments();
+      }
+
       return () => {
         void handleCleanup();
       };
-    }, [initChatSession, handleCleanup]),
+    }, [handleCleanup, handlePendingAttachments, initChatSession]),
   );
 
   const sendMessage = useCallback(async () => {
@@ -480,18 +582,21 @@ export function useAssistantChat() {
     setLoading(false);
     await disconnectChatStream(chatIdRef.current);
 
-    if (row?.question) {
+    if (row?.question || row?.uploadPreview?.fileList?.length) {
       try {
         const guide = chatGuideRef.current;
         await saveChatMessage(
           buildSignedChatPayload({
             chatId: chatIdRef.current,
             frontId: fid,
-            question: row.question,
+            question: row.question ?? '',
             answer: row.answer ?? fullTextRef.current ?? '',
             action: 'ai_chat',
             userChatGuideId: guide.userChatGuideId,
             userChatGuideText: guide.userChatGuideText,
+            uploadFile: row.uploadPreview
+              ? { type: row.uploadPreview.type, fileList: row.uploadPreview.fileList }
+              : { type: '', fileList: [] },
           }),
         );
       } catch (error) {
@@ -598,6 +703,7 @@ export function useAssistantChat() {
     displayItems,
     sendMessage,
     stopMessage,
+    sendAttachments,
     runMedicationReminder,
     runQuestionnaireQuickAction,
     scrollEndRef,

@@ -161,3 +161,32 @@ export function formatCountdownTime(totalSeconds: number) {
   const seconds = safeSeconds % 60;
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
+
+export type TestTimerType = -1 | 0 | 1;
+
+export function normalizeTimerType(value?: number | null): TestTimerType {
+  if (value === -1 || value === 0 || value === 1) return value;
+  return -1;
+}
+
+export function hasTestTimer(timerType?: number | null) {
+  return normalizeTimerType(timerType) !== 0;
+}
+
+export function isCountdownTimer(timerType?: number | null) {
+  return normalizeTimerType(timerType) === -1;
+}
+
+export function isForwardTimer(timerType?: number | null) {
+  return normalizeTimerType(timerType) === 1;
+}
+
+export function resolveTestTimerSeconds(detail?: {
+  timerSeconds?: number;
+  estimatedTime?: string;
+}) {
+  if (detail?.timerSeconds != null && detail.timerSeconds > 0) {
+    return Math.floor(detail.timerSeconds);
+  }
+  return parseTestDurationSeconds(detail?.estimatedTime);
+}

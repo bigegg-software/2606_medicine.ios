@@ -279,6 +279,37 @@ export const PLAYER_SPORT_IMAGES: Record<string, number> = {
   balance: require('@/assets/images/player/sport4.png'),
 };
 
+export const EXERCISE_TYPE_COLORS: Record<string, string> = {
+  cardio: '#6D925E',
+  strength: '#72A1C5',
+  flexibility: '#EE9C44',
+  balance: '#0951AE',
+};
+
+export type ExercisePrescriptionMetricItem = {
+  key: string;
+  value: number;
+  label: string;
+  color: string;
+};
+
+export function buildExercisePrescriptionMetrics(
+  ruleRatioList?: ExPatientRuleRatio[],
+  dictMaps?: ScheduleDictMaps,
+  progressMap?: Record<string, number>,
+): ExercisePrescriptionMetricItem[] {
+  return (ruleRatioList ?? []).map((rule, index) => {
+    const task = toTodayTaskItem(rule, index, dictMaps, progressMap);
+    const typeKey = rule.exerciseType?.trim() ?? '';
+    return {
+      key: task.key,
+      value: task.progress,
+      label: task.title,
+      color: EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
+    };
+  });
+}
+
 function formatExerciseChildTypes(
   value?: string,
   exerciseType?: string,

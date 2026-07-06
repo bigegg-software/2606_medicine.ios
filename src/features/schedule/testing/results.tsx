@@ -12,9 +12,12 @@ import { addExHealthTestRecord } from '@/api/exHealthTestRecord';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { useHealthTestDetailByItemId } from './useHealthTestDetail';
-import { formatCountdownTime, parseTestDurationSeconds } from './testingHelpers';
+import { formatCountdownTime, isCountdownTimer, isForwardTimer, resolveTestTimerSeconds, } from './testingHelpers';
 
 const CLOSE_ICON = require('@/assets/images/schedule/close.png');
+const ICON_START = require('@/assets/images/schedule/icon_start.png');
+const ICON_END = require('@/assets/images/schedule/icon_js.png');
+const ICON_RECORD = require('@/assets/images/schedule/icon_record.png');
 const RING_SIZE = 240;
 const RING_STROKE = 17;
 const RING_RADIUS = (RING_SIZE - RING_STROKE) / 2;
@@ -31,13 +34,17 @@ export default function TestingResultsPage() {
     const { detail, reload } = useHealthTestDetailByItemId(healthTestItemId);
     const testName = detail?.testName?.trim() || '坐站测试';
     const unit = detail?.unit?.trim() || '次';
+    const isCountdown = isCountdownTimer(detail?.timerType);
+    const isForward = isForwardTimer(detail?.timerType);
     const totalSeconds = useMemo(
-        () => parseTestDurationSeconds(detail?.estimatedTime),
-        [detail?.estimatedTime],
+        () => resolveTestTimerSeconds(detail ?? undefined),
+        [detail?.estimatedTime, detail?.timerSeconds],
     );
 
     const [phase, setPhase] = useState<TestPhase>('idle');
     const [remainingSeconds, setRemainingSeconds] = useState(totalSeconds);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
+    const [isPaused, setIsPaused] = useState(false);
     const [recordInput, setRecordInput] = useState('');
     const [recordModalVisible, setRecordModalVisible] = useState(false);
     const [exPatientRuleId, setExPatientRuleId] = useState<string | number | undefined>();
@@ -48,10 +55,12 @@ export default function TestingResultsPage() {
         if (totalSeconds <= 0) return 100;
         return (remainingSeconds / totalSeconds) * 100;
     }, [remainingSeconds, totalSeconds]);
-    const ringProgressLength = useMemo(
-        () => (ringCircumference * ringProgress) / 100,
-        [ringCircumference, ringProgress],
-    );
+    const ringProgressLength = useMemo(() => {
+        if (isForward) {
+            return 0;
+        }
+        return (ringCircumference * ringProgress) / 100;
+    }, [isForward, ringCircumference, ringProgress]);
 
     const clearTimer = useCallback(() => {
         if (timerRef.current) {
@@ -109,34 +118,81 @@ export default function TestingResultsPage() {
         clearTimer();
         setPhase('idle');
         setRemainingSeconds(totalSeconds);
+        setElapsedSeconds(0);
+        setIsPaused(false);
         setRecordInput('');
         setRecordModalVisible(false);
     }, [clearTimer, totalSeconds]);
 
     const openRecordModal = useCallback(() => {
         clearTimer();
+        setIsPaused(false);
         setRecordInput('');
         setRecordModalVisible(true);
     }, [clearTimer]);
 
-    const startTest = useCallback(() => {
-        if (phase === 'running' || phase === 'submitting') return;
+    const startTimer = useCallback(() => {
         clearTimer();
-        setPhase('running');
-        setRemainingSeconds(totalSeconds);
-        setRecordModalVisible(false);
+        if (isCountdown) {
+            timerRef.current = setInterval(() => {
+                setRemainingSeconds(prev => {
+                    if (prev <= 1) {
+                        clearTimer();
+                        setIsPaused(false);
+                        openRecordModal();
+                        return 0;
+                    }
+                    return prev - 1;
+                });
+            }, 1000);
+            return;
+        }
 
-        timerRef.current = setInterval(() => {
-            setRemainingSeconds(prev => {
-                if (prev <= 1) {
-                    clearTimer();
-                    openRecordModal();
-                    return 0;
-                }
-                return prev - 1;
-            });
-        }, 1000);
-    }, [clearTimer, openRecordModal, phase, totalSeconds]);
+        if (isForward) {
+            timerRef.current = setInterval(() => {
+                setElapsedSeconds(prev => prev + 1);
+            }, 1000);
+        }
+    }, [clearTimer, isCountdown, isForward, openRecordModal]);
+
+    const startTest = useCallback(() => {
+        if (phase === 'submitting') return;
+        if (phase === 'running' && !isPaused) return;
+
+        if (phase === 'running' && isPaused) {
+            setIsPaused(false);
+            startTimer();
+            return;
+        }
+
+        setPhase('running');
+        if (isCountdown) {
+            setRemainingSeconds(totalSeconds);
+        }
+        if (isForward) {
+            setElapsedSeconds(0);
+        }
+        setIsPaused(false);
+        setRecordModalVisible(false);
+        startTimer();
+    }, [isCountdown, isForward, isPaused, phase, startTimer, totalSeconds]);
+
+    const pauseTest = useCallback(() => {
+        if (phase !== 'running' || isPaused) return;
+        if (isCountdown && remainingSeconds <= 0) return;
+        clearTimer();
+        setIsPaused(true);
+    }, [clearTimer, isCountdown, isPaused, phase, remainingSeconds]);
+
+    const handleForwardEnd = useCallback(() => {
+        if (phase === 'submitting') return;
+        clearTimer();
+        setIsPaused(false);
+        if (phase === 'idle') {
+            setPhase('running');
+        }
+        openRecordModal();
+    }, [clearTimer, openRecordModal, phase]);
 
     const handleRecordResult = useCallback(() => {
         if (phase !== 'running') return;
@@ -161,12 +217,29 @@ export default function TestingResultsPage() {
             navigation.goBack();
             return;
         }
-        if (remainingSeconds <= 0) {
+        if (isCountdown && remainingSeconds <= 0) {
+            resetTest();
+            return;
+        }
+        if (isForward && phase === 'running') {
             resetTest();
         }
-    }, [navigation, recordOnly, remainingSeconds, resetTest]);
+    }, [isCountdown, isForward, navigation, phase, recordOnly, remainingSeconds, resetTest]);
 
-    const isTesting = phase === 'running' || phase === 'submitting' || recordModalVisible;
+    const isCountdownActive = isCountdown
+        && phase === 'running'
+        && remainingSeconds > 0
+        && !recordModalVisible;
+    const showCountdownRecordButton = isCountdown && (
+        (phase === 'running' && remainingSeconds <= 0)
+        || recordModalVisible
+        || phase === 'submitting'
+    );
+
+    const handleRefresh = useCallback(() => {
+        reload();
+        resetTest();
+    }, [reload, resetTest]);
 
     useEffect(() => {
         if (recordOnly && healthTestItemId) {
@@ -199,101 +272,173 @@ export default function TestingResultsPage() {
         });
     }, [navigation, testName]);
 
-    const centerTitle = '倒计时';
-    const centerTime = formatCountdownTime(remainingSeconds);
+    const centerTitle = isForward ? '计时' : '倒计时';
+    const centerTime = isForward
+        ? formatCountdownTime(elapsedSeconds)
+        : formatCountdownTime(remainingSeconds);
     const centerHint = detail?.referenceStandard?.trim()
         || detail?.testDescription?.trim()
         || '听到开始后，尽快完成起立到完全站直再坐下';
+
+    const renderTimerDisplay = () => (
+        <View style={styles.ringWrap}>
+            <Svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
+                <Circle
+                    cx={RING_CENTER}
+                    cy={RING_CENTER}
+                    r={RING_RADIUS}
+                    stroke="#E5E9F2"
+                    strokeWidth={RING_STROKE}
+                    fill="none"
+                />
+                {!isForward ? (
+                    <Circle
+                        cx={RING_CENTER}
+                        cy={RING_CENTER}
+                        r={RING_RADIUS}
+                        stroke="#6D925E"
+                        strokeWidth={RING_STROKE}
+                        fill="none"
+                        strokeLinecap="round"
+                        strokeDasharray={`${ringProgressLength} ${ringCircumference}`}
+                        transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
+                    />
+                ) : null}
+            </Svg>
+            <View style={styles.ringCenter}>
+                <Text style={styles.countdownText}>{centerTitle}</Text>
+                <Text style={styles.countdownTime}>{centerTime}</Text>
+            </View>
+        </View>
+    );
+
+    const renderForwardBottomBar = () => (
+        <>
+            <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={handleRefresh}>
+                <Image
+                    style={styles.bottomBarSxImg}
+                    source={require('@/assets/images/schedule/sx.png')}
+                />
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={styles.bottomBarButtonStart}
+                activeOpacity={0.7}
+                disabled={phase === 'submitting'}
+                onPress={phase === 'running' && !isPaused ? pauseTest : startTest}>
+                <Flex justify="center" style={{ flex: 1 }}>
+                    <Image
+                        tintColor="#FFF"
+                        style={styles.bottomBarButtonImg}
+                        source={phase === 'running' && !isPaused ? ICON_END : ICON_START}
+                    />
+                    <Text style={styles.bottomBarButtonText}>
+                        {phase === 'running' && !isPaused ? '暂停' : phase === 'running' && isPaused ? '继续' : '开始'}
+                    </Text>
+                </Flex>
+            </TouchableOpacity>
+            <TouchableOpacity
+                style={styles.bottomBarButtonEnd}
+                activeOpacity={0.7}
+                disabled={phase === 'submitting'}
+                onPress={handleForwardEnd}>
+                <Flex justify="center" style={{ flex: 1 }}>
+                    <Image
+                        style={styles.bottomBarButtonImg}
+                        source={ICON_RECORD}
+                    />
+                    <Text style={styles.bottomBarButtonEndText}>结束</Text>
+                </Flex>
+            </TouchableOpacity>
+        </>
+    );
+
+    const renderCountdownBottomBar = () => {
+        if (showCountdownRecordButton) {
+            return (
+                <TouchableOpacity
+                    style={styles.bottomBarButtonFull}
+                    activeOpacity={0.7}
+                    disabled={phase === 'submitting'}
+                    onPress={handleRecordResult}>
+                    <Flex justify="center" style={{ flex: 1 }}>
+                        <Image
+                            tintColor="#FFF"
+                            style={styles.bottomBarButtonImg}
+                            source={ICON_RECORD}
+                        />
+                        <Text style={styles.bottomBarButtonText}>
+                            {phase === 'submitting' ? '保存中' : '记录结果'}
+                        </Text>
+                    </Flex>
+                </TouchableOpacity>
+            );
+        }
+
+        return (
+            <>
+                <TouchableOpacity
+                    activeOpacity={0.7}
+                    onPress={handleRefresh}>
+                    <Image
+                        style={styles.bottomBarSxImg}
+                        source={require('@/assets/images/schedule/sx.png')}
+                    />
+                </TouchableOpacity>
+                {isCountdownActive ? (
+                    <TouchableOpacity
+                        style={styles.bottomBarButtonStart}
+                        activeOpacity={0.7}
+                        onPress={isPaused ? startTest : pauseTest}>
+                        <Flex justify="center" style={{ flex: 1 }}>
+                            <Image
+                                tintColor="#FFF"
+                                style={styles.bottomBarButtonImg}
+                                source={isPaused ? ICON_START : ICON_END}
+                            />
+                            <Text style={styles.bottomBarButtonText}>
+                                {isPaused ? '继续' : '暂停'}
+                            </Text>
+                        </Flex>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.bottomBarButtonStart}
+                        activeOpacity={0.7}
+                        onPress={startTest}>
+                        <Flex justify="center" style={{ flex: 1 }}>
+                            <Image
+                                style={styles.bottomBarButtonImg}
+                                source={ICON_START}
+                            />
+                            <Text style={styles.bottomBarButtonText}>开始</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                )}
+            </>
+        );
+    };
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <View style={styles.page}>
                 <View style={styles.pageContent}>
-                    <View style={styles.ringWrap}>
-                        <Svg width={RING_SIZE} height={RING_SIZE} viewBox={`0 0 ${RING_SIZE} ${RING_SIZE}`}>
-                            <Circle
-                                cx={RING_CENTER}
-                                cy={RING_CENTER}
-                                r={RING_RADIUS}
-                                stroke="#E5E9F2"
-                                strokeWidth={RING_STROKE}
-                                fill="none"
-                            />
-                            <Circle
-                                cx={RING_CENTER}
-                                cy={RING_CENTER}
-                                r={RING_RADIUS}
-                                stroke="#6D925E"
-                                strokeWidth={RING_STROKE}
-                                fill="none"
-                                strokeLinecap="round"
-                                strokeDasharray={`${ringProgressLength} ${ringCircumference}`}
-                                transform={`rotate(-90 ${RING_CENTER} ${RING_CENTER})`}
-                            />
-                        </Svg>
-                        <View style={styles.ringCenter}>
-                            <Text style={styles.countdownText}>{centerTitle}</Text>
-                            <Text style={styles.countdownTime}>{centerTime}</Text>
-                        </View>
-                    </View>
+                    {renderTimerDisplay()}
                     <Flex style={styles.countdownTextWrap}>
                         <Text style={styles.countdownText}>{centerHint}</Text>
                     </Flex>
                 </View>
             </View>
             <Flex
-                justify={isTesting ? 'center' : 'between'}
+                justify={!isForward && showCountdownRecordButton ? 'center' : 'between'}
                 align="center"
                 style={[
                     styles.bottomBar,
                     { height: 86 + insets.bottom, paddingBottom: insets.bottom },
                 ]}
             >
-                {isTesting ? (
-                    <TouchableOpacity
-                        style={styles.bottomBarButtonFull}
-                        activeOpacity={0.7}
-                        disabled={phase === 'submitting'}
-                        onPress={handleRecordResult}>
-                        <Flex justify="center" style={{ flex: 1 }}>
-                            <Image
-                                tintColor={"#FFF"}
-
-                                style={styles.bottomBarButtonImg}
-                                source={require('@/assets/images/schedule/icon_record.png')}
-                            />
-                            <Text style={styles.bottomBarButtonText}>
-                                {phase === 'submitting' ? '保存中' : '记录结果'}
-                            </Text>
-                        </Flex>
-                    </TouchableOpacity>
-                ) : (
-                    <>
-                        <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => {
-                                reload();
-                                resetTest();
-                            }}>
-                            <Image
-                                style={styles.bottomBarSxImg}
-                                source={require('@/assets/images/schedule/sx.png')}
-                            />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.bottomBarButtonStart}
-                            activeOpacity={0.7}
-                            onPress={startTest}>
-                            <Flex justify="center" style={{ flex: 1 }}>
-                                <Image
-                                    style={styles.bottomBarButtonImg}
-                                    source={require('@/assets/images/schedule/icon_start.png')}
-                                />
-                                <Text style={styles.bottomBarButtonText}>开始</Text>
-                            </Flex>
-                        </TouchableOpacity>
-                    </>
-                )}
+                {isForward ? renderForwardBottomBar() : renderCountdownBottomBar()}
             </Flex>
             <BottomSheetModal
                 visible={recordModalVisible}

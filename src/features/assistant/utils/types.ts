@@ -6,6 +6,18 @@ export type ChatGuideState = {
   userChatGuideText: string;
 };
 
+export type UploadPreviewFile = {
+  ossId?: string | number;
+  url: string;
+  originalName?: string;
+  length?: number;
+};
+
+export type UploadPreview = {
+  type: 'image' | 'file' | '';
+  fileList: UploadPreviewFile[];
+};
+
 export type AssistantMessage = {
   id?: string | number;
   frontId?: string;
@@ -16,6 +28,7 @@ export type AssistantMessage = {
   userChatGuideId?: number;
   userChatGuideText?: string;
   action?: string;
+  uploadPreview?: UploadPreview;
   interfaceData?: {
     reqParams?: Record<string, unknown>;
     respData?: unknown;
@@ -26,7 +39,7 @@ export type AssistantMessage = {
 
 export type DisplayItem =
   | { type: 'time'; key: string; label: string }
-  | { type: 'user'; key: string; text: string }
+  | { type: 'user'; key: string; text: string; uploadPreview?: UploadPreview }
   | { type: 'ai'; key: string; text: string; streaming?: boolean }
   | { type: 'medication_cards'; key: string; groups: MedicationPlanGroupView[] }
   | { type: 'questionnaire_cards'; key: string; items: AssistantQuestionnaireItem[] };

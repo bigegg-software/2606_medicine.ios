@@ -1,0 +1,18 @@
+---
+description: Medicine app core conventions and schedule/player domain rules
+alwaysApply: true
+---
+
+# Medicine App
+
+Read @AGENTS.md in the project root for full conventions.
+
+## Quick Reference
+
+- Expo SDK 56 docs: https://docs.expo.dev/versions/v56.0.0/
+- Features in `src/features/`, styles in `css/`, APIs in `api/`
+- Chinese UI copy; minimal diffs; no commits unless asked
+- API: `isResourceApiOk` + `apiResourceData` from `@/src/utils/apiHelpers`
+- Schedule helpers: `scheduleHelpers.ts`; player logic: `playerHelpers.ts`
+- Player: training records need >= 1 minute; exit dialogs via `getExitConfirmContent()`
+- id给后端传输统一使用string类型

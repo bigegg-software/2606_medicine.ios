@@ -15,6 +15,15 @@ export type ChatDetailItem = {
   thinkList?: { name?: string; text?: string }[];
   action?: string;
   deepMode?: string;
+  uploadFile?: string | {
+    type?: string;
+    fileList?: {
+      ossId?: number | string;
+      url?: string;
+      originalName?: string;
+      length?: number;
+    }[];
+  };
   interfaceData?: {
     reqParams?: Record<string, unknown>;
     respData?: unknown;
@@ -88,7 +97,7 @@ export const saveChatAction = (payload: Record<string, unknown>) =>
 
 export async function disconnectChatStream(chatId: string) {
   try {
-    await fetch(`${aiBaseURL}aiApi/chat/disconnect`, {
+    await fetch(`${aiBaseURL}pensionAiApi/chat/disconnect`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ chatId }),
@@ -98,4 +107,4 @@ export async function disconnectChatStream(chatId: string) {
   }
 }
 
-export const CHAT_SSE_URL = `${aiBaseURL}aiApi/chat/v4`;
+export const CHAT_SSE_URL = `${aiBaseURL}pensionAiApi/chat/v4`;

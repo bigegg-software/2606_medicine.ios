@@ -27,6 +27,7 @@ import {
   type MeasureDataItem,
   type MeasureDataRangeDetailResult,
 } from '@/api/measureData';
+import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import {
   getWearableDataDetailByDateRange,
   WEARABLE_DATA_TYPES,
@@ -59,6 +60,12 @@ import {
   sumProtein,
   sumWaterIntake,
 } from '@/src/features/profile/medication/meal/mealDetailHelpers';
+import {
+  buildExercisePrescriptionMetrics,
+  loadScheduleDictMaps,
+  loadTodayTaskProgressMap,
+  type ScheduleDictMaps,
+} from '@/src/features/schedule/scheduleHelpers';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -85,13 +92,6 @@ function getRestingHeartRateText(items: WearableDataItem[]) {
   if (!Number.isFinite(min) || min <= 0) return '--';
   return String(Math.round(min));
 }
-
-const EXERCISE_PRESCRIPTION_METRICS = [
-  { value: 65, label: '有氧心肺', color: '#6D925E' },
-  { value: 15, label: '抗阻增肌', color: '#72A1C5' },
-  { value: 100, label: '平衡控制', color: '#0951AE' },
-  { value: 15, label: '柔韧拉伸', color: '#EE9C44' },
-] as const;
 
 type HomeMealKey = 'breakfast' | 'lunch' | 'dinner';
 
@@ -234,7 +234,19 @@ export default function HomeTab() {
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
   const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
+  const [exercisePrescription, setExercisePrescription] = useState<InUseExPatientRule | null>(null);
+  const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
+  const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
+
+  const exercisePrescriptionMetrics = useMemo(
+    () => buildExercisePrescriptionMetrics(
+      exercisePrescription?.ruleRatioList,
+      exerciseDictMaps ?? undefined,
+      exerciseProgressMap,
+    ),
+    [exerciseDictMaps, exercisePrescription?.ruleRatioList, exerciseProgressMap],
+  );
 
   const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
   const todayWaterMl = useMemo(() => sumWaterIntake(todayMealList), [todayMealList]);
@@ -381,6 +393,35 @@ export default function HomeTab() {
     }
   }, []);
 
+  const loadExercisePrescription = useCallback(async () => {
+    try {
+      const [dictMaps, res] = await Promise.all([
+        loadScheduleDictMaps().catch(() => null),
+        getInUseExPatientRuleInfo(),
+      ]);
+      if (dictMaps) {
+        setExerciseDictMaps(dictMaps);
+      }
+
+      const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
+      if (!isResourceApiOk(payload)) {
+        setExercisePrescription(null);
+        setExerciseProgressMap({});
+        return;
+      }
+
+      const prescription = apiResourceData<InUseExPatientRule>(payload) ?? null;
+      setExercisePrescription(prescription);
+      const progressMap = prescription?.exPatientRuleId != null
+        ? await loadTodayTaskProgressMap(prescription.exPatientRuleId).catch(() => ({}))
+        : {};
+      setExerciseProgressMap(progressMap);
+    } catch {
+      setExercisePrescription(null);
+      setExerciseProgressMap({});
+    }
+  }, []);
+
   useEffect(() => {
     if (userExtr == null) {
       void dispatch(fetchUserInfo());
@@ -391,7 +432,8 @@ export default function HomeTab() {
     useCallback(() => {
       void loadMealData();
       void loadVitalsData();
-    }, [loadMealData, loadVitalsData]),
+      void loadExercisePrescription();
+    }, [loadExercisePrescription, loadMealData, loadVitalsData]),
   );
 
   const content = (
@@ -555,8 +597,8 @@ export default function HomeTab() {
                 </Flex>
               </Flex>
               <Flex justify='between' style={styles.cfContent}>
-                {EXERCISE_PRESCRIPTION_METRICS.map(item => (
-                  <View key={item.label} style={styles.cfItem}>
+                {exercisePrescriptionMetrics.map(item => (
+                  <View key={item.key} style={styles.cfItem}>
                     <Text style={styles.cfValue}>{item.value}%</Text>
                     <Text style={styles.cfText}>{item.label}</Text>
                     <View style={styles.cfProgressTrack}>

@@ -2,10 +2,21 @@ import type { MedicalRecordAttachment } from '@/api/medicalRecord';
 
 export function decodeAttachmentName(name?: string) {
   if (!name?.trim()) return '';
+  const raw = name.trim().replace(/\+/g, ' ');
+  if (!/%[0-9A-Fa-f]{2}/.test(raw)) {
+    return raw;
+  }
+
   try {
-    return decodeURIComponent(name.trim());
+    return decodeURIComponent(raw);
   } catch {
-    return name.trim();
+    return raw.replace(/(?:%[0-9A-Fa-f]{2})+/g, segment => {
+      try {
+        return decodeURIComponent(segment);
+      } catch {
+        return segment;
+      }
+    });
   }
 }
 

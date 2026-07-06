@@ -72,6 +72,20 @@ const styles = StyleSheet.create({
         borderWidth: 1,
         borderColor: '#6D925E',
     },
+    bottomBarButtonEnd: {
+        flex: 1,
+        marginLeft: 12,
+        height: 50,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#6D925E',
+    },
+    bottomBarButtonEndText: {
+        fontWeight: 'bold',
+        fontSize: 18,
+        color: '#6D925E',
+    },
     bottomBarButtonFull: {
         width: '100%',
         height: 50,

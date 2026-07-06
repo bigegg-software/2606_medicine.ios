@@ -11,6 +11,10 @@ export type HealthTestItemVo = {
   resultRecord?: string;
   unit?: string;
   improveDirection?: number;
+  /** 计时类型 -1.倒计时 0.无 1.正向计时 */
+  timerType?: number;
+  /** 倒计时或计时秒数 */
+  timerSeconds?: number;
   precautions?: string;
   status?: number;
   createTime?: string;

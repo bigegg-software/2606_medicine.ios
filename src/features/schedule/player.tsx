@@ -635,7 +635,7 @@ export default function PlayerPage() {
                                 { width: `${isActivePage ? progressPercent : 0}%` },
                             ]}
                             justify='end'>
-                            <View style={styles.progressBarInner} />
+                            {/* <View style={styles.progressBarInner} /> */}
                         </Flex>
                     </Flex>
                     <Flex style={styles.btnBox} justify='center'>

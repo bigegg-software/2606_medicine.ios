@@ -4,6 +4,8 @@ export type MedicalRecordAttachment = {
   ossId?: string;
   ossUrl?: string;
   originalName?: string;
+  length?: number;
+  uploadType?: 'image' | 'file';
 };
 
 export type MedicalRecord = {
