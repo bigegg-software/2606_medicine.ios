@@ -300,8 +300,9 @@ export default function VitalsPage() {
 
   const stageIconStyles = [styles.icon1, styles.icon2, styles.icon3, styles.icon4];
 
-  function VitalCard({ label, icon, unit, value, status, statusColor, chart, onAdd, onAll }: {
+  function VitalCard({ label, icon, unit, value, status, statusColor, chart, onAdd, onAll, onPress }: {
     label: string; icon: ImageSourcePropType; unit: string; value: string; status: string; statusColor: string; chart: React.ReactNode; onAdd?: () => void; onAll?: () => void;
+    onPress?: () => void;
   }) {
     return (
       <View style={styles.vCard}>
@@ -323,14 +324,16 @@ export default function VitalsPage() {
             ) : null}
           </Flex>
         </Flex>
-        <Flex style={styles.vValueBox} justify="between" align="center">
-          <View>
-            <Text style={styles.vValue}>{value}</Text>
-            <Text style={styles.vUnit}>{unit}</Text>
-            {status ? <Text style={[styles.vStatus, { color: statusColor }]}>{status}</Text> : null}
-          </View>
-          {chart}
-        </Flex>
+        <TouchableOpacity onPress={onPress}>
+          <Flex style={styles.vValueBox} justify="between" align="center">
+            <View>
+              <Text style={styles.vValue}>{value}</Text>
+              <Text style={styles.vUnit}>{unit}</Text>
+              {status ? <Text style={[styles.vStatus, { color: statusColor }]}>{status}</Text> : null}
+            </View>
+            {chart}
+          </Flex>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -541,6 +544,7 @@ export default function VitalsPage() {
           statusColor={bloodPressure.statusColor}
           onAdd={() => navigation.navigate('AddDataPage', { type: '血压' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '血压' })}
+          onPress={() => navigation.navigate('BloodPressurePage')}
           chart={<BloodPressureChart data={bloodPressureSeries} labels={chartLabels} />}
         />
 
@@ -553,6 +557,7 @@ export default function VitalsPage() {
           statusColor={glucose.statusColor}
           onAdd={() => navigation.navigate('AddDataPage', { type: '血糖' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '血糖' })}
+          onPress={() => navigation.navigate('BloodSugarPage')}
           chart={<BloodGlucoseChart data={toHourPoints(glucoseSeries)} labels={chartLabels} />}
         />
 
@@ -564,6 +569,7 @@ export default function VitalsPage() {
           status={heartRate.status}
           statusColor={heartRate.statusColor}
           onAll={() => navigation.navigate('AllDataPage', { type: '心率' })}
+          onPress={() => navigation.navigate('HeartRatePage')}
           chart={<HeartRateChart data={toHourPoints(heartRateSeries)} />}
         />
 
@@ -582,36 +588,39 @@ export default function VitalsPage() {
               </TouchableOpacity>
             </Flex>
           </Flex>
-          <Flex
-            style={styles.vValueBox}
-            justify="between"
-            align="center">
-            <View>
-              <Text style={styles.vValue}>{sleepSummary.duration}</Text>
-              <Text style={styles.vUnit}>夜间睡眠</Text>
-              {sleepSummary.quality.label ? (
-                <Text style={[styles.vStatus, { color: sleepSummary.quality.color }]}>
-                  {sleepSummary.quality.label}
-                </Text>
-              ) : null}
-            </View>
-            {activeNav === 'today' ? (
-              <>
-                <SleepPieChart data={sleepSummary.pieSegments} />
-                <View>
-                  {sleepSummary.stages.map((stage, index) => (
-                    <Flex key={stage.name}>
-                      <View style={stageIconStyles[index]} />
-                      <Text style={styles.sleepTitle}>{stage.name}</Text>
-                      <Text style={styles.sleepText}>{stage.duration}</Text>
-                    </Flex>
-                  ))}
-                </View>
-              </>
-            ) : (
-              <SleepBarChart data={sleepBarData} />
-            )}
-          </Flex>
+          <TouchableOpacity onPress={() => navigation.navigate('SleepPage')}>
+
+            <Flex
+              style={styles.vValueBox}
+              justify="between"
+              align="center">
+              <View>
+                <Text style={styles.vValue}>{sleepSummary.duration}</Text>
+                <Text style={styles.vUnit}>夜间睡眠</Text>
+                {sleepSummary.quality.label ? (
+                  <Text style={[styles.vStatus, { color: sleepSummary.quality.color }]}>
+                    {sleepSummary.quality.label}
+                  </Text>
+                ) : null}
+              </View>
+              {activeNav === 'today' ? (
+                <>
+                  <SleepPieChart data={sleepSummary.pieSegments} />
+                  <View>
+                    {sleepSummary.stages.map((stage, index) => (
+                      <Flex key={stage.name}>
+                        <View style={stageIconStyles[index]} />
+                        <Text style={styles.sleepTitle}>{stage.name}</Text>
+                        <Text style={styles.sleepText}>{stage.duration}</Text>
+                      </Flex>
+                    ))}
+                  </View>
+                </>
+              ) : (
+                <SleepBarChart data={sleepBarData} />
+              )}
+            </Flex>
+          </TouchableOpacity>
         </View>
 
         <VitalCard
@@ -622,6 +631,7 @@ export default function VitalsPage() {
           status={bloodOxygen.status}
           statusColor={bloodOxygen.statusColor}
           onAll={() => navigation.navigate('AllDataPage', { type: '血氧' })}
+          onPress={() => navigation.navigate('BloodOxygenPage')}
           chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} />}
         />
 
@@ -634,6 +644,7 @@ export default function VitalsPage() {
           statusColor={bodyTemperature.statusColor}
           onAdd={() => navigation.navigate('AddDataPage', { type: '体温' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '体温' })}
+          onPress={() => navigation.navigate('BodyTemperaturePage')}
           chart={<BodyTemperatureChart data={toHourPoints(bodyTemperatureSeries)} />}
         />
 
@@ -654,22 +665,24 @@ export default function VitalsPage() {
               </TouchableOpacity>
             </Flex>
           </Flex>
-          <Flex
-            direction={activeNav === 'today' ? 'column' : 'row'}
-            style={styles.vValueBox}
-            justify={activeNav === 'today' ? 'center' : 'between'}
-            align="center">
-            <View style={activeNav === 'today' ? { alignItems: 'center' } : undefined}>
-              <Text style={styles.vValue1}>{stepsSummary.value}</Text>
-              <Text style={styles.vUnit}>{stepsSummary.unit}</Text>
-              <Text style={[styles.vText, { color: stepsSummary.statusColor }]}>
-                {stepsSummary.status}
-              </Text>
-            </View>
-            {activeNav !== 'today' ? (
-              <SleepBarChart data={stepsBarData} metricLabel="步数" valueUnit="步" />
-            ) : null}
-          </Flex>
+          <TouchableOpacity onPress={() => navigation.navigate('StepsPage')}>
+            <Flex
+              direction={activeNav === 'today' ? 'column' : 'row'}
+              style={styles.vValueBox}
+              justify={activeNav === 'today' ? 'center' : 'between'}
+              align="center">
+              <View style={activeNav === 'today' ? { alignItems: 'center' } : undefined}>
+                <Text style={styles.vValue1}>{stepsSummary.value}</Text>
+                <Text style={styles.vUnit}>{stepsSummary.unit}</Text>
+                <Text style={[styles.vText, { color: stepsSummary.statusColor }]}>
+                  {stepsSummary.status}
+                </Text>
+              </View>
+              {activeNav !== 'today' ? (
+                <SleepBarChart data={stepsBarData} metricLabel="步数" valueUnit="步" />
+              ) : null}
+            </Flex>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.vCard}>
@@ -689,29 +702,31 @@ export default function VitalsPage() {
               </TouchableOpacity>
             </Flex>
           </Flex>
-          <Flex style={styles.vValueBox} justify="between" align="center">
-            <View>
-              <Text style={styles.vUnit}>{energySummary.totalLabel ?? '总消耗'}</Text>
-              <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{energySummary.total}</Text>
-              <Text style={styles.vUnit}>千卡</Text>
-            </View>
-            {energySummary.showBreakdown ? (
-              <Flex justify="around" style={styles.vRightBox}>
-                <View>
-                  <Text style={styles.vText1}>静息消耗</Text>
-                  <Text style={styles.vText2}>{energySummary.basal}</Text>
-                  <Text style={styles.vText1}>千卡</Text>
-                </View>
-                <View>
-                  <Text style={styles.vText1}>活动消耗</Text>
-                  <Text style={styles.vText2}>{energySummary.active}</Text>
-                  <Text style={styles.vText1}>千卡</Text>
-                </View>
-              </Flex>
-            ) : (
-              <SleepBarChart data={energyBarData} metricLabel="消耗" valueUnit="千卡" />
-            )}
-          </Flex>
+          <TouchableOpacity onPress={() => navigation.navigate('ConsumptionPage')}>
+            <Flex style={styles.vValueBox} justify="between" align="center">
+              <View>
+                <Text style={styles.vUnit}>{energySummary.totalLabel ?? '总消耗'}</Text>
+                <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{energySummary.total}</Text>
+                <Text style={styles.vUnit}>千卡</Text>
+              </View>
+              {energySummary.showBreakdown ? (
+                <Flex justify="around" style={styles.vRightBox}>
+                  <View>
+                    <Text style={styles.vText1}>静息消耗</Text>
+                    <Text style={styles.vText2}>{energySummary.basal}</Text>
+                    <Text style={styles.vText1}>千卡</Text>
+                  </View>
+                  <View>
+                    <Text style={styles.vText1}>活动消耗</Text>
+                    <Text style={styles.vText2}>{energySummary.active}</Text>
+                    <Text style={styles.vText1}>千卡</Text>
+                  </View>
+                </Flex>
+              ) : (
+                <SleepBarChart data={energyBarData} metricLabel="消耗" valueUnit="千卡" />
+              )}
+            </Flex>
+          </TouchableOpacity>
         </View>
         <View style={styles.vCard}>
           <Flex justify="between" align="center">

@@ -74,11 +74,11 @@ export type IndexMedicationPlanGroupResult = ApiResult & {
   data?: IndexMedicationPlanGroupItem[];
 };
 
-export const getIndexMedicationPlan = () =>
-  request.get<IndexMedicationPlanResult>('/patient/medicationPlan/indexPlan');
+export const getIndexMedicationPlan = (params?: { customerLocalDate?: string }) =>
+  request.get<IndexMedicationPlanResult>('/patient/medicationPlan/indexPlan', { params });
 
-export const getIndexMedicationPlanGroupByTime = () =>
-  request.get<IndexMedicationPlanGroupResult>('/patient/medicationPlan/indexPlanGroupByTime');
+export const getIndexMedicationPlanGroupByTime = (params?: { customerLocalDate?: string }) =>
+  request.get<IndexMedicationPlanGroupResult>('/patient/medicationPlan/indexPlanGroupByTime', { params });
 
 export const getMedicationPlanInfo = (medicationPlanId: string | number) =>
   request.get<MedicationPlanInfoResult>('/patient/medicationPlan/getInfo', {

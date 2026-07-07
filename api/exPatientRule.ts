@@ -15,6 +15,7 @@ export type ExPatientRuleInfo = {
   prescriptionName?: string;
   recoveryUserId?: string;
   recoveryUserName?: string;
+  recoveryOrgName?: string;
   diagnosis?: string;
   startDate?: string;
   endDate?: string;
@@ -25,6 +26,12 @@ export type ExPatientRuleInfo = {
   remark?: string;
   status?: number;
   progress?: number;
+  progressInfo?: {
+    complateNum?: number;
+    needSumExNum?: number;
+    complateRatio?: number;
+    sumExerciseDuration?: number;
+  };
   stopReason?: string;
   stopTime?: string;
   updateTime?: string;
@@ -33,6 +40,18 @@ export type ExPatientRuleInfo = {
 
 export const getInUseExPatientRuleInfo = () =>
   request.get<ExPatientRuleInfo>('/patient/exPatientRule/getInUseInfo');
+
+export const getExPatientRuleInfo = (exPatientRuleId: string) =>
+  request.get<{ code?: number; msg?: string; data?: ExPatientRuleInfo }>(
+    '/patient/exPatientRule/getInfo',
+    { params: { exPatientRuleId } },
+  );
+
+export const getExPatientRuleSnapshotByDate = (params: { customerLocalDate: string }) =>
+  request.get<{ code?: number; msg?: string; data?: ExPatientRuleInfo }>(
+    '/patient/exPatientRule/getSnapshotByDate',
+    { params },
+  );
 
 export type ExPatientRuleListParams = {
   status?: number | '';

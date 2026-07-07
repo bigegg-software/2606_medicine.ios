@@ -37,6 +37,8 @@ import AssistantPage from '@/src/features/assistant/AssistantPage';
 // 里程碑
 import CalendarPage from '@/src/features/schedule/calendarPage';
 import ScheduleHistoryPage from '@/src/features/schedule/scheduleHistoryPage';
+import ScheduleHistoryDetailPage from '@/src/features/schedule/ScheduleHistoryDetailPage';
+import TrainingStatsPage from '@/src/features/schedule/TrainingStatsPage';
 import PlayerPage from '@/src/features/schedule/player';
 import TestingPage from '@/src/features/schedule/testing/index';
 import TestingResultsPage from '@/src/features/schedule/testing/results';
@@ -76,9 +78,18 @@ import EmergencyAdd from '@/src/features/profile/emergencyAdd';
 import VitalsPage from '@/src/features/profile/vitals/VitalsPage';
 import AddDataPage from '@/src/features/profile/vitals/addData';
 import AllDataPage from '@/src/features/profile/vitals/allData';
+import BloodPressurePage from '@/src/features/profile/vitals/detail/bloodPressure';
+import BloodSugarPage from '@/src/features/profile/vitals/detail/bloodSugar';
+import HeartRatePage from '@/src/features/profile/vitals/detail/heartRate';
+import SleepPage from '@/src/features/profile/vitals/detail/sleep';
+import BloodOxygenPage from '@/src/features/profile/vitals/detail/bloodOxygen';
+import BodyTemperaturePage from '@/src/features/profile/vitals/detail/bodyTemperature';
+import StepsPage from '@/src/features/profile/vitals/detail/steps';
+import ConsumptionPage from '@/src/features/profile/vitals/detail/consumption';
 
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
+import CourseDetailPage from '@/src/features/community/CourseDetailPage';
 
 // 评估问卷
 import QuestionnairePage from '@/src/features/profile/questionnaire';
@@ -97,6 +108,7 @@ export type RootStackParamList = {
   ExercisePage: undefined;
   NutritionPage: undefined;
   ActivityDetail: { id: number | string };
+  CourseDetail: { courseId: string };
   ProfileEditPage: undefined;
   HealthRecord: undefined;
   Emergency: undefined;
@@ -123,8 +135,23 @@ export type RootStackParamList = {
   VitalsPage: undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
   AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' };
+  BloodPressurePage: undefined;
+  BloodSugarPage: undefined;
+  HeartRatePage: undefined;
+  SleepPage: undefined;
+  BloodOxygenPage: undefined;
+  BodyTemperaturePage: undefined;
+  StepsPage: undefined;
+  ConsumptionPage: undefined;
   CalendarPage: undefined;
   ScheduleHistoryPage: undefined;
+  ScheduleHistoryDetailPage: { exPatientRuleId: string };
+  TrainingStatsPage: {
+    exPatientRuleId: string;
+    startDate?: string;
+    endDate?: string;
+    initialWeek?: 'current' | 'last';
+  };
   PlayerPage: {
     exerciseType?: string;
     exerciseChildType?: string;
@@ -294,6 +321,7 @@ export default function RootStack() {
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
+      <Stack.Screen name="CourseDetail" component={CourseDetailPage} options={{ title: '课程详情' }} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
@@ -315,13 +343,27 @@ export default function RootStack() {
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
+      <Stack.Screen name="BloodPressurePage" component={BloodPressurePage} options={{ title: "血压", showHeaderBackground: false }} />
+      <Stack.Screen name="BloodSugarPage" component={BloodSugarPage} options={{ title: "血糖", showHeaderBackground: false }} />
+      <Stack.Screen name="HeartRatePage" component={HeartRatePage} options={{ title: "心率", showHeaderBackground: false }} />
+      <Stack.Screen name="SleepPage" component={SleepPage} options={{ title: "睡眠", showHeaderBackground: false }} />
+      <Stack.Screen name="BloodOxygenPage" component={BloodOxygenPage} options={{ title: "血氧", showHeaderBackground: false }} />
+      <Stack.Screen name="BodyTemperaturePage" component={BodyTemperaturePage} options={{ title: "体温", showHeaderBackground: false }} />
+      <Stack.Screen name="StepsPage" component={StepsPage} options={{ title: "步数", showHeaderBackground: false }} />
+      <Stack.Screen name="ConsumptionPage" component={ConsumptionPage} options={{ title: "消耗", showHeaderBackground: false }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
-      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '' , showHeaderBackground: false }} />
+      <Stack.Screen
+        name="ScheduleHistoryDetailPage"
+        component={ScheduleHistoryDetailPage}
+        options={{ title: '历史处方详情' }}
+      />
+      <Stack.Screen name="TrainingStatsPage" component={TrainingStatsPage} options={{ title: '训练统计' }} />
+      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '', showHeaderBackground: false }} />
       <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
-      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false  }} />
+      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false }} />
       <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />
-      <Stack.Screen name="QuestionnaireTestingPage" component={QuestionnaireTestingPage} options={{ title: '评估问卷'}} />
+      <Stack.Screen name="QuestionnaireTestingPage" component={QuestionnaireTestingPage} options={{ title: '评估问卷' }} />
       <Stack.Screen name="QuestionnaireTestingRecordPage" component={QuestionnaireTestingRecordPage} options={{ title: '评估记录', showHeaderBackground: false }} />
       <Stack.Screen name="Medication" component={MedicationPage} options={{ title: '用药记录' }} />
       <Stack.Screen name="MedicationAddPage" component={MedicationAddPage} options={{ title: '添加用药记录' }} />

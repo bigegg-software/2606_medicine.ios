@@ -1,95 +1,302 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  FlatList,
+  Image,
+  RefreshControl,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { GlassView } from 'expo-glass-effect';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Flex } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useDispatch, useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from '@/store/store';
-import { AppTheme } from '@/common/theme';
 import styles from '@/css/community/community';
 import type { RootStackParamList } from '@/route/router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { AppTheme } from '@/common/theme';
+import {
+  getCourseFavoriteList,
+  getCourseList,
+  type CourseItem,
+} from '@/api/course';
+import { buildDictLabelMap, DICT_TYPES, getDictDataByType } from '@/api/dict';
+import type { DictDataItem } from '@/api/dict';
+import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { formatCourseViewCount, toCourseId } from '../courseHelpers';
+
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const PAGE_SIZE = 10;
+const FAVORITE_TAB = 'favorite';
 
+type CourseTab = {
+  label: string;
+  value: string;
+};
 
-export default function CommunityPage() {
-    const navigation: any = useNavigation<Nav>();
-    const dispatch = useDispatch<AppDispatch>();
+function getListTotal(res: { total?: number } | null | undefined, rowsLength: number) {
+  const total = Number(res?.total);
+  return Number.isFinite(total) && total >= 0 ? total : rowsLength;
+}
+
+const DEFAULT_COVER = require('@/assets/images/home/head.png');
+
+export default function CoursePage() {
+  const navigation = useNavigation<Nav>();
+  const [tabs, setTabs] = useState<CourseTab[]>([{ label: '全部', value: '' }]);
+  const [activeTab, setActiveTab] = useState('');
+  const [courses, setCourses] = useState<CourseItem[]>([]);
+  const [total, setTotal] = useState(0);
+  const [pageNum, setPageNum] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [typeLabelMap, setTypeLabelMap] = useState<Record<string, string>>({});
+
+  const pageNumRef = useRef(pageNum);
+  const totalRef = useRef(total);
+  const coursesRef = useRef(courses);
+  const loadingMoreRef = useRef(false);
+  const hasLoadedOnceRef = useRef(false);
+  const hasMountedRef = useRef(false);
+  const activeTabRef = useRef(activeTab);
+  const lastFetchCountRef = useRef(0);
+
+  pageNumRef.current = pageNum;
+  totalRef.current = total;
+  coursesRef.current = courses;
+  activeTabRef.current = activeTab;
+
+  useEffect(() => {
+    (async () => {
+      const res = await getDictDataByType(DICT_TYPES.courseType);
+      const dictRes = res as unknown as { code?: number; data?: DictDataItem[] };
+      if (!isResourceApiOk(dictRes)) return;
+      const labelMap = buildDictLabelMap(dictRes.data);
+      setTypeLabelMap(labelMap);
+      const dictTabs = Object.entries(labelMap).map(([value, label]) => ({ label, value }));
+      setTabs([
+        { label: '全部', value: '' },
+        ...dictTabs,
+        { label: '我的收藏', value: FAVORITE_TAB },
+      ]);
+    })();
+  }, []);
+
+  const hasMoreData = useCallback((currentTotal: number, currentLength: number, lastFetchCount: number) => {
+    if (currentTotal > 0) return currentLength < currentTotal;
+    if (currentLength === 0) return false;
+    return lastFetchCount >= PAGE_SIZE;
+  }, []);
+
+  const fetchPage = useCallback(async (
+    page: number,
+    tab: string,
+    mode: 'initial' | 'refresh' | 'loadMore' | 'silent',
+  ) => {
+    if (mode === 'loadMore') {
+      if (
+        loadingMoreRef.current ||
+        !hasMoreData(totalRef.current, coursesRef.current.length, lastFetchCountRef.current)
+      ) {
+        return;
+      }
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else if (mode === 'initial') {
+      setLoading(true);
+    } else if (mode === 'refresh') {
+      setRefreshing(true);
+    }
+
+    try {
+      const params = { pageNum: page, pageSize: PAGE_SIZE };
+      const res = tab === FAVORITE_TAB
+        ? await getCourseFavoriteList(params)
+        : await getCourseList({ ...params, courseType: tab || undefined });
+
+      if (!isResourceApiOk(res)) {
+        if (mode !== 'loadMore' && tab === activeTabRef.current) {
+          setCourses([]);
+          setTotal(0);
+          setPageNum(1);
+        }
+        return;
+      }
+
+      const rows = getResourceRows<CourseItem>(res as { code?: number; rows?: CourseItem[] });
+      const responseTotal = getListTotal(res as { total?: number }, rows.length);
+
+      if (mode !== 'loadMore' && tab !== activeTabRef.current) {
+        return;
+      }
+
+      if (mode === 'loadMore') {
+        setCourses(prev => [...prev, ...rows]);
+      } else {
+        setCourses(rows);
+      }
+      setTotal(responseTotal);
+      setPageNum(page);
+      lastFetchCountRef.current = rows.length;
+      hasLoadedOnceRef.current = true;
+    } catch {
+      if (mode !== 'loadMore' && tab === activeTabRef.current) {
+        setCourses([]);
+        setTotal(0);
+        setPageNum(1);
+      }
+    } finally {
+      loadingMoreRef.current = false;
+      setLoading(false);
+      setRefreshing(false);
+      setLoadingMore(false);
+    }
+  }, [hasMoreData]);
+
+  const fetchPageRef = useRef(fetchPage);
+  fetchPageRef.current = fetchPage;
+
+  useEffect(() => {
+    lastFetchCountRef.current = 0;
+    const mode = hasLoadedOnceRef.current ? 'silent' : 'initial';
+    void fetchPageRef.current(1, activeTab, mode);
+  }, [activeTab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!hasMountedRef.current) {
+        hasMountedRef.current = true;
+        return;
+      }
+      void fetchPageRef.current(
+        1,
+        activeTabRef.current,
+        hasLoadedOnceRef.current ? 'silent' : 'initial',
+      );
+    }, []),
+  );
+
+  const handleRefresh = useCallback(() => {
+    void fetchPageRef.current(1, activeTabRef.current, 'refresh');
+  }, []);
+
+  const handleLoadMore = useCallback(() => {
+    if (
+      !hasLoadedOnceRef.current
+      || loadingMoreRef.current
+      || loading
+      || refreshing
+      || coursesRef.current.length === 0
+    ) {
+      return;
+    }
+    if (!hasMoreData(totalRef.current, coursesRef.current.length, lastFetchCountRef.current)) {
+      return;
+    }
+    void fetchPageRef.current(pageNumRef.current + 1, activeTabRef.current, 'loadMore');
+  }, [hasMoreData, loading, refreshing]);
+
+  const hasMore = hasMoreData(total, courses.length, lastFetchCountRef.current);
+
+  const getCourseTypeLabel = useCallback((courseType?: string) => {
+    if (!courseType) return '课程';
+    return typeLabelMap[courseType] ?? courseType;
+  }, [typeLabelMap]);
+
+  const renderCourseItem = useCallback(({ item }: { item: CourseItem }) => {
+    const courseId = toCourseId(item.courseId);
+    const coverUri = item.coverOssUrl?.trim();
 
     return (
-        <View>
-            <View style={styles.courseBox}>
-                <View style={styles.courseImgWrap}>
-                    <Image source={require('@/assets/images/home/head.png')} style={styles.courseImg} />
-                    <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
-                        <Text style={styles.liveTopCategoryText}>慢病管理</Text>
-                    </GlassView>
-                    <Text style={styles.gkrsText}>3280人次观看</Text>
-                    <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
-                </View>
-                <View style={styles.courseBoxInfo}>
-                    <Text style={styles.courseTitle}>直播预告</Text>
-                    <Text style={styles.courseText}>学习血压监测、饮食控制、运动调节等高血压管理知识</Text>
-                    <Flex justify='between' style={{ marginTop: 12 }}>
-                        <Text style={styles.mapText}>王医生</Text>
-                        <Flex>
-                            <Image style={styles.courseIcon} source={require('@/assets/images/community/dz.png')} />
-                            <Text style={styles.mapText}>256</Text>
-                            <Image style={styles.courseIcon} source={require('@/assets/images/community/sc.png')} />
-                            <Text style={styles.mapText}>130</Text>
-                        </Flex>
-                    </Flex>
-                </View>
-            </View>
-            <View style={styles.courseBox}>
-                <View style={styles.courseImgWrap}>
-                    <Image source={require('@/assets/images/home/head.png')} style={styles.courseImg} />
-                    <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
-                        <Text style={styles.liveTopCategoryText}>慢病管理</Text>
-                    </GlassView>
-                    <Text style={styles.gkrsText}>3280人次观看</Text>
-                    <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
-                </View>
-                <View style={styles.courseBoxInfo}>
-                    <Text style={styles.courseTitle}>直播预告</Text>
-                    <Text style={styles.courseText}>学习血压监测、饮食控制、运动调节等高血压管理知识</Text>
-                    <Flex justify='between' style={{ marginTop: 12 }}>
-                        <Text style={styles.mapText}>王医生</Text>
-                        <Flex>
-                            <Image style={styles.courseIcon} source={require('@/assets/images/community/dz.png')} />
-                            <Text style={styles.mapText}>256</Text>
-                            <Image style={styles.courseIcon} source={require('@/assets/images/community/sc.png')} />
-                            <Text style={styles.mapText}>130</Text>
-                        </Flex>
-                    </Flex>
-                </View>
-            </View>
-            <View style={styles.courseBox}>
-                <View style={styles.courseImgWrap}>
-                    <Image source={require('@/assets/images/home/head.png')} style={styles.courseImg} />
-                    <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
-                        <Text style={styles.liveTopCategoryText}>慢病管理</Text>
-                    </GlassView>
-                    <Text style={styles.gkrsText}>3280人次观看</Text>
-                    <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
-                </View>
-                <View style={styles.courseBoxInfo}>
-                    <Text style={styles.courseTitle}>直播预告</Text>
-                    <Text style={styles.courseText}>学习血压监测、饮食控制、运动调节等高血压管理知识</Text>
-                    <Flex justify='between' style={{ marginTop: 12 }}>
-                        <Text style={styles.mapText}>王医生</Text>
-                        <Flex>
-                            <Image style={styles.courseIcon} source={require('@/assets/images/community/dz.png')} />
-                            <Text style={styles.mapText}>256</Text>
-                            <Image style={styles.courseIcon} source={require('@/assets/images/community/sc.png')} />
-                            <Text style={styles.mapText}>130</Text>
-                        </Flex>
-                    </Flex>
-                </View>
-            </View>
+      <TouchableOpacity
+        style={styles.courseBox}
+        activeOpacity={0.9}
+        onPress={() => {
+          if (!courseId) return;
+          navigation.navigate('CourseDetail', { courseId });
+        }}
+      >
+        <View style={styles.courseImgWrap}>
+          <Image
+            source={coverUri ? { uri: coverUri } : DEFAULT_COVER}
+            style={styles.courseImg}
+          />
+          <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
+            <Text style={styles.liveTopCategoryText}>{getCourseTypeLabel(item.courseType)}</Text>
+          </GlassView>
+          <Text style={styles.gkrsText}>{formatCourseViewCount(item.viewCount)}</Text>
+          <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
         </View>
+        <View style={styles.courseBoxInfo}>
+          <Text style={styles.courseTitle} numberOfLines={1}>{item.title || '未命名课程'}</Text>
+          <Text style={styles.courseText} numberOfLines={2}>
+            {item.courseIntro || '暂无课程简介'}
+          </Text>
+          <Flex justify="between" style={{ marginTop: 12 }}>
+            <Text style={styles.mapText}>{item.instructor || '讲师待定'}</Text>
+            <Flex>
+              <Image style={styles.courseIcon} source={require('@/assets/images/community/dz.png')} />
+              <Text style={styles.mapText}>{item.likeCount ?? 0}</Text>
+              <Image style={styles.courseIcon} source={require('@/assets/images/community/sc.png')} />
+              <Text style={styles.mapText}>{item.favoriteCount ?? 0}</Text>
+            </Flex>
+          </Flex>
+        </View>
+      </TouchableOpacity>
     );
+  }, [getCourseTypeLabel, navigation]);
+
+  const listHeader = (
+    <Flex justify="around" style={styles.navBox}>
+      {tabs.map(item => (
+        <TouchableOpacity
+          style={styles.navCol}
+          key={item.value || 'all'}
+          onPress={() => setActiveTab(item.value)}
+        >
+          <View style={styles.navItemWrap}>
+            <Text style={[styles.navText, activeTab === item.value && styles.activeNavText]}>
+              {item.label}
+            </Text>
+            {activeTab === item.value ? (
+              <View style={styles.navIndicatorWrap}>
+                <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
+              </View>
+            ) : null}
+          </View>
+        </TouchableOpacity>
+      ))}
+    </Flex>
+  );
+
+  const listFooter = loadingMore && hasMore ? (
+    <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+      <ActivityIndicator color={AppTheme.primaryColor} />
+    </View>
+  ) : null;
+
+  const listEmpty = !loading ? (
+    <Text style={{ textAlign: 'center', marginTop: 40, color: '#999', fontSize: 14 }}>
+      {activeTab === FAVORITE_TAB ? '暂无收藏课程' : '暂无课程'}
+    </Text>
+  ) : null;
+
+  return (
+    <FlatList
+      data={courses}
+      keyExtractor={(item, index) => toCourseId(item.courseId) || `course-${index}`}
+      renderItem={renderCourseItem}
+      ListHeaderComponent={listHeader}
+      ListFooterComponent={listFooter}
+      ListEmptyComponent={listEmpty}
+      contentContainerStyle={styles.scroll}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+      onEndReached={hasMore ? handleLoadMore : undefined}
+      onEndReachedThreshold={0.2}
+    />
+  );
 }

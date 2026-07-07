@@ -30,6 +30,7 @@ export const DICT_TYPES = {
   strengthChildType: 'strength_child_type',
   flexibilityChildType: 'flexibility_child_type',
   balanceChildType: 'balance_child_type',
+  courseType: 'course_type',
 } as const;
 
 export const EXERCISE_CHILD_DICT_BY_TYPE: Record<string, string> = {

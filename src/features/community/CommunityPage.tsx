@@ -64,11 +64,12 @@ export default function CommunityPage() {
       <View style={styles.pageContent}>
         {activeNav === 'ranking' ? (
           <RankingPage />
+        ) : activeNav === 'course' ? (
+          <CoursePage />
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
-            {NAV_LIST[0].value === activeNav && <ActivityPage />}
+            {NAV_LIST[3].value === activeNav && <ActivityPage />}
             {NAV_LIST[1].value === activeNav && <LivePage />}
-            {NAV_LIST[2].value === activeNav && <CoursePage />}
           </ScrollView>
         )}
       </View>

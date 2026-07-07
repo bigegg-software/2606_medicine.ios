@@ -10,10 +10,19 @@ import {
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Picker } from '@ant-design/react-native';
 import moment, { type Moment } from 'moment';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppTheme } from '@/common/theme';
+import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/schedule/calendar';
-// import { getScheduleMonthlyOverview } from '@/api/schedule';
-import { isApiOk } from '@/src/utils/apiHelpers';
+import type { DailyRecordStatusItem } from '@/api/dailyRecordStatus';
+import {
+  groupTimelineItems,
+  hasDailyRecord,
+  loadCalendarDayTimelineItems,
+  loadDailyRecordStatusMap,
+  type CalendarTimelineItem,
+} from './calendarHelpers';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const DASH_COUNT = 30;
@@ -31,10 +40,20 @@ const MONTH_PICKER_DATA = [
   })),
 ];
 
+const TIMELINE_ICONS: Record<CalendarTimelineItem['kind'], number> = {
+  diet: require('@/assets/images/schedule/yw.png'),
+  ex: require('@/assets/images/schedule/exercise2.png'),
+  drug: require('@/assets/images/schedule/yw.png'),
+  activity: require('@/assets/images/schedule/exercise4.png'),
+  live: require('@/assets/images/schedule/exercise3.png'),
+};
+
 type CalendarDay = {
   date: Moment;
   isCurrentMonth: boolean;
 };
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 function DashedDivider() {
   return (
@@ -67,146 +86,149 @@ function buildCalendarDays(month: Moment): CalendarDay[] {
 
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
-const STATIC_TIMELINE = [
-  {
-    period: '上午',
-    items: [
-      { time: '9:00', title: '有氧心肺', desc: '快走40分钟' },
-      { time: '9:30', title: '柔韧拉伸', desc: '静态拉伸15分钟' },
-    ],
-  },
-  {
-    period: '下午',
-    items: [
-      { time: '13:00', title: '抗阻增肌', desc: '深蹲3组×12次' },
-      { time: '19:30', title: '平衡控制', desc: '单脚站立训练' },
-    ],
-  },
-] as const;
+function TimelineSection({
+  period,
+  items,
+  onPressItem,
+}: {
+  period: string;
+  items: CalendarTimelineItem[];
+  onPressItem: (item: CalendarTimelineItem) => void;
+}) {
+  if (items.length === 0) return null;
 
-function ScheduleTimeline() {
+  return (
+    <>
+      <View style={[styles.periodRow, period === '下午' && styles.periodRowAfternoon]}>
+        <View style={styles.timeAxis}>
+          <Text style={styles.periodText}>{period}</Text>
+        </View>
+        <View style={styles.cardSide} />
+      </View>
+
+      {items.map((item, itemIndex) => {
+        const isLastInSection = itemIndex === items.length - 1;
+
+        return (
+          <View
+            key={item.key}
+            style={[
+              styles.timelineRow,
+              !isLastInSection && styles.timelineRowGap,
+              isLastInSection && styles.timelineRowSectionLast,
+            ]}>
+            <View style={styles.timeAxis}>
+              <View style={styles.timeSlot}>
+                <Text style={styles.timeText}>{item.time}</Text>
+              </View>
+            </View>
+            <View style={styles.cardSide}>
+              <TouchableOpacity
+                activeOpacity={item.kind === 'activity' ? 0.7 : 1}
+                disabled={item.kind !== 'activity'}
+                onPress={() => onPressItem(item)}>
+                <Flex style={styles.taskCard}>
+                  <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.taskCardTitle}>{item.title}</Text>
+                    <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                  </View>
+                </Flex>
+              </TouchableOpacity>
+            </View>
+          </View>
+        );
+      })}
+    </>
+  );
+}
+
+function ScheduleTimeline({
+  items,
+  loading,
+  onPressItem,
+}: {
+  items: CalendarTimelineItem[];
+  loading: boolean;
+  onPressItem: (item: CalendarTimelineItem) => void;
+}) {
+  const grouped = useMemo(() => groupTimelineItems(items), [items]);
+
+  if (loading) {
+    return (
+      <View style={styles.loadingBox}>
+        <ActivityIndicator color={AppTheme.primaryColor} />
+      </View>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <View style={styles.emptyTimelineBox}>
+        <Text style={styles.emptyTimelineText}>当日暂无记录</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.timelineWrap}>
       <View style={styles.axisLine} pointerEvents="none" />
-      {STATIC_TIMELINE.map((section, sectionIndex) => (
-        <React.Fragment key={section.period}>
-          <View
-            style={[
-              styles.periodRow,
-              sectionIndex > 0 && styles.periodRowAfternoon,
-            ]}>
-            <View style={styles.timeAxis}>
-              <Text style={styles.periodText}>{section.period}</Text>
-            </View>
-            <View style={styles.cardSide} />
-          </View>
-
-          {section.items.map((item, itemIndex) => {
-            const isLastInSection = itemIndex === section.items.length - 1;
-            const isLastOverall =
-              sectionIndex === STATIC_TIMELINE.length - 1 && isLastInSection;
-
-            return (
-              <View
-                key={item.time}
-                style={[
-                  styles.timelineRow,
-                  !isLastInSection && styles.timelineRowGap,
-                  isLastInSection && styles.timelineRowSectionLast,
-                  isLastOverall && styles.timelineRowLast,
-                ]}>
-                <View style={styles.timeAxis}>
-                  <View style={styles.timeSlot}>
-                    <Text style={styles.timeText}>{item.time}</Text>
-                  </View>
-                </View>
-                <View style={styles.cardSide}>
-                  <Flex style={styles.taskCard}>
-                    <Image style={styles.taskCardIcon} source={require('@/assets/images/schedule/yw.png')}/>
-                    <View>
-                      <Text style={styles.taskCardTitle}>{item.title}</Text>
-                      <Text style={styles.taskCardDesc}>{item.desc}</Text>
-                    </View>
-                  </Flex>
-                </View>
-              </View>
-            );
-          })}
-        </React.Fragment>
-      ))}
+      <TimelineSection period="上午" items={grouped.morning} onPressItem={onPressItem} />
+      <TimelineSection period="下午" items={grouped.afternoon} onPressItem={onPressItem} />
     </View>
   );
 }
 
-function normalizeMarkedDates(data: unknown): Set<string> {
-  const marked = new Set<string>();
-
-  if (Array.isArray(data)) {
-    for (const item of data) {
-      if (typeof item === 'string') {
-        marked.add(item);
-        continue;
-      }
-      if (item && typeof item === 'object') {
-        const date =
-          'date' in item && typeof (item as { date?: unknown }).date === 'string'
-            ? (item as { date: string }).date
-            : 'customerLocalDate' in item &&
-                typeof (item as { customerLocalDate?: unknown }).customerLocalDate === 'string'
-              ? (item as { customerLocalDate: string }).customerLocalDate
-              : null;
-        if (date) marked.add(date);
-      }
-    }
-    return marked;
-  }
-
-  if (data && typeof data === 'object') {
-    for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(key)) {
-        marked.add(key);
-        continue;
-      }
-      if (Array.isArray(value)) {
-        for (const date of value) {
-          if (typeof date === 'string') marked.add(date);
-        }
-      }
-    }
-  }
-
-  return marked;
-}
-
 export default function ScheduleCalendarPage() {
+  const navigation = useNavigation<Nav>();
   const [currentMonth, setCurrentMonth] = useState(moment());
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
-  const [markedDates, setMarkedDates] = useState<Set<string>>(new Set());
+  const [statusMap, setStatusMap] = useState<Map<string, DailyRecordStatusItem>>(new Map());
+  const [timelineItems, setTimelineItems] = useState<CalendarTimelineItem[]>([]);
   const [loadingMonth, setLoadingMonth] = useState(false);
+  const [loadingDay, setLoadingDay] = useState(false);
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
   const dateHeader = `${moment(selectedDate).format('YYYY.MM.DD')} ${WEEKDAY_LABELS[moment(selectedDate).day()]}`;
+  const selectedStatus = statusMap.get(selectedDate);
 
   const loadMonthlyOverview = useCallback(async (month: Moment) => {
-    // setLoadingMonth(true);
-    // try {
-    //   const res = await getScheduleMonthlyOverview(month.format('YYYY-MM'));
-    //   if (isApiOk(res as { code?: number })) {
-    //     const data = (res as { data?: unknown }).data;
-    //     setMarkedDates(normalizeMarkedDates(data));
-    //   } else {
-    //     setMarkedDates(new Set());
-    //   }
-    // } catch {
-    //   setMarkedDates(new Set());
-    // } finally {
-    //   setLoadingMonth(false);
-    // }
+    setLoadingMonth(true);
+    try {
+      const map = await loadDailyRecordStatusMap(month);
+      setStatusMap(map);
+    } catch {
+      setStatusMap(new Map());
+    } finally {
+      setLoadingMonth(false);
+    }
+  }, []);
+
+  const loadDayTimeline = useCallback(async (dateKey: string, status?: DailyRecordStatusItem) => {
+    setLoadingDay(true);
+    try {
+      const items = await loadCalendarDayTimelineItems(dateKey, status);
+      setTimelineItems(items);
+    } catch {
+      setTimelineItems([]);
+    } finally {
+      setLoadingDay(false);
+    }
   }, []);
 
   useEffect(() => {
-    loadMonthlyOverview(currentMonth);
+    void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
+
+  useEffect(() => {
+    void loadDayTimeline(selectedDate, selectedStatus);
+  }, [loadDayTimeline, selectedDate, selectedStatus]);
+
+  const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
+    if (item.kind === 'activity' && item.activityId) {
+      navigation.navigate('ActivityDetail', { id: item.activityId });
+    }
+  }, [navigation]);
 
   return (
     <PageLayout style={styles.container}>
@@ -263,7 +285,7 @@ export default function ScheduleCalendarPage() {
                 const dateKey = day.date.format('YYYY-MM-DD');
                 const isSelected = selectedDate === dateKey;
                 const isToday = day.date.isSame(moment(), 'day');
-                const hasTask = markedDates.has(dateKey);
+                const hasTask = hasDailyRecord(statusMap.get(dateKey));
 
                 return (
                   <TouchableOpacity
@@ -293,7 +315,11 @@ export default function ScheduleCalendarPage() {
           )}
         </View>
         <Text style={styles.titleText}>{dateHeader}</Text>
-        <ScheduleTimeline />
+        <ScheduleTimeline
+          items={timelineItems}
+          loading={loadingDay}
+          onPressItem={handleTimelinePress}
+        />
       </ScrollView>
     </PageLayout>
   );

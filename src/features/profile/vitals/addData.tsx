@@ -303,11 +303,11 @@ export default function BloodAddPage({ route }: Props) {
         remark: remark.trim(),
         ...(measureType === '血脂'
           ? {
-              xuezhiTc: val,
-              ...(lipidTg.trim() ? { xuezhiTg: Number(lipidTg) } : {}),
-              ...(lipidHdl.trim() ? { xuezhiHdlC: Number(lipidHdl) } : {}),
-              ...(lipidLdl.trim() ? { xuezhiLdlC: Number(lipidLdl) } : {}),
-            }
+            xuezhiTc: val,
+            ...(lipidTg.trim() ? { xuezhiTg: Number(lipidTg) } : {}),
+            ...(lipidHdl.trim() ? { xuezhiHdlC: Number(lipidHdl) } : {}),
+            ...(lipidLdl.trim() ? { xuezhiLdlC: Number(lipidLdl) } : {}),
+          }
           : {}),
       };
       const res = (await (isEdit

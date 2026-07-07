@@ -10,7 +10,9 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/route/router';
 import type { HistoryExPatientRule } from '@/api/schedule';
 import { AppTheme } from '@/common/theme';
 import PageLayout from '@/src/components/PageLayout';
@@ -42,6 +44,7 @@ function mergeHistoryPlans(existing: HistoryExPatientRule[], incoming: HistoryEx
 }
 
 export default function ScheduleHistoryPage() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<HistoryPlanFilter>('all');
   const [plans, setPlans] = useState<HistoryExPatientRule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,18 +169,27 @@ export default function ScheduleHistoryPage() {
         scrollEventThrottle={16}>
         {historyItems.length > 0 ? (
           historyItems.map(item => (
-            <Flex justify="between" style={styles.medicalBox} key={String(item.id)}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
-                <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
-                {item.status === 1 && item.stopReason ? (
-                  <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
-                ) : null}
-              </View>
-              <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
-                <Text style={styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
+            <TouchableOpacity
+              key={String(item.id)}
+              activeOpacity={0.7}
+              onPress={() => {
+                navigation.navigate('ScheduleHistoryDetailPage', {
+                  exPatientRuleId: String(item.id),
+                });
+              }}>
+              <Flex justify="between" style={styles.medicalBox}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
+                  <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
+                  {item.status === 1 && item.stopReason ? (
+                    <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
+                  ) : null}
+                </View>
+                <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
+                  <Text style={styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
+                </Flex>
               </Flex>
-            </Flex>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.historyEmptyWrap}>

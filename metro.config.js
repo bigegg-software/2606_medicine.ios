@@ -11,6 +11,13 @@ const config = getDefaultConfig(projectRoot);
 const defaultResolveRequest = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {
+  if (moduleName === 'punycode') {
+    return {
+      filePath: path.resolve(projectRoot, 'node_modules/punycode/punycode.js'),
+      type: 'sourceFile',
+    };
+  }
+
   if (moduleName === 'tslib') {
     return {
       filePath: path.resolve(projectRoot, 'node_modules/tslib/tslib.es6.js'),

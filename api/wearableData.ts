@@ -57,6 +57,7 @@ export type WearableDataItem = {
   sleepGoals?: number;
   stepGoals?: number;
   energyGoals?: number;
+  restingHeartRate?: number;
   activeEnergyBurned?: number;
   basalEnergyBurned?: number;
 };

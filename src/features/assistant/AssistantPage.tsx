@@ -61,14 +61,7 @@ function AiMessageContent({ text, streaming }: { text: string; streaming?: boole
     return <TypingDots />;
   }
 
-  return renderAiMessageText(
-    text,
-    styles.aiMessageText,
-    styles.aiMessageTextBold,
-    styles.aiMessageTextItalic,
-    styles.aiMessageTextBoldItalic,
-    streaming,
-  );
+  return renderAiMessageText(text, streaming);
 }
 
 function UserUploadPreview({

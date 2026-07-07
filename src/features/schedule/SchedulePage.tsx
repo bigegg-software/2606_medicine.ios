@@ -22,15 +22,15 @@ import {
 import {
   WEEK_LABELS,
   buildScheduleWeekDays,
-  formatCompletionRate,
+  clampDateRangeToPrescription,
   formatPrescriptionCycleDays,
-  formatTotalDuration,
-  formatTrainingCount,
+  getCurrentWeekDateRange,
   getHistoryStatusLabel,
   getInUseStatusText,
   loadScheduleDictMaps,
   loadExerciseTypeRingProgress,
   loadScheduleWeekCalendar,
+  loadScheduleWeekStatsForRange,
   loadTodayTaskProgressMap,
   normalizeProgress,
   sortHistoryPlans,
@@ -40,9 +40,16 @@ import {
   toTodayTaskItem,
   type ScheduleDictMaps,
   type ScheduleWeekDayItem,
+  type ScheduleWeekStats,
 } from './scheduleHelpers';
 
 const HISTORY_PREVIEW_SIZE = 5;
+
+const EMPTY_WEEK_STATS: ScheduleWeekStats = {
+  trainingCount: '--',
+  completionRate: '--',
+  totalDuration: '--',
+};
 
 function ScheduleWeekDayCell({ item }: { item: ScheduleWeekDayItem }) {
   const isToday = item.date.isSame(moment(), 'day');
@@ -111,6 +118,7 @@ export default function SchedulePage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [todayTaskProgressMap, setTodayTaskProgressMap] = useState<Record<string, number>>({});
   const [ringProgress, setRingProgress] = useState<[number, number, number, number]>([0, 0, 0, 0]);
+  const [weekStats, setWeekStats] = useState<ScheduleWeekStats>(EMPTY_WEEK_STATS);
 
   const prescriptionProgress = normalizeProgress(prescription?.progress ?? prescription?.progressInfo?.complateRatio);
   const todayTasks = useMemo(
@@ -147,19 +155,37 @@ export default function SchedulePage() {
         setPrescription(null);
       }
 
-      const [calendarDays, progressMap, typeRingProgress] = await Promise.all([
+      const { startDate, endDate } = getCurrentWeekDateRange();
+      const clampedRange = clampDateRangeToPrescription(
+        startDate,
+        endDate,
+        current?.startDate,
+        current?.endDate,
+      );
+      const weekStatsPromise = clampedRange && current?.exPatientRuleId
+        ? loadScheduleWeekStatsForRange(
+          current.exPatientRuleId,
+          clampedRange.startDate,
+          clampedRange.endDate,
+        )
+        : Promise.resolve(EMPTY_WEEK_STATS);
+
+      const [calendarDays, progressMap, typeRingProgress, stats] = await Promise.all([
         loadScheduleWeekCalendar(current?.exPatientRuleId),
         loadTodayTaskProgressMap(current?.exPatientRuleId),
         loadExerciseTypeRingProgress(current?.exPatientRuleId, current?.ruleRatioList),
+        weekStatsPromise,
       ]);
       setWeekDays(calendarDays);
       setTodayTaskProgressMap(progressMap);
       setRingProgress(typeRingProgress);
+      setWeekStats(stats);
     } catch {
       setPrescription(null);
       setWeekDays(buildScheduleWeekDays());
       setTodayTaskProgressMap({});
       setRingProgress([0, 0, 0, 0]);
+      setWeekStats(EMPTY_WEEK_STATS);
     } finally {
       setPrescriptionLoading(false);
     }
@@ -296,10 +322,25 @@ export default function SchedulePage() {
               <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scrollBox}>
                 {goalItems.map(item => (
                   <TouchableOpacity style={styles.backBox} key={item.key} onPress={() => {
-                    if (item.assessmentType === "sys_health_test_item") {
-                      navigation.navigate("TestingPage", { id: String(item.key) });
-                    } else if (item.assessmentType === "question_type") {
-                      navigation.navigate("QuestionnaireTestingPage", { id: String(item.key) });
+                    if (item.assessmentType === 'sys_health_test_item') {
+                      navigation.navigate('TestingPage', { id: String(item.key) });
+                    } else if (item.assessmentType === 'question_type') {
+                      navigation.navigate('QuestionnaireTestingPage', { id: String(item.key) });
+                    } else if (
+                      item.assessmentType === 'health_indicator_type' &&
+                      item.assessmentValue === 'xueTang'
+                    ) {
+                      navigation.navigate('BloodPressurePage');
+                    } else if (
+                      item.assessmentType === 'health_indicator_type' &&
+                      item.assessmentValue === 'xueTang'
+                    ) {
+                      navigation.navigate('BloodSugarPage');
+                    } else if (
+                      item.assessmentType === 'health_indicator_type' &&
+                      item.assessmentValue === 'xueTang'
+                    ) {
+                      navigation.navigate('BloodSugarPage');
                     }
                   }}>
                     <Image style={styles.backImg} source={item.backImage} />
@@ -355,9 +396,26 @@ export default function SchedulePage() {
 
 
 
-          <Flex style={styles.titleBox}>
-            <View style={styles.borderBox}></View>
-            <Text style={styles.titleText}>本周训练统计</Text>
+          <Flex justify='between' style={styles.titleBox}>
+            <Flex>
+              <View style={styles.borderBox}></View>
+              <Text style={styles.titleText}>本周训练统计</Text>
+            </Flex>
+
+            {prescription ? (
+              <TouchableOpacity
+                onPress={() => {
+                  const ruleId = prescription.exPatientRuleId;
+                  if (ruleId == null || ruleId === '') return;
+                  navigation.navigate('TrainingStatsPage', {
+                    exPatientRuleId: String(ruleId),
+                    startDate: prescription.startDate,
+                    endDate: prescription.endDate,
+                  });
+                }}>
+                <Text style={styles.allBtn}>全部</Text>
+              </TouchableOpacity>
+            ) : null}
           </Flex>
 
           <Flex justify="between" style={styles.dayBox}>
@@ -368,19 +426,15 @@ export default function SchedulePage() {
 
           <Flex style={styles.statRow}>
             <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
-              <Text style={styles.statValue}>
-                {formatTrainingCount(prescription?.progressInfo)}
-              </Text>
+              <Text style={styles.statValue}>{weekStats.trainingCount}</Text>
               <Text style={styles.statTitle}>训练次数</Text>
             </Flex>
             <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
-              <Text style={styles.statValue}>{formatCompletionRate(prescription?.progressInfo)}</Text>
+              <Text style={styles.statValue}>{weekStats.completionRate}</Text>
               <Text style={styles.statTitle}>完成率</Text>
             </Flex>
             <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
-              <Text style={styles.statValue}>
-                {formatTotalDuration(prescription?.progressInfo?.sumExerciseDuration)}
-              </Text>
+              <Text style={styles.statValue}>{weekStats.totalDuration}</Text>
               <Text style={styles.statTitle}>累计时长</Text>
             </Flex>
           </Flex>
@@ -411,18 +465,27 @@ export default function SchedulePage() {
           ) : null}
 
           {historyItems.map(item => (
-            <Flex justify='between' style={styles.medicalBox} key={String(item.id)}>
-              <View style={{ flex: 1, paddingRight: 12 }}>
-                <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
-                <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
-                {item.status === 1 && item.stopReason ? (
-                  <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
-                ) : null}
-              </View>
-              <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
-                <Text style={styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
+            <TouchableOpacity
+              key={String(item.id)}
+              activeOpacity={0.7}
+              onPress={() => {
+                navigation.navigate('ScheduleHistoryDetailPage', {
+                  exPatientRuleId: String(item.id),
+                });
+              }}>
+              <Flex justify='between' style={styles.medicalBox}>
+                <View style={{ flex: 1, paddingRight: 12 }}>
+                  <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
+                  <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
+                  {item.status === 1 && item.stopReason ? (
+                    <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
+                  ) : null}
+                </View>
+                <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
+                  <Text style={styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
+                </Flex>
               </Flex>
-            </Flex>
+            </TouchableOpacity>
           ))}
 
         </View>

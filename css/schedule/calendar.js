@@ -64,6 +64,8 @@ const styles = StyleSheet.create({
   },
   dayDotSelected: { backgroundColor: '#FFFFFF' },
   loadingBox: { marginTop: 24, alignItems: 'center' },
+  emptyTimelineBox: { marginTop: 20, paddingVertical: 24, alignItems: 'center' },
+  emptyTimelineText: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
   titleText: {
     marginTop: 24,
     fontWeight: 400,

@@ -151,5 +151,49 @@ export const getMeasureDataDetailByDateRange = (params: {
     { params },
   );
 
+export type MeasureDataStatisDayGroup = {
+  id?: number;
+  userId?: number;
+  type?: string;
+  customerLocalDate?: string;
+  avgVal?: number;
+  avgVal2?: number;
+  statisLevelResult?: {
+    level?: string;
+    isHigh?: boolean;
+    isLow?: boolean;
+  };
+  childList?: MeasureDataItem[];
+};
+
+export type MeasureDataStatisResult = {
+  code?: number;
+  msg?: string;
+  data?: MeasureDataStatisDayGroup[];
+};
+
+export const getMeasureDataStatisByDateRange = (params: {
+  startDate: string;
+  endDate: string;
+  type: MeasureDataType;
+}) =>
+  request.post<MeasureDataStatisResult>(
+    '/patient/measureData/detailByBetweenCustomerLocalDate/statis',
+    {},
+    { params },
+  );
+
 export const getMeasureDataAllRecords = (params: MeasureDataAllRecordsParams) =>
   request.get<MeasureDataAllRecordsResult>('/patient/measureData/allRecords', { params });
+
+export type MeasureDataNormalDayCountParams = {
+  exPatientRuleId: string;
+  type: MeasureDataType;
+  userId?: string;
+};
+
+export const getMeasureDataNormalDayCount = (params: MeasureDataNormalDayCountParams) =>
+  request.get<{ code?: number; msg?: string; data?: number }>(
+    '/patient/exMeasureData/normalDayCount',
+    { params },
+  );

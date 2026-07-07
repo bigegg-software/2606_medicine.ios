@@ -7,6 +7,7 @@ import {
   type DictDataItem,
 } from '@/api/dict';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { getExRecordDayStatis, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import {
   getDayTypeListDetailByCustomerLocalDate,
   getExerciseTypeStatis,
@@ -52,6 +53,7 @@ export type HealthGoalDisplayItem = {
   icon: number;
   backImage: number;
   assessmentType: string;
+  assessmentValue: string;
 };
 
 export const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'] as const;
@@ -68,9 +70,9 @@ const EXERCISE_TYPE_RING_ORDER = ['cardio', 'strength', 'flexibility', 'balance'
 const EMPTY_RING_PROGRESS: [number, number, number, number] = [0, 0, 0, 0];
 
 export const EXERCISE_TYPE_IMAGES: Record<string, number> = {
-  cardio: require('@/assets/images/schedule/exercise2.png'),
+  cardio: require('@/assets/images/schedule/exercise3.png'),
   strength: require('@/assets/images/schedule/exercise2.png'),
-  flexibility: require('@/assets/images/schedule/exercise2.png'),
+  flexibility: require('@/assets/images/schedule/exercise4.png'),
   balance: require('@/assets/images/schedule/exercise1.png'),
 };
 
@@ -86,9 +88,127 @@ function resolveDictLabel(map: Record<string, string> | undefined, value?: strin
 }
 
 export function getCurrentWeekDateRange() {
+  return getWeekDateRange(moment());
+}
+
+export function getWeekDateRange(weekStart: moment.Moment) {
+  const start = moment(weekStart).startOf('isoWeek');
   return {
-    startDate: moment().startOf('isoWeek').format('YYYY-MM-DD'),
-    endDate: moment().endOf('isoWeek').format('YYYY-MM-DD'),
+    startDate: start.format('YYYY-MM-DD'),
+    endDate: moment(start).endOf('isoWeek').format('YYYY-MM-DD'),
+  };
+}
+
+export function formatWeekRangeText(startDate: string, endDate: string) {
+  const start = moment(startDate);
+  const end = moment(endDate);
+  if (!start.isValid() || !end.isValid()) return '--';
+  return `${start.format('YYYY/MM/DD')}-${end.format('YYYY/MM/DD')}`;
+}
+
+export function isDateInPrescriptionRange(
+  date: moment.Moment,
+  prescriptionStartDate?: string,
+  prescriptionEndDate?: string,
+) {
+  const start = moment(prescriptionStartDate);
+  const end = moment(prescriptionEndDate);
+  if (!start.isValid() || !end.isValid()) return true;
+  return date.isBetween(start, end, 'day', '[]');
+}
+
+export function clampDateRangeToPrescription(
+  rangeStartDate: string,
+  rangeEndDate: string,
+  prescriptionStartDate?: string,
+  prescriptionEndDate?: string,
+) {
+  const rangeStart = moment(rangeStartDate);
+  const rangeEnd = moment(rangeEndDate);
+  const prescriptionStart = moment(prescriptionStartDate);
+  const prescriptionEnd = moment(prescriptionEndDate);
+
+  if (!rangeStart.isValid() || !rangeEnd.isValid()) return null;
+  if (!prescriptionStart.isValid() || !prescriptionEnd.isValid()) {
+    return { startDate: rangeStartDate, endDate: rangeEndDate };
+  }
+
+  const start = moment.max(rangeStart, prescriptionStart);
+  const end = moment.min(rangeEnd, prescriptionEnd);
+  if (start.isAfter(end, 'day')) return null;
+
+  return {
+    startDate: start.format('YYYY-MM-DD'),
+    endDate: end.format('YYYY-MM-DD'),
+  };
+}
+
+export function canShiftWeekWithinPrescription(
+  weekStart: moment.Moment,
+  direction: -1 | 1,
+  prescriptionStartDate?: string,
+  prescriptionEndDate?: string,
+) {
+  const prescriptionStart = moment(prescriptionStartDate);
+  const prescriptionEnd = moment(prescriptionEndDate);
+  if (!prescriptionStart.isValid() || !prescriptionEnd.isValid()) return true;
+
+  const targetWeekStart = moment(weekStart).add(direction, 'week').startOf('isoWeek');
+  const targetWeekEnd = moment(targetWeekStart).endOf('isoWeek');
+  return targetWeekEnd.isSameOrAfter(prescriptionStart, 'day')
+    && targetWeekStart.isSameOrBefore(prescriptionEnd, 'day');
+}
+
+export function getPrescriptionLastWeekState(
+  prescriptionStartDate?: string,
+  prescriptionEndDate?: string,
+) {
+  const prescriptionEnd = moment(prescriptionEndDate);
+  if (!prescriptionEnd.isValid()) {
+    return {
+      weekStart: moment().startOf('isoWeek'),
+      selectedDate: moment().format('YYYY-MM-DD'),
+    };
+  }
+
+  const prescriptionStart = moment(prescriptionStartDate);
+  const weekStart = moment(prescriptionEnd).startOf('isoWeek');
+  let selectedDate = moment(prescriptionEnd);
+
+  if (prescriptionStart.isValid() && selectedDate.isBefore(prescriptionStart, 'day')) {
+    selectedDate = moment(prescriptionStart);
+  }
+
+  return {
+    weekStart,
+    selectedDate: selectedDate.format('YYYY-MM-DD'),
+  };
+}
+
+export type ScheduleWeekStats = {
+  trainingCount: string;
+  completionRate: string;
+  totalDuration: string;
+};
+
+const EMPTY_WEEK_STATS: ScheduleWeekStats = {
+  trainingCount: '--',
+  completionRate: '--',
+  totalDuration: '--',
+};
+
+export function buildWeekStatsFromStatis(data?: ExRecordDayStatisData | null): ScheduleWeekStats {
+  if (!data) return EMPTY_WEEK_STATS;
+
+  const done = data.complateNum ?? 0;
+  const total = data.needSumExNum ?? 0;
+  const ratio = data.complateRatio;
+
+  return {
+    trainingCount: total <= 0 ? String(done) : `${done}/${total}`,
+    completionRate:
+      ratio != null && Number.isFinite(Number(ratio)) ? `${normalizeProgress(ratio)}%` : '--',
+    totalDuration: formatTotalDuration(data.sumExerciseDuration),
   };
 }
 
@@ -130,8 +250,11 @@ export async function loadScheduleDictMaps(): Promise<ScheduleDictMaps> {
   return maps;
 }
 
-export function buildScheduleWeekDays(calendarDays?: WeekCalendarItem[]): ScheduleWeekDayItem[] {
-  const weekStart = moment().startOf('isoWeek');
+export function buildScheduleWeekDays(
+  calendarDays?: WeekCalendarItem[],
+  weekStart = moment().startOf('isoWeek'),
+): ScheduleWeekDayItem[] {
+  const start = moment(weekStart).startOf('isoWeek');
   const calendarMap = new Map(
     (calendarDays ?? [])
       .filter(item => item.customerLocalDate)
@@ -139,7 +262,7 @@ export function buildScheduleWeekDays(calendarDays?: WeekCalendarItem[]): Schedu
   );
 
   return Array.from({ length: 7 }, (_, index) => {
-    const date = moment(weekStart).add(index, 'day');
+    const date = moment(start).add(index, 'day');
     const dateKey = date.format('YYYY-MM-DD');
     const record = calendarMap.get(dateKey);
 
@@ -152,22 +275,103 @@ export function buildScheduleWeekDays(calendarDays?: WeekCalendarItem[]): Schedu
   });
 }
 
-export async function loadScheduleWeekCalendar(exPatientRuleId?: string | number) {
+export async function loadScheduleWeekCalendarForRange(
+  exPatientRuleId: string | number | undefined,
+  startDate: string,
+  endDate: string,
+  weekStart = moment(startDate),
+) {
   const ruleId = toQueryId(exPatientRuleId);
   if (!ruleId) {
-    return buildScheduleWeekDays();
+    return buildScheduleWeekDays(undefined, weekStart);
   }
 
-  const { startDate, endDate } = getCurrentWeekDateRange();
   try {
     const res = await getScheduleWeekCalendarList({ exPatientRuleId: ruleId, startDate, endDate });
     if (!isResourceApiOk(res)) {
-      return buildScheduleWeekDays();
+      return buildScheduleWeekDays(undefined, weekStart);
     }
-    return buildScheduleWeekDays(apiResourceData<WeekCalendarItem[]>(res as any));
+    return buildScheduleWeekDays(apiResourceData<WeekCalendarItem[]>(res as any), weekStart);
   } catch {
-    return buildScheduleWeekDays();
+    return buildScheduleWeekDays(undefined, weekStart);
   }
+}
+
+export async function loadScheduleWeekCalendar(exPatientRuleId?: string | number) {
+  const { startDate, endDate } = getCurrentWeekDateRange();
+  return loadScheduleWeekCalendarForRange(exPatientRuleId, startDate, endDate);
+}
+
+export async function loadScheduleWeekStatsForRange(
+  exPatientRuleId: string | number | undefined,
+  startDate: string,
+  endDate: string,
+): Promise<ScheduleWeekStats> {
+  const ruleId = toQueryId(exPatientRuleId);
+  if (!ruleId) return EMPTY_WEEK_STATS;
+
+  try {
+    const res = await getExRecordDayStatis({ exPatientRuleId: ruleId, startDate, endDate });
+    if (!isResourceApiOk(res)) return EMPTY_WEEK_STATS;
+    return buildWeekStatsFromStatis(apiResourceData<ExRecordDayStatisData>(res as any));
+  } catch {
+    return EMPTY_WEEK_STATS;
+  }
+}
+
+export type DayTrainingDetailItem = {
+  key: string;
+  title: string;
+  durationText: string;
+  projects: string;
+  progress: number;
+  icon: number;
+};
+
+export async function loadDayTrainingDetails(
+  exPatientRuleId: string | number | undefined,
+  customerLocalDate: string,
+  dictMaps?: ScheduleDictMaps,
+): Promise<DayTrainingDetailItem[]> {
+  const ruleId = toQueryId(exPatientRuleId);
+  if (!ruleId) return [];
+
+  try {
+    const res = await getDayTypeListDetailByCustomerLocalDate({
+      exPatientRuleId: ruleId,
+      customerLocalDate,
+    });
+    if (!isResourceApiOk(res)) return [];
+
+    const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
+    return list.map((item, index) => toDayTrainingDetailItem(item, index, dictMaps));
+  } catch {
+    return [];
+  }
+}
+
+export function toDayTrainingDetailItem(
+  item: DayTypeDetailItem,
+  index: number,
+  dictMaps?: ScheduleDictMaps,
+): DayTrainingDetailItem {
+  const typeKey = item.exerciseType?.trim() ?? '';
+  const typeLabel = dictMaps?.exerciseType[typeKey] ?? getExerciseTypeLabel(typeKey);
+  const done = item.typeSumExerciseDuration ?? 0;
+  const target = item.typeNeedExerciseDuration ?? 0;
+  const childTypes = (item.childTypeList ?? [])
+    .map(child => getExerciseChildTypeLabel(child.exerciseChildType, typeKey, dictMaps))
+    .filter(Boolean)
+    .join('、');
+
+  return {
+    key: `${typeKey}-${index}`,
+    title: typeLabel,
+    durationText: target > 0 ? `${done}/${target}分钟` : `${done}分钟`,
+    projects: childTypes || getExerciseChildTypeLabel(item.exerciseChildType, typeKey, dictMaps) || '--',
+    progress: calcDayTypeProgress(item.typeNeedExerciseDuration, item.typeSumExerciseDuration),
+    icon: EXERCISE_TYPE_IMAGES[typeKey] ?? EXERCISE_TYPE_IMAGES.cardio,
+  };
 }
 
 export function normalizeProgress(progress?: number) {
@@ -474,6 +678,7 @@ export function toHealthGoalDisplayItem(
 ): HealthGoalDisplayItem {
   const goalVo = target.healthGoalVo;
   const assessmentType = goalVo?.assessmentType?.trim();
+  const assessmentValue = goalVo?.assessmentValue?.trim();
   const key = target.healthGoalId != null
     ? String(target.healthGoalId)
     : `${goalVo?.goalName ?? 'goal'}-${index}`;
@@ -487,6 +692,7 @@ export function toHealthGoalDisplayItem(
       ? require('@/assets/images/schedule/back1.png')
       : require('@/assets/images/schedule/back2.png'),
     assessmentType: assessmentType ?? '',
+    assessmentValue: assessmentValue ?? '',
   };
 }
 

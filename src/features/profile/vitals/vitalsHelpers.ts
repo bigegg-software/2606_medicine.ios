@@ -3,6 +3,7 @@ import type {
   MeasureDataAllRecordsMonthGroup,
   MeasureDataDayGroup,
   MeasureDataItem,
+  MeasureDataStatisDayGroup,
   VitalKey,
   VitalsMeasureType,
 } from '@/api/measureData';
@@ -138,6 +139,7 @@ export function normalizeMeasureRangeData(raw: unknown): MeasureDataDayGroup[] |
   }
   return [];
 }
+
 
 function parseMeasureNumber(value?: number | string | null) {
   if (value == null || value === '') return null;
@@ -957,7 +959,7 @@ export function getBloodOxygenDisplay(items: WearableDataItem[]) {
   }
 
   let status = '正常';
-  let statusColor = '#00C950';
+  let statusColor = '#6D925E';
   if (item?.isHigh === 1) {
     status = '偏高';
     statusColor = '#FFBA1D';
@@ -991,7 +993,7 @@ export function getHeartRateDisplay(items: WearableDataItem[]) {
   }
 
   let status = '正常';
-  let statusColor = '#00C950';
+  let statusColor = '#6D925E';
   if (item?.isHigh === 1 || value > 100) {
     status = '偏高';
     statusColor = '#FFBA1D';
@@ -1006,3 +1008,4 @@ export function getHeartRateDisplay(items: WearableDataItem[]) {
     statusColor,
   };
 }
+
