@@ -39,9 +39,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: AppTheme.textSecondary,
   },
-  sectionTitle: {
+  sectionHeader: {
     marginTop: 18,
     marginBottom: 10,
+  },
+  sectionTitle: {
     fontWeight: 500,
     fontSize: 18,
     color: AppTheme.textPrimary,
@@ -53,7 +55,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   statItem: {
-    width: '47%',
+    width: '30%',
     backgroundColor: 'rgba(79,134,238,0.08)',
     borderRadius: 12,
     paddingHorizontal: 14,
@@ -109,7 +111,11 @@ const styles = StyleSheet.create({
     color: '#173F7D',
   },
   trendCard: {
-    marginTop: 12,
+    marginTop: 0,
+  },
+  chartLoading: {
+    paddingVertical: 48,
+    alignItems: 'center',
   },
   legendRow: {
     marginTop: 12,
@@ -134,10 +140,13 @@ const styles = StyleSheet.create({
   },
   chartLabels: {
     marginTop: 4,
-    paddingHorizontal: 4,
+    position: 'relative',
+    height: 16,
   },
   chartLabelText: {
-    flex: 1,
+    position: 'absolute',
+    width: 36,
+    marginLeft: -18,
     textAlign: 'center',
     fontWeight: 400,
     fontSize: 10,

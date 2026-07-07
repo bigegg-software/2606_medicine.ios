@@ -16,6 +16,35 @@ const SERIES = [
   { key: 'waterRate' as const, label: '饮水', color: '#34B69F' },
 ];
 
+const MAX_X_LABELS = 7;
+
+function formatChartDateLabel(date?: string) {
+  const value = date?.trim();
+  if (!value) return '';
+  const parts = value.split('-');
+  return parts.length >= 3 ? `${parts[1]}/${parts[2]}` : value;
+}
+
+function getChartLabelIndices(count: number, maxLabels = MAX_X_LABELS) {
+  if (count <= 0) return [];
+  if (count <= maxLabels) {
+    return Array.from({ length: count }, (_, index) => index);
+  }
+  return Array.from({ length: maxLabels }, (_, index) =>
+    Math.round((index / (maxLabels - 1)) * (count - 1)),
+  );
+}
+
+function getChartXPercent(index: number, total: number) {
+  const leftPadRatio = CHART_PADDING.left / CHART_WIDTH;
+  const plotWidthRatio = (CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right) / CHART_WIDTH;
+  if (total <= 1) {
+    return (leftPadRatio + plotWidthRatio / 2) * 100;
+  }
+  const xInPlot = index / (total - 1);
+  return (leftPadRatio + xInPlot * plotWidthRatio) * 100;
+}
+
 type Props = {
   trendList?: MealExecutionTrendItem[];
 };
@@ -47,13 +76,13 @@ export default function MealTrendChart({ trendList = [] }: Props) {
   const baselineY = CHART_PADDING.top + plotHeight - (BASELINE / 120) * plotHeight;
 
   const labels = useMemo(
-    () => trendList.map(item => {
-      const date = item.date?.trim();
-      if (!date) return '';
-      const parts = date.split('-');
-      return parts.length >= 3 ? `${parts[1]}/${parts[2]}` : date;
-    }),
+    () => trendList.map(item => formatChartDateLabel(item.date)),
     [trendList],
+  );
+
+  const labelIndices = useMemo(
+    () => getChartLabelIndices(trendList.length),
+    [trendList.length],
   );
 
   if (trendList.length === 0) {
@@ -117,13 +146,19 @@ export default function MealTrendChart({ trendList = [] }: Props) {
           </G>
         </Svg>
 
-        <Flex justify="between" style={styles.chartLabels}>
-          {labels.map((label, index) => (
-            <Text key={`${label}-${index}`} style={styles.chartLabelText} numberOfLines={1}>
-              {label}
+        <View style={styles.chartLabels}>
+          {labelIndices.map(index => (
+            <Text
+              key={`${labels[index]}-${index}`}
+              style={[
+                styles.chartLabelText,
+                { left: `${getChartXPercent(index, trendList.length)}%` },
+              ]}
+              numberOfLines={1}>
+              {labels[index]}
             </Text>
           ))}
-        </Flex>
+        </View>
       </View>
 
       <Text style={styles.baselineHint}>虚线为达标基准线（90%）</Text>

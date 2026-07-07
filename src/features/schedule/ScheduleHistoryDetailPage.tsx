@@ -183,7 +183,7 @@ export default function ScheduleHistoryDetailPage() {
             <Text style={styles.progressLabel}>整体进度</Text>
             <ProgressRing progress={summary.progress} />
           </Flex>
-          {summary.remark ? <Text style={styles.remarkText}>{summary.remark}</Text> : null}
+          {summary.remark ? <Text style={styles.remarkText}>备注：{summary.remark}</Text> : null}
         </View>
 
         <Flex justify="between" align="center" style={styles.sectionHeader}>

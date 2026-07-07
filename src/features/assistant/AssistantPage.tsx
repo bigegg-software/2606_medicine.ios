@@ -34,6 +34,7 @@ import SpeechToText, { type SpeechToTextRef } from './components/SpeechToText';
 import MedicationReminderCards from './components/MedicationReminderCards';
 import QuestionnaireListCards from './components/QuestionnaireListCards';
 import TypingDots from './components/TypingDots';
+import AssistantHistoryDrawer from './components/AssistantHistoryDrawer';
 
 const DOCUMENT_TYPES = [
   'application/pdf',
@@ -232,6 +233,7 @@ export default function AssistantPage() {
   const attachmentPanelOpenRef = useRef(false);
   const bottomOffset = useSharedValue(0);
   const [attachmentPanelOpen, setAttachmentPanelOpen] = useState(false);
+  const [historyDrawerVisible, setHistoryDrawerVisible] = useState(false);
   const [previewImages, setPreviewImages] = useState<UploadPreview['fileList']>([]);
 
   const handlePreviewImage = useCallback((files: UploadPreview['fileList']) => {
@@ -271,7 +273,20 @@ export default function AssistantPage() {
         headerRight: () => (
           <TouchableOpacity
             style={{ marginRight: 18 }}
-            onPress={() => navigation.navigate('AssistantHistoryPage')}>
+            onPress={() => {
+              inputRef.current?.blur();
+              Keyboard.dismiss();
+              void speechToTextRef.current?.stopListening();
+              if (attachmentPanelOpenRef.current) {
+                attachmentPanelOpenRef.current = false;
+                setAttachmentPanelOpen(false);
+                bottomOffset.value = withTiming(0, {
+                  duration: 220,
+                  easing: Easing.out(Easing.cubic),
+                });
+              }
+              setHistoryDrawerVisible(true);
+            }}>
             <Image style={styles.navIcon} source={require('@/assets/images/assistant/time.png')} />
           </TouchableOpacity>
         ),
@@ -296,7 +311,7 @@ export default function AssistantPage() {
       return () => {
         navigation.setOptions({ headerRight: undefined });
       };
-    }, [navigation, route.params?.chatId, route.params?.startNew]),
+    }, [bottomOffset, navigation, route.params?.chatId, route.params?.startNew]),
   );
 
   const headerTitleStyle = useMemo(
@@ -660,6 +675,16 @@ export default function AssistantPage() {
           </View>
         </View>
       </Modal>
+      <AssistantHistoryDrawer
+        visible={historyDrawerVisible}
+        onClose={() => setHistoryDrawerVisible(false)}
+        onSelectChat={chatId => {
+          void openChat(chatId);
+        }}
+        onStartNewChat={() => {
+          void startNewChat();
+        }}
+      />
     </PageLayout>
   );
 }

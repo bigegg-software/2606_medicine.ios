@@ -33,7 +33,6 @@ import FamilyDetail from '@/src/features/profile/myFamily/detail';
 
 // AI健康管家
 import AssistantPage from '@/src/features/assistant/AssistantPage';
-import AssistantHistoryPage from '@/src/features/assistant/AssistantHistoryPage';
 
 // 里程碑
 import CalendarPage from '@/src/features/schedule/calendarPage';
@@ -195,7 +194,6 @@ export type RootStackParamList = {
     hasFood?: boolean;
   } | undefined;
   AssistantPage: { chatId?: string; startNew?: boolean } | undefined;
-  AssistantHistoryPage: undefined;
   MyFamily: undefined;
   FamilyDetail: undefined;
 };
@@ -238,6 +236,7 @@ function StackHeader({ route, options, back, navigation }: any) {
                 <HeaderBackButton
                   {...props}
                   tintColor={AppTheme.primaryColor}
+                  displayMode="minimal"
                   onPress={navigation.goBack}
                 />
               )
@@ -276,6 +275,9 @@ const darkMediaScreenOptions = {
   headerStyle: { backgroundColor: '#191926' },
   headerTintColor: '#FFFFFF',
   headerTitleStyle: { color: '#FFFFFF', fontWeight: '600' as const },
+  headerBackTitleVisible: false,
+  headerBackTitle: '',
+  headerBackButtonDisplayMode: 'minimal' as const,
   contentStyle: { backgroundColor: '#191926' },
   statusBarStyle: 'light' as const,
 };
@@ -313,6 +315,9 @@ export default function RootStack() {
         headerShadowVisible: false,
         headerTintColor: AppTheme.primaryColor,
         headerTitleStyle,
+        headerBackTitleVisible: false,
+        headerBackTitle: '',
+        headerBackButtonDisplayMode: 'minimal',
         contentStyle: { backgroundColor: 'transparent' },
         statusBarStyle: 'dark',
       }}
@@ -386,7 +391,6 @@ export default function RootStack() {
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />
-      <Stack.Screen name="AssistantHistoryPage" component={AssistantHistoryPage} options={{ title: '历史记录' }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />

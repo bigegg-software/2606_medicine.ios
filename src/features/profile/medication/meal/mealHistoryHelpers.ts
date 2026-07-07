@@ -56,6 +56,28 @@ export function getTrendDateRange(range: '7' | '30') {
   return { startDate, endDate };
 }
 
+export function getPrescriptionDateRange(rule?: DietPatientRuleInfo | null) {
+  const today = moment().format('YYYY-MM-DD');
+  const startDate = rule?.startDate?.trim() || today;
+  let endDate = rule?.endDate?.trim() || today;
+
+  const todayMoment = moment(today, 'YYYY-MM-DD', true);
+  const endMoment = moment(endDate, 'YYYY-MM-DD', true);
+  const startMoment = moment(startDate, 'YYYY-MM-DD', true);
+
+  if (endMoment.isValid() && endMoment.isAfter(todayMoment)) {
+    endDate = today;
+  }
+  if (startMoment.isValid() && startMoment.isAfter(todayMoment)) {
+    return { startDate: today, endDate: today };
+  }
+  if (startMoment.isValid() && endMoment.isValid() && endMoment.isBefore(startMoment)) {
+    return { startDate, endDate: startDate };
+  }
+
+  return { startDate, endDate };
+}
+
 export function flattenMealHistoryDays(groups: MealAllRecordMonthGroup[]) {
   return groups.flatMap(group =>
     (group.list ?? []).map(day => ({

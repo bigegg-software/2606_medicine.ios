@@ -314,7 +314,7 @@ export default function ScheduleCalendarPage() {
             </View>
           )}
         </View>
-        <Text style={styles.titleText}>{dateHeader}</Text>
+        {/* <Text style={styles.titleText}>{dateHeader}</Text> */}
         <ScheduleTimeline
           items={timelineItems}
           loading={loadingDay}

@@ -35,6 +35,7 @@ import {
   formatMealHistoryDayLabel,
   formatMealHistoryMonthLabel,
   getTrendDateRange,
+  getPrescriptionDateRange,
   normalizeComplianceRate,
 } from './mealHistoryHelpers';
 
@@ -73,14 +74,18 @@ export default function MealHistoryPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [historyRange, setHistoryRange] = useState<'7' | '30'>('7');
-  const [statistics, setStatistics] = useState<MealExecutionStatistics | null>(null);
+  const [overallStatistics, setOverallStatistics] = useState<MealExecutionStatistics | null>(null);
+  const [chartTrendList, setChartTrendList] = useState<MealExecutionStatistics['trendList']>([]);
+  const [loadingChart, setLoadingChart] = useState(false);
   const [monthGroups, setMonthGroups] = useState<MealAllRecordMonthGroup[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const [dietPatientRuleId, setDietPatientRuleId] = useState<string | undefined>();
+  const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
 
   const hasMoreRef = useRef(true);
   const hasLoadedTrendRef = useRef(false);
   const hasLoadedDetailRef = useRef(false);
+  const dietRuleRef = useRef<DietPatientRuleInfo | null>(null);
   const monthGroupsRef = useRef<MealAllRecordMonthGroup[]>([]);
   const pageNumRef = useRef(1);
   const sliderAnim = useRef(new Animated.Value(0)).current;
@@ -98,21 +103,25 @@ export default function MealHistoryPage() {
     setSegmentWidth(event.nativeEvent.layout.width / 2);
   }, []);
 
-  const resolveRuleId = useCallback(async () => {
-    if (dietPatientRuleId) return dietPatientRuleId;
+  const resolveDietRule = useCallback(async () => {
+    if (dietRuleRef.current) return dietRuleRef.current;
     try {
       const ruleRes = await getInUseDietPatientRuleInfo();
-      const rule = apiResourceData<DietPatientRuleInfo>(ruleRes as any);
-      const ruleId = rule?.dietPatientRuleId != null ? String(rule.dietPatientRuleId) : undefined;
-      setDietPatientRuleId(ruleId);
-      return ruleId;
+      const rule = apiResourceData<DietPatientRuleInfo>(ruleRes as any) ?? null;
+      dietRuleRef.current = rule;
+      setDietRule(rule);
+      if (rule?.dietPatientRuleId != null) {
+        setDietPatientRuleId(String(rule.dietPatientRuleId));
+      }
+      return rule;
     } catch {
-      return undefined;
+      return null;
     }
-  }, [dietPatientRuleId]);
+  }, []);
 
-  const loadStatistics = useCallback(async (ruleId?: string, range: '7' | '30' = '7') => {
-    const { startDate, endDate } = getTrendDateRange(range);
+  const loadOverallStatistics = useCallback(async (rule?: DietPatientRuleInfo | null) => {
+    const { startDate, endDate } = getPrescriptionDateRange(rule);
+    const ruleId = rule?.dietPatientRuleId != null ? String(rule.dietPatientRuleId) : dietPatientRuleId;
     try {
       const res = await getMealExecutionStatistics({
         dietPatientRuleId: ruleId,
@@ -120,15 +129,34 @@ export default function MealHistoryPage() {
         endDate,
       });
       if (isResourceApiOk(res)) {
-        setStatistics(apiResourceData(res as any) ?? null);
+        setOverallStatistics(apiResourceData<MealExecutionStatistics>(res as { code?: number; data?: MealExecutionStatistics }) ?? null);
       } else {
-        setStatistics(null);
+        setOverallStatistics(null);
       }
     } catch {
-      setStatistics(null);
+      setOverallStatistics(null);
+    }
+  }, [dietPatientRuleId]);
+
+  const loadChartTrend = useCallback(async (ruleId?: string, range: '7' | '30' = '7') => {
+    const { startDate, endDate } = getTrendDateRange(range);
+    setLoadingChart(true);
+    try {
+      const res = await getMealExecutionStatistics({
+        dietPatientRuleId: ruleId,
+        startDate,
+        endDate,
+      });
+      if (isResourceApiOk(res)) {
+        const data = apiResourceData<MealExecutionStatistics>(res as { code?: number; data?: MealExecutionStatistics });
+        setChartTrendList(data?.trendList ?? []);
+      } else {
+        setChartTrendList([]);
+      }
+    } catch {
+      setChartTrendList([]);
     } finally {
-      hasLoadedTrendRef.current = true;
-      setLoadingTrend(false);
+      setLoadingChart(false);
     }
   }, []);
 
@@ -176,20 +204,27 @@ export default function MealHistoryPage() {
 
   const loadTrend = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
     if (mode === 'initial') setLoadingTrend(true);
-    const ruleId = await resolveRuleId();
-    await loadStatistics(ruleId, historyRange);
-  }, [historyRange, loadStatistics, resolveRuleId]);
+    const rule = await resolveDietRule();
+    const ruleId = rule?.dietPatientRuleId != null ? String(rule.dietPatientRuleId) : undefined;
+    await Promise.all([
+      loadOverallStatistics(rule),
+      loadChartTrend(ruleId, historyRange),
+    ]);
+    hasLoadedTrendRef.current = true;
+    setLoadingTrend(false);
+  }, [historyRange, loadChartTrend, loadOverallStatistics, resolveDietRule]);
 
   const loadDetail = useCallback(async (mode: 'initial' | 'refresh' | 'more' = 'initial') => {
     if (mode === 'initial') setLoadingDetail(true);
-    const ruleId = await resolveRuleId();
+    const rule = await resolveDietRule();
+    const ruleId = rule?.dietPatientRuleId != null ? String(rule.dietPatientRuleId) : undefined;
     await loadRecords(
       mode,
       ruleId,
       mode === 'more' ? pageNumRef.current : 1,
       mode === 'more' ? monthGroupsRef.current : [],
     );
-  }, [loadRecords, resolveRuleId]);
+  }, [loadRecords, resolveDietRule]);
 
   const loadTrendRef = useRef(loadTrend);
   const loadDetailRef = useRef(loadDetail);
@@ -205,8 +240,12 @@ export default function MealHistoryPage() {
 
   useEffect(() => {
     if (!hasLoadedTrendRef.current) return;
-    void loadTrend('refresh');
-  }, [historyRange, loadTrend]);
+    void (async () => {
+      const rule = await resolveDietRule();
+      const ruleId = rule?.dietPatientRuleId != null ? String(rule.dietPatientRuleId) : undefined;
+      await loadChartTrend(ruleId, historyRange);
+    })();
+  }, [historyRange, loadChartTrend, resolveDietRule]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -236,59 +275,61 @@ export default function MealHistoryPage() {
   const renderTrendTab = () => (
     <>
       <View style={styles.card}>
-        <Flex justify="between" align="center">
-          <View>
-            <Text style={styles.cardTitle}>总体达标率</Text>
-            <Text style={styles.cardSubTitle}>
-              统计{statistics?.statDayCount ?? 0}天
-            </Text>
-          </View>
-          <View onLayout={onSegmentLayout} style={styles.sliderContainer}>
-            <Animated.View
-              style={[
-                styles.sliderIndicator,
-                {
-                  transform: [{
-                    translateX: sliderAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [4, segmentWidth + 4],
-                    }),
-                  }],
-                },
-              ]}
-            />
-            <TouchableOpacity style={styles.sliderBtn} onPress={() => setHistoryRange('7')}>
-              <Text style={historyRange === '7' ? styles.sliderTextActive : styles.sliderTextInactive}>近7天</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.sliderBtn} onPress={() => setHistoryRange('30')}>
-              <Text style={historyRange === '30' ? styles.sliderTextActive : styles.sliderTextInactive}>近30天</Text>
-            </TouchableOpacity>
-          </View>
-        </Flex>
+        <View>
+          <Text style={styles.cardTitle}>总体达标率</Text>
+          <Text style={styles.cardSubTitle}>
+            处方内统计{overallStatistics?.statDayCount ?? 0}天
+          </Text>
+        </View>
 
         <View style={styles.statGrid}>
           <StatCard
-            label="平均处方执行率"
-            value={normalizeComplianceRate(statistics?.executionRate)}
-          />
-          <StatCard
             label="热量达标率"
-            value={normalizeComplianceRate(statistics?.calorieComplianceRate)}
+            value={normalizeComplianceRate(overallStatistics?.calorieComplianceRate)}
           />
           <StatCard
             label="蛋白达标率"
-            value={normalizeComplianceRate(statistics?.proteinComplianceRate)}
+            value={normalizeComplianceRate(overallStatistics?.proteinComplianceRate)}
           />
           <StatCard
             label="饮水达标率"
-            value={normalizeComplianceRate(statistics?.waterComplianceRate)}
+            value={normalizeComplianceRate(overallStatistics?.waterComplianceRate)}
           />
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>达标率趋势</Text>
+      <Flex justify="between" align="center" style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>达标率趋势</Text>
+        <View onLayout={onSegmentLayout} style={styles.sliderContainer}>
+          <Animated.View
+            style={[
+              styles.sliderIndicator,
+              {
+                transform: [{
+                  translateX: sliderAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [4, segmentWidth + 4],
+                  }),
+                }],
+              },
+            ]}
+          />
+          <TouchableOpacity style={styles.sliderBtn} onPress={() => setHistoryRange('7')}>
+            <Text style={historyRange === '7' ? styles.sliderTextActive : styles.sliderTextInactive}>近7天</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.sliderBtn} onPress={() => setHistoryRange('30')}>
+            <Text style={historyRange === '30' ? styles.sliderTextActive : styles.sliderTextInactive}>近30天</Text>
+          </TouchableOpacity>
+        </View>
+      </Flex>
       <View style={[styles.card, styles.trendCard]}>
-        <MealTrendChart trendList={statistics?.trendList} />
+        {loadingChart ? (
+          <View style={styles.chartLoading}>
+            <ActivityIndicator color={AppTheme.primaryColor} />
+          </View>
+        ) : (
+          <MealTrendChart trendList={chartTrendList} />
+        )}
       </View>
     </>
   );

@@ -72,8 +72,8 @@ export const getMealDetailByMealId = (mealId: string) =>
 
 export const getMealExecutionStatistics = (params: {
   dietPatientRuleId?: string;
-  startDate: string;
-  endDate: string;
+  startDate?: string;
+  endDate?: string;
 }) =>
   request.get<{ code?: number; msg?: string; data?: MealExecutionStatistics }>(
     '/patient/fitpulse/meal/executionStatistics',

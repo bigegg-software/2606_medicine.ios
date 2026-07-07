@@ -95,7 +95,7 @@ function resolvePeriod(sortValue: number) {
 function formatMedicationActionLabel(action?: number | null) {
   if (action === 1) return '已服用';
   if (action === 0) return '已忽略';
-  return '未打卡';
+  return '未服用';
 }
 
 function formatMealCalorieText(calorie?: number) {

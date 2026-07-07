@@ -49,6 +49,41 @@ const styles = StyleSheet.create({
     shadowRadius: 0,
     elevation: 0,
   },
+  drawerShell: {
+    backgroundColor: AppTheme.backgroundColor,
+    shadowColor: '#000000',
+    shadowOffset: { width: -2, height: 0 },
+    shadowOpacity: 0.12,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  drawerPanel: {
+    flex: 1,
+    backgroundColor: AppTheme.backgroundColor,
+  },
+  drawerHeader: {
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(5,58,147,0.08)',
+  },
+  drawerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: AppTheme.textPrimary,
+  },
+  drawerHeaderBtn: {
+    marginLeft: 12,
+    paddingVertical: 4,
+    paddingHorizontal: 2,
+  },
+  drawerCloseText: {
+    fontSize: 15,
+    color: AppTheme.primaryColor,
+  },
+  drawerList: {
+    flex: 1,
+  },
 });
 
 export default styles;

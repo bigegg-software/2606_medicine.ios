@@ -244,16 +244,19 @@ export default function RankingPage() {
                         <Text style={styles.rankingItemText2}>暂无排行榜数据</Text>
                     </View>
                 ) : (
-                    listItems.map(item => (
-                        <RankingRow
-                            key={String(item.id ?? `${item.userId}-${item.sort}`)}
-                            rankLabel={String(item.sort ?? '-')}
-                            name={item.nickName?.trim() || '用户'}
-                            streak={formatStreak(item.continuousDays)}
-                            score={item.tokens ?? 0}
-                            avatarSource={resolveAvatarSource(item.avatar)}
-                        />
-                    ))
+                    <>
+                        {listItems.map(item => (
+                            <RankingRow
+                                key={String(item.id ?? `${item.userId}-${item.sort}`)}
+                                rankLabel={String(item.sort ?? '-')}
+                                name={item.nickName?.trim() || '用户'}
+                                streak={formatStreak(item.continuousDays)}
+                                score={item.tokens ?? 0}
+                                avatarSource={resolveAvatarSource(item.avatar)}
+                            />
+                        ))}
+                        <Text style={styles.rankingUpdateHint}>每小时更新</Text>
+                    </>
                 )}
             </ScrollView>
 

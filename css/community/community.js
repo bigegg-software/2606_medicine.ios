@@ -168,6 +168,13 @@ const styles = StyleSheet.create({
         borderTopLeftRadius: 12,
         borderTopRightRadius: 12,
     },
+    rankingUpdateHint: {
+        alignSelf: 'flex-end',
+        marginTop: 10,
+        fontWeight: '400',
+        fontSize: 12,
+        color: '#999999',
+    },
     listImg: { width: 42, height: 42, borderRadius: 22 }
 
 
