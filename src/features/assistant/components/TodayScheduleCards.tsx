@@ -17,7 +17,7 @@ function ScheduleCard({ item, showGap }: { item: TodayScheduleItem; showGap?: bo
   return (
     <View style={[assistantStyles.todayScheduleCard, showGap ? assistantStyles.todayScheduleCardGap : null]}>
       <Flex align="start">
-        <Image style={assistantStyles.todayScheduleCardIcon} source={getTodayScheduleIcon(item.kind)} />
+        <Image style={assistantStyles.todayScheduleCardIcon} source={getTodayScheduleIcon(item)} />
         <View style={assistantStyles.todayScheduleCardBody}>
           <Flex align="center" justify="between">
             <Flex align="center" style={{ flex: 1, flexWrap: 'wrap' }}>

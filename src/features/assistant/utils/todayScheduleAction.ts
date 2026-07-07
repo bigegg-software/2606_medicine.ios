@@ -1,4 +1,5 @@
 import moment from 'moment';
+import type { ImageSourcePropType } from 'react-native';
 import {
   getDailyActivityListByDate,
   getDailyLiveListByDate,
@@ -41,6 +42,7 @@ export type TodayScheduleItem = {
   title: string;
   desc: string;
   kind: 'diet' | 'drug' | 'activity' | 'live' | 'ex';
+  icon?: ImageSourcePropType;
   mealWindowEnd?: number;
   mealCard?: MealCardData;
   eventBasedLabel?: string;
@@ -77,8 +79,14 @@ const TIMELINE_ICONS: Record<TodayScheduleItem['kind'], number> = {
   ex: require('@/assets/images/schedule/exercise2.png'),
 };
 
-export function getTodayScheduleIcon(kind: TodayScheduleItem['kind']) {
-  return TIMELINE_ICONS[kind];
+export function getTodayScheduleIcon(item: TodayScheduleItem) {
+  if (item.icon) {
+    return item.icon;
+  }
+  if (item.kind === 'diet' && item.mealCard?.icon) {
+    return item.mealCard.icon;
+  }
+  return TIMELINE_ICONS[item.kind];
 }
 
 function getTodayDate() {
@@ -304,6 +312,7 @@ async function fetchExerciseItems() {
         title: task.title,
         desc: task.intro,
         kind: 'ex' as const,
+        icon: task.icon,
         progress: task.progress,
         exerciseType: ratio.exerciseType,
         exerciseChildType: ratio.exerciseChildType,
