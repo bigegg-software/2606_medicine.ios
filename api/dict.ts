@@ -31,6 +31,9 @@ export const DICT_TYPES = {
   flexibilityChildType: 'flexibility_child_type',
   balanceChildType: 'balance_child_type',
   courseType: 'course_type',
+  liveType: 'live_type',
+  livePlatform: 'live_platform',
+  activityType: 'activity_type',
 } as const;
 
 export const EXERCISE_CHILD_DICT_BY_TYPE: Record<string, string> = {

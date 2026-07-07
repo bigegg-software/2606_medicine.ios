@@ -138,6 +138,10 @@ const styles = StyleSheet.create({
   chartWrap: {
     marginTop: 8,
   },
+  trendChart: {
+    width: '100%',
+    height: 168,
+  },
   chartLabels: {
     marginTop: 4,
     position: 'relative',
@@ -226,6 +230,16 @@ const styles = StyleSheet.create({
     marginTop: 6,
     fontWeight: 400,
     fontSize: 13,
+    color: AppTheme.textSecondary,
+  },
+  dayComplianceText: {
+    fontWeight: 500,
+    fontSize: 13,
+    marginRight: 6,
+  },
+  dayArrow: {
+    fontWeight: 400,
+    fontSize: 16,
     color: AppTheme.textSecondary,
   },
   dateText: {

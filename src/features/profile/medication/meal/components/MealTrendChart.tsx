@@ -1,14 +1,17 @@
-import React, { useMemo } from 'react';
-import { Text, View } from 'react-native';
-import Svg, { G, Line, Polyline } from 'react-native-svg';
+import React, { useEffect, useMemo, useRef } from 'react';
+import { Dimensions, Text, View } from 'react-native';
+import * as echarts from 'echarts/core';
+import { LineChart } from 'echarts/charts';
+import { GridComponent, MarkLineComponent, TooltipComponent } from 'echarts/components';
+import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import { Flex } from '@ant-design/react-native';
 import type { MealExecutionTrendItem } from '@/api/meal';
 import styles from '@/css/medication/mealHistory';
 
-const CHART_WIDTH = 300;
-const CHART_HEIGHT = 140;
-const CHART_PADDING = { top: 12, right: 12, bottom: 24, left: 28 };
+const CHART_WIDTH = Dimensions.get('window').width - 76;
+const CHART_HEIGHT = 168;
 const BASELINE = 90;
+const MAX_X_LABELS = 7;
 
 const SERIES = [
   { key: 'energyRate' as const, label: '热量', color: '#FF8B07' },
@@ -16,13 +19,23 @@ const SERIES = [
   { key: 'waterRate' as const, label: '饮水', color: '#34B69F' },
 ];
 
-const MAX_X_LABELS = 7;
+echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent, MarkLineComponent]);
 
 function formatChartDateLabel(date?: string) {
   const value = date?.trim();
   if (!value) return '';
   const parts = value.split('-');
   return parts.length >= 3 ? `${parts[1]}/${parts[2]}` : value;
+}
+
+function formatTooltipDateLabel(date?: string) {
+  const value = date?.trim();
+  if (!value) return '--';
+  const parts = value.split('-');
+  if (parts.length >= 3) {
+    return `${parts[0]}/${parts[1]}/${parts[2]}`;
+  }
+  return value;
 }
 
 function getChartLabelIndices(count: number, maxLabels = MAX_X_LABELS) {
@@ -35,55 +48,132 @@ function getChartLabelIndices(count: number, maxLabels = MAX_X_LABELS) {
   );
 }
 
-function getChartXPercent(index: number, total: number) {
-  const leftPadRatio = CHART_PADDING.left / CHART_WIDTH;
-  const plotWidthRatio = (CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right) / CHART_WIDTH;
-  if (total <= 1) {
-    return (leftPadRatio + plotWidthRatio / 2) * 100;
-  }
-  const xInPlot = index / (total - 1);
-  return (leftPadRatio + xInPlot * plotWidthRatio) * 100;
+function normalizeRate(value?: number | null) {
+  const raw = Number(value);
+  if (!Number.isFinite(raw)) return null;
+  return Math.max(0, Math.min(120, Math.round(raw)));
+}
+
+function buildOption(trendList: MealExecutionTrendItem[]) {
+  const dates = trendList.map(item => item.date?.trim() || '');
+  const labelIndices = new Set(getChartLabelIndices(trendList.length));
+
+  return {
+    animation: false,
+    tooltip: {
+      trigger: 'axis',
+      triggerOn: 'click',
+      confine: true,
+      backgroundColor: 'rgba(51,51,51,0.9)',
+      borderWidth: 0,
+      padding: [6, 10],
+      textStyle: { color: '#fff', fontSize: 11, lineHeight: 16 },
+      formatter: (params: unknown) => {
+        const items = Array.isArray(params) ? params : [params];
+        const first = items[0] as { dataIndex?: number; axisValueLabel?: string; name?: string };
+        const dateKey = dates[first?.dataIndex ?? 0] || first?.axisValueLabel || first?.name || '';
+        const title = formatTooltipDateLabel(dateKey);
+        const lines = SERIES.map(series => {
+          const item = items.find(entry => (entry as { seriesName?: string }).seriesName === series.label);
+          const raw = (item as { data?: number | null; value?: number | null } | undefined)?.data
+            ?? (item as { value?: number | null } | undefined)?.value;
+          const value = normalizeRate(raw as number | null | undefined);
+          return `${series.label} ${value == null ? '--' : `${value}%`}`;
+        });
+        return [title, ...lines].join('\n');
+      },
+    },
+    grid: {
+      top: 12,
+      right: 12,
+      bottom: 24,
+      left: 28,
+    },
+    xAxis: {
+      type: 'category',
+      data: dates,
+      boundaryGap: false,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: {
+        show: true,
+        color: '#999999',
+        fontSize: 10,
+        interval: (index: number) => labelIndices.has(index),
+        formatter: (value: string) => formatChartDateLabel(value),
+      },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      max: 120,
+      interval: 30,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: {
+        show: true,
+        color: '#999999',
+        fontSize: 10,
+        formatter: (value: number) => `${value}`,
+      },
+      splitLine: {
+        show: true,
+        lineStyle: { color: 'rgba(23,63,125,0.06)' },
+      },
+    },
+    series: SERIES.map((series, index) => ({
+      name: series.label,
+      type: 'line',
+      smooth: true,
+      connectNulls: true,
+      showSymbol: trendList.length <= 8,
+      symbol: 'circle',
+      symbolSize: 5,
+      data: trendList.map(item => normalizeRate(item[series.key])),
+      lineStyle: { color: series.color, width: 2 },
+      itemStyle: { color: series.color },
+      markLine: index === 0
+        ? {
+          silent: true,
+          symbol: 'none',
+          label: { show: false },
+          lineStyle: {
+            type: 'dashed',
+            color: 'rgba(153,153,153,0.6)',
+            width: 1,
+          },
+          data: [{ yAxis: BASELINE }],
+        }
+        : undefined,
+    })),
+  };
 }
 
 type Props = {
   trendList?: MealExecutionTrendItem[];
 };
 
-function buildPoints(
-  trendList: MealExecutionTrendItem[],
-  key: keyof MealExecutionTrendItem,
-  plotWidth: number,
-  plotHeight: number,
-) {
-  if (trendList.length === 0) return '';
-
-  return trendList
-    .map((item, index) => {
-      const x = trendList.length === 1
-        ? plotWidth / 2
-        : (index / (trendList.length - 1)) * plotWidth;
-      const raw = Number(item[key]);
-      const value = Number.isFinite(raw) ? Math.max(0, Math.min(120, raw)) : 0;
-      const y = plotHeight - (value / 120) * plotHeight;
-      return `${x},${y}`;
-    })
-    .join(' ');
-}
-
 export default function MealTrendChart({ trendList = [] }: Props) {
-  const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
-  const plotHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom;
-  const baselineY = CHART_PADDING.top + plotHeight - (BASELINE / 120) * plotHeight;
+  const skiaRef = useRef<any>(null);
+  const option = useMemo(() => buildOption(trendList), [trendList]);
 
-  const labels = useMemo(
-    () => trendList.map(item => formatChartDateLabel(item.date)),
-    [trendList],
-  );
+  useEffect(() => {
+    let chart: ReturnType<typeof echarts.init> | undefined;
+    const frame = requestAnimationFrame(() => {
+      if (!skiaRef.current) return;
+      chart = echarts.init(skiaRef.current, 'light', {
+        renderer: 'skia' as 'canvas',
+        width: CHART_WIDTH,
+        height: CHART_HEIGHT,
+      });
+      chart.setOption(option);
+    });
 
-  const labelIndices = useMemo(
-    () => getChartLabelIndices(trendList.length),
-    [trendList.length],
-  );
+    return () => {
+      cancelAnimationFrame(frame);
+      chart?.dispose();
+    };
+  }, [option]);
 
   if (trendList.length === 0) {
     return (
@@ -105,63 +195,10 @@ export default function MealTrendChart({ trendList = [] }: Props) {
       </Flex>
 
       <View style={styles.chartWrap}>
-        <Svg width="100%" height={CHART_HEIGHT} viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}>
-          {[0, 30, 60, 90, 120].map(value => {
-            const y = CHART_PADDING.top + plotHeight - (value / 120) * plotHeight;
-            return (
-              <Line
-                key={value}
-                x1={CHART_PADDING.left}
-                y1={y}
-                x2={CHART_WIDTH - CHART_PADDING.right}
-                y2={y}
-                stroke="rgba(23,63,125,0.06)"
-                strokeWidth={1}
-              />
-            );
-          })}
-
-          <Line
-            x1={CHART_PADDING.left}
-            y1={baselineY}
-            x2={CHART_WIDTH - CHART_PADDING.right}
-            y2={baselineY}
-            stroke="rgba(153,153,153,0.6)"
-            strokeWidth={1}
-            strokeDasharray="4 4"
-          />
-
-          <G x={CHART_PADDING.left} y={CHART_PADDING.top}>
-            {SERIES.map(item => (
-              <Polyline
-                key={item.key}
-                points={buildPoints(trendList, item.key, plotWidth, plotHeight)}
-                fill="none"
-                stroke={item.color}
-                strokeWidth={2}
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-            ))}
-          </G>
-        </Svg>
-
-        <View style={styles.chartLabels}>
-          {labelIndices.map(index => (
-            <Text
-              key={`${labels[index]}-${index}`}
-              style={[
-                styles.chartLabelText,
-                { left: `${getChartXPercent(index, trendList.length)}%` },
-              ]}
-              numberOfLines={1}>
-              {labels[index]}
-            </Text>
-          ))}
-        </View>
+        <SkiaChart ref={skiaRef} style={styles.trendChart} />
       </View>
 
-      <Text style={styles.baselineHint}>虚线为达标基准线（90%）</Text>
+      <Text style={styles.baselineHint}>虚线为达标基准线（90%），点击折线查看详情</Text>
     </View>
   );
 }

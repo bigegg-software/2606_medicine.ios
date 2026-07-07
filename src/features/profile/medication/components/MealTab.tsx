@@ -26,7 +26,7 @@ import Animated, {
     withTiming,
 } from 'react-native-reanimated';
 import { Flex, Toast } from '@ant-design/react-native';
-import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
+import { getInUseDietPatientRuleInfo, postDietPatientRuleAiAdvice, type DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import styles from '@/css/medication/meal';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -34,11 +34,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialIcons } from '@expo/vector-icons';
 import MiniProgressRing from '@/src/features/home/components/MiniProgressRing';
 import SpeechToText, { type SpeechToTextRef } from '@/src/features/assistant/components/SpeechToText';
-import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
+import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import {
     calcNutritionPercent,
     calcNutritionProgress,
-    buildNutritionSuggestions,
     getCalorieNutritionDisplay,
     getDietRuleSummary,
     getProteinNutritionDisplay,
@@ -47,6 +46,7 @@ import {
     type MealCardData,
     type NutritionDisplay,
 } from '@/src/features/profile/medication/meal/dietRuleHelpers';
+import { buildDietAiAdviceParamJson } from '@/src/features/profile/medication/meal/mealAiAdviceHelpers';
 import {
     formatMealServingText,
     formatNutritionInteger,
@@ -58,6 +58,8 @@ import {
     sumWaterIntake,
 } from '@/src/features/profile/medication/meal/mealDetailHelpers';
 import { consumeMealInputReset } from '@/src/features/profile/medication/meal/mealInputReset';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
 import Svg, { ClipPath, Defs, G, Path, Polygon } from 'react-native-svg';
 
 const AnimatedPath = Animated.createAnimatedComponent(Path);
@@ -372,6 +374,7 @@ function WaterCupIcon({ fillRatio = 0 }: { fillRatio?: number }) {
 export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const navigation: any = useNavigation();
     const insets = useSafeAreaInsets();
+    const userInfo = useSelector((state: RootState) => state.user.info);
     const [selectedMeal, setSelectedMeal] = useState<string>(getCurrentMealKey);
     const [selectorWidth, setSelectorWidth] = useState(0);
     const [nutritionExpanded, setNutritionExpanded] = useState(false);
@@ -384,6 +387,9 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const voiceBaseTextRef = useRef('');
     const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
     const [todayMealList, setTodayMealList] = useState<MealDetailItem[]>([]);
+    const [aiAdviceList, setAiAdviceList] = useState<string[]>([]);
+    const [aiAdviceLoading, setAiAdviceLoading] = useState(false);
+    const aiAdviceRequestIdRef = useRef(0);
 
     const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
     const currentMealKey = getCurrentMealKey();
@@ -400,24 +406,59 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
         [todayMealList, selectedMeal],
     );
 
+    const fetchAiAdvice = useCallback(async (rule: DietPatientRuleInfo | null, meals: MealDetailItem[]) => {
+        if (!rule?.dietPatientRuleId) {
+            setAiAdviceList([]);
+            setAiAdviceLoading(false);
+            return;
+        }
+
+        const requestId = ++aiAdviceRequestIdRef.current;
+        setAiAdviceLoading(true);
+        try {
+            const paramJson = buildDietAiAdviceParamJson(rule, meals, userInfo);
+            const res = await postDietPatientRuleAiAdvice(paramJson);
+            if (requestId !== aiAdviceRequestIdRef.current) return;
+
+            if (isResourceApiOk(res as { code?: number })) {
+                const data = apiResourceData<{ aiAdvice?: string[] }>(
+                    res as unknown as ApiResult<{ aiAdvice?: string[] }>,
+                );
+                setAiAdviceList((data?.aiAdvice ?? []).map(item => item.trim()).filter(Boolean));
+            } else {
+                setAiAdviceList([]);
+            }
+        } catch {
+            if (requestId !== aiAdviceRequestIdRef.current) return;
+            setAiAdviceList([]);
+        } finally {
+            if (requestId === aiAdviceRequestIdRef.current) {
+                setAiAdviceLoading(false);
+            }
+        }
+    }, [userInfo]);
+
     const loadMealData = useCallback(async () => {
         setLoading(true);
+        let rule: DietPatientRuleInfo | null = null;
+        let meals: MealDetailItem[] = [];
         try {
             const [ruleRes, todayRes] = await Promise.all([
                 getInUseDietPatientRuleInfo(),
                 getTodayMealDetailList(),
             ]);
-            setDietRule(apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as ApiResult<DietPatientRuleInfo>) ?? null);
-            setTodayMealList(
-                apiResourceData<MealDetailItem[]>(todayRes as unknown as ApiResult<MealDetailItem[]>) ?? [],
-            );
+            rule = apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as ApiResult<DietPatientRuleInfo>) ?? null;
+            meals = apiResourceData<MealDetailItem[]>(todayRes as unknown as ApiResult<MealDetailItem[]>) ?? [];
+            setDietRule(rule);
+            setTodayMealList(meals);
         } catch {
             setDietRule(null);
             setTodayMealList([]);
         } finally {
             setLoading(false);
         }
-    }, []);
+        void fetchAiAdvice(rule, meals);
+    }, [fetchAiAdvice]);
 
     const resetMealInputState = useCallback(() => {
         setDinnerNote('');
@@ -473,24 +514,6 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const calorieDisplay = getCalorieNutritionDisplay(caloriePercent);
     const proteinDisplay = getProteinNutritionDisplay(proteinPercent);
     const waterDisplay = getWaterNutritionDisplay(waterPercent);
-    const nutritionSuggestions = useMemo(
-        () => buildNutritionSuggestions({
-            calories: todayCalories,
-            protein: todayProtein,
-            water: todayWaterMl,
-            targetCalories: dietSummary.targetCalories,
-            targetProtein: dietSummary.targetProtein,
-            targetWater: dietSummary.targetWater,
-        }),
-        [
-            todayCalories,
-            todayProtein,
-            todayWaterMl,
-            dietSummary.targetCalories,
-            dietSummary.targetProtein,
-            dietSummary.targetWater,
-        ],
-    );
 
     const selectedMealIndex = useMemo(
         () => Math.max(0, MEAL_LABEL_KEYS.indexOf(selectedMeal)),
@@ -633,18 +656,22 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                             <Text style={styles.cfIconText1}>管家建议</Text>
                         </Flex>
                         <View style={styles.suggestBox}>
-                            {nutritionSuggestions.length === 0 ? (
+                            {!dietRule?.dietPatientRuleId ? (
                                 <Text style={styles.aiSuggest}>暂无营养目标，无法生成建议</Text>
+                            ) : aiAdviceLoading ? (
+                                <ActivityIndicator color="#173F7D" size="small" />
+                            ) : aiAdviceList.length === 0 ? (
+                                <Text style={styles.aiSuggest}>暂无建议</Text>
                             ) : (
-                                nutritionSuggestions.map((item, index) => (
-                                    <View key={item.key} style={index > 0 ? { marginTop: 12 } : undefined}>
+                                aiAdviceList.map((text, index) => (
+                                    <View key={`ai-advice-${index}`} style={index > 0 ? { marginTop: 12 } : undefined}>
                                         <Flex align="center">
                                             <Image source={require('@/assets/images/medication/kl.png')} style={styles.suggestIcon} />
                                             <View style={styles.suggestTag}>
-                                                <Text style={styles.suggestTagText}>{item.label}</Text>
+                                                <Text style={styles.suggestTagText}>建议</Text>
                                             </View>
                                         </Flex>
-                                        <Text style={styles.aiSuggest}>{item.text}</Text>
+                                        <Text style={styles.aiSuggest}>{text}</Text>
                                     </View>
                                 ))
                             )}

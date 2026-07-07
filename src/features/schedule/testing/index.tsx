@@ -3,6 +3,7 @@ import { ScrollView, Image, View, Text, TouchableOpacity, TextInput } from 'reac
 import Svg, { Defs, Image as SvgImage, LinearGradient, Path, Stop } from 'react-native-svg';
 import PageLayout from '@/src/components/PageLayout';
 import BottomSheetModal from '@/src/components/BottomSheetModal';
+import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import { Flex, Toast } from '@ant-design/react-native';
 import styles from '@/css/schedule/testingPage';
 import recordModalStyles from '@/css/schedule/results';
@@ -214,7 +215,10 @@ export default function TestingPage() {
     }, [canSubmitRecord, recordInput, submitRecord, submitting]);
 
     return (
-        <PageLayout style={styles.container} headerBackSource={TESTING_HEADER_BG} edges={[]}>
+        <PageLayout
+            style={styles.container}
+            headerBackSource={TESTING_HEADER_BG}
+            edges={[]}>
             <View style={styles.page}>
                 <ScrollView style={styles.body} contentContainerStyle={styles.scroll}>
                     <View style={styles.rowBox}>
@@ -458,6 +462,7 @@ export default function TestingPage() {
                 overlayOpacity={0.2}
                 dismissOnBackdropPress={false}
                 onClose={closeRecordModal}
+                keyboardAccessory={<KeyboardDoneAccessory useOverlay />}
                 sheetStyle={[recordModalStyles.recordModalBox, { paddingBottom: insets.bottom }]}>
                 <View style={recordModalStyles.recordModalContent}>
                     <View style={recordModalStyles.recordModalHeader}>

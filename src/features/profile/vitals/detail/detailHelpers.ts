@@ -836,14 +836,15 @@ function getStepsStatusDisplay(steps: number, goal: number) {
   if (steps <= 0) {
     return { status: '--', statusColor: '#999999' };
   }
-  const ratio = goal > 0 ? steps / goal : 0;
-  if (ratio >= 1) {
+  if (steps >= goal) {
     return { status: '达标', statusColor: '#00C950' };
   }
-  if (ratio >= 0.6) {
-    return { status: '进行中', statusColor: '#00C950' };
-  }
-  return { status: '偏少', statusColor: '#FFBA1D' };
+  const remaining = Math.max(0, Math.round(goal - steps));
+  const ratio = goal > 0 ? steps / goal : 0;
+  return {
+    status: `距目标还有${remaining.toLocaleString('en-US')}步`,
+    statusColor: ratio >= 0.6 ? '#00C950' : '#FFBA1D',
+  };
 }
 
 function isValidStepsDetailPoint(point?: StepsDetailPoint) {

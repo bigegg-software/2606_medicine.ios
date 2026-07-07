@@ -27,6 +27,7 @@ import {
   getCurrentWeekDateRange,
   getHistoryStatusLabel,
   getInUseStatusText,
+  isDateInPrescriptionRange,
   loadScheduleDictMaps,
   loadExerciseTypeRingProgress,
   loadScheduleWeekCalendar,
@@ -51,12 +52,28 @@ const EMPTY_WEEK_STATS: ScheduleWeekStats = {
   totalDuration: '--',
 };
 
-function ScheduleWeekDayCell({ item }: { item: ScheduleWeekDayItem }) {
+function ScheduleWeekDayCell({
+  item,
+  inPrescriptionRange,
+}: {
+  item: ScheduleWeekDayItem;
+  inPrescriptionRange: boolean;
+}) {
   const isToday = item.date.isSame(moment(), 'day');
   const isFuture = item.date.isAfter(moment(), 'day');
   const label = WEEK_LABELS[item.date.day()];
 
+  const renderPlainDate = () => (
+    <Flex justify='center' style={styles.dayTimeBox}>
+      <Text style={[styles.dayTime, styles.dayTimeColor]}>{item.date.date()}</Text>
+    </Flex>
+  );
+
   const renderDayContent = () => {
+    if (!inPrescriptionRange) {
+      return renderPlainDate();
+    }
+
     if (isToday) {
       return (
         <Flex justify='center' style={[styles.dayTimeBox, styles.dayTimeToday]}>
@@ -66,11 +83,7 @@ function ScheduleWeekDayCell({ item }: { item: ScheduleWeekDayItem }) {
     }
 
     if (isFuture) {
-      return (
-        <Flex justify='center' style={styles.dayTimeBox}>
-          <Text style={[styles.dayTime, styles.dayTimeColor]}>{item.date.date()}</Text>
-        </Flex>
-      );
+      return renderPlainDate();
     }
 
     if (item.completed) {
@@ -89,11 +102,7 @@ function ScheduleWeekDayCell({ item }: { item: ScheduleWeekDayItem }) {
       );
     }
 
-    return (
-      <Flex justify='center' style={styles.dayTimeBox}>
-        <Text style={[styles.dayTime, styles.dayTimeColor]}>{item.date.date()}</Text>
-      </Flex>
-    );
+    return renderPlainDate();
   };
 
   return (
@@ -328,7 +337,7 @@ export default function SchedulePage() {
                       navigation.navigate('QuestionnaireTestingPage', { id: String(item.key) });
                     } else if (
                       item.assessmentType === 'health_indicator_type' &&
-                      item.assessmentValue === 'xueTang'
+                      item.assessmentValue === 'xueYa'
                     ) {
                       navigation.navigate('BloodPressurePage');
                     } else if (
@@ -420,7 +429,15 @@ export default function SchedulePage() {
 
           <Flex justify="between" style={styles.dayBox}>
             {weekDays.map(item => (
-              <ScheduleWeekDayCell key={item.date.format('YYYY-MM-DD')} item={item} />
+              <ScheduleWeekDayCell
+                key={item.date.format('YYYY-MM-DD')}
+                item={item}
+                inPrescriptionRange={isDateInPrescriptionRange(
+                  item.date,
+                  prescription?.startDate,
+                  prescription?.endDate,
+                )}
+              />
             ))}
           </Flex>
 

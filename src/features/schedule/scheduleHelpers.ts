@@ -718,6 +718,7 @@ export function toTodayTaskItem(
 }
 
 export function formatPrescriptionCycleDays(startDate?: string, endDate?: string) {
+  if (!startDate?.trim() || !endDate?.trim()) return '--';
   const start = moment(startDate);
   const end = moment(endDate);
   if (!start.isValid() || !end.isValid()) return '--';

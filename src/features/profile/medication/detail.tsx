@@ -81,20 +81,29 @@ export default function MedicationDetailPage({ route }: Props) {
 
     const drugList = info.drugRuleList ?? [];
     const dict = dictMaps ?? { amountUnit: {}, eventBased: {}, amountUnitOptions: [], eventBasedOptions: [] };
+    const isPaused = info.status === 1;
+    const stopReason = info.stopReason?.trim();
 
     return (
         <PageLayout style={styles.container} contentStyle={styles.pageBody}>
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 {/* Header card */}
                 <View style={styles.medicationBox}>
-                    <Flex>
-                        <Flex justify='center' style={styles.detailImageBox}>
-                            <Image style={styles.detailImage} source={require('@/assets/images/medication/yp.png')} />
+                    <Flex justify="between" align="start">
+                        <Flex style={styles.detailHeaderMain}>
+                            <Flex justify='center' style={styles.detailImageBox}>
+                                <Image style={styles.detailImage} source={require('@/assets/images/medication/yp.png')} />
+                            </Flex>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.detailTitle}>{info.prescriptionName || '--'}</Text>
+                                {info.diagnosis ? <Text style={styles.detailSubtitle}>{info.diagnosis}</Text> : null}
+                            </View>
                         </Flex>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.detailTitle}>{info.prescriptionName || '--'}</Text>
-                            {info.diagnosis ? <Text style={styles.detailSubtitle}>{info.diagnosis}</Text> : null}
-                        </View>
+                        {isPaused ? (
+                            <Flex style={styles.statusPausedBadge}>
+                                <Text style={styles.statusPausedText}>已暂停</Text>
+                            </Flex>
+                        ) : null}
                     </Flex>
                     {info.createByName ? (
                         <Flex style={[styles.timeBox, { marginTop: 21 }]}>
@@ -109,6 +118,9 @@ export default function MedicationDetailPage({ route }: Props) {
                             <Text style={styles.timeText}>结束：{info.endDate ?? '--'}</Text>
                         </Flex>
                     </Flex>
+                    {isPaused ? (
+                        <Text style={styles.stopReasonText}>暂停原因：{stopReason || '--'}</Text>
+                    ) : null}
                 </View>
 
                 {/* Drug list */}

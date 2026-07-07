@@ -758,10 +758,16 @@ export function getStepsDisplay(items: WearableDataItem[], goalOverride?: number
   if (steps <= 0) {
     return { value: `--/${goal}`, status: '・暂无数据', statusColor: '#999999' };
   }
+  if (steps >= goal) {
+    return { value: `${steps}/${goal}`, status: '・达标', statusColor: '#00C950' };
+  }
+  const remaining = Math.max(0, Math.round(goal - steps));
   const ratio = goal > 0 ? steps / goal : 0;
-  const status = ratio >= 1 ? '・达标' : ratio >= 0.6 ? '・进行中' : '・偏少';
-  const statusColor = ratio >= 0.6 ? '#00C950' : '#FFBA1D';
-  return { value: `${steps}/${goal}`, status, statusColor };
+  return {
+    value: `${steps}/${goal}`,
+    status: `・距目标还有${remaining}步`,
+    statusColor: ratio >= 0.6 ? '#00C950' : '#FFBA1D',
+  };
 }
 
 function parseStepsFromItem(item?: WearableDataItem) {

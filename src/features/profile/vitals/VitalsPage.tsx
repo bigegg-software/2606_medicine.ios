@@ -9,7 +9,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { AppTheme } from '@/common/theme';
-import UploadProgressBar from '@/src/components/UploadProgressBar';
 import updateHealthKit from '@/utils/healthKit';
 import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
@@ -504,7 +503,6 @@ export default function VitalsPage() {
 
   return (
     <PageLayout style={styles.container}>
-      <UploadProgressBar />
       <Flex style={styles.navBox}>
         {VITALS_NAV_LIST.map(item => (
           <TouchableOpacity

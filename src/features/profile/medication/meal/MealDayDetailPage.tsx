@@ -201,7 +201,7 @@ export default function MealDayDetailPage() {
           </View>
         </View>
 
-        <Text style={styles.sectionTitle}>用餐详情</Text>
+        <Text style={[styles.sectionTitle, { marginVertical: 12 }]}>用餐详情</Text>
         {mealSections.length === 0 ? (
           <View style={[styles.card, { paddingVertical: 24 }]}>
             <Text style={styles.daySubtitle}>暂无用餐记录</Text>

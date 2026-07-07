@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { Image, View, type ImageSourcePropType } from 'react-native';
+import { Image, type ImageSourcePropType } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -31,21 +31,15 @@ function TabIcon({ focused, source, focusedMarginLeft }: {
   focusedMarginLeft?: number;
 }) {
   return (
-    <View style={{ width: 30, height: 30, alignItems: 'center', justifyContent: 'center' }}>
-      {focused ? (
-        <Image source={require('@/assets/tabbar/select.png')}
-          style={{ position: 'absolute', width: 30, height: 30 }}
-        />
-      ) : null}
-      <Image source={source}
-        style={{
-          width: 28,
-          height: 28,
-          tintColor: focused ? AppTheme.primaryColor : AppTheme.textSecondary,
-          marginLeft: focusedMarginLeft !== undefined ? focusedMarginLeft : 0,
-        }}
-      />
-    </View>
+    <Image
+      source={source}
+      style={{
+        width: 28,
+        height: 28,
+        tintColor: focused ? AppTheme.primaryColor : AppTheme.textSecondary,
+        marginLeft: focusedMarginLeft ?? 0,
+      }}
+    />
   );
 }
 
@@ -131,7 +125,7 @@ export default function MainTabs() {
         options={{
           tabBarLabel: () => null,
           tabBarIcon: () => (
-            <Image source={require('@/assets/tabbar/gj.png')} style={{ width: 66, height: 66 }} />
+            <Image source={require('@/assets/tabbar/gj.png')} style={{ width: 80, height: 80 }} />
           ),
           tabBarIconStyle: { marginTop: -2 },
         }}

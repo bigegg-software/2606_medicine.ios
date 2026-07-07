@@ -21,6 +21,7 @@ import { AppTheme } from '@/common/theme';
 import { updateExtrInfo } from '@/api/user';
 import { checkAutoSyncOnLaunch } from '@/utils/checkAutoSyncOnLaunch';
 import SyncReminderWatcher from '@/src/components/SyncReminderWatcher';
+import UploadProgressBar from '@/src/components/UploadProgressBar';
 
 function AutoSyncOnLaunch() {
   const isLogin = useSelector((state: RootState) => state.login.isLogin);
@@ -86,9 +87,12 @@ function AppShell() {
         <PushTokenReporter />
         <AutoSyncOnLaunch />
         <SyncReminderWatcher />
-        <NavigationContainer ref={navigationRef}>
-          <RootStack />
-        </NavigationContainer>
+        <View style={{ flex: 1 }}>
+          <NavigationContainer ref={navigationRef}>
+            <RootStack />
+          </NavigationContainer>
+          <UploadProgressBar />
+        </View>
       </Provider>
     </AntdProvider>
   );

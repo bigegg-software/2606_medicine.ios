@@ -8,6 +8,7 @@ import {
   getCalorieNutritionDisplay,
   getProteinNutritionDisplay,
   getWaterNutritionDisplay,
+  NUTRITION_COLOR,
 } from './dietRuleHelpers';
 import {
   formatMealServingText,
@@ -44,6 +45,13 @@ export function formatMealHistoryDayLabel(date?: string) {
   return parsed.format('M月D日');
 }
 
+export function formatMealHistoryDayTitle(date?: string) {
+  const parsed = moment(date, 'YYYY-MM-DD', true);
+  if (!parsed.isValid()) return date?.trim() || '--';
+  const weekdays = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+  return `${formatMealHistoryDayLabel(date)} ${weekdays[parsed.day()]}`;
+}
+
 export function formatMealHistoryMonthLabel(yyyyMM?: string) {
   if (!yyyyMM?.trim()) return '--';
   const parsed = moment(yyyyMM, ['YYYYMM', 'YYYY-MM'], true);
@@ -54,6 +62,18 @@ export function getTrendDateRange(range: '7' | '30') {
   const endDate = moment().format('YYYY-MM-DD');
   const startDate = moment().subtract(range === '7' ? 6 : 29, 'day').format('YYYY-MM-DD');
   return { startDate, endDate };
+}
+
+export function getPrescriptionPeriodDayCount(rule?: DietPatientRuleInfo | null) {
+  const startDate = rule?.startDate?.trim();
+  const endDate = rule?.endDate?.trim();
+  if (!startDate || !endDate) return 0;
+
+  const start = moment(startDate, 'YYYY-MM-DD', true);
+  const end = moment(endDate, 'YYYY-MM-DD', true);
+  if (!start.isValid() || !end.isValid() || end.isBefore(start, 'day')) return 0;
+
+  return end.diff(start, 'days') + 1;
 }
 
 export function getPrescriptionDateRange(rule?: DietPatientRuleInfo | null) {
@@ -242,12 +262,51 @@ export function buildWaterTimeline(foodDetails: MealDetailItem[]) {
     });
 }
 
-export function formatDayListSubtitle(day: MealAllRecordDayItem) {
+export function isCountableMealRecord(item: MealRecordItem) {
+  const category = item.mealCategory;
+  if (category === -1) return false;
+  if (category != null && category >= 1 && category <= 4) return true;
+  const hasFoodNutrition = toNumber(item.calorie) > 0 || toNumber(item.protein) > 0;
+  return hasFoodNutrition;
+}
+
+export function getDayMealCount(day?: MealAllRecordDayItem | null) {
+  return (day?.mealList ?? []).filter(isCountableMealRecord).length;
+}
+
+export type DayComplianceDisplay = {
+  label: string;
+  color: string;
+};
+
+export function getCalorieComplianceDisplay(percent: number | null | undefined): DayComplianceDisplay | null {
+  if (percent == null || Number.isNaN(Number(percent))) return null;
+
+  if (percent > 120) {
+    return { label: '偏高', color: NUTRITION_COLOR.red };
+  }
+  if (percent > 110) {
+    return { label: '偏高', color: NUTRITION_COLOR.orange };
+  }
+  if (percent >= 90) {
+    return { label: '达标', color: NUTRITION_COLOR.green };
+  }
+  if (percent >= 80) {
+    return { label: '偏低', color: NUTRITION_COLOR.orange };
+  }
+  return { label: '明显不足', color: NUTRITION_COLOR.red };
+}
+
+export function getDayComplianceDisplay(day?: MealAllRecordDayItem | null): DayComplianceDisplay | null {
+  const snapshot = getDayDietSnapshot(day);
+  if (!day || !snapshot?.targetCalories || snapshot.targetCalories <= 0) return null;
+
   const calories = sumDayCalories(day);
-  const protein = sumDayProtein(day);
-  const water = sumDayWater(day);
-  const parts = [`${formatNutritionInteger(calories)}千卡`];
-  if (protein > 0) parts.push(`蛋白${formatNutritionInteger(protein)}g`);
-  if (water > 0) parts.push(`饮水${formatNutritionInteger(water)}ml`);
-  return parts.join(' · ');
+  return getCalorieComplianceDisplay(calcNutritionPercent(calories, snapshot.targetCalories));
+}
+
+export function formatDayListSubtitle(day: MealAllRecordDayItem) {
+  const mealCount = getDayMealCount(day);
+  const calories = sumDayCalories(day);
+  return `${mealCount}餐 · ${formatNutritionInteger(calories)}千卡`;
 }

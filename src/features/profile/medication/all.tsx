@@ -150,9 +150,6 @@ function HistoryDrugRuleCard({
                     <Text style={[styles.medicationUsageText, { marginTop: 8 }]}>
                         用药清单：{formatDrugRuleListNames(item.drugRuleList)}
                     </Text>
-                    {isPaused && item.stopReason?.trim() ? (
-                        <Text style={styles.historyStopReason}>暂停原因：{item.stopReason.trim()}</Text>
-                    ) : null}
                 </View>
                 <Flex style={isPaused ? styles.historyStatusPaused : styles.historyStatusEnded}>
                     <Text style={isPaused ? styles.historyStatusPausedText : styles.historyStatusEndedText}>

@@ -92,6 +92,7 @@ import ConsumptionPage from '@/src/features/profile/vitals/detail/consumption';
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
 import CourseDetailPage from '@/src/features/community/CourseDetailPage';
+import LiveDetailPage from '@/src/features/community/LiveDetailPage';
 
 // 评估问卷
 import QuestionnairePage from '@/src/features/profile/questionnaire';
@@ -111,6 +112,7 @@ export type RootStackParamList = {
   NutritionPage: undefined;
   ActivityDetail: { id: number | string };
   CourseDetail: { courseId: string };
+  LiveDetail: { liveId: string };
   ProfileEditPage: undefined;
   HealthRecord: undefined;
   Emergency: undefined;
@@ -331,8 +333,9 @@ export default function RootStack() {
       />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
-      <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} />
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: '活动详情' }} />
       <Stack.Screen name="CourseDetail" component={CourseDetailPage} options={{ title: '课程详情' }} />
+      <Stack.Screen name="LiveDetail" component={LiveDetailPage} options={{ title: '直播详情' }} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
@@ -370,7 +373,7 @@ export default function RootStack() {
         options={{ title: '历史处方详情' }}
       />
       <Stack.Screen name="TrainingStatsPage" component={TrainingStatsPage} options={{ title: '训练统计' }} />
-      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '', showHeaderBackground: false }} />
+      <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
       <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false }} />
       <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />

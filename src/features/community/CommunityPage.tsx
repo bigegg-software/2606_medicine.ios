@@ -1,44 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useDispatch } from 'react-redux';
-import type { AppDispatch } from '@/store/store';
 import styles from '@/css/community/community';
-import type { RootStackParamList } from '@/route/router';
 import ActivityPage from './components/activity';
 import LivePage from './components/live';
 import CoursePage from './components/course';
 import RankingPage from './components/ranking';
-type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const NAV_LIST = [
-  { label: '排行榜', value: 'ranking', path: RankingPage },
-  { label: '直播', value: 'live', path: LivePage },
-  { label: '课程', value: 'course', path: CoursePage },
-  { label: '福利', value: 'activity', path: ActivityPage },
+  { label: '排行榜', value: 'ranking' },
+  { label: '直播', value: 'live' },
+  { label: '课程', value: 'course' },
+  { label: '活动', value: 'activity' },
 ] as const;
 
-function getNavBackground(index: number, total: number) {
-  if (index === 0) {
-    return require('@/assets/images/community/leftBack.png');
-  }
-  if (index === total - 1) {
-    return require('@/assets/images/community/rightBack.png');
-  }
-  return require('@/assets/images/community/cenBack.png');
-}
-
-
-
 export default function CommunityPage() {
-
-
-  const navigation: any = useNavigation<Nav>();
-  const dispatch = useDispatch<AppDispatch>();
-
   const [activeNav, setActiveNav] = useState<string>(NAV_LIST[0].value);
 
   return (
@@ -66,10 +43,11 @@ export default function CommunityPage() {
           <RankingPage />
         ) : activeNav === 'course' ? (
           <CoursePage />
+        ) : activeNav === 'activity' ? (
+          <ActivityPage />
         ) : (
           <ScrollView contentContainerStyle={styles.scroll}>
-            {NAV_LIST[3].value === activeNav && <ActivityPage />}
-            {NAV_LIST[1].value === activeNav && <LivePage />}
+            <LivePage />
           </ScrollView>
         )}
       </View>

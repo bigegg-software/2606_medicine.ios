@@ -1,93 +1,241 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import React, { useCallback, useEffect, useState } from 'react';
+import {
+    ActivityIndicator,
+    Alert,
+    Image,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useDispatch, useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from '@/store/store';
-import { AppTheme } from '@/common/theme';
 import styles from '@/css/community/community';
 import type { RootStackParamList } from '@/route/router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { AppTheme } from '@/common/theme';
+import {
+    getLiveStreamList,
+    toggleLiveStreamReservation,
+    type LiveStreamItem,
+} from '@/api/liveStream';
+import { buildDictLabelMap, DICT_TYPES, getDictDataByType, type DictDataItem } from '@/api/dict';
+import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+    formatLiveStartTime,
+    getLiveStatusText,
+    toLiveId,
+} from '../liveHelpers';
+
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+const DEFAULT_COVER = require('@/assets/images/home/head.png');
+const LIVE_PAGE_SIZE = 20;
 
+export default function LivePage() {
+    const navigation = useNavigation<Nav>();
+    const [livingList, setLivingList] = useState<LiveStreamItem[]>([]);
+    const [previewList, setPreviewList] = useState<LiveStreamItem[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [reservingId, setReservingId] = useState('');
+    const [typeLabelMap, setTypeLabelMap] = useState<Record<string, string>>({});
 
-export default function CommunityPage() {
-    const navigation: any = useNavigation<Nav>();
-    const dispatch = useDispatch<AppDispatch>();
+    useEffect(() => {
+        (async () => {
+            const res = await getDictDataByType(DICT_TYPES.liveType);
+            const dictRes = res as unknown as { code?: number; data?: DictDataItem[] };
+            if (isResourceApiOk(dictRes)) {
+                setTypeLabelMap(buildDictLabelMap(dictRes.data));
+            }
+        })();
+    }, []);
 
-    const renderLiveTopCard = () => (
-        <View style={styles.liveTopBox}>
-            <View style={styles.liveTopImgWrap}>
-                <Image source={require('@/assets/images/home/head.png')} style={styles.liveTopImg} resizeMode="cover" />
-                <Flex justify='center' style={styles.liveTopCategoryTag}>
-                    <Text style={styles.liveTopCategoryText}>运动健身</Text>
-                </Flex>
-                <View style={styles.liveTopLiveTag}>
-                    <View style={styles.liveTopLiveDot} />
-                    <Text style={styles.liveTopLiveText}>直播中</Text>
-                </View>
-            </View>
-            <View style={styles.liveTopInfo}>
-                <Text style={styles.liveTopText}>健康早操直播间</Text>
-                <Text style={styles.liveTopIntro}>每日早晨带您做健康操，唤醒身体活力</Text>
-            </View>
-        </View>
+    const loadLiveData = useCallback(async () => {
+        setLoading(true);
+        try {
+            const [livingRes, previewRes] = await Promise.all([
+                getLiveStreamList({ status: 1, pageNum: 1, pageSize: LIVE_PAGE_SIZE }),
+                getLiveStreamList({ status: 0, pageNum: 1, pageSize: LIVE_PAGE_SIZE }),
+            ]);
+
+            setLivingList(
+                isResourceApiOk(livingRes as { code?: number })
+                    ? getResourceRows<LiveStreamItem>(livingRes as { code?: number; rows?: LiveStreamItem[] })
+                    : [],
+            );
+            setPreviewList(
+                isResourceApiOk(previewRes as { code?: number })
+                    ? getResourceRows<LiveStreamItem>(previewRes as { code?: number; rows?: LiveStreamItem[] })
+                    : [],
+            );
+        } catch {
+            setLivingList([]);
+            setPreviewList([]);
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            void loadLiveData();
+        }, [loadLiveData]),
     );
+
+    const openLiveDetail = useCallback((item: LiveStreamItem) => {
+        const liveId = toLiveId(item.liveId);
+        if (!liveId) return;
+        navigation.navigate('LiveDetail', { liveId });
+    }, [navigation]);
+
+    const handleToggleReservation = useCallback(async (item: LiveStreamItem) => {
+        const liveId = toLiveId(item.liveId);
+        if (!liveId || reservingId) return;
+
+        const nextStatus = !item.isReserved;
+        setReservingId(liveId);
+        try {
+            const res = await toggleLiveStreamReservation({ liveId, status: nextStatus });
+            if (isResourceApiOk(res as { code?: number })) {
+                const data = apiResourceData<{ status?: boolean }>(
+                    res as { code?: number; data?: { status?: boolean } },
+                );
+                const reserved = data?.status ?? nextStatus;
+                setPreviewList(prev =>
+                    prev.map(row =>
+                        toLiveId(row.liveId) === liveId ? { ...row, isReserved: reserved } : row,
+                    ),
+                );
+                Alert.alert('提示', reserved ? '预约成功' : '已取消预约');
+            } else {
+                Alert.alert('失败', (res as { msg?: string }).msg ?? '请稍后重试');
+            }
+        } catch {
+            Alert.alert('失败', '请稍后重试');
+        } finally {
+            setReservingId('');
+        }
+    }, [reservingId]);
+
+    const renderLiveTopCard = (item: LiveStreamItem) => {
+        const coverSource = item.coverOssUrl?.trim() ? { uri: item.coverOssUrl } : DEFAULT_COVER;
+        const typeLabel = item.liveType ? typeLabelMap[item.liveType] ?? item.liveType : '';
+
+        return (
+            <TouchableOpacity
+                key={toLiveId(item.liveId)}
+                style={styles.liveTopBox}
+                activeOpacity={0.85}
+                onPress={() => openLiveDetail(item)}>
+                <View style={styles.liveTopImgWrap}>
+                    <Image source={coverSource} style={styles.liveTopImg} resizeMode="cover" />
+                    {typeLabel ? (
+                        <Flex justify='center' style={styles.liveTopCategoryTag}>
+                            <Text style={styles.liveTopCategoryText}>{typeLabel}</Text>
+                        </Flex>
+                    ) : null}
+                    <View style={styles.liveTopLiveTag}>
+                        <View style={styles.liveTopLiveDot} />
+                        <Text style={styles.liveTopLiveText}>
+                            {getLiveStatusText(item.status, item.statusName)}
+                        </Text>
+                    </View>
+                </View>
+                <View style={styles.liveTopInfo}>
+                    <Text style={styles.liveTopText} numberOfLines={1}>
+                        {item.title?.trim() || '直播'}
+                    </Text>
+                    <Text style={styles.liveTopIntro} numberOfLines={2}>
+                        {item.liveIntro?.trim() || '欢迎进入直播间'}
+                    </Text>
+                </View>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderPreviewItem = (item: LiveStreamItem) => {
+        const liveId = toLiveId(item.liveId);
+        const coverSource = item.coverOssUrl?.trim() ? { uri: item.coverOssUrl } : DEFAULT_COVER;
+        const typeLabel = item.liveType ? typeLabelMap[item.liveType] ?? item.liveType : '';
+        const reserving = reservingId === liveId;
+
+        return (
+            <TouchableOpacity
+                key={liveId}
+                style={styles.mapBoxItem}
+                activeOpacity={0.85}
+                onPress={() => openLiveDetail(item)}>
+                <Flex>
+                    <Image source={coverSource} style={styles.liveImg} />
+                    <View style={styles.liveMapBox}>
+                        <Flex justify="between" align="start">
+                            <Text style={[styles.mapBoxItemTitle, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
+                                {item.title?.trim() || '直播预告'}
+                            </Text>
+                            {typeLabel ? (
+                                <Flex style={styles.wbmBtn}>
+                                    <Text style={styles.wbmText}>{typeLabel}</Text>
+                                </Flex>
+                            ) : null}
+                        </Flex>
+                        <Text style={styles.mapIntro} numberOfLines={2}>
+                            {item.liveIntro?.trim() || '敬请期待'}
+                        </Text>
+                        <Flex justify='between' style={{ marginTop: 2 }}>
+                            <Flex>
+                                <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
+                                <Text style={styles.mapText}>{formatLiveStartTime(item.liveStartTime)}</Text>
+                            </Flex>
+                            <Flex align="center">
+                                <Text style={styles.mapText}>
+                                    主播: {item.anchorName?.trim() || '--'}
+                                </Text>
+                                <TouchableOpacity
+                                    disabled={reserving}
+                                    onPress={event => {
+                                        event.stopPropagation();
+                                        void handleToggleReservation(item);
+                                    }}>
+                                    <Flex style={item.isReserved ? styles.mapRightBtn : styles.wbmBtn}>
+                                        <Text style={item.isReserved ? styles.mapRightText : styles.wbmText}>
+                                            {reserving ? '处理中' : item.isReserved ? '已预约' : '预约'}
+                                        </Text>
+                                    </Flex>
+                                </TouchableOpacity>
+                            </Flex>
+                        </Flex>
+                    </View>
+                </Flex>
+            </TouchableOpacity>
+        );
+    };
+
+    if (loading) {
+        return (
+            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+                <ActivityIndicator color={AppTheme.primaryColor} />
+            </View>
+        );
+    }
 
     return (
         <View>
-            <View style={styles.liveTopRow}>
-                {renderLiveTopCard()}
-                {renderLiveTopCard()}
-            </View>
+            {livingList.length > 0 ? (
+                <View style={styles.liveTopRow}>
+                    {livingList.slice(0, 2).map(renderLiveTopCard)}
+                </View>
+            ) : null}
             <Text style={styles.sectionTitle}>直播预告</Text>
             <View>
                 <View style={styles.mapBox}>
-                    <Flex style={styles.mapBoxItem}>
-                        <Image source={require('@/assets/images/home/head.png')} style={styles.liveImg} />
-                        <View style={styles.liveMapBox}>
-                            <Flex justify="between">
-                                <Text style={styles.mapBoxItemTitle}>高血压用药指导</Text>
-
-                                <Flex style={styles.wbmBtn}>
-                                    <Text style={styles.wbmText}>用药指导</Text>
-                                </Flex>
-                            </Flex>
-                            <Text style={styles.mapIntro} numberOfLines={2}>每周六上午在朝阳公园东门集合，由专业教练张老师带领练习太极拳。太极拳是一种传统的健身方式，动作缓慢柔和，非常适合老年人锻炼身体。 </Text>
-                            <Flex justify='between' style={{ marginTop: 2 }}>
-                                <Flex>
-                                    <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
-                                    <Text style={styles.mapText}>明天9:00</Text>
-                                </Flex>
-                                <Text style={styles.mapText}>主播: 王药师</Text>
-                            </Flex>
-                        </View>
-                    </Flex>
-                    <Flex style={styles.mapBoxItem}>
-                        <Image source={require('@/assets/images/home/head.png')} style={styles.liveImg} />
-                        <View style={styles.liveMapBox}>
-                            <Flex justify="between">
-                                <Text style={styles.mapBoxItemTitle}>高血压用药指导</Text>
-
-                                <Flex style={styles.wbmBtn}>
-                                    <Text style={styles.wbmText}>用药指导</Text>
-                                </Flex>
-                            </Flex>
-                            <Text style={styles.mapIntro} numberOfLines={2}>每周六上午在朝阳公园东门集合，由专业教练张老师带领练习太极拳。太极拳是一种传统的健身方式，动作缓慢柔和，非常适合老年人锻炼身体。 </Text>
-                            <Flex justify='between' style={{ marginTop: 2 }}>
-                                <Flex>
-                                    <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
-                                    <Text style={styles.mapText}>明天9:00</Text>
-                                </Flex>
-                                <Text style={styles.mapText}>主播: 王药师</Text>
-                            </Flex>
-                        </View>
-                    </Flex>
+                    {previewList.length === 0 ? (
+                        <Text style={[styles.mapIntro, { textAlign: 'center', paddingVertical: 20 }]}>
+                            暂无直播预告
+                        </Text>
+                    ) : (
+                        previewList.map(renderPreviewItem)
+                    )}
                 </View>
             </View>
-        </View >
+        </View>
     );
 }

@@ -1,5 +1,10 @@
 import moment, { type Moment } from 'moment';
-import { getExPatientRuleSnapshotByDate, type ExPatientRuleRatio } from '@/api/exPatientRule';
+import {
+  getDayTypeListDetailByCustomerLocalDate,
+  getInUseExPatientRuleInfo,
+  type DayTypeDetailItem,
+  type InUseExPatientRule,
+} from '@/api/schedule';
 import { getMealDetailByMealId, getMealListByDate, type MealRecordItem } from '@/api/meal';
 import {
   getIndexMedicationPlanGroupByTime,
@@ -24,7 +29,11 @@ import {
   type MedicationDictMaps,
 } from '@/src/features/profile/medication/medicationHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { loadScheduleDictMaps, type ScheduleDictMaps } from './scheduleHelpers';
+import {
+  getExerciseChildTypeLabel,
+  loadScheduleDictMaps,
+  type ScheduleDictMaps,
+} from './scheduleHelpers';
 
 export type CalendarTimelineItem = {
   key: string;
@@ -33,8 +42,9 @@ export type CalendarTimelineItem = {
   desc: string;
   kind: 'diet' | 'ex' | 'drug' | 'activity' | 'live';
   activityId?: string;
+  exerciseTypeLabel?: string;
   sortValue: number;
-  period: 'morning' | 'afternoon';
+  period: 'morning' | 'afternoon' | 'exercise';
 };
 
 const MEAL_CATEGORY_LABELS: Record<number, string> = {
@@ -134,34 +144,76 @@ function mapLiveTimelineItem(item: DailyLiveItem, index: number): CalendarTimeli
   };
 }
 
-function mapExerciseTimelineItems(
-  customerLocalDate: string,
-  ruleRatioList: ExPatientRuleRatio[] | undefined,
+function formatExerciseDurationText(minutes?: number | null) {
+  if (minutes == null || Number.isNaN(Number(minutes))) return '';
+  return `${Math.round(Number(minutes))}分钟`;
+}
+
+function mapDayTypeExerciseTimelineItems(
+  items: DayTypeDetailItem[] | undefined,
   dictMaps?: ScheduleDictMaps,
-  prescriptionName?: string,
 ): CalendarTimelineItem[] {
-  const prescriptionLabel = prescriptionName?.trim();
+  const result: CalendarTimelineItem[] = [];
+  let sortOffset = 0;
 
-  return (ruleRatioList ?? []).map((rule, index) => {
-    const typeKey = rule.exerciseType?.trim() ?? '';
-    const title = getExerciseTypeLabel(typeKey, dictMaps);
-    const childTypes = formatExerciseChildTypes(rule.exerciseChildType, typeKey, dictMaps);
-    const duration = rule.duration != null ? `${rule.duration}分钟` : '';
-    const ratio = rule.ratio != null ? `占比${Math.round(Number(rule.ratio))}%` : '';
-    const sortValue = 540 + index * 30;
-    const descParts = [duration, ratio, childTypes !== '--' ? childTypes : '']
-      .filter(Boolean);
+  for (const item of items ?? []) {
+    const typeKey = item.exerciseType?.trim() ?? '';
+    const typeLabel = getExerciseTypeLabel(typeKey, dictMaps);
+    const children = (item.childTypeList ?? []).filter(
+      child => child.exerciseChildType?.trim() || child.exerciseDuration != null,
+    );
 
-    return {
-      key: `ex-${customerLocalDate}-${typeKey}-${index}`,
-      time: '—',
-      title,
-      desc: descParts.join(' · ') || prescriptionLabel || '运动训练',
+    if (children.length > 0) {
+      children.forEach((child, childIndex) => {
+        const childLabel =
+          getExerciseChildTypeLabel(child.exerciseChildType, typeKey, dictMaps)
+          || child.exerciseChildType?.trim()
+          || typeLabel;
+        const durationText = formatExerciseDurationText(child.exerciseDuration);
+
+        result.push({
+          key: `ex-${item.customerLocalDate ?? ''}-${typeKey}-${childIndex}`,
+          time: durationText || '0分钟',
+          title: durationText || '0分钟',
+          desc: childLabel,
+          exerciseTypeLabel: typeLabel,
+          kind: 'ex',
+          sortValue: 540 + sortOffset * 15,
+          period: 'exercise',
+        });
+        sortOffset += 1;
+      });
+      continue;
+    }
+
+    const doneMinutes = item.typeSumExerciseDuration ?? 0;
+    const childTypes = formatExerciseChildTypes(item.exerciseChildType, typeKey, dictMaps);
+
+    result.push({
+      key: `ex-${item.customerLocalDate ?? ''}-${typeKey}`,
+      time: formatExerciseDurationText(doneMinutes) || '0分钟',
+      title: formatExerciseDurationText(doneMinutes) || '0分钟',
+      desc: childTypes !== '--' ? childTypes : '运动训练',
+      exerciseTypeLabel: typeLabel,
       kind: 'ex',
-      sortValue,
-      period: resolvePeriod(sortValue),
-    };
-  });
+      sortValue: 540 + sortOffset * 15,
+      period: 'exercise',
+    });
+    sortOffset += 1;
+  }
+
+  return result;
+}
+
+async function resolveInUseExPatientRuleId() {
+  try {
+    const res = await getInUseExPatientRuleInfo();
+    if (!isResourceApiOk(res)) return undefined;
+    const rule = apiResourceData<InUseExPatientRule>(res as any);
+    return rule?.exPatientRuleId != null ? String(rule.exPatientRuleId) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 function mapMedicationTimelineItems(
@@ -215,21 +267,18 @@ function mapMealTimelineItem(
 
 async function loadExerciseTimelineItems(
   customerLocalDate: string,
+  exPatientRuleId: string,
   dictMaps?: ScheduleDictMaps,
 ): Promise<CalendarTimelineItem[]> {
   try {
-    const res = await getExPatientRuleSnapshotByDate({ customerLocalDate });
+    const res = await getDayTypeListDetailByCustomerLocalDate({
+      customerLocalDate,
+      exPatientRuleId,
+    });
     if (!isResourceApiOk(res)) return [];
 
-    const snapshot = apiResourceData(res as any);
-    if (!snapshot?.ruleRatioList?.length) return [];
-
-    return mapExerciseTimelineItems(
-      customerLocalDate,
-      snapshot.ruleRatioList,
-      dictMaps,
-      snapshot.prescriptionName,
-    );
+    const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
+    return mapDayTypeExerciseTimelineItems(list, dictMaps);
   } catch {
     return [];
   }
@@ -324,8 +373,14 @@ export async function loadCalendarDayTimelineItems(
 
     if (status?.isEx) {
       detailTasks.push(
-        loadScheduleDictMaps()
-          .then(dictMaps => loadExerciseTimelineItems(customerLocalDate, dictMaps)),
+        (async () => {
+          const [dictMaps, exPatientRuleId] = await Promise.all([
+            loadScheduleDictMaps(),
+            resolveInUseExPatientRuleId(),
+          ]);
+          if (!exPatientRuleId) return [];
+          return loadExerciseTimelineItems(customerLocalDate, exPatientRuleId, dictMaps);
+        })(),
       );
     }
 
@@ -348,7 +403,9 @@ export async function loadCalendarDayTimelineItems(
 }
 
 export function groupTimelineItems(items: CalendarTimelineItem[]) {
-  const morning = items.filter(item => item.period === 'morning');
-  const afternoon = items.filter(item => item.period === 'afternoon');
-  return { morning, afternoon };
+  const exercise = items.filter(item => item.period === 'exercise' || item.kind === 'ex');
+  const scheduled = items.filter(item => item.period !== 'exercise' && item.kind !== 'ex');
+  const morning = scheduled.filter(item => item.period === 'morning');
+  const afternoon = scheduled.filter(item => item.period === 'afternoon');
+  return { exercise, morning, afternoon };
 }

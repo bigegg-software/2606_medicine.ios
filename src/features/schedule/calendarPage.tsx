@@ -86,6 +86,51 @@ function buildCalendarDays(month: Moment): CalendarDay[] {
 
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
+function ExerciseTimelineSection({
+  items,
+}: {
+  items: CalendarTimelineItem[];
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <View style={styles.exerciseSectionWrap}>
+      <View style={styles.periodRow}>
+        <View style={styles.timeAxis}>
+          <Text style={styles.periodText}>随时</Text>
+        </View>
+        <View style={styles.cardSide} />
+      </View>
+
+      {items.map((item, itemIndex) => {
+        const isLastInSection = itemIndex === items.length - 1;
+
+        return (
+          <View
+            key={item.key}
+            style={[
+              styles.timelineRow,
+              !isLastInSection && styles.timelineRowGap,
+              isLastInSection && styles.exerciseRowSectionLast,
+            ]}>
+            <View style={styles.cardSide}>
+              <Flex style={styles.taskCard}>
+                <Image style={styles.taskCardIcon} source={TIMELINE_ICONS.ex} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.taskCardTitle}>
+                    {[item.exerciseTypeLabel, item.title].filter(Boolean).join(' · ')}
+                  </Text>
+                  <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                </View>
+              </Flex>
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
 function TimelineSection({
   period,
   items,
@@ -153,6 +198,7 @@ function ScheduleTimeline({
   onPressItem: (item: CalendarTimelineItem) => void;
 }) {
   const grouped = useMemo(() => groupTimelineItems(items), [items]);
+  const hasScheduledItems = grouped.morning.length > 0 || grouped.afternoon.length > 0;
 
   if (loading) {
     return (
@@ -172,9 +218,16 @@ function ScheduleTimeline({
 
   return (
     <View style={styles.timelineWrap}>
-      <View style={styles.axisLine} pointerEvents="none" />
-      <TimelineSection period="上午" items={grouped.morning} onPressItem={onPressItem} />
-      <TimelineSection period="下午" items={grouped.afternoon} onPressItem={onPressItem} />
+      {grouped.exercise.length > 0 ? (
+        <ExerciseTimelineSection items={grouped.exercise} />
+      ) : null}
+      {hasScheduledItems ? (
+        <View style={styles.scheduledTimelineWrap}>
+          <View style={styles.axisLine} pointerEvents="none" />
+          <TimelineSection period="上午" items={grouped.morning} onPressItem={onPressItem} />
+          <TimelineSection period="下午" items={grouped.afternoon} onPressItem={onPressItem} />
+        </View>
+      ) : null}
     </View>
   );
 }

@@ -16,7 +16,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/home/home';
 import MiniProgressRing from './components/MiniProgressRing';
 import MiniSparkline from './components/MiniSparkline';
-import UploadProgressBar from '@/src/components/UploadProgressBar';
 import AutoScrollText from '@/src/components/AutoScrollText';
 import { fetchUserInfo } from '@/store/actions/user';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -469,7 +468,7 @@ export default function HomeTab() {
               </TouchableOpacity>
             </View>
             <Flex justify='between' style={styles.blurCardContentListBox}>
-              <View style={styles.blurCardContentList}>
+              <TouchableOpacity style={styles.blurCardContentList} onPress={() => navigation.navigate('HeartRatePage')}>
                 <View style={styles.blurCardListRow}>
                   <Flex align="center">
                     <Image source={require('@/assets/images/home/xl_Icon.png')} style={styles.blurCardListIcon} />
@@ -490,8 +489,8 @@ export default function HomeTab() {
                   ) : null}
                 </Flex>
                 <Text style={styles.blurCardValueText}>静息心率:{restingHeartRate}次/分</Text>
-              </View>
-              <View style={styles.blurCardContentList}>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.blurCardContentList} onPress={() => navigation.navigate('ConsumptionPage')}>
                 <View style={styles.blurCardListRow}>
                   <Flex align="center">
                     <Image source={require('@/assets/images/home/kll_Icon.png')} style={styles.blurCardListIcon} />
@@ -526,8 +525,8 @@ export default function HomeTab() {
                   </View>
                 </Flex>
                 <Text style={styles.blurCardValueText}>目标:{energyTarget}千卡</Text>
-              </View>
-              <View style={styles.blurCardContentList}>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.blurCardContentList} onPress={() => navigation.navigate('BloodSugarPage')}>
                 <View style={styles.blurCardListRow}>
                   <Flex align="center">
                     <Image source={require('@/assets/images/home/xt_Icon.png')} style={styles.blurCardListIcon} />
@@ -548,7 +547,7 @@ export default function HomeTab() {
                   ) : null}
                 </Flex>
                 <Text style={styles.blurCardValueText}>{glucoseSubtitle}</Text>
-              </View>
+              </TouchableOpacity>
             </Flex>
             {blurCardLayout.height > 0 ? (
               <Svg
@@ -781,7 +780,6 @@ export default function HomeTab() {
 
   return (
     <View style={styles.container}>
-      <UploadProgressBar />
       <View style={[styles.floatingHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
         <View style={styles.floatingHeaderInner}>
           <Image source={require('@/assets/images/home/homeLogo.png')} style={styles.miniLogo} />

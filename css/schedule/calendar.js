@@ -77,6 +77,15 @@ const styles = StyleSheet.create({
     marginTop: 20,
     position: 'relative',
   },
+  exerciseSectionWrap: {
+    marginBottom: 24,
+  },
+  exerciseRowSectionLast: {
+    marginBottom: 0,
+  },
+  scheduledTimelineWrap: {
+    position: 'relative',
+  },
   axisLine: {
     position: 'absolute',
     left: 25.5,
@@ -125,10 +134,20 @@ const styles = StyleSheet.create({
   },
   timeSlot: {
     width: '100%',
-    height: 64,
+    minHeight: 64,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
+  },
+  timePrefixText: {
+    fontWeight: 400,
+    fontSize: 12,
+    color: '#999999',
+    textAlign: 'center',
+    lineHeight: 17,
+    backgroundColor: AppTheme.backgroundColor,
+    paddingHorizontal: 2,
+    marginBottom: 2,
   },
   timeText: {
     fontWeight: 400,

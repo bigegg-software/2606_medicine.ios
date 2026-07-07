@@ -32,10 +32,12 @@ import MealTrendChart from './components/MealTrendChart';
 import {
   flattenMealHistoryDays,
   formatDayListSubtitle,
-  formatMealHistoryDayLabel,
+  formatMealHistoryDayTitle,
   formatMealHistoryMonthLabel,
+  getDayComplianceDisplay,
   getTrendDateRange,
   getPrescriptionDateRange,
+  getPrescriptionPeriodDayCount,
   normalizeComplianceRate,
 } from './mealHistoryHelpers';
 
@@ -278,7 +280,7 @@ export default function MealHistoryPage() {
         <View>
           <Text style={styles.cardTitle}>总体达标率</Text>
           <Text style={styles.cardSubTitle}>
-            处方内统计{overallStatistics?.statDayCount ?? 0}天
+            处方内统计{getPrescriptionPeriodDayCount(dietRule)}天
           </Text>
         </View>
 
@@ -347,6 +349,7 @@ export default function MealHistoryPage() {
             {(group.list ?? []).map(day => {
               const dateKey = day.customerLocalDate?.trim();
               if (!dateKey) return null;
+              const compliance = getDayComplianceDisplay(day);
               return (
                 <TouchableOpacity
                   key={dateKey}
@@ -355,10 +358,17 @@ export default function MealHistoryPage() {
                   onPress={() => navigation.navigate('MealDayDetailPage', { customerLocalDate: dateKey })}>
                   <Flex justify="between" align="center">
                     <View style={{ flex: 1, paddingRight: 12 }}>
-                      <Text style={styles.dayTitle}>{formatMealHistoryDayLabel(dateKey)}</Text>
+                      <Text style={styles.dayTitle}>{formatMealHistoryDayTitle(dateKey)}</Text>
                       <Text style={styles.daySubtitle}>{formatDayListSubtitle(day)}</Text>
                     </View>
-                    <Text style={styles.daySubtitle}>›</Text>
+                    <Flex align="center">
+                      {compliance ? (
+                        <Text style={[styles.dayComplianceText, { color: compliance.color }]}>
+                          {compliance.label}
+                        </Text>
+                      ) : null}
+                      <Text style={styles.dayArrow}>›</Text>
+                    </Flex>
                   </Flex>
                 </TouchableOpacity>
               );

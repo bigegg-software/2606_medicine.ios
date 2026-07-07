@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg';
 import { Flex, Toast } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import BottomSheetModal from '@/src/components/BottomSheetModal';
+import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import styles from '@/css/schedule/results';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -421,7 +422,10 @@ export default function TestingResultsPage() {
     };
 
     return (
-        <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
+        <PageLayout
+            style={styles.container}
+            showHeaderBackground={false}
+            edges={[]}>
             <View style={styles.page}>
                 <View style={styles.pageContent}>
                     {renderTimerDisplay()}
@@ -445,6 +449,7 @@ export default function TestingResultsPage() {
                 overlayOpacity={0.2}
                 dismissOnBackdropPress={false}
                 onClose={closeRecordModal}
+                keyboardAccessory={<KeyboardDoneAccessory useOverlay />}
                 sheetStyle={[styles.recordModalBox, { paddingBottom: insets.bottom }]}>
                 <View style={styles.recordModalContent}>
                     <View style={styles.recordModalHeader}>

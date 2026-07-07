@@ -36,6 +36,15 @@ const styles = StyleSheet.create({
     zIndex: 9999,
     elevation: 9999,
   },
+  overlayHost: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 9999,
+    elevation: 9999,
+  },
+  overlayHostModal: {
+    zIndex: 10000,
+    elevation: 10000,
+  },
 });
 
 function DoneButton({ onPress }: { onPress: () => void }) {
@@ -52,14 +61,21 @@ function DoneButton({ onPress }: { onPress: () => void }) {
 
 export default function KeyboardDoneAccessory({
   nativeID = KEYBOARD_DONE_ACCESSORY_ID,
+  useOverlay = false,
 }: {
   nativeID?: string;
+  /** Modal 内 iOS InputAccessoryView 无效，需改用键盘高度悬浮工具栏 */
+  useOverlay?: boolean;
 }) {
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const dismiss = useCallback(() => Keyboard.dismiss(), []);
+  const overlayMode = useOverlay || Platform.OS === 'android';
 
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
+    if (!overlayMode) return;
+
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const onShow = (event: KeyboardEvent) => {
       setKeyboardHeight(event.endCoordinates.height);
@@ -68,15 +84,15 @@ export default function KeyboardDoneAccessory({
       setKeyboardHeight(0);
     };
 
-    const showSub = Keyboard.addListener('keyboardDidShow', onShow);
-    const hideSub = Keyboard.addListener('keyboardDidHide', onHide);
+    const showSub = Keyboard.addListener(showEvent, onShow);
+    const hideSub = Keyboard.addListener(hideEvent, onHide);
     return () => {
       showSub.remove();
       hideSub.remove();
     };
-  }, []);
+  }, [overlayMode]);
 
-  if (Platform.OS === 'ios') {
+  if (!overlayMode && Platform.OS === 'ios') {
     return (
       <InputAccessoryView nativeID={nativeID}>
         <View style={styles.keyboardAccessory}>
@@ -89,9 +105,11 @@ export default function KeyboardDoneAccessory({
   if (keyboardHeight <= 0) return null;
 
   return (
-    <View style={[styles.androidOverlay, { bottom: keyboardHeight }]} pointerEvents="box-none">
-      <View style={styles.keyboardAccessory}>
-        <DoneButton onPress={dismiss} />
+    <View style={[styles.overlayHost, useOverlay && styles.overlayHostModal]} pointerEvents="box-none">
+      <View style={[styles.androidOverlay, { bottom: keyboardHeight }]} pointerEvents="box-none">
+        <View style={styles.keyboardAccessory}>
+          <DoneButton onPress={dismiss} />
+        </View>
       </View>
     </View>
   );

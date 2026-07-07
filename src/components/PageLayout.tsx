@@ -4,7 +4,6 @@ import { SafeAreaView, useSafeAreaInsets, type Edge } from 'react-native-safe-ar
 import { useHeaderHeight } from '@react-navigation/elements';
 import { AppTheme } from '@/common/theme';
 import HeaderBack from './HeaderBack';
-import UploadProgressBar from './UploadProgressBar';
 
 const STACK_HEADER_CONTENT_HEIGHT = 44;
 
@@ -77,7 +76,6 @@ export function TabPageLayout({
 }: Omit<Props, 'edges' | 'withStackHeader'>) {
     return (
         <PageLayout withStackHeader edges={[]} style={style} contentStyle={contentStyle}>
-            <UploadProgressBar />
             {children}
         </PageLayout>
     );

@@ -30,7 +30,7 @@ const styles = StyleSheet.create({
     icon4: { width: 5, height: 5, borderRadius: 5, backgroundColor: "#053A93" },
     sleepTitle: { marginLeft: 9, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, },
     sleepText: { marginLeft: 5, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary },
-    addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: '#053A93', borderRadius: 8 },
+    addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: AppTheme.primaryColor, borderRadius: 8 },
     addText: { fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
     btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, textAlign: 'center' },
     btmText: { fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, textAlign: 'center' },

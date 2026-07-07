@@ -25,6 +25,21 @@ const styles = StyleSheet.create({
         borderRadius: 11,
         marginRight: 14
     },
+    detailHeaderMain: {
+        flex: 1,
+        paddingRight: 12,
+    },
+    statusPausedBadge: {
+        height: 24,
+        backgroundColor: 'rgba(255,139,7,0.14)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+    },
+    statusPausedText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#FF8B07',
+    },
     detailImage: {
         width: 24,
         height: 24,
@@ -52,6 +67,12 @@ const styles = StyleSheet.create({
         fontWeight: 400,
         fontSize: 14,
         color: '#333333',
+    },
+    stopReasonText: {
+        marginTop: 7,
+        fontWeight: 400,
+        fontSize: 14,
+        color: '#FF8B07',
     },
     pageTitle: {
         marginTop: 18,
