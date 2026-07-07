@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { Flex, Picker } from '@ant-design/react-native';
+import { Flex, Picker, Toast } from '@ant-design/react-native';
 import moment, { type Moment } from 'moment';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,8 +21,16 @@ import {
   hasDailyRecord,
   loadCalendarDayTimelineItems,
   loadDailyRecordStatusMap,
+  mapTodayMedicationGroupsToTimelineItems,
   type CalendarTimelineItem,
 } from './calendarHelpers';
+import {
+  applyMedicationCheckInToPlanGroups,
+  loadMedicationPlanGroupsForDate,
+  submitMedicationCheckIn,
+  type MedicationPlanGroupView,
+} from '@/src/features/profile/medication/medicationHelpers';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const DASH_COUNT = 30;
@@ -131,14 +139,70 @@ function ExerciseTimelineSection({
   );
 }
 
+function MedicationStatus({
+  item,
+  checkingIn,
+  onCheckIn,
+}: {
+  item: CalendarTimelineItem;
+  checkingIn: boolean;
+  onCheckIn: (item: CalendarTimelineItem) => void;
+}) {
+  if (item.canCheckIn) {
+    return (
+      <TouchableOpacity
+        activeOpacity={0.7}
+        disabled={checkingIn}
+        onPress={() => onCheckIn(item)}>
+        {checkingIn ? (
+          <ActivityIndicator color={AppTheme.primaryColor} size="small" />
+        ) : (
+          <Flex align="center">
+            <View style={styles.taskCardStatusIconWrap}>
+              <View style={styles.taskCardStatusCircleAction} />
+            </View>
+            <Text style={[styles.taskCardStatus, styles.taskCardStatusAction]}>已服用</Text>
+          </Flex>
+        )}
+      </TouchableOpacity>
+    );
+  }
+
+  return (
+    <Flex align="center">
+      <View style={styles.taskCardStatusIconWrap}>
+        {item.taken ? (
+          <>
+            <View style={styles.taskCardStatusCircleTaken} />
+            <Text style={styles.taskCardStatusCheck}>✓</Text>
+          </>
+        ) : (
+          <View style={styles.taskCardStatusCircleMuted} />
+        )}
+      </View>
+      <Text
+        style={[
+          styles.taskCardStatus,
+          item.taken ? styles.taskCardStatusTaken : null,
+        ]}>
+        {item.taken ? '已服用' : '未服用'}
+      </Text>
+    </Flex>
+  );
+}
+
 function TimelineSection({
   period,
   items,
   onPressItem,
+  checkingInKey,
+  onMedicationCheckIn,
 }: {
   period: string;
   items: CalendarTimelineItem[];
   onPressItem: (item: CalendarTimelineItem) => void;
+  checkingInKey: string | null;
+  onMedicationCheckIn: (item: CalendarTimelineItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -172,12 +236,26 @@ function TimelineSection({
                 activeOpacity={item.kind === 'activity' ? 0.7 : 1}
                 disabled={item.kind !== 'activity'}
                 onPress={() => onPressItem(item)}>
-                <Flex style={styles.taskCard}>
+                <Flex style={styles.taskCard} align="center">
                   <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.taskCardTitle}>{item.title}</Text>
-                    <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                    <Flex align="center" style={{ flexWrap: 'wrap' }}>
+                      <Text style={styles.taskCardTitle}>{item.title}</Text>
+                      {item.kind === 'drug' && item.eventBasedLabel ? (
+                        <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+                      ) : null}
+                    </Flex>
+                    {item.desc ? (
+                      <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                    ) : null}
                   </View>
+                  {item.kind === 'drug' ? (
+                    <MedicationStatus
+                      item={item}
+                      checkingIn={checkingInKey === item.key}
+                      onCheckIn={onMedicationCheckIn}
+                    />
+                  ) : null}
                 </Flex>
               </TouchableOpacity>
             </View>
@@ -192,10 +270,14 @@ function ScheduleTimeline({
   items,
   loading,
   onPressItem,
+  checkingInKey,
+  onMedicationCheckIn,
 }: {
   items: CalendarTimelineItem[];
   loading: boolean;
   onPressItem: (item: CalendarTimelineItem) => void;
+  checkingInKey: string | null;
+  onMedicationCheckIn: (item: CalendarTimelineItem) => void;
 }) {
   const grouped = useMemo(() => groupTimelineItems(items), [items]);
   const hasScheduledItems = grouped.morning.length > 0 || grouped.afternoon.length > 0;
@@ -224,8 +306,20 @@ function ScheduleTimeline({
       {hasScheduledItems ? (
         <View style={styles.scheduledTimelineWrap}>
           <View style={styles.axisLine} pointerEvents="none" />
-          <TimelineSection period="上午" items={grouped.morning} onPressItem={onPressItem} />
-          <TimelineSection period="下午" items={grouped.afternoon} onPressItem={onPressItem} />
+          <TimelineSection
+            period="上午"
+            items={grouped.morning}
+            onPressItem={onPressItem}
+            checkingInKey={checkingInKey}
+            onMedicationCheckIn={onMedicationCheckIn}
+          />
+          <TimelineSection
+            period="下午"
+            items={grouped.afternoon}
+            onPressItem={onPressItem}
+            checkingInKey={checkingInKey}
+            onMedicationCheckIn={onMedicationCheckIn}
+          />
         </View>
       ) : null}
     </View>
@@ -238,12 +332,21 @@ export default function ScheduleCalendarPage() {
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
   const [statusMap, setStatusMap] = useState<Map<string, DailyRecordStatusItem>>(new Map());
   const [timelineItems, setTimelineItems] = useState<CalendarTimelineItem[]>([]);
+  const [medicationPlanGroups, setMedicationPlanGroups] = useState<MedicationPlanGroupView[]>([]);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
+  const [loadingMedication, setLoadingMedication] = useState(false);
+  const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
-  const dateHeader = `${moment(selectedDate).format('YYYY.MM.DD')} ${WEEKDAY_LABELS[moment(selectedDate).day()]}`;
   const selectedStatus = statusMap.get(selectedDate);
+  const isToday = selectedDate === moment().format('YYYY-MM-DD');
+  const displayTimelineItems = useMemo(() => {
+    if (!isToday) return timelineItems;
+    const drugItems = mapTodayMedicationGroupsToTimelineItems(medicationPlanGroups);
+    const others = timelineItems.filter(item => item.kind !== 'drug');
+    return [...others, ...drugItems].sort((left, right) => left.sortValue - right.sortValue);
+  }, [isToday, medicationPlanGroups, timelineItems]);
 
   const loadMonthlyOverview = useCallback(async (month: Moment) => {
     setLoadingMonth(true);
@@ -269,19 +372,61 @@ export default function ScheduleCalendarPage() {
     }
   }, []);
 
+  const loadTodayMedication = useCallback(async (dateKey: string) => {
+    if (dateKey !== moment().format('YYYY-MM-DD')) {
+      setMedicationPlanGroups([]);
+      return;
+    }
+
+    setLoadingMedication(true);
+    try {
+      const groups = await loadMedicationPlanGroupsForDate(dateKey);
+      setMedicationPlanGroups(groups);
+    } catch {
+      setMedicationPlanGroups([]);
+    } finally {
+      setLoadingMedication(false);
+    }
+  }, []);
+
   useEffect(() => {
     void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
 
   useEffect(() => {
     void loadDayTimeline(selectedDate, selectedStatus);
-  }, [loadDayTimeline, selectedDate, selectedStatus]);
+    void loadTodayMedication(selectedDate);
+  }, [loadDayTimeline, loadTodayMedication, selectedDate, selectedStatus]);
 
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
     if (item.kind === 'activity' && item.activityId) {
       navigation.navigate('ActivityDetail', { id: item.activityId });
     }
   }, [navigation]);
+
+  const handleMedicationCheckIn = useCallback(async (item: CalendarTimelineItem) => {
+    if (!item.canCheckIn || checkingInKey) return;
+
+    const planItem = medicationPlanGroups
+      .flatMap(group => group.items)
+      .find(plan => plan.key === item.key);
+    if (!planItem) return;
+
+    setCheckingInKey(item.key);
+    try {
+      const res = await submitMedicationCheckIn(planItem);
+      if (!isResourceApiOk(res as { code?: number })) {
+        Toast.fail((res as { msg?: string })?.msg || '打卡失败', 1.5);
+        return;
+      }
+      Toast.success('已记录服用', 1.5);
+      setMedicationPlanGroups(prev => applyMedicationCheckInToPlanGroups(prev, item.key));
+    } catch {
+      Toast.fail('打卡失败', 1.5);
+    } finally {
+      setCheckingInKey(null);
+    }
+  }, [checkingInKey, medicationPlanGroups]);
 
   return (
     <PageLayout style={styles.container}>
@@ -369,9 +514,11 @@ export default function ScheduleCalendarPage() {
         </View>
         {/* <Text style={styles.titleText}>{dateHeader}</Text> */}
         <ScheduleTimeline
-          items={timelineItems}
-          loading={loadingDay}
+          items={displayTimelineItems}
+          loading={loadingDay || (isToday && loadingMedication)}
           onPressItem={handleTimelinePress}
+          checkingInKey={checkingInKey}
+          onMedicationCheckIn={handleMedicationCheckIn}
         />
       </ScrollView>
     </PageLayout>

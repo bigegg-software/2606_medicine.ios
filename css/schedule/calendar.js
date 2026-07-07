@@ -177,11 +177,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333333',
   },
+  taskCardMedicationType: {
+    marginLeft: 8,
+    fontWeight: 400,
+    fontSize: 14,
+    color: '#999999',
+  },
   taskCardDesc: {
     marginTop: 4,
     fontWeight: 400,
     fontSize: 14,
     color: '#999999',
+  },
+  taskCardStatus: {
+    marginLeft: 6,
+    fontWeight: 400,
+    fontSize: 14,
+    color: '#999999',
+  },
+  taskCardStatusIconWrap: {
+    width: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  taskCardStatusCircleAction: {
+    width: 13,
+    height: 13,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: AppTheme.primaryColor,
+  },
+  taskCardStatusCircleTaken: {
+    width: 13,
+    height: 13,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(5,58,147,0.28)',
+  },
+  taskCardStatusCircleMuted: {
+    width: 13,
+    height: 13,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'rgba(153,153,153,0.35)',
+  },
+  taskCardStatusCheck: {
+    position: 'absolute',
+    top: 3,
+    left: 2,
+    fontSize: 16,
+    lineHeight: 15,
+    color: '#34B69F',
+    fontWeight: '700',
+  },
+  taskCardStatusTaken: {
+    color: '#6D925E',
+  },
+  taskCardStatusAction: {
+    color: AppTheme.primaryColor,
   },
 });
 

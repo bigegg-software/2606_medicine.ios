@@ -672,7 +672,7 @@ export function sortWearableItems(items: WearableDataItem[]) {
   );
 }
 
-function getLatestWearableItem(items: WearableDataItem[]) {
+export function getLatestWearableItem(items: WearableDataItem[]) {
   return items.length ? items[items.length - 1] : undefined;
 }
 

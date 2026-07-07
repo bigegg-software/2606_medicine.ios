@@ -5,7 +5,8 @@ import {
   type DayTypeDetailItem,
   type InUseExPatientRule,
 } from '@/api/schedule';
-import { getMealDetailByMealId, getMealListByDate, type MealRecordItem } from '@/api/meal';
+import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type MealRecordItem } from '@/api/meal';
+import type { MealDetailItem } from '@/api/mealDetail';
 import {
   getIndexMedicationPlanGroupByTime,
   type IndexMedicationPlanGroupItem,
@@ -26,7 +27,9 @@ import {
 import {
   formatMedicationDoseText,
   loadMedicationDictMaps,
+  resolveDictLabel,
   type MedicationDictMaps,
+  type MedicationPlanGroupView,
 } from '@/src/features/profile/medication/medicationHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -45,6 +48,11 @@ export type CalendarTimelineItem = {
   exerciseTypeLabel?: string;
   sortValue: number;
   period: 'morning' | 'afternoon' | 'exercise';
+  medicationPlanId?: string;
+  medicationPlanTime?: string;
+  canCheckIn?: boolean;
+  taken?: boolean;
+  eventBasedLabel?: string;
 };
 
 const MEAL_CATEGORY_LABELS: Record<number, string> = {
@@ -102,15 +110,30 @@ function resolvePeriod(sortValue: number) {
   return hour < 12 ? 'morning' : 'afternoon';
 }
 
-function formatMedicationActionLabel(action?: number | null) {
-  if (action === 1) return '已服用';
-  if (action === 0) return '已忽略';
-  return '未服用';
-}
 
 function formatMealCalorieText(calorie?: number) {
-  if (calorie == null || Number.isNaN(Number(calorie))) return '已记录用餐';
+  if (calorie == null || Number.isNaN(Number(calorie))) return '';
   return `${Math.round(Number(calorie))}kcal`;
+}
+
+function buildMealDesc(meal: MealRecordItem, foodNames?: string) {
+  const foods = foodNames?.trim();
+  const calorieText = formatMealCalorieText(meal.calorie);
+  if (foods && calorieText) return `${foods} · ${calorieText}`;
+  if (foods) return foods;
+  if (calorieText) return calorieText;
+  return '已记录用餐';
+}
+
+function formatMealTimelineTime(meal: MealRecordItem, timeStr?: string) {
+  if (timeStr?.trim()) return formatPlanTime(timeStr);
+  const parsed = moment(meal.updateTime);
+  return parsed.isValid() ? parsed.format('H:mm') : '—';
+}
+
+function isMealCategoryRecord(meal: MealRecordItem) {
+  const category = meal.mealCategory ?? 0;
+  return category >= 1 && category <= 4;
 }
 
 function mapActivityTimelineItem(item: DailyActivityItem, index: number): CalendarTimelineItem {
@@ -216,6 +239,12 @@ async function resolveInUseExPatientRuleId() {
   }
 }
 
+function formatMedicationEventLabel(label?: string) {
+  const text = label?.trim();
+  if (!text || text === '无') return '';
+  return text;
+}
+
 function mapMedicationTimelineItems(
   groups: IndexMedicationPlanGroupItem[] | undefined,
   dictMaps?: MedicationDictMaps,
@@ -227,16 +256,46 @@ function mapMedicationTimelineItems(
       const time = formatPlanTime(item.medicationPlanTime ?? group.medicationPlanTime ?? plan?.timeList?.[0]);
       const sortValue = parseTimeStrSortValue(time) || (groupIndex + 1) * 60 + itemIndex;
       const doseText = formatMedicationDoseText(plan, dictMaps);
-      const actionText = formatMedicationActionLabel(item.action);
+      const eventBasedLabel = formatMedicationEventLabel(
+        resolveDictLabel(dictMaps?.eventBased ?? {}, plan?.eventBased),
+      );
 
       return {
         key: `drug-${medicationPlanId ?? groupIndex}-${itemIndex}`,
         time,
         title: plan?.name?.trim() || '用药',
-        desc: [doseText !== '--' ? doseText : '', actionText].filter(Boolean).join(' · '),
+        desc: doseText !== '--' ? doseText : '',
         kind: 'drug',
         sortValue,
         period: resolvePeriod(sortValue),
+        taken: item.action === 1,
+        eventBasedLabel,
+      };
+    }),
+  );
+}
+
+export function mapTodayMedicationGroupsToTimelineItems(
+  groups: MedicationPlanGroupView[],
+): CalendarTimelineItem[] {
+  return groups.flatMap((group, groupIndex) =>
+    group.items.map((item, itemIndex) => {
+      const sortValue =
+        parseTimeStrSortValue(item.medicationPlanTime) || (groupIndex + 1) * 60 + itemIndex;
+
+      return {
+        key: item.key,
+        time: item.medicationPlanTime,
+        title: item.name,
+        desc: item.doseText !== '--' ? item.doseText : '',
+        kind: 'drug',
+        sortValue,
+        period: resolvePeriod(sortValue),
+        medicationPlanId: item.medicationPlanId,
+        medicationPlanTime: item.medicationPlanTime,
+        canCheckIn: item.canCheckIn,
+        taken: item.taken,
+        eventBasedLabel: formatMedicationEventLabel(item.eventBasedLabel),
       };
     }),
   );
@@ -249,16 +308,17 @@ function mapMealTimelineItem(
   timeStr?: string,
 ): CalendarTimelineItem {
   const category = meal.mealCategory ?? 1;
+  const displayTime = formatMealTimelineTime(meal, timeStr);
   const sortValue =
-    parseTimeStrSortValue(timeStr)
+    parseTimeStrSortValue(displayTime !== '—' ? displayTime : timeStr)
     || MEAL_CATEGORY_DEFAULT_MINUTES[category]
     || (index + 1) * 60;
 
   return {
     key: `diet-${meal.mealId ?? index}`,
-    time: timeStr ? formatPlanTime(timeStr) : '—',
+    time: displayTime,
     title: MEAL_CATEGORY_LABELS[category] ?? '用餐',
-    desc: foodNames?.trim() || formatMealCalorieText(meal.calorie),
+    desc: buildMealDesc(meal, foodNames),
     kind: 'diet',
     sortValue,
     period: resolvePeriod(sortValue),
@@ -305,7 +365,11 @@ async function loadDietTimelineItems(customerLocalDate: string): Promise<Calenda
     const res = await getMealListByDate({ customerLocalDate });
     if (!isResourceApiOk(res)) return [];
 
-    const meals = apiResourceData<MealRecordItem[]>(res as any) ?? [];
+    const meals = (apiResourceData<MealRecordItem[]>(
+      res as unknown as { code?: number; data?: MealRecordItem[] },
+    ) ?? [])
+      .filter(isMealCategoryRecord)
+      .sort((left, right) => (left.mealCategory ?? 0) - (right.mealCategory ?? 0));
     if (meals.length === 0) return [];
 
     const details = await Promise.all(
@@ -313,7 +377,10 @@ async function loadDietTimelineItems(customerLocalDate: string): Promise<Calenda
         if (meal.mealId == null || meal.mealId === '') return null;
         try {
           const detailRes = await getMealDetailByMealId(String(meal.mealId));
-          return isResourceApiOk(detailRes) ? apiResourceData(detailRes as any) : null;
+          if (!isResourceApiOk(detailRes)) return null;
+          return apiResourceData<MealRecordDetail>(
+            detailRes as unknown as { code?: number; data?: MealRecordDetail },
+          );
         } catch {
           return null;
         }
@@ -323,11 +390,13 @@ async function loadDietTimelineItems(customerLocalDate: string): Promise<Calenda
     return meals.map((meal, index) => {
       const detail = details[index];
       const foodNames = detail?.mealDetailList
-        ?.map(item => item.mealName?.trim())
+        ?.filter((item: MealDetailItem) => item.isWater !== 1)
+        .map((item: MealDetailItem) => item.mealName?.trim())
         .filter(Boolean)
         .join('、');
-      const timeStr = detail?.mealDetailList?.find(item => item.timeStr?.trim())?.timeStr
-        ?? detail?.mainInfo?.updateTime;
+      const timeStr = detail?.mealDetailList?.find((item: MealDetailItem) => item.timeStr?.trim())?.timeStr
+        ?? detail?.mainInfo?.updateTime
+        ?? meal.updateTime;
 
       return mapMealTimelineItem(meal, index, foodNames, timeStr);
     });
@@ -369,6 +438,7 @@ export async function loadCalendarDayTimelineItems(
         .then(res => (isResourceApiOk(res)
           ? (apiResourceData<DailyLiveItem[]>(res as any) ?? []).map(mapLiveTimelineItem)
           : [])),
+      loadDietTimelineItems(customerLocalDate),
     ];
 
     if (status?.isEx) {
@@ -384,15 +454,11 @@ export async function loadCalendarDayTimelineItems(
       );
     }
 
-    if (status?.isDrug) {
+    if (status?.isDrug && customerLocalDate !== moment().format('YYYY-MM-DD')) {
       detailTasks.push(
         loadMedicationDictMaps()
           .then(dictMaps => loadMedicationTimelineItems(customerLocalDate, dictMaps)),
       );
-    }
-
-    if (status?.isDiet) {
-      detailTasks.push(loadDietTimelineItems(customerLocalDate));
     }
 
     const groups = await Promise.all(detailTasks);

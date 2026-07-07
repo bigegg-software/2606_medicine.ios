@@ -33,6 +33,8 @@ import { openRemoteFile } from '@/src/features/profile/healthRecord/caseDetail';
 import SpeechToText, { type SpeechToTextRef } from './components/SpeechToText';
 import MedicationReminderCards from './components/MedicationReminderCards';
 import QuestionnaireListCards from './components/QuestionnaireListCards';
+import HealthStatusCards from './components/HealthStatusCards';
+import TodayScheduleCards from './components/TodayScheduleCards';
 import TypingDots from './components/TypingDots';
 import AssistantHistoryDrawer from './components/AssistantHistoryDrawer';
 
@@ -46,8 +48,9 @@ const DOCUMENT_TYPES = [
 const PANEL_HEIGHT = 220;
 
 const QUICK_ACTIONS = [
+  { label: '今日安排', action: 'today_schedule' as const },
   { label: '评估量表', action: 'assessment' as const },
-  { label: '健康状况', route: 'VitalsPage' as const },
+  { label: '健康状况', action: 'health_status' as const },
   { label: '用药提醒', action: 'reminder' as const },
 ];
 
@@ -205,6 +208,26 @@ function MessageRow({
     );
   }
 
+  if (item.type === 'health_status_cards') {
+    return (
+      <Flex align="start" style={styles.aiMessageBoxFollowUp}>
+        <View style={styles.aiMedicationCardWrap}>
+          <HealthStatusCards cards={item.cards} />
+        </View>
+      </Flex>
+    );
+  }
+
+  if (item.type === 'today_schedule_cards') {
+    return (
+      <Flex align="start" style={styles.aiMessageBoxFollowUp}>
+        <View style={styles.aiMedicationCardWrap}>
+          <TodayScheduleCards payload={item.payload} />
+        </View>
+      </Flex>
+    );
+  }
+
   return (
     <Flex align="start" style={styles.aiMessageBox}>
       <Image source={require('@/assets/images/assistant/avatar.png')} style={styles.avatar} />
@@ -257,6 +280,8 @@ export default function AssistantPage() {
     sendAttachments,
     runMedicationReminder,
     runQuestionnaireQuickAction,
+    runHealthStatusQuickAction,
+    runTodayScheduleQuickAction,
     startNewChat,
     openChat,
     scrollEndRef,
@@ -454,6 +479,15 @@ export default function AssistantPage() {
 
   const handleQuickActionPress = useCallback(
     (item: (typeof QUICK_ACTIONS)[number]) => {
+      if ('action' in item && item.action === 'today_schedule') {
+        void (async () => {
+          const ok = await runTodayScheduleQuickAction();
+          if (!ok) {
+            Toast.fail('今日安排加载失败', 1.5);
+          }
+        })();
+        return;
+      }
       if ('action' in item && item.action === 'reminder') {
         void (async () => {
           const ok = await runMedicationReminder();
@@ -472,11 +506,17 @@ export default function AssistantPage() {
         })();
         return;
       }
-      if ('route' in item) {
-        navigation.navigate(item.route);
+      if ('action' in item && item.action === 'health_status') {
+        void (async () => {
+          const ok = await runHealthStatusQuickAction();
+          if (!ok) {
+            Toast.fail('健康状况加载失败', 1.5);
+          }
+        })();
+        return;
       }
     },
-    [navigation, runMedicationReminder, runQuestionnaireQuickAction],
+    [runHealthStatusQuickAction, runMedicationReminder, runQuestionnaireQuickAction, runTodayScheduleQuickAction],
   );
 
   const hasInput = !!input.trim();

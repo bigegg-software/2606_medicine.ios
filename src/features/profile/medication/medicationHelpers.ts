@@ -465,10 +465,18 @@ export async function loadMedicationDictMaps(): Promise<MedicationDictMaps> {
 }
 
 export async function loadMedicationPlanGroups(dictMaps?: MedicationDictMaps) {
+  return loadMedicationPlanGroupsForDate(moment().format('YYYY-MM-DD'), dictMaps);
+}
+
+export async function loadMedicationPlanGroupsForDate(
+  customerLocalDate: string,
+  dictMaps?: MedicationDictMaps,
+) {
   try {
-    const res = await getIndexMedicationPlanGroupByTime();
+    const maps = dictMaps ?? (await loadMedicationDictMaps());
+    const res = await getIndexMedicationPlanGroupByTime({ customerLocalDate });
     if (!isResourceApiOk(res)) return [];
-    return mapIndexPlanGroups(apiResourceData<IndexMedicationPlanGroupItem[]>(res as any), dictMaps);
+    return mapIndexPlanGroups(apiResourceData<IndexMedicationPlanGroupItem[]>(res as any), maps);
   } catch {
     return [];
   }

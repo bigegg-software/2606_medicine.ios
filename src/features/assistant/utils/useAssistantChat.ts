@@ -63,6 +63,18 @@ import {
   parseQuestionnaireSuggestionFromInterfaceData,
   requestQuestionnaireQuickAction,
 } from './questionnaireQuickAction';
+import {
+  HEALTH_STATUS_ACTION,
+  HEALTH_STATUS_QUESTION,
+  parseHealthStatusCardsFromInterfaceData,
+  requestHealthStatusQuickAction,
+} from './healthStatusAction';
+import {
+  TODAY_SCHEDULE_ACTION,
+  TODAY_SCHEDULE_QUESTION,
+  parseTodayScheduleFromInterfaceData,
+  requestTodayScheduleQuickAction,
+} from './todayScheduleAction';
 
 function parseInterfaceData(raw: unknown) {
   if (raw == null) return undefined;
@@ -174,6 +186,8 @@ function mapDetailItem(
   extras?: {
     medicationGroups?: AssistantMessage['medicationGroups'];
     questionnaireItems?: AssistantMessage['questionnaireItems'];
+    healthStatusCards?: AssistantMessage['healthStatusCards'];
+    todaySchedule?: AssistantMessage['todaySchedule'];
   },
 ): AssistantMessage {
   const parsedInterfaceData = parseInterfaceData(item.interfaceData);
@@ -202,6 +216,14 @@ function mapDetailItem(
     questionnaireSuggestion:
       item.action === QUESTIONNAIRE_QUICK_ACTION
         ? parseQuestionnaireSuggestionFromInterfaceData(parsedInterfaceData)
+        : undefined,
+    healthStatusCards:
+      item.action === HEALTH_STATUS_ACTION
+        ? extras?.healthStatusCards ?? parseHealthStatusCardsFromInterfaceData(parsedInterfaceData)
+        : undefined,
+    todaySchedule:
+      item.action === TODAY_SCHEDULE_ACTION
+        ? extras?.todaySchedule ?? parseTodayScheduleFromInterfaceData(parsedInterfaceData)
         : undefined,
   };
 }
@@ -254,6 +276,20 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
         key: `questionnaire-${msg.frontId ?? msg.id ?? index}`,
         items: msg.questionnaireItems,
         suggestion: msg.questionnaireSuggestion,
+      });
+    }
+    if (msg.action === HEALTH_STATUS_ACTION && msg.healthStatusCards?.length) {
+      items.push({
+        type: 'health_status_cards',
+        key: `health-status-${msg.frontId ?? msg.id ?? index}`,
+        cards: msg.healthStatusCards,
+      });
+    }
+    if (msg.action === TODAY_SCHEDULE_ACTION && msg.todaySchedule && !msg.todaySchedule.isEmpty) {
+      items.push({
+        type: 'today_schedule_cards',
+        key: `today-schedule-${msg.frontId ?? msg.id ?? index}`,
+        payload: msg.todaySchedule,
       });
     }
   });
@@ -468,6 +504,14 @@ export function useAssistantChat() {
               item.action === QUESTIONNAIRE_QUICK_ACTION
                 ? parseQuestionnaireItemsFromInterfaceData(parsedInterface)
                 : undefined,
+            healthStatusCards:
+              item.action === HEALTH_STATUS_ACTION
+                ? parseHealthStatusCardsFromInterfaceData(parsedInterface)
+                : undefined,
+            todaySchedule:
+              item.action === TODAY_SCHEDULE_ACTION
+                ? parseTodayScheduleFromInterfaceData(parsedInterface)
+                : undefined,
           });
         });
         setMessages(mapped.length > 0 ? mapped : []);
@@ -622,12 +666,114 @@ export function useAssistantChat() {
     }, [handleCleanup, handlePendingAttachments, initChatSession]),
   );
 
+  const runHealthStatusQuickAction = useCallback(async (question?: string) => {
+    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+
+    setLoading(true);
+    try {
+      const result = await requestHealthStatusQuickAction({
+        chatId: chatIdRef.current,
+        chatGuide: chatGuideRef.current,
+        question,
+      });
+
+      if (!isResourceApiOk(result.saveRes as { code?: number })) {
+        const msg =
+          (result.saveRes as { msg?: string; message?: string })?.msg ??
+          (result.saveRes as { message?: string })?.message ??
+          '健康状况加载失败';
+        console.error('health status saveAction failed:', msg);
+        return false;
+      }
+
+      const savedId = apiResourceData<number | string>(result.saveRes as { code?: number; data?: number | string });
+      setMessages(prev => [
+        ...prev,
+        {
+          id: savedId ?? undefined,
+          frontId: generateUUID(),
+          question: result.question,
+          answer: result.answer,
+          action: HEALTH_STATUS_ACTION,
+          interfaceData: result.interfaceData,
+          healthStatusCards: result.cards,
+          createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
+        },
+      ]);
+      scrollEndRef.current?.();
+      return true;
+    } catch (error) {
+      console.error('runHealthStatusQuickAction failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [initializing]);
+
+  const runTodayScheduleQuickAction = useCallback(async (question?: string) => {
+    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+
+    setLoading(true);
+    try {
+      const result = await requestTodayScheduleQuickAction({
+        chatId: chatIdRef.current,
+        chatGuide: chatGuideRef.current,
+        question,
+      });
+
+      if (!isResourceApiOk(result.saveRes as { code?: number })) {
+        const msg =
+          (result.saveRes as { msg?: string; message?: string })?.msg ??
+          (result.saveRes as { message?: string })?.message ??
+          '今日安排加载失败';
+        console.error('today schedule saveAction failed:', msg);
+        return false;
+      }
+
+      const savedId = apiResourceData<number | string>(result.saveRes as { code?: number; data?: number | string });
+      setMessages(prev => [
+        ...prev,
+        {
+          id: savedId ?? undefined,
+          frontId: generateUUID(),
+          question: result.question,
+          answer: result.answer,
+          action: TODAY_SCHEDULE_ACTION,
+          interfaceData: result.interfaceData,
+          todaySchedule: result.payload,
+          createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
+        },
+      ]);
+      scrollEndRef.current?.();
+      return true;
+    } catch (error) {
+      console.error('runTodayScheduleQuickAction failed:', error);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, [initializing]);
+
   const sendMessage = useCallback(async () => {
     const text = input.replace(/^\s+|\s+$/g, '');
     if (!text || loadingRef.current || !chatIdRef.current) return;
     setInput('');
+    if (text === TODAY_SCHEDULE_QUESTION) {
+      const ok = await runTodayScheduleQuickAction(text);
+      if (!ok) {
+        console.error('today schedule quick action failed');
+      }
+      return;
+    }
+    if (text === HEALTH_STATUS_QUESTION) {
+      const ok = await runHealthStatusQuickAction(text);
+      if (!ok) {
+        console.error('health status quick action failed');
+      }
+      return;
+    }
     await sendStream(text, false);
-  }, [input, sendStream]);
+  }, [input, runHealthStatusQuickAction, runTodayScheduleQuickAction, sendStream]);
 
   const stopMessage = useCallback(async () => {
     if (!loadingRef.current) return;
@@ -769,6 +915,8 @@ export function useAssistantChat() {
     sendAttachments,
     runMedicationReminder,
     runQuestionnaireQuickAction,
+    runHealthStatusQuickAction,
+    runTodayScheduleQuickAction,
     startNewChat,
     openChat,
     scrollEndRef,
