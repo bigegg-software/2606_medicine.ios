@@ -104,6 +104,19 @@ export const updateMedicationPlanTimeList = (data: {
   timeList: string[];
 }) => request.put<ApiResult>('/patient/medicationPlan/updateTimeList', data);
 
+export type MedicationAiAdviceData = {
+  aiAdvice?: string;
+  paramsMd5?: string;
+  cached?: boolean;
+};
+
+export type MedicationAiAdviceResult = ApiResult & {
+  data?: MedicationAiAdviceData;
+};
+
+export const postMedicationAiAdvice = (paramJson: Record<string, unknown>) =>
+  request.post<MedicationAiAdviceResult>('/patient/medicationPlan/aiAdvice', { paramJson });
+
 // --- Drug Patient Rule (处方详情) ---
 
 export type DrugPatientRuleInfo = {

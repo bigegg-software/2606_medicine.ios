@@ -3,8 +3,9 @@ import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, A
 import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import PageLayout from '@/src/components/PageLayout';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -18,7 +19,7 @@ import type { RootStackParamList } from '@/route/router';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import styles from '@/css/assistant/assistant';
-import { useAssistantChat } from './utils/useAssistantChat';
+import { useAssistantChat, consumePendingAssistantNavigation } from './utils/useAssistantChat';
 import { renderAiMessageText } from './utils/renderAiMessage';
 import type { DisplayItem, UploadPreview } from './utils/types';
 import {
@@ -176,6 +177,12 @@ function MessageRow({
       <Flex align="start" style={styles.aiMessageBoxFollowUp}>
         <View style={styles.aiMedicationCardWrap}>
           <QuestionnaireListCards items={item.items} />
+          {item.suggestion ? (
+            <View style={styles.medicationAdviceBox}>
+              <Text style={styles.medicationAdviceTitle}>问卷建议</Text>
+              <Text style={styles.medicationAdviceText}>{item.suggestion}</Text>
+            </View>
+          ) : null}
         </View>
       </Flex>
     );
@@ -186,6 +193,12 @@ function MessageRow({
       <Flex align="start" style={styles.aiMessageBoxFollowUp}>
         <View style={styles.aiMedicationCardWrap}>
           <MedicationReminderCards groups={item.groups} />
+          {item.advice ? (
+            <View style={styles.medicationAdviceBox}>
+              <Text style={styles.medicationAdviceTitle}>管家建议</Text>
+              <Text style={styles.medicationAdviceText}>{item.advice}</Text>
+            </View>
+          ) : null}
         </View>
       </Flex>
     );
@@ -206,6 +219,7 @@ function MessageRow({
 
 export default function AssistantPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'AssistantPage'>>();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
   const { scaleSize } = useFontSize();
@@ -241,8 +255,49 @@ export default function AssistantPage() {
     sendAttachments,
     runMedicationReminder,
     runQuestionnaireQuickAction,
+    startNewChat,
+    openChat,
     scrollEndRef,
   } = useAssistantChat();
+
+  const startNewChatRef = useRef(startNewChat);
+  const openChatRef = useRef(openChat);
+  startNewChatRef.current = startNewChat;
+  openChatRef.current = openChat;
+
+  useFocusEffect(
+    useCallback(() => {
+      navigation.setOptions({
+        headerRight: () => (
+          <TouchableOpacity
+            style={{ marginRight: 18 }}
+            onPress={() => navigation.navigate('AssistantHistoryPage')}>
+            <Image style={styles.navIcon} source={require('@/assets/images/assistant/time.png')} />
+          </TouchableOpacity>
+        ),
+      });
+
+      const pending = consumePendingAssistantNavigation();
+      if (pending?.startNew) {
+        void startNewChatRef.current();
+      } else if (pending?.chatId) {
+        void openChatRef.current(pending.chatId);
+      } else {
+        const { chatId, startNew } = route.params ?? {};
+        if (startNew) {
+          navigation.setParams({ startNew: undefined });
+          void startNewChatRef.current();
+        } else if (chatId) {
+          navigation.setParams({ chatId: undefined });
+          void openChatRef.current(chatId);
+        }
+      }
+
+      return () => {
+        navigation.setOptions({ headerRight: undefined });
+      };
+    }, [navigation, route.params?.chatId, route.params?.startNew]),
+  );
 
   const headerTitleStyle = useMemo(
     () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),

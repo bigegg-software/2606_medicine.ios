@@ -63,6 +63,38 @@ export const getChatDetail = (chatId: string | number) =>
 export const deleteChat = (chatId: string | number) =>
   request.delete(`/patient/chat/${chatId}`);
 
+export type UserChatListItem = {
+  id?: number;
+  chatId?: number;
+  question?: string;
+  createTime?: string;
+  reportsId?: string;
+  bizId?: string;
+  appType?: number;
+  bizType?: number;
+  type?: string;
+  deepMode?: string;
+};
+
+export type UserChatPageListParams = {
+  type?: number;
+  appType?: number;
+  bizType?: number;
+  pageSize?: number;
+  pageNum?: number;
+};
+
+export const getUserChatPageList = (params: UserChatPageListParams = {}) =>
+  request.get('/patient/chat/userChatPageList', {
+    params: {
+      type: params.type ?? 1,
+      appType: params.appType ?? 0,
+      bizType: params.bizType ?? 0,
+      pageSize: params.pageSize ?? 20,
+      pageNum: params.pageNum ?? 1,
+    },
+  });
+
 export function buildSignedChatPayload(extra: Record<string, unknown> = {}) {
   const { timestamp, signature } = getSignature();
   return {

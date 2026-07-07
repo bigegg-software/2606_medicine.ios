@@ -152,7 +152,7 @@ function ChronicDiseaseCard({
                         color={mealIndicator.color}
                     />
                 </Flex>
-                <View style={styles.pageLine} />
+                {/* <View style={styles.pageLine} />
                 <Flex justify="between" style={{ marginHorizontal: 5 }}>
                     <Flex>
                         <Image
@@ -164,7 +164,7 @@ function ChronicDiseaseCard({
                         </Text>
                     </Flex>
                     <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
-                </Flex>
+                </Flex> */}
             </View>
         </TouchableOpacity>
     );

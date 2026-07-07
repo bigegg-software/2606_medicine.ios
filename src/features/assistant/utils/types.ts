@@ -34,12 +34,24 @@ export type AssistantMessage = {
     respData?: unknown;
   };
   medicationGroups?: MedicationPlanGroupView[];
+  medicationAdvice?: string;
   questionnaireItems?: AssistantQuestionnaireItem[];
+  questionnaireSuggestion?: string;
 };
 
 export type DisplayItem =
   | { type: 'time'; key: string; label: string }
   | { type: 'user'; key: string; text: string; uploadPreview?: UploadPreview }
   | { type: 'ai'; key: string; text: string; streaming?: boolean }
-  | { type: 'medication_cards'; key: string; groups: MedicationPlanGroupView[] }
-  | { type: 'questionnaire_cards'; key: string; items: AssistantQuestionnaireItem[] };
+  | {
+      type: 'medication_cards';
+      key: string;
+      groups: MedicationPlanGroupView[];
+      advice?: string;
+    }
+  | {
+      type: 'questionnaire_cards';
+      key: string;
+      items: AssistantQuestionnaireItem[];
+      suggestion?: string;
+    };

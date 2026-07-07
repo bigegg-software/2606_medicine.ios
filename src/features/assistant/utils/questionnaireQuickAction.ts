@@ -1,6 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 import type { QuestionnaireType, UserQuestionRecord } from '@/api/questionTemplate';
 import { getUserQuestionNewList, type UserQuestionNewListResult } from '@/api/questionTemplate';
+import { getUserInfo } from '@/api/user';
 import { buildSignedChatPayload, saveChatAction } from '@/api/assistant';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -15,7 +16,6 @@ import type { ChatGuideState } from './types';
 export const QUESTIONNAIRE_QUICK_QUESTION = '评估量表';
 export const QUESTIONNAIRE_QUICK_ANSWER = '没问题，评估量表已发送，请点击查看。';
 export const QUESTIONNAIRE_QUICK_ACTION = 'assessment';
-const USER_QUESTION_NEW_LIST_PATH = '/patient/userQuestion/newList';
 
 export const QUESTIONNAIRE_ASSISTANT_ICONS: ImageSourcePropType[] = [
   require('@/assets/images/assistant/icon1.png'),
@@ -30,6 +30,12 @@ export type AssistantQuestionnaireItem = {
   iconIndex: number;
   canStart: boolean;
   nextAssessmentDate?: string;
+};
+
+type QuestionnaireInterfaceRespData = {
+  items?: AssistantQuestionnaireItem[];
+  questionAiSuggestion?: string;
+  data?: UserQuestionRecord[];
 };
 
 export function buildAssistantQuestionnaireItems(records: UserQuestionRecord[]): AssistantQuestionnaireItem[] {
@@ -50,27 +56,53 @@ export function buildAssistantQuestionnaireItems(records: UserQuestionRecord[]):
 export function parseQuestionnaireItemsFromInterfaceData(
   interfaceData: { respData?: unknown } | undefined,
 ): AssistantQuestionnaireItem[] {
-  const respData = interfaceData?.respData as { data?: UserQuestionRecord[] } | undefined;
+  const respData = interfaceData?.respData as QuestionnaireInterfaceRespData | undefined;
+  if (Array.isArray(respData?.items)) {
+    return respData.items;
+  }
   const records = Array.isArray(respData?.data) ? respData.data : [];
   return buildAssistantQuestionnaireItems(records);
+}
+
+export function parseQuestionnaireSuggestionFromInterfaceData(
+  interfaceData: { respData?: unknown } | undefined,
+): string {
+  const respData = interfaceData?.respData as QuestionnaireInterfaceRespData | undefined;
+  return respData?.questionAiSuggestion?.trim() ?? '';
+}
+
+async function loadQuestionAiSuggestion() {
+  try {
+    const res = await getUserInfo();
+    if (!isResourceApiOk(res as { code?: number })) return '';
+    const data = apiResourceData<{ userExtr?: { questionAiSuggestion?: string } }>(res as {
+      code?: number;
+      data?: { userExtr?: { questionAiSuggestion?: string } };
+    });
+    return data?.userExtr?.questionAiSuggestion?.trim() ?? '';
+  } catch (error) {
+    console.error('loadQuestionAiSuggestion failed:', error);
+    return '';
+  }
 }
 
 export async function requestQuestionnaireQuickAction(params: {
   chatId: string;
   chatGuide: ChatGuideState;
 }) {
-  const listRes = await getUserQuestionNewList();
+  const [listRes, questionAiSuggestion] = await Promise.all([
+    getUserQuestionNewList(),
+    loadQuestionAiSuggestion(),
+  ]);
   const records = isResourceApiOk(listRes as { code?: number })
     ? apiResourceData<UserQuestionRecord[]>(listRes as unknown as UserQuestionNewListResult) ?? []
     : [];
   const items = buildAssistantQuestionnaireItems(records);
 
   const interfaceData = {
-    reqParams: { url: USER_QUESTION_NEW_LIST_PATH },
     respData: {
-      code: (listRes as { code?: number })?.code,
-      msg: (listRes as { msg?: string })?.msg,
-      data: records,
+      items,
+      questionAiSuggestion,
     },
   };
 
@@ -90,6 +122,7 @@ export async function requestQuestionnaireQuickAction(params: {
   return {
     saveRes,
     items,
+    questionAiSuggestion,
     answer: QUESTIONNAIRE_QUICK_ANSWER,
     interfaceData,
     question: QUESTIONNAIRE_QUICK_QUESTION,

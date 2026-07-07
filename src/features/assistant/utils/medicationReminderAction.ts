@@ -1,5 +1,6 @@
 import {
   getIndexMedicationPlanGroupByTime,
+  postMedicationAiAdvice,
   type IndexMedicationPlanGroupItem,
 } from '@/api/medicationPlan';
 import { buildSignedChatPayload, saveChatAction } from '@/api/assistant';
@@ -11,14 +12,46 @@ import {
   type MedicationPlanGroupView,
 } from '@/src/features/profile/medication/medicationHelpers';
 import type { ChatGuideState } from './types';
+import moment from 'moment';
 
 export const MEDICATION_REMINDER_QUESTION = '帮我看看今天要吃什么药';
 export const MEDICATION_REMINDER_ANSWER = '您今天需要服用的药物如下:';
 export const MEDICATION_REMINDER_ACTION = 'reminder';
 const INDEX_PLAN_GROUP_PATH = '/patient/medicationPlan/indexPlanGroupByTime';
+const AI_ADVICE_PATH = '/patient/medicationPlan/aiAdvice';
 
 export function buildMedicationReminderAnswer(_groups: MedicationPlanGroupView[]): string {
   return MEDICATION_REMINDER_ANSWER;
+}
+
+export function buildMedicationAdviceParamJson(rawGroups: IndexMedicationPlanGroupItem[]) {
+  return {
+    date: moment().format('YYYY-MM-DD'),
+    groups: (rawGroups ?? []).map(group => ({
+      time: group.medicationPlanTime,
+      medications: (group.list ?? []).map(item => {
+        const plan = item.healthMedicationPlan;
+        return {
+          medicationPlanId:
+            plan?.medicationPlanId != null ? String(plan.medicationPlanId) : '',
+          name: plan?.name?.trim() ?? '',
+          amount: plan?.amount?.trim() ?? '',
+          amountUnit: plan?.amountUnit?.trim() ?? '',
+          medicationPlanTime: item.medicationPlanTime ?? group.medicationPlanTime ?? '',
+          eventBased: plan?.eventBased?.trim() ?? '',
+          planType: plan?.planType ?? 0,
+          taken: item.action === 1,
+        };
+      }),
+    })),
+  };
+}
+
+export function parseMedicationAdviceFromInterfaceData(
+  interfaceData: { respData?: unknown } | undefined,
+): string {
+  const respData = interfaceData?.respData as { aiAdvice?: string } | undefined;
+  return respData?.aiAdvice?.trim() ?? '';
 }
 
 export function parseMedicationGroupsFromInterfaceData(
@@ -43,13 +76,40 @@ export async function requestMedicationReminderQuickAction(params: {
     : [];
   const groups = mapIndexPlanGroups(rawGroups, dictMaps);
   const answer = buildMedicationReminderAnswer(groups);
+  const paramJson = buildMedicationAdviceParamJson(rawGroups);
+
+  let aiAdvice = '';
+  let aiAdviceMeta: { paramsMd5?: string; cached?: boolean } | undefined;
+  try {
+    const adviceRes = await postMedicationAiAdvice(paramJson);
+    if (isResourceApiOk(adviceRes as { code?: number })) {
+      const adviceData = apiResourceData<{
+        aiAdvice?: string;
+        paramsMd5?: string;
+        cached?: boolean;
+      }>(adviceRes as { code?: number; data?: { aiAdvice?: string; paramsMd5?: string; cached?: boolean } });
+      aiAdvice = adviceData?.aiAdvice?.trim() ?? '';
+      aiAdviceMeta = {
+        paramsMd5: adviceData?.paramsMd5,
+        cached: adviceData?.cached,
+      };
+    }
+  } catch (error) {
+    console.error('postMedicationAiAdvice failed:', error);
+  }
 
   const interfaceData = {
-    reqParams: { url: INDEX_PLAN_GROUP_PATH },
+    reqParams: {
+      url: INDEX_PLAN_GROUP_PATH,
+      aiAdviceUrl: AI_ADVICE_PATH,
+      paramJson,
+    },
     respData: {
       code: (planRes as { code?: number })?.code,
       msg: (planRes as { msg?: string })?.msg,
       data: rawGroups,
+      aiAdvice,
+      aiAdviceMeta,
     },
   };
 
@@ -70,6 +130,7 @@ export async function requestMedicationReminderQuickAction(params: {
     saveRes,
     groups,
     answer,
+    aiAdvice,
     interfaceData,
     question: MEDICATION_REMINDER_QUESTION,
   };

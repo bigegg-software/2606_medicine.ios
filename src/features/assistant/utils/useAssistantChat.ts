@@ -28,6 +28,23 @@ import {
 } from './chatSessionStorage';
 import { loadMedicationDictMaps } from '@/src/features/profile/medication/medicationHelpers';
 import type { AssistantMessage, ChatGuideState, DisplayItem, UploadPreview } from './types';
+
+export type PendingAssistantNavigation = {
+  startNew?: boolean;
+  chatId?: string;
+};
+
+let pendingAssistantNavigation: PendingAssistantNavigation | null = null;
+
+export function queueAssistantNavigation(action: PendingAssistantNavigation) {
+  pendingAssistantNavigation = action;
+}
+
+export function consumePendingAssistantNavigation() {
+  const action = pendingAssistantNavigation;
+  pendingAssistantNavigation = null;
+  return action;
+}
 import {
   buildUploadFilePayloadFromAttachments,
   buildUploadPreviewFromAttachments,
@@ -36,12 +53,14 @@ import {
 import { decodeAttachmentName } from '@/src/features/profile/healthRecord/medicalRecordAttachmentHelpers';
 import {
   MEDICATION_REMINDER_ACTION,
+  parseMedicationAdviceFromInterfaceData,
   parseMedicationGroupsFromInterfaceData,
   requestMedicationReminderQuickAction,
 } from './medicationReminderAction';
 import {
   QUESTIONNAIRE_QUICK_ACTION,
   parseQuestionnaireItemsFromInterfaceData,
+  parseQuestionnaireSuggestionFromInterfaceData,
   requestQuestionnaireQuickAction,
 } from './questionnaireQuickAction';
 
@@ -172,9 +191,17 @@ function mapDetailItem(
       item.action === MEDICATION_REMINDER_ACTION
         ? extras?.medicationGroups ?? parseMedicationGroupsFromInterfaceData(parsedInterfaceData)
         : undefined,
+    medicationAdvice:
+      item.action === MEDICATION_REMINDER_ACTION
+        ? parseMedicationAdviceFromInterfaceData(parsedInterfaceData)
+        : undefined,
     questionnaireItems:
       item.action === QUESTIONNAIRE_QUICK_ACTION
         ? extras?.questionnaireItems ?? parseQuestionnaireItemsFromInterfaceData(parsedInterfaceData)
+        : undefined,
+    questionnaireSuggestion:
+      item.action === QUESTIONNAIRE_QUICK_ACTION
+        ? parseQuestionnaireSuggestionFromInterfaceData(parsedInterfaceData)
         : undefined,
   };
 }
@@ -218,6 +245,7 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
         type: 'medication_cards',
         key: `medication-${msg.frontId ?? msg.id ?? index}`,
         groups: msg.medicationGroups,
+        advice: msg.medicationAdvice,
       });
     }
     if (msg.action === QUESTIONNAIRE_QUICK_ACTION && msg.questionnaireItems?.length) {
@@ -225,6 +253,7 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
         type: 'questionnaire_cards',
         key: `questionnaire-${msg.frontId ?? msg.id ?? index}`,
         items: msg.questionnaireItems,
+        suggestion: msg.questionnaireSuggestion,
       });
     }
   });
@@ -472,6 +501,38 @@ export function useAssistantChat() {
     [sendStream],
   );
 
+  const startNewChat = useCallback(async () => {
+    cleanupStream();
+    setLoading(false);
+    await clearIncompleteSession();
+
+    setInitializing(true);
+    try {
+      const res = await getChatId();
+      const newChatId = apiResourceData<string | number>(res);
+      if (newChatId != null) {
+        await loadChat(String(newChatId), null);
+      } else {
+        setInitializing(false);
+      }
+    } catch (error) {
+      console.error('startNewChat failed:', error);
+      setInitializing(false);
+    }
+  }, [cleanupStream, loadChat]);
+
+  const openChat = useCallback(
+    async (targetChatId: string) => {
+      if (!targetChatId || targetChatId === chatIdRef.current) return;
+
+      cleanupStream();
+      setLoading(false);
+      await clearIncompleteSession();
+      await loadChat(targetChatId, null);
+    },
+    [cleanupStream, loadChat],
+  );
+
   const initChatSession = useCallback(async () => {
     setInitializing(true);
 
@@ -636,6 +697,7 @@ export function useAssistantChat() {
           action: MEDICATION_REMINDER_ACTION,
           interfaceData: result.interfaceData,
           medicationGroups: result.groups,
+          medicationAdvice: result.aiAdvice,
           createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
         },
       ]);
@@ -679,6 +741,7 @@ export function useAssistantChat() {
           action: QUESTIONNAIRE_QUICK_ACTION,
           interfaceData: result.interfaceData,
           questionnaireItems: result.items,
+          questionnaireSuggestion: result.questionAiSuggestion,
           createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
         },
       ]);
@@ -706,6 +769,8 @@ export function useAssistantChat() {
     sendAttachments,
     runMedicationReminder,
     runQuestionnaireQuickAction,
+    startNewChat,
+    openChat,
     scrollEndRef,
   };
 }

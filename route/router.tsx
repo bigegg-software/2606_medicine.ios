@@ -33,6 +33,7 @@ import FamilyDetail from '@/src/features/profile/myFamily/detail';
 
 // AI健康管家
 import AssistantPage from '@/src/features/assistant/AssistantPage';
+import AssistantHistoryPage from '@/src/features/assistant/AssistantHistoryPage';
 
 // 里程碑
 import CalendarPage from '@/src/features/schedule/calendarPage';
@@ -193,7 +194,8 @@ export type RootStackParamList = {
     analysisResult?: import('@/api/mealRecognition').FoodIdentifyItem[];
     hasFood?: boolean;
   } | undefined;
-  AssistantPage: undefined;
+  AssistantPage: { chatId?: string; startNew?: boolean } | undefined;
+  AssistantHistoryPage: undefined;
   MyFamily: undefined;
   FamilyDetail: undefined;
 };
@@ -384,6 +386,7 @@ export default function RootStack() {
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />
+      <Stack.Screen name="AssistantHistoryPage" component={AssistantHistoryPage} options={{ title: '历史记录' }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
