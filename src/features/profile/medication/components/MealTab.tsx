@@ -38,6 +38,7 @@ import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
 import {
     calcNutritionPercent,
     calcNutritionProgress,
+    buildNutritionSuggestions,
     getCalorieNutritionDisplay,
     getDietRuleSummary,
     getProteinNutritionDisplay,
@@ -472,6 +473,24 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const calorieDisplay = getCalorieNutritionDisplay(caloriePercent);
     const proteinDisplay = getProteinNutritionDisplay(proteinPercent);
     const waterDisplay = getWaterNutritionDisplay(waterPercent);
+    const nutritionSuggestions = useMemo(
+        () => buildNutritionSuggestions({
+            calories: todayCalories,
+            protein: todayProtein,
+            water: todayWaterMl,
+            targetCalories: dietSummary.targetCalories,
+            targetProtein: dietSummary.targetProtein,
+            targetWater: dietSummary.targetWater,
+        }),
+        [
+            todayCalories,
+            todayProtein,
+            todayWaterMl,
+            dietSummary.targetCalories,
+            dietSummary.targetProtein,
+            dietSummary.targetWater,
+        ],
+    );
 
     const selectedMealIndex = useMemo(
         () => Math.max(0, MEAL_LABEL_KEYS.indexOf(selectedMeal)),
@@ -614,24 +633,21 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                             <Text style={styles.cfIconText1}>管家建议</Text>
                         </Flex>
                         <View style={styles.suggestBox}>
-                            <View>
-                                <Flex align="center">
-                                    <Image source={require('@/assets/images/medication/kl.png')} style={styles.suggestIcon} />
-                                    <View style={styles.suggestTag}>
-                                        <Text style={styles.suggestTagText}>管家建议</Text>
+                            {nutritionSuggestions.length === 0 ? (
+                                <Text style={styles.aiSuggest}>暂无营养目标，无法生成建议</Text>
+                            ) : (
+                                nutritionSuggestions.map((item, index) => (
+                                    <View key={item.key} style={index > 0 ? { marginTop: 12 } : undefined}>
+                                        <Flex align="center">
+                                            <Image source={require('@/assets/images/medication/kl.png')} style={styles.suggestIcon} />
+                                            <View style={styles.suggestTag}>
+                                                <Text style={styles.suggestTagText}>{item.label}</Text>
+                                            </View>
+                                        </Flex>
+                                        <Text style={styles.aiSuggest}>{item.text}</Text>
                                     </View>
-                                </Flex>
-                                <Text style={styles.aiSuggest}>盐摄入超标0.1g，建议减少</Text>
-                            </View>
-                            <View style={{ marginTop: 12 }}>
-                                <Flex align="center">
-                                    <Image source={require('@/assets/images/medication/kl.png')} style={styles.suggestIcon} />
-                                    <View style={styles.suggestTag}>
-                                        <Text style={styles.suggestTagText}>管家建议</Text>
-                                    </View>
-                                </Flex>
-                                <Text style={styles.aiSuggest}>盐摄入超标0.1g，建议减少</Text>
-                            </View>
+                                ))
+                            )}
                         </View>
                     </View>
 

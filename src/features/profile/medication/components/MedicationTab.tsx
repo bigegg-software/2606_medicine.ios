@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Flex, Switch, Toast } from '@ant-design/react-native';
+import { Flex, Modal, Switch, Toast } from '@ant-design/react-native';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDrugTipInfo } from '@/api/patient';
@@ -16,7 +16,10 @@ import {
     buildDrugTipSettingsFromUserExtr,
     buildUpdateDrugTipInfoPayload,
     applyMedicationCheckInToPlanGroups,
+    applyMedicationCheckInBatchToPlanGroups,
     applyMedicationCheckInToProgress,
+    applyMedicationCheckInBatchToProgress,
+    buildMedicationCheckInConfirmMessage,
     loadMedicationDictMaps,
     loadMedicationHistory,
     loadMedicationPlanGroups,
@@ -164,6 +167,7 @@ export default function MedicationTab() {
     const [progress, setProgress] = useState<MedicationProgressView>({ rate: 0, takeCount: 0, notTakeCount: 0 });
     const [historyDays, setHistoryDays] = useState<MedicationHistoryDayView[]>([]);
     const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
+    const [checkingInGroupTime, setCheckingInGroupTime] = useState<string | null>(null);
     const [tipSettings, setTipSettings] = useState<DrugTipSettings>(() => buildDrugTipSettingsFromUserExtr(null));
     const [savingTip, setSavingTip] = useState(false);
 
@@ -294,7 +298,7 @@ export default function MedicationTab() {
     );
 
     const handleCheckIn = useCallback(async (item: MedicationPlanItemView) => {
-        if (!item.canCheckIn || checkingInKey) return;
+        if (!item.canCheckIn || checkingInKey || checkingInGroupTime) return;
 
         setCheckingInKey(item.key);
         try {
@@ -313,7 +317,45 @@ export default function MedicationTab() {
         } finally {
             setCheckingInKey(null);
         }
-    }, [checkingInKey]);
+    }, [checkingInGroupTime, checkingInKey]);
+
+    const confirmCheckInAll = useCallback(async (items: MedicationPlanItemView[], groupTime: string) => {
+        if (items.length === 0 || checkingInKey || checkingInGroupTime) return;
+
+        setCheckingInGroupTime(groupTime);
+        try {
+            const results = await Promise.all(items.map(item => submitMedicationCheckIn(item)));
+            const failedCount = results.filter(res => !isResourceApiOk(res as any)).length;
+            if (failedCount > 0) {
+                Toast.fail(failedCount === items.length ? '打卡失败' : '部分打卡失败', 1.5);
+                await loadPageDataRef.current();
+                return;
+            }
+
+            Toast.success('已全部标记为已服用', 1.5);
+            setPlanGroups(prev => applyMedicationCheckInBatchToPlanGroups(prev, items.map(item => item.key)));
+            setProgress(prev => applyMedicationCheckInBatchToProgress(prev, items.length));
+            const history = await loadMedicationHistory();
+            setHistoryDays(history);
+        } catch {
+            Toast.fail('打卡失败', 1.5);
+        } finally {
+            setCheckingInGroupTime(null);
+        }
+    }, [checkingInGroupTime, checkingInKey]);
+
+    const handleCheckInAll = useCallback((group: MedicationPlanGroupView) => {
+        const pendingItems = group.items.filter(item => item.canCheckIn);
+        if (pendingItems.length === 0 || checkingInKey || checkingInGroupTime) return;
+
+        Modal.alert('', buildMedicationCheckInConfirmMessage(pendingItems), [
+            { text: '取消', style: 'cancel' },
+            {
+                text: '确定',
+                onPress: () => void confirmCheckInAll(pendingItems, group.time),
+            },
+        ]);
+    }, [checkingInGroupTime, checkingInKey, confirmCheckInAll]);
 
     function formatDayLabel(yyyyMMdd?: string): string {
         if (!yyyyMMdd) return '--';
@@ -348,29 +390,48 @@ export default function MedicationTab() {
                 </View>
             ) : null}
 
-            {planGroups.map(group => (
-                <View key={group.time} style={styles.medicationBox}>
-                    <Flex align="center" style={styles.medicationTitleBox}>
-                        <Image source={require('@/assets/images/medication/time.png')} style={styles.medicationTime} />
-                        <Text style={styles.medicationTitle}>{group.timeLabel}</Text>
-                        {group.eventBasedLabel ? (
-                            <Text style={styles.medicationTimeText}>{group.eventBasedLabel}</Text>
-                        ) : null}
-                    </Flex>
-                    <View style={[styles.rowLine, { marginBottom: 16 }]} />
-                    <View style={styles.medicationInfo}>
-                        {group.items.map((item, index) => (
-                            <View key={item.key} style={index > 0 ? { marginTop: 8 } : undefined}>
-                                <PlanRow
-                                    item={item}
-                                    checkingIn={checkingInKey === item.key}
-                                    onCheckIn={handleCheckIn}
-                                />
-                            </View>
-                        ))}
+            {planGroups.map(group => {
+                const hasPendingCheckIn = group.items.some(item => item.canCheckIn);
+                const isGroupCheckingIn = checkingInGroupTime === group.time;
+
+                return (
+                    <View key={group.time} style={styles.medicationBox}>
+                        <Flex align="center" justify="between" style={styles.medicationTitleBox}>
+                            <Flex align="center" style={{ flex: 1, paddingRight: 12 }}>
+                                <Image source={require('@/assets/images/medication/time.png')} style={styles.medicationTime} />
+                                <Text style={styles.medicationTitle}>{group.timeLabel}</Text>
+                                {group.eventBasedLabel ? (
+                                    <Text style={styles.medicationTimeText}>{group.eventBasedLabel}</Text>
+                                ) : null}
+                            </Flex>
+                            {hasPendingCheckIn ? (
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    disabled={Boolean(checkingInKey) || isGroupCheckingIn}
+                                    onPress={() => handleCheckInAll(group)}>
+                                    {isGroupCheckingIn ? (
+                                        <ActivityIndicator color={AppTheme.primaryColor} />
+                                    ) : (
+                                        <Text style={[styles.more, { marginTop: 0 }]}>全选</Text>
+                                    )}
+                                </TouchableOpacity>
+                            ) : null}
+                        </Flex>
+                        <View style={[styles.rowLine, { marginBottom: 16 }]} />
+                        <View style={styles.medicationInfo}>
+                            {group.items.map((item, index) => (
+                                <View key={item.key} style={index > 0 ? { marginTop: 8 } : undefined}>
+                                    <PlanRow
+                                        item={item}
+                                        checkingIn={checkingInKey === item.key || isGroupCheckingIn}
+                                        onCheckIn={handleCheckIn}
+                                    />
+                                </View>
+                            ))}
+                        </View>
                     </View>
-                </View>
-            ))}
+                );
+            })}
 
             <View style={styles.medicationBox}>
                 <Flex justify="between">

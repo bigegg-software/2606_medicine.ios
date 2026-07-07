@@ -1,5 +1,6 @@
 import request from '@/utils/axios';
 import type { MealDetailItem } from './mealDetail';
+import type { DietPatientRuleInfo } from './dietPatientRule';
 
 export type MealRecordItem = {
   mealId?: number | string;
@@ -14,6 +15,8 @@ export type MealRecordItem = {
   salt?: number;
   waterIntake?: number;
   updateTime?: string;
+  dietPatientRuleId?: number | string;
+  dietRuleSnapshot?: DietPatientRuleInfo;
 };
 
 export type MealRecordDetail = {
@@ -21,6 +24,39 @@ export type MealRecordDetail = {
     dietPatientRuleId?: number;
   };
   mealDetailList?: MealDetailItem[];
+};
+
+export type MealExecutionTrendItem = {
+  date?: string;
+  energyRate?: number;
+  waterRate?: number;
+  proteinRate?: number;
+};
+
+export type MealExecutionStatistics = {
+  trendList?: MealExecutionTrendItem[];
+  waterComplianceRate?: number;
+  statDayCount?: number;
+  proteinComplianceRate?: number;
+  executionRate?: number;
+  calorieComplianceRate?: number;
+};
+
+export type MealAllRecordDayItem = {
+  customerLocalDate?: string;
+  mealList?: MealRecordItem[];
+};
+
+export type MealAllRecordMonthGroup = {
+  yyyyMM?: string;
+  list?: MealAllRecordDayItem[];
+};
+
+export type MealAllRecordsResult = {
+  code?: number;
+  msg?: string;
+  total?: number;
+  rows?: MealAllRecordMonthGroup[];
 };
 
 export const getMealListByDate = (params: { customerLocalDate: string }) =>
@@ -33,3 +69,20 @@ export const getMealDetailByMealId = (mealId: string) =>
   request.get<{ code?: number; msg?: string; data?: MealRecordDetail }>(
     `/patient/fitpulse/meal/mealDetail/${mealId}`,
   );
+
+export const getMealExecutionStatistics = (params: {
+  dietPatientRuleId?: string;
+  startDate: string;
+  endDate: string;
+}) =>
+  request.get<{ code?: number; msg?: string; data?: MealExecutionStatistics }>(
+    '/patient/fitpulse/meal/executionStatistics',
+    { params },
+  );
+
+export const getMealAllRecords = (params?: {
+  dietPatientRuleId?: string;
+  pageSize?: number;
+  pageNum?: number;
+}) =>
+  request.get<MealAllRecordsResult>('/patient/fitpulse/meal/allRecords', { params });

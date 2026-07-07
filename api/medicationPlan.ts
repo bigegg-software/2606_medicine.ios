@@ -131,3 +131,25 @@ export const getDrugPatientRuleInfo = (drugPatientRuleId: string | number) =>
   request.get<DrugPatientRuleInfoResult>('/patient/drugPatientRule/getInfo', {
     params: { drugPatientRuleId: String(drugPatientRuleId) },
   });
+
+export type DrugPatientRuleHistoryListParams = {
+  drugPatientRuleId?: string;
+  prescriptionName?: string;
+  diagnosis?: string;
+  startDate?: string;
+  endDate?: string;
+  drugTemplateId?: string;
+  precautions?: string;
+  status?: number | '';
+  stopReason?: string;
+  pageSize?: number;
+  pageNum?: number;
+};
+
+export type DrugPatientRuleHistoryListResult = ApiResult & {
+  total?: number;
+  rows?: DrugPatientRuleInfo[];
+};
+
+export const getDrugPatientRuleHistoryList = (params?: DrugPatientRuleHistoryListParams) =>
+  request.get<DrugPatientRuleHistoryListResult>('/patient/drugPatientRule/historyList', { params });

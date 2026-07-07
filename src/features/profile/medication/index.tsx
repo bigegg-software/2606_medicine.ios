@@ -48,7 +48,13 @@ export default function MedicationPage() {
                         onPress={() => navigation.navigate('MedicationAllPage')}>
                         <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>所有用药</Text>
                     </TouchableOpacity>
-                ) : null,
+                ) : (
+                    <TouchableOpacity
+                        style={{ marginRight: 16 }}
+                        onPress={() => navigation.navigate('MealHistoryPage')}>
+                        <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>饮食记录</Text>
+                    </TouchableOpacity>
+                ),
         });
     }, [activeNav, navigation]);
 

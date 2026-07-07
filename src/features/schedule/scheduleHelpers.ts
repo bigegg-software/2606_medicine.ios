@@ -724,14 +724,20 @@ export function formatPrescriptionCycleDays(startDate?: string, endDate?: string
   return `${end.diff(start, 'days') + 1}天`;
 }
 
+export function getPrescriptionProgressStatusText(progress?: number) {
+  const value = normalizeProgress(progress);
+  if (value < 20) return '刚刚开始';
+  if (value < 40) return '持续进行';
+  if (value < 60) return '状态良好';
+  if (value < 80) return '改善明显';
+  return '接近达成';
+}
+
 export function getInUseStatusText(info?: InUseExPatientRule | null) {
   if (!info) return '--';
   if (info.status === 1) return '已暂停';
   if (info.status === 2) return '已结束';
-  const ratio = info.progressInfo?.complateRatio;
-  if (ratio != null && ratio >= 80) return '状态良好';
-  if (ratio != null && ratio >= 50) return '持续改善中';
-  return '进行中';
+  return getPrescriptionProgressStatusText(info.progress ?? info.progressInfo?.complateRatio);
 }
 
 export function formatTotalDuration(minutes?: number) {

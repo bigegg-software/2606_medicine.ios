@@ -155,3 +155,107 @@ export function getDietRuleSummary(rule: DietPatientRuleInfo | null) {
         mealCards: buildMealCardsFromRule(rule?.mealList),
     };
 }
+
+export type NutritionSuggestion = {
+    key: string;
+    label: string;
+    text: string;
+};
+
+export function buildNutritionSuggestions(params: {
+    calories: number;
+    protein: number;
+    water: number;
+    targetCalories?: number;
+    targetProtein?: number;
+    targetWater?: number;
+}): NutritionSuggestion[] {
+    const { calories, protein, water, targetCalories, targetProtein, targetWater } = params;
+    const suggestions: NutritionSuggestion[] = [];
+
+    if (targetCalories && targetCalories > 0) {
+        const percent = calcNutritionPercent(calories, targetCalories);
+        const gap = Math.max(0, Math.round(targetCalories - calories));
+        const over = Math.max(0, Math.round(calories - targetCalories));
+
+        if (percent > 120) {
+            suggestions.push({
+                key: 'calorie',
+                label: '热量',
+                text: `热量摄入偏高，已超出目标约${over}千卡，建议减少高热量食物`,
+            });
+        } else if (percent > 110) {
+            suggestions.push({
+                key: 'calorie',
+                label: '热量',
+                text: '热量略偏高，建议控制后续加餐或零食摄入',
+            });
+        } else if (percent < 80) {
+            suggestions.push({
+                key: 'calorie',
+                label: '热量',
+                text: `热量明显不足，距离目标还差约${gap}千卡，建议及时补充能量`,
+            });
+        } else if (percent < 90) {
+            suggestions.push({
+                key: 'calorie',
+                label: '热量',
+                text: `热量摄入偏低，距离目标还差约${gap}千卡，建议补充适量主食`,
+            });
+        }
+    }
+
+    if (targetProtein && targetProtein > 0) {
+        const percent = calcNutritionPercent(protein, targetProtein);
+        const gap = Math.max(0, Math.round(targetProtein - protein));
+
+        if (percent < 80) {
+            suggestions.push({
+                key: 'protein',
+                label: '蛋白',
+                text: `蛋白质未达标，距离目标还差约${gap}克，建议补充鱼、蛋、豆类`,
+            });
+        } else if (percent < 90) {
+            suggestions.push({
+                key: 'protein',
+                label: '蛋白',
+                text: `蛋白质基本达标，距离目标还差约${gap}克，可适量补充优质蛋白`,
+            });
+        }
+    }
+
+    if (targetWater && targetWater > 0) {
+        const percent = calcNutritionPercent(water, targetWater);
+        const gap = Math.max(0, Math.round(targetWater - water));
+
+        if (percent < 70) {
+            suggestions.push({
+                key: 'water',
+                label: '饮水',
+                text: `饮水不足，距离目标还差约${gap}毫升，请及时补水`,
+            });
+        } else if (percent < 90) {
+            suggestions.push({
+                key: 'water',
+                label: '饮水',
+                text: `饮水量偏低，距离目标还差约${gap}毫升，建议分次补充`,
+            });
+        }
+    }
+
+    const hasTarget = Boolean(
+        (targetCalories && targetCalories > 0)
+        || (targetProtein && targetProtein > 0)
+        || (targetWater && targetWater > 0),
+    );
+
+    if (hasTarget && suggestions.length === 0) {
+        suggestions.push({
+            key: 'all',
+            label: '综合',
+            text: '今日热量、蛋白、饮水均达标，继续保持良好饮食习惯',
+        });
+    }
+
+    return suggestions;
+}

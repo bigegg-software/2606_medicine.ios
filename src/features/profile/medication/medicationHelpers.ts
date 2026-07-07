@@ -5,8 +5,8 @@ import {
   getDictDataByType,
   type DictDataItem,
 } from '@/api/dict';
-import type { IndexMedicationPlanGroupItem, IndexMedicationPlanItem, MedicationPlan, MedicationPlanPayload } from '@/api/medicationPlan';
-import { getIndexMedicationPlanGroupByTime, getMedicationPlanInfo, getMyMedicationPlanList } from '@/api/medicationPlan';
+import type { IndexMedicationPlanGroupItem, IndexMedicationPlanItem, MedicationPlan, MedicationPlanPayload, DrugPatientRuleInfo } from '@/api/medicationPlan';
+import { getDrugPatientRuleHistoryList, getIndexMedicationPlanGroupByTime, getMedicationPlanInfo, getMyMedicationPlanList } from '@/api/medicationPlan';
 import { addMedicationRecord, getMedicationRecordAll, getMedicationRecordStatis, type MedicationRecordDayGroup } from '@/api/medicationRecord';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 
@@ -162,6 +162,49 @@ export async function loadMyMedicationPlans(params?: { planType?: number }) {
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
+  }
+}
+
+export function getDrugPatientRuleStatusLabel(status?: number) {
+  if (status === 0) return '进行中';
+  if (status === 1) return '已暂停';
+  if (status === 2) return '已结束';
+  return '--';
+}
+
+export function formatDrugPatientRuleCycle(startDate?: string, endDate?: string) {
+  const formatDate = (value?: string) => {
+    const parsed = moment(value);
+    return parsed.isValid() ? parsed.format('YYYY/MM/DD') : value?.trim() || '--';
+  };
+  const start = formatDate(startDate);
+  const end = formatDate(endDate);
+  if (start === '--' && end === '--') return '--';
+  return `${start} - ${end}`;
+}
+
+export function formatDrugRuleListNames(drugRuleList?: MedicationPlan[]) {
+  const names = (drugRuleList ?? [])
+    .map(item => item.name?.trim())
+    .filter(Boolean);
+  return names.length > 0 ? names.join('、') : '--';
+}
+
+export async function loadDrugPatientRuleHistoryPage(pageNum: number, pageSize: number) {
+  try {
+    const res = await getDrugPatientRuleHistoryList({ pageNum, pageSize });
+    if (!isResourceApiOk(res)) {
+      return { rows: [] as DrugPatientRuleInfo[], total: 0, hasMore: false };
+    }
+    const rows = getResourceRows<DrugPatientRuleInfo>(res);
+    const total = (res as { total?: number }).total ?? rows.length;
+    return {
+      rows,
+      total,
+      hasMore: pageNum * pageSize < total,
+    };
+  } catch {
+    return { rows: [] as DrugPatientRuleInfo[], total: 0, hasMore: false };
   }
 }
 
@@ -341,10 +384,19 @@ export function applyMedicationCheckInToPlanGroups(
   groups: MedicationPlanGroupView[],
   itemKey: string,
 ): MedicationPlanGroupView[] {
+  return applyMedicationCheckInBatchToPlanGroups(groups, [itemKey]);
+}
+
+export function applyMedicationCheckInBatchToPlanGroups(
+  groups: MedicationPlanGroupView[],
+  itemKeys: string[],
+): MedicationPlanGroupView[] {
+  if (itemKeys.length === 0) return groups;
+  const keySet = new Set(itemKeys);
   return groups.map(group => ({
     ...group,
     items: group.items.map(planItem =>
-      planItem.key === itemKey
+      keySet.has(planItem.key)
         ? { ...planItem, taken: true, canCheckIn: false, action: 1 }
         : planItem,
     ),
@@ -352,11 +404,24 @@ export function applyMedicationCheckInToPlanGroups(
 }
 
 export function applyMedicationCheckInToProgress(progress: MedicationProgressView): MedicationProgressView {
-  const takeCount = progress.takeCount + 1;
-  const notTakeCount = Math.max(0, progress.notTakeCount - 1);
+  return applyMedicationCheckInBatchToProgress(progress, 1);
+}
+
+export function applyMedicationCheckInBatchToProgress(
+  progress: MedicationProgressView,
+  count: number,
+): MedicationProgressView {
+  if (count <= 0) return progress;
+  const takeCount = progress.takeCount + count;
+  const notTakeCount = Math.max(0, progress.notTakeCount - count);
   const total = takeCount + notTakeCount;
   const rate = total > 0 ? Math.min(100, Math.round((takeCount / total) * 100)) : 0;
   return { rate, takeCount, notTakeCount };
+}
+
+export function buildMedicationCheckInConfirmMessage(items: MedicationPlanItemView[]) {
+  const names = items.map(item => item.name).filter(Boolean).join('、');
+  return `确定要把【${names}】全部标记为“已服用”吗？`;
 }
 
 export async function loadMedicationDictMaps(): Promise<MedicationDictMaps> {

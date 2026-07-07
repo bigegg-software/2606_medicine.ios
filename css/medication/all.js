@@ -99,6 +99,34 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: AppTheme.textSecondary,
     },
+    historyStatusPaused: {
+        height: 24,
+        backgroundColor: 'rgba(255,139,7,0.14)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+    },
+    historyStatusPausedText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#FF8B07',
+    },
+    historyStatusEnded: {
+        height: 24,
+        backgroundColor: 'rgba(23,63,125,0.08)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+    },
+    historyStatusEndedText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: AppTheme.primaryColor,
+    },
+    historyStopReason: {
+        marginTop: 6,
+        fontWeight: 400,
+        fontSize: 12,
+        color: '#FF8B07',
+    },
 
     sliderContainer: {
         flexDirection: 'row',

@@ -64,6 +64,8 @@ import MealRecognizingPage from '@/src/features/profile/medication/meal/mealReco
 import MealResultPage from '@/src/features/profile/medication/meal/mealResult';
 import ManualCorrectionPage from '@/src/features/profile/medication/meal/manualCorrection';
 import MealRecordDetailPage from '@/src/features/profile/medication/meal/mealRecordDetail';
+import MealHistoryPage from '@/src/features/profile/medication/meal/MealHistoryPage';
+import MealDayDetailPage from '@/src/features/profile/medication/meal/MealDayDetailPage';
 
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
@@ -170,6 +172,8 @@ export type RootStackParamList = {
   MedicationDetailPage: { drugPatientRuleId: number } | undefined;
   MealDetailPage: undefined;
   MealRecordDetailPage: { mealDetailId: number };
+  MealHistoryPage: undefined;
+  MealDayDetailPage: { customerLocalDate: string };
   MealWaterPage: undefined;
   MealRecognitionPage: { text?: string } | undefined;
   MealRecognizingPage:
@@ -372,6 +376,8 @@ export default function RootStack() {
       <Stack.Screen name="MedicationDetailPage" component={MedicationDetailPage} options={{ title: '处方详情' }} />
       <Stack.Screen name="MealDetailPage" component={MealDetailPage} options={{ title: '营养目标详情' }} />
       <Stack.Screen name="MealRecordDetailPage" component={MealRecordDetailPage} options={{ title: '用餐详情' }} />
+      <Stack.Screen name="MealHistoryPage" component={MealHistoryPage} options={{ title: '饮食记录' }} />
+      <Stack.Screen name="MealDayDetailPage" component={MealDayDetailPage} options={{ title: '饮食详情' }} />
       <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
       <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', ...darkMediaScreenOptions }} />
       <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别' }} />
