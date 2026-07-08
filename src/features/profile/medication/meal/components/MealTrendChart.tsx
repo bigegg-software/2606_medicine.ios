@@ -7,6 +7,7 @@ import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import { Flex } from '@ant-design/react-native';
 import type { MealExecutionTrendItem } from '@/api/meal';
 import styles from '@/css/medication/mealHistory';
+import { formatMealHistoryRate } from '../utils/mealHistoryHelpers';
 
 const CHART_WIDTH = Dimensions.get('window').width - 76;
 const CHART_HEIGHT = 168;
@@ -51,7 +52,8 @@ function getChartLabelIndices(count: number, maxLabels = MAX_X_LABELS) {
 function normalizeRate(value?: number | null) {
   const raw = Number(value);
   if (!Number.isFinite(raw)) return null;
-  return Math.max(0, Math.min(120, Math.round(raw)));
+  const clamped = Math.max(0, Math.min(120, raw));
+  return Math.round(clamped * 100) / 100;
 }
 
 function buildOption(trendList: MealExecutionTrendItem[]) {
@@ -78,7 +80,7 @@ function buildOption(trendList: MealExecutionTrendItem[]) {
           const raw = (item as { data?: number | null; value?: number | null } | undefined)?.data
             ?? (item as { value?: number | null } | undefined)?.value;
           const value = normalizeRate(raw as number | null | undefined);
-          return `${series.label} ${value == null ? '--' : `${value}%`}`;
+          return `${series.label} ${value == null ? '--' : `${formatMealHistoryRate(value)}%`}`;
         });
         return [title, ...lines].join('\n');
       },

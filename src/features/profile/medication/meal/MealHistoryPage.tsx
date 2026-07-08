@@ -38,6 +38,7 @@ import {
   getTrendDateRange,
   getPrescriptionDateRange,
   getPrescriptionPeriodDayCount,
+  formatMealHistoryRate,
   normalizeComplianceRate,
 } from './utils/mealHistoryHelpers';
 
@@ -62,7 +63,7 @@ function StatCard({
   return (
     <View style={styles.statItem}>
       <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}%</Text>
+      <Text style={styles.statValue}>{formatMealHistoryRate(value)}%</Text>
       {hint ? <Text style={styles.statHint}>{hint}</Text> : null}
     </View>
   );

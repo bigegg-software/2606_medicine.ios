@@ -27,7 +27,15 @@ export const MEAL_CATEGORY_LABELS: Record<number, string> = {
 
 export function normalizeComplianceRate(value?: number | null) {
   if (value == null || Number.isNaN(Number(value))) return 0;
-  return Math.round(Number(value));
+  return Number(Number(value).toFixed(2));
+}
+
+/** 整数原样展示；有小数时最多保留两位 */
+export function formatMealHistoryRate(value?: number | null) {
+  if (value == null || Number.isNaN(Number(value))) return '0';
+  const rounded = Math.round(Number(value) * 100) / 100;
+  if (Number.isInteger(rounded)) return String(rounded);
+  return rounded.toFixed(2).replace(/0+$/, '').replace(/\.$/, '');
 }
 
 export function formatMealHistoryDate(date?: string) {

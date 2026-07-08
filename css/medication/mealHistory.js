@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   statValue: {
     marginTop: 6,
     fontWeight: 600,
-    fontSize: 22,
+    fontSize: 18,
     color: AppTheme.textPrimary,
   },
   statHint: {
