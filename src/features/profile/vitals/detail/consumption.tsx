@@ -181,6 +181,7 @@ export default function ConsumptionPage() {
                             range={selectedType}
                             data={chartData}
                             onPointChange={handleChartPointChange}
+                            valueUnit="千卡"
                         />
                     </View>
 

@@ -6,7 +6,8 @@ import {
   type InUseExPatientRule,
 } from '@/api/schedule';
 import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type MealRecordItem } from '@/api/meal';
-import type { MealDetailItem } from '@/api/mealDetail';
+import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
+import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import {
   getIndexMedicationPlanGroupByTime,
   type IndexMedicationPlanGroupItem,
@@ -33,6 +34,15 @@ import {
 } from '@/src/features/profile/medication/medicationHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
+  buildMealCardsFromRuleForDate,
+  type MealCardData,
+} from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
+import {
+  getFoodRecordsByCategory,
+  MEAL_CATEGORY_BY_KEY,
+} from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import type { ImageSourcePropType } from 'react-native';
+import {
   getExerciseChildTypeLabel,
   loadScheduleDictMaps,
   type ScheduleDictMaps,
@@ -47,6 +57,13 @@ export type CalendarTimelineItem = {
   activityId?: string;
   liveId?: string;
   exerciseTypeLabel?: string;
+  exerciseGoalText?: string;
+  exerciseProgress?: number;
+  exerciseIcon?: number;
+  exerciseTaskIndex?: number;
+  exerciseType?: string;
+  exerciseChildType?: string;
+  strengthLevel?: string;
   sortValue: number;
   period: 'morning' | 'afternoon' | 'exercise';
   medicationPlanId?: string;
@@ -54,6 +71,13 @@ export type CalendarTimelineItem = {
   canCheckIn?: boolean;
   taken?: boolean;
   eventBasedLabel?: string;
+  mealIsRecommended?: boolean;
+  mealFoods?: string[];
+  mealCalories?: number;
+  mealIcon?: ImageSourcePropType;
+  mealTimeWindow?: string;
+  mealCategory?: number;
+  mealDetailId?: string;
 };
 
 const MEAL_CATEGORY_LABELS: Record<number, string> = {
@@ -112,24 +136,161 @@ function resolvePeriod(sortValue: number) {
 }
 
 
-function formatMealCalorieText(calorie?: number) {
-  if (calorie == null || Number.isNaN(Number(calorie))) return '';
-  return `${Math.round(Number(calorie))}kcal`;
+const MEAL_CATEGORY_KEY_BY_NUMBER: Record<number, string> = {
+  1: 'breakfast',
+  2: 'lunch',
+  3: 'dinner',
+  4: 'snack',
+};
+
+function getMealCardMetaKey(mealCard: MealCardData) {
+  return mealCard.key.split('-')[0] ?? '';
 }
 
-function buildMealDesc(meal: MealRecordItem, foodNames?: string) {
-  const foods = foodNames?.trim();
-  const calorieText = formatMealCalorieText(meal.calorie);
-  if (foods && calorieText) return `${foods} · ${calorieText}`;
-  if (foods) return foods;
-  if (calorieText) return calorieText;
-  return '已记录用餐';
+function parseMealWindowStart(timeWindow?: string) {
+  const start = timeWindow?.split('-')[0]?.trim();
+  return start ? formatPlanTime(start) : '—';
 }
 
-function formatMealTimelineTime(meal: MealRecordItem, timeStr?: string) {
-  if (timeStr?.trim()) return formatPlanTime(timeStr);
-  const parsed = moment(meal.updateTime);
-  return parsed.isValid() ? parsed.format('H:mm') : '—';
+function mealWindowToSortValue(timeWindow?: string, fallback = 8 * 60) {
+  const start = timeWindow?.split('-')[0]?.trim();
+  return parseTimeStrSortValue(start) || fallback;
+}
+
+function sumRecordCalories(records: MealDetailItem[]) {
+  return records.reduce((sum, item) => sum + Math.round(Number(item.calorie) || 0), 0);
+}
+
+function mapRecommendedMealTimelineItem(
+  mealCard: MealCardData,
+  index: number,
+): CalendarTimelineItem {
+  const metaKey = getMealCardMetaKey(mealCard);
+  const category = MEAL_CATEGORY_BY_KEY[metaKey] ?? 1;
+  const sortValue = mealWindowToSortValue(mealCard.time, MEAL_CATEGORY_DEFAULT_MINUTES[category]);
+
+  return {
+    key: `diet-suggest-${mealCard.key}-${index}`,
+    time: parseMealWindowStart(mealCard.time),
+    title: mealCard.title,
+    desc: mealCard.foods.length ? mealCard.foods.join('、') : '暂无推荐',
+    kind: 'diet',
+    sortValue,
+    period: resolvePeriod(sortValue),
+    mealIsRecommended: true,
+    mealFoods: mealCard.foods,
+    mealCalories: mealCard.calories,
+    mealIcon: mealCard.icon,
+    mealTimeWindow: mealCard.time,
+    mealCategory: category,
+  };
+}
+
+function mapRecordedMealTimelineItem(params: {
+  mealCard: MealCardData;
+  records: MealDetailItem[];
+  index: number;
+}): CalendarTimelineItem {
+  const { mealCard, records, index } = params;
+  const metaKey = getMealCardMetaKey(mealCard);
+  const category = MEAL_CATEGORY_BY_KEY[metaKey] ?? records[0]?.mealCategory ?? 1;
+  const foods = records.map(item => item.mealName?.trim()).filter(Boolean) as string[];
+  const calories = sumRecordCalories(records);
+  const recordTime = records.find(item => item.timeStr?.trim())?.timeStr;
+  const sortValue = recordTime
+    ? parseTimeStrSortValue(formatPlanTime(recordTime))
+    : mealWindowToSortValue(mealCard.time, MEAL_CATEGORY_DEFAULT_MINUTES[category]);
+  const firstDetailId = records.find(item => item.mealDetailId != null)?.mealDetailId;
+
+  return {
+    key: `diet-record-${metaKey}-${index}`,
+    time: recordTime ? formatPlanTime(recordTime) : parseMealWindowStart(mealCard.time),
+    title: mealCard.title,
+    desc: foods.length ? foods.join('、') : '已记录用餐',
+    kind: 'diet',
+    sortValue: sortValue || MEAL_CATEGORY_DEFAULT_MINUTES[category],
+    period: resolvePeriod(sortValue || MEAL_CATEGORY_DEFAULT_MINUTES[category]),
+    mealIsRecommended: false,
+    mealFoods: foods,
+    mealCalories: calories,
+    mealIcon: mealCard.icon,
+    mealTimeWindow: mealCard.time,
+    mealCategory: category,
+    mealDetailId: firstDetailId != null ? String(firstDetailId) : undefined,
+  };
+}
+
+function mapRecordedMealTimelineItemWithoutCard(
+  category: number,
+  records: MealDetailItem[],
+  index: number,
+): CalendarTimelineItem {
+  const foods = records.map(item => item.mealName?.trim()).filter(Boolean) as string[];
+  const calories = sumRecordCalories(records);
+  const recordTime = records.find(item => item.timeStr?.trim())?.timeStr;
+  const sortValue = recordTime
+    ? parseTimeStrSortValue(formatPlanTime(recordTime))
+    : MEAL_CATEGORY_DEFAULT_MINUTES[category] ?? (index + 1) * 60;
+  const firstDetailId = records.find(item => item.mealDetailId != null)?.mealDetailId;
+
+  return {
+    key: `diet-record-${category}-${index}`,
+    time: recordTime ? formatPlanTime(recordTime) : '—',
+    title: MEAL_CATEGORY_LABELS[category] ?? '用餐',
+    desc: foods.length ? foods.join('、') : '已记录用餐',
+    kind: 'diet',
+    sortValue,
+    period: resolvePeriod(sortValue),
+    mealIsRecommended: false,
+    mealFoods: foods,
+    mealCalories: calories,
+    mealCategory: category,
+    mealDetailId: firstDetailId != null ? String(firstDetailId) : undefined,
+  };
+}
+
+async function loadMealDetailListForDate(customerLocalDate: string): Promise<MealDetailItem[]> {
+  const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
+  if (isToday) {
+    try {
+      const res = await getTodayMealDetailList();
+      if (!isResourceApiOk(res as unknown as { code?: number })) return [];
+      return apiResourceData<MealDetailItem[]>(res as unknown as { code?: number; data?: MealDetailItem[] }) ?? [];
+    } catch {
+      return [];
+    }
+  }
+
+  try {
+    const res = await getMealListByDate({ customerLocalDate });
+    if (!isResourceApiOk(res)) return [];
+
+    const meals = (apiResourceData<MealRecordItem[]>(
+      res as unknown as { code?: number; data?: MealRecordItem[] },
+    ) ?? [])
+      .filter(isMealCategoryRecord)
+      .sort((left, right) => (left.mealCategory ?? 0) - (right.mealCategory ?? 0));
+    if (meals.length === 0) return [];
+
+    const details = await Promise.all(
+      meals.map(async meal => {
+        if (meal.mealId == null || meal.mealId === '') return null;
+        try {
+          const detailRes = await getMealDetailByMealId(String(meal.mealId));
+          if (!isResourceApiOk(detailRes)) return null;
+          return apiResourceData<MealRecordDetail>(
+            detailRes as unknown as { code?: number; data?: MealRecordDetail },
+          );
+        } catch {
+          return null;
+        }
+      }),
+    );
+
+    return details.flatMap(detail => detail?.mealDetailList ?? []);
+  } catch {
+    return [];
+  }
 }
 
 function isMealCategoryRecord(meal: MealRecordItem) {
@@ -174,6 +335,13 @@ function formatExerciseDurationText(minutes?: number | null) {
   return `${Math.round(Number(minutes))}分钟`;
 }
 
+function formatExerciseGoalText(doneMinutes?: number, targetMinutes?: number) {
+  const target = targetMinutes ?? 0;
+  if (target <= 0) return '';
+  const done = doneMinutes ?? 0;
+  return `${Math.round(done)}/${Math.round(target)}分钟`;
+}
+
 function mapDayTypeExerciseTimelineItems(
   items: DayTypeDetailItem[] | undefined,
   dictMaps?: ScheduleDictMaps,
@@ -187,6 +355,9 @@ function mapDayTypeExerciseTimelineItems(
     const children = (item.childTypeList ?? []).filter(
       child => child.exerciseChildType?.trim() || child.exerciseDuration != null,
     );
+
+    const doneMinutes = item.typeSumExerciseDuration ?? 0;
+    const exerciseGoalText = formatExerciseGoalText(doneMinutes, item.typeNeedExerciseDuration);
 
     if (children.length > 0) {
       children.forEach((child, childIndex) => {
@@ -202,6 +373,8 @@ function mapDayTypeExerciseTimelineItems(
           title: durationText || '0分钟',
           desc: childLabel,
           exerciseTypeLabel: typeLabel,
+          exerciseGoalText: childIndex === 0 ? exerciseGoalText : undefined,
+          exerciseType: typeKey,
           kind: 'ex',
           sortValue: 540 + sortOffset * 15,
           period: 'exercise',
@@ -211,7 +384,6 @@ function mapDayTypeExerciseTimelineItems(
       continue;
     }
 
-    const doneMinutes = item.typeSumExerciseDuration ?? 0;
     const childTypes = formatExerciseChildTypes(item.exerciseChildType, typeKey, dictMaps);
 
     result.push({
@@ -220,6 +392,8 @@ function mapDayTypeExerciseTimelineItems(
       title: formatExerciseDurationText(doneMinutes) || '0分钟',
       desc: childTypes !== '--' ? childTypes : '运动训练',
       exerciseTypeLabel: typeLabel,
+      exerciseGoalText,
+      exerciseType: typeKey,
       kind: 'ex',
       sortValue: 540 + sortOffset * 15,
       period: 'exercise',
@@ -304,27 +478,76 @@ export function mapTodayMedicationGroupsToTimelineItems(
 }
 
 function mapMealTimelineItem(
-  meal: MealRecordItem,
+  mealCard: MealCardData,
+  records: MealDetailItem[],
   index: number,
-  foodNames?: string,
-  timeStr?: string,
-): CalendarTimelineItem {
-  const category = meal.mealCategory ?? 1;
-  const displayTime = formatMealTimelineTime(meal, timeStr);
-  const sortValue =
-    parseTimeStrSortValue(displayTime !== '—' ? displayTime : timeStr)
-    || MEAL_CATEGORY_DEFAULT_MINUTES[category]
-    || (index + 1) * 60;
+  showRecommendation: boolean,
+): CalendarTimelineItem | null {
+  if (records.length > 0) {
+    return mapRecordedMealTimelineItem({ mealCard, records, index });
+  }
+  if (showRecommendation) {
+    return mapRecommendedMealTimelineItem(mealCard, index);
+  }
+  return null;
+}
 
-  return {
-    key: `diet-${meal.mealId ?? index}`,
-    time: displayTime,
-    title: MEAL_CATEGORY_LABELS[category] ?? '用餐',
-    desc: buildMealDesc(meal, foodNames),
-    kind: 'diet',
-    sortValue,
-    period: resolvePeriod(sortValue),
-  };
+async function loadDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
+  try {
+    const [ruleRes, mealDetailList] = await Promise.all([
+      getInUseDietPatientRuleInfo(),
+      loadMealDetailListForDate(customerLocalDate),
+    ]);
+
+    const dietRule = apiResourceData<DietPatientRuleInfo>(
+      ruleRes as { code?: number; data?: DietPatientRuleInfo },
+    );
+    const recommendedCards = buildMealCardsFromRuleForDate(dietRule?.mealList, customerLocalDate);
+    const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
+    const items: CalendarTimelineItem[] = [];
+
+    if (recommendedCards.length > 0) {
+      const coveredCategories = new Set<number>();
+      recommendedCards.forEach((mealCard, index) => {
+        const metaKey = getMealCardMetaKey(mealCard);
+        const category = MEAL_CATEGORY_BY_KEY[metaKey];
+        if (category != null) coveredCategories.add(category);
+        const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+        const item = mapMealTimelineItem(mealCard, records, index, isToday);
+        if (item) items.push(item);
+      });
+
+      Object.entries(MEAL_CATEGORY_KEY_BY_NUMBER).forEach(([categoryText, metaKey]) => {
+        const category = Number(categoryText);
+        if (coveredCategories.has(category)) return;
+        const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+        if (records.length === 0) return;
+        items.push(mapRecordedMealTimelineItemWithoutCard(category, records, category));
+      });
+
+      return items.sort((left, right) => left.sortValue - right.sortValue);
+    }
+
+    if (mealDetailList.length === 0) return items;
+
+    const grouped = new Map<number, MealDetailItem[]>();
+    mealDetailList
+      .filter(item => item.isWater !== 1 && item.mealCategory != null)
+      .forEach(item => {
+        const category = item.mealCategory!;
+        const list = grouped.get(category) ?? [];
+        list.push(item);
+        grouped.set(category, list);
+      });
+
+    const fallbackItems = Array.from(grouped.entries())
+      .sort(([left], [right]) => left - right)
+      .map(([category, records], index) => mapRecordedMealTimelineItemWithoutCard(category, records, index));
+
+    return [...items, ...fallbackItems].sort((left, right) => left.sortValue - right.sortValue);
+  } catch {
+    return [];
+  }
 }
 
 async function loadExerciseTimelineItems(
@@ -340,7 +563,37 @@ async function loadExerciseTimelineItems(
     if (!isResourceApiOk(res)) return [];
 
     const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
-    return mapDayTypeExerciseTimelineItems(list, dictMaps);
+    let items = mapDayTypeExerciseTimelineItems(list, dictMaps);
+
+    if (customerLocalDate === moment().format('YYYY-MM-DD')) {
+      try {
+        const ruleRes = await getInUseExPatientRuleInfo();
+        if (isResourceApiOk(ruleRes as { code?: number })) {
+          const prescription = apiResourceData<InUseExPatientRule>(ruleRes as { code?: number; data?: InUseExPatientRule });
+          const ratioList = prescription?.ruleRatioList ?? [];
+          items = items.map(item => {
+            const typeKey = item.exerciseType?.trim();
+            if (!typeKey) return item;
+            const taskIndex = ratioList.findIndex(
+              rule => rule.exerciseType?.trim() === typeKey,
+            );
+            if (taskIndex < 0) return item;
+            const rule = ratioList[taskIndex];
+            return {
+              ...item,
+              exerciseType: rule.exerciseType,
+              exerciseChildType: rule.exerciseChildType,
+              strengthLevel: rule.strengthLevel,
+              exerciseTaskIndex: taskIndex,
+            };
+          });
+        }
+      } catch {
+        // keep base items
+      }
+    }
+
+    return items;
   } catch {
     return [];
   }
@@ -357,51 +610,6 @@ async function loadMedicationTimelineItems(
       apiResourceData<IndexMedicationPlanGroupItem[]>(res as any),
       dictMaps,
     );
-  } catch {
-    return [];
-  }
-}
-
-async function loadDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
-  try {
-    const res = await getMealListByDate({ customerLocalDate });
-    if (!isResourceApiOk(res)) return [];
-
-    const meals = (apiResourceData<MealRecordItem[]>(
-      res as unknown as { code?: number; data?: MealRecordItem[] },
-    ) ?? [])
-      .filter(isMealCategoryRecord)
-      .sort((left, right) => (left.mealCategory ?? 0) - (right.mealCategory ?? 0));
-    if (meals.length === 0) return [];
-
-    const details = await Promise.all(
-      meals.map(async meal => {
-        if (meal.mealId == null || meal.mealId === '') return null;
-        try {
-          const detailRes = await getMealDetailByMealId(String(meal.mealId));
-          if (!isResourceApiOk(detailRes)) return null;
-          return apiResourceData<MealRecordDetail>(
-            detailRes as unknown as { code?: number; data?: MealRecordDetail },
-          );
-        } catch {
-          return null;
-        }
-      }),
-    );
-
-    return meals.map((meal, index) => {
-      const detail = details[index];
-      const foodNames = detail?.mealDetailList
-        ?.filter((item: MealDetailItem) => item.isWater !== 1)
-        .map((item: MealDetailItem) => item.mealName?.trim())
-        .filter(Boolean)
-        .join('、');
-      const timeStr = detail?.mealDetailList?.find((item: MealDetailItem) => item.timeStr?.trim())?.timeStr
-        ?? detail?.mainInfo?.updateTime
-        ?? meal.updateTime;
-
-      return mapMealTimelineItem(meal, index, foodNames, timeStr);
-    });
   } catch {
     return [];
   }
@@ -443,7 +651,8 @@ export async function loadCalendarDayTimelineItems(
       loadDietTimelineItems(customerLocalDate),
     ];
 
-    if (status?.isEx) {
+    const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
+    if (isToday || status?.isEx) {
       detailTasks.push(
         (async () => {
           const [dictMaps, exPatientRuleId] = await Promise.all([

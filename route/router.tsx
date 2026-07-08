@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { createNativeStackNavigator, type NativeStackHeaderProps } from '@react-navigation/native-stack';
+import type { NavigatorScreenParams } from '@react-navigation/native';
 import { getHeaderTitle, Header, HeaderBackButton } from '@react-navigation/elements';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
@@ -12,6 +13,7 @@ import type { MeasureDataItem } from '@/api/measureData';
 import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
 import MainTabs from '@/src/features/home/MainTabs';
+import type { MainTabParamList } from '@/src/utils/tabNavigation';
 
 // 运动处方
 import ExercisePage from "@/src/features/home/exercise/exercisePage"
@@ -109,7 +111,7 @@ import SettingsPage from '@/src/features/profile/settings';
 export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
-  MainTabs: undefined;
+  MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   ExercisePage: undefined;
   NutritionPage: undefined;
   ActivityDetail: { id: number | string };

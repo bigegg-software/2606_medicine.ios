@@ -195,6 +195,8 @@ type Props = {
     range: StepsChartRange;
     data?: StepsPoint[];
     onPointChange?: (point: StepsPoint | undefined) => void;
+    /** 图表选中提示数值后缀，传空字符串则不显示单位 */
+    valueUnit?: string;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
@@ -532,11 +534,16 @@ function formatStepsValue(value: number) {
 function SelectionTooltip({
     point,
     lineLeft,
+    valueUnit = '步',
 }: {
     point: StepsPoint;
     lineLeft: number;
+    valueUnit?: string;
 }) {
     const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
+    const valueText = valueUnit
+        ? `${formatStepsValue(point.value)}${valueUnit}`
+        : formatStepsValue(point.value);
 
     return (
         <View
@@ -551,7 +558,7 @@ function SelectionTooltip({
         >
             {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
             {isValidPoint(point) ? (
-                <Text style={styles.chartSelectionTipValue}>{formatStepsValue(point.value)}步</Text>
+                <Text style={styles.chartSelectionTipValue}>{valueText}</Text>
             ) : null}
         </View>
     );
@@ -718,7 +725,7 @@ function getDefaultData(range: StepsChartRange) {
     }
 }
 
-export default function StepsDetailChart({ range, data, onPointChange }: Props) {
+export default function StepsDetailChart({ range, data, onPointChange, valueUnit = '步' }: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
     const points = data ?? getDefaultData(range);
@@ -849,7 +856,7 @@ export default function StepsDetailChart({ range, data, onPointChange }: Props) 
                 />
             </GestureDetector>
             {selectedPoint && displayPixelX != null ? (
-                <SelectionTooltip point={selectedPoint} lineLeft={displayPixelX} />
+                <SelectionTooltip point={selectedPoint} lineLeft={displayPixelX} valueUnit={valueUnit} />
             ) : null}
             <ChartGridExtensionLines positions={gridExtensionPositions} />
             {range === 'today'

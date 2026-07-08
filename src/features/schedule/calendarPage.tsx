@@ -96,8 +96,12 @@ const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周�
 
 function ExerciseTimelineSection({
   items,
+  isToday,
+  onPressItem,
 }: {
   items: CalendarTimelineItem[];
+  isToday: boolean;
+  onPressItem: (item: CalendarTimelineItem) => void;
 }) {
   if (items.length === 0) return null;
 
@@ -122,20 +126,81 @@ function ExerciseTimelineSection({
               isLastInSection && styles.exerciseRowSectionLast,
             ]}>
             <View style={styles.cardSide}>
-              <Flex style={styles.taskCard}>
-                <Image style={styles.taskCardIcon} source={TIMELINE_ICONS.ex} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.taskCardTitle}>
-                    {[item.exerciseTypeLabel, item.title].filter(Boolean).join(' · ')}
-                  </Text>
-                  <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
-                </View>
-              </Flex>
+              {isToday ? (
+                <TouchableOpacity
+                  activeOpacity={0.7}
+                  onPress={() => onPressItem(item)}>
+                  <Flex style={styles.exerciseTaskCard} align="start">
+                    <Image style={styles.taskCardIcon} source={TIMELINE_ICONS.ex} />
+                    <View style={styles.exerciseCardContent}>
+                      <Flex justify="between" align="center">
+                        <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
+                        {item.exerciseGoalText ? (
+                          <Text style={styles.taskCardDesc} numberOfLines={1}>
+                            {item.exerciseGoalText}
+                          </Text>
+                        ) : null}
+                      </Flex>
+                      <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                    </View>
+                  </Flex>
+                </TouchableOpacity>
+              ) : (
+                <Flex style={styles.exerciseTaskCard} align="start">
+                  <Image style={styles.taskCardIcon} source={TIMELINE_ICONS.ex} />
+                  <View style={styles.exerciseCardContent}>
+                    <Flex justify="between" align="center">
+                      <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
+                      {item.exerciseGoalText ? (
+                        <Text style={styles.taskCardDesc} numberOfLines={1}>
+                          {item.exerciseGoalText}
+                        </Text>
+                      ) : null}
+                    </Flex>
+                    <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                  </View>
+                </Flex>
+              )}
             </View>
           </View>
         );
       })}
     </View>
+  );
+}
+
+function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
+  const foods = item.mealFoods ?? [];
+
+  return (
+    <Flex style={styles.dietTaskCard} align="start">
+      <Image
+        style={styles.taskCardIcon}
+        source={item.mealIcon ?? TIMELINE_ICONS.diet}
+      />
+      <View style={styles.exerciseCardContent}>
+        <Flex align="center" style={{ flexWrap: 'wrap' }}>
+          <Text style={styles.taskCardTitle}>{item.title}</Text>
+          {item.mealIsRecommended ? (
+            <View style={styles.dietRecommendBadge}>
+              <Text style={styles.dietRecommendBadgeText}>AI推荐</Text>
+            </View>
+          ) : null}
+        </Flex>
+        {foods.length > 0 ? (
+          <View style={styles.dietFoodRow}>
+            {foods.slice(0, 4).map((food, index) => (
+              <View key={`${food}-${index}`} style={styles.dietFoodTag}>
+                <Text style={styles.dietFoodTagText} numberOfLines={1}>{food}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+        )}
+      
+      </View>
+    </Flex>
   );
 }
 
@@ -217,6 +282,8 @@ function TimelineSection({
 
       {items.map((item, itemIndex) => {
         const isLastInSection = itemIndex === items.length - 1;
+        const isDietItem = item.kind === 'diet';
+        const isPressable = isDietItem || item.kind === 'activity' || item.kind === 'live';
 
         return (
           <View
@@ -227,36 +294,42 @@ function TimelineSection({
               isLastInSection && styles.timelineRowSectionLast,
             ]}>
             <View style={styles.timeAxis}>
-              <View style={styles.timeSlot}>
-                <Text style={styles.timeText}>{item.time}</Text>
-              </View>
+              {!isDietItem ? (
+                <View style={styles.timeSlot}>
+                  <Text style={styles.timeText}>{item.time}</Text>
+                </View>
+              ) : null}
             </View>
             <View style={styles.cardSide}>
               <TouchableOpacity
-                activeOpacity={item.kind === 'activity' || item.kind === 'live' ? 0.7 : 1}
-                disabled={item.kind !== 'activity' && item.kind !== 'live'}
+                activeOpacity={isPressable ? 0.7 : 1}
+                disabled={!isPressable}
                 onPress={() => onPressItem(item)}>
-                <Flex style={styles.taskCard} align="center">
-                  <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
-                  <View style={{ flex: 1 }}>
-                    <Flex align="center" style={{ flexWrap: 'wrap' }}>
-                      <Text style={styles.taskCardTitle}>{item.title}</Text>
-                      {item.kind === 'drug' && item.eventBasedLabel ? (
-                        <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+                {isDietItem ? (
+                  <DietTimelineCard item={item} />
+                ) : (
+                  <Flex style={styles.taskCard} align="center">
+                    <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
+                    <View style={{ flex: 1 }}>
+                      <Flex align="center" style={{ flexWrap: 'wrap' }}>
+                        <Text style={styles.taskCardTitle}>{item.title}</Text>
+                        {item.kind === 'drug' && item.eventBasedLabel ? (
+                          <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+                        ) : null}
+                      </Flex>
+                      {item.desc ? (
+                        <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
                       ) : null}
-                    </Flex>
-                    {item.desc ? (
-                      <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                    </View>
+                    {item.kind === 'drug' ? (
+                      <MedicationStatus
+                        item={item}
+                        checkingIn={checkingInKey === item.key}
+                        onCheckIn={onMedicationCheckIn}
+                      />
                     ) : null}
-                  </View>
-                  {item.kind === 'drug' ? (
-                    <MedicationStatus
-                      item={item}
-                      checkingIn={checkingInKey === item.key}
-                      onCheckIn={onMedicationCheckIn}
-                    />
-                  ) : null}
-                </Flex>
+                  </Flex>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -269,12 +342,14 @@ function TimelineSection({
 function ScheduleTimeline({
   items,
   loading,
+  isToday,
   onPressItem,
   checkingInKey,
   onMedicationCheckIn,
 }: {
   items: CalendarTimelineItem[];
   loading: boolean;
+  isToday: boolean;
   onPressItem: (item: CalendarTimelineItem) => void;
   checkingInKey: string | null;
   onMedicationCheckIn: (item: CalendarTimelineItem) => void;
@@ -301,7 +376,11 @@ function ScheduleTimeline({
   return (
     <View style={styles.timelineWrap}>
       {grouped.exercise.length > 0 ? (
-        <ExerciseTimelineSection items={grouped.exercise} />
+        <ExerciseTimelineSection
+          items={grouped.exercise}
+          isToday={isToday}
+          onPressItem={onPressItem}
+        />
       ) : null}
       {hasScheduledItems ? (
         <View style={styles.scheduledTimelineWrap}>
@@ -399,6 +478,23 @@ export default function ScheduleCalendarPage() {
   }, [loadDayTimeline, loadTodayMedication, selectedDate, selectedStatus]);
 
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
+    if (item.kind === 'diet') {
+      navigation.navigate('Medication', { tab: 'meal' });
+      return;
+    }
+    if (
+      item.kind === 'ex'
+      && selectedDate === moment().format('YYYY-MM-DD')
+      && item.exerciseTaskIndex != null
+    ) {
+      navigation.navigate('PlayerPage', {
+        exerciseType: item.exerciseType,
+        exerciseChildType: item.exerciseChildType,
+        strengthLevel: item.strengthLevel,
+        taskIndex: item.exerciseTaskIndex,
+      });
+      return;
+    }
     if (item.kind === 'activity' && item.activityId) {
       navigation.navigate('ActivityDetail', { id: item.activityId });
       return;
@@ -406,7 +502,7 @@ export default function ScheduleCalendarPage() {
     if (item.kind === 'live' && item.liveId) {
       navigation.navigate('LiveDetail', { liveId: item.liveId });
     }
-  }, [navigation]);
+  }, [navigation, selectedDate]);
 
   const handleMedicationCheckIn = useCallback(async (item: CalendarTimelineItem) => {
     if (!item.canCheckIn || checkingInKey) return;
@@ -520,6 +616,7 @@ export default function ScheduleCalendarPage() {
         <ScheduleTimeline
           items={displayTimelineItems}
           loading={loadingDay || (isToday && loadingMedication)}
+          isToday={isToday}
           onPressItem={handleTimelinePress}
           checkingInKey={checkingInKey}
           onMedicationCheckIn={handleMedicationCheckIn}

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image,ScrollView, TouchableOpacity, Platform, useWindowDimensions, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';

@@ -64,9 +64,16 @@ export function formatDietNumber(value?: number | null, unit = ''): string {
 }
 
 export function buildMealCardsFromRule(mealList?: DietMealItem[]): MealCardData[] {
-    const today = moment().isoWeekday();
+    return buildMealCardsFromRuleForDate(mealList, moment());
+}
+
+export function buildMealCardsFromRuleForDate(
+    mealList?: DietMealItem[],
+    date?: string | moment.Moment,
+): MealCardData[] {
+    const weekday = moment(date).isoWeekday();
     return (mealList ?? [])
-        .filter(item => item.day === today && item.mealCategory != null)
+        .filter(item => item.day === weekday && item.mealCategory != null)
         .sort((a, b) => (a.mealCategory ?? 0) - (b.mealCategory ?? 0))
         .map((item, index) => {
             const meta = MEAL_CATEGORY_META[item.mealCategory!] ?? MEAL_CATEGORY_META[1];
