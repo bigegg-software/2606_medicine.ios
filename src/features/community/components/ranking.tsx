@@ -9,7 +9,7 @@ import { getRankingList, type RankingItem } from '@/api/ranking';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootState } from '@/store/store';
 
-const DEFAULT_AVATAR = require('@/assets/images/home/head.png');
+import { DEFAULT_AVATAR, getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 const PODIUM_FRAMES = [
     require('@/assets/images/community/image2.png'),
     require('@/assets/images/community/image1.png'),
@@ -175,6 +175,7 @@ export default function RankingPage() {
             '',
     );
     const currentUserAvatar = useSelector((state: RootState) => state.user.info?.avatarOssUrl);
+    const currentUserGender = useSelector((state: RootState) => state.user.info?.gender);
 
     const [loading, setLoading] = useState(true);
     const [rankingList, setRankingList] = useState<RankingItem[]>([]);
@@ -212,7 +213,7 @@ export default function RankingPage() {
         ? resolveAvatarSource(myEntry.avatar)
         : currentUserAvatar
             ? { uri: currentUserAvatar }
-            : DEFAULT_AVATAR;
+            : getDefaultAvatarByGender(currentUserGender);
 
     if (loading) {
         return (

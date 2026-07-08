@@ -17,7 +17,7 @@ import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { LinearGradient } from 'expo-linear-gradient';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
-
+import AsyncStorage from '@react-native-async-storage/async-storage';
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 const phoneInputAccessoryViewID = 'loginPhoneDoneToolbar';
@@ -151,6 +151,11 @@ export default function LoginPage() {
     height: bottomOffset.value,
   }));
 
+
+  // useEffect(() => {
+  //   AsyncStorage.setItem('token',"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJhcHBfdXNlcjoyMDYxMjYyMTkzNDQyMjM4NDY2Iiwicm5TdHIiOiJlOThDSDc4cVE2OWNBaWJGMkxhU2I1WnVLSXptYVdkNCIsImNsaWVudGlkIjoiNTI4Y2ZlZDc0ODkyNDMzYjkyZjJhYzU1MTk4OTIwY3EtdXNlckFwcFNtcyIsInRlbmFudElkIjoiMDAwMDAwIiwidXNlcklkIjoyMDYxMjYyMTkzNDQyMjM4NDY2LCJ1c2VyTmFtZSI6IjE3NjAxNjM4MDIxIn0.HayowT508dZXSC9XqRwtCcxXm-mJgqR-mSIVO5Sao1I")
+  //   AsyncStorage.setItem('clientId',"528cfed74892433b92f2ac55198920cq-userAppSms")
+  // }, []);
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
       <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />

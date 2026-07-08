@@ -14,7 +14,7 @@ import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
-import { getDisplayUserName } from '@/src/utils/userHelpers';
+import { getDisplayUserName, getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { useFontSize } from '@/common/FontSizeContext';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -87,7 +87,7 @@ export default function ProfilePage() {
 
   const name = getDisplayUserName(user);
   const avatarOssUrl = String(user?.avatarOssUrl ?? '');
-
+  const defaultAvatar = getDefaultAvatarByGender(user?.gender);
   if (loading && user == null) {
     return (
       <TabPageLayout style={styles.container} contentStyle={styles.center}>
@@ -105,9 +105,7 @@ export default function ProfilePage() {
             {avatarOssUrl ? (
               <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
             ) : (
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{name[0] ?? 'U'}</Text>
-              </View>
+              <Image source={defaultAvatar} style={styles.avatarImg} />
             )}
             <View>
               <Text style={styles.name}>{name}</Text>

@@ -198,7 +198,7 @@ function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
         ) : (
           <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
         )}
-      
+
       </View>
     </Flex>
   );

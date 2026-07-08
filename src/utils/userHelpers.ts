@@ -1,5 +1,10 @@
+import type { ImageSourcePropType } from 'react-native';
 import type { UserBaseInfo } from '@/api/patient';
 import type { SystemUser } from '@/api/user';
+
+export const DEFAULT_AVATAR = require('@/assets/images/default/default_avatar.png');
+export const DEFAULT_AVATAR1 = require('@/assets/images/default/default1.png');
+export const DEFAULT_AVATAR2 = require('@/assets/images/default/default2.png');
 
 type DisplayUserSource = Pick<UserBaseInfo, 'name' | 'userId'> | null | undefined;
 type SystemUserNameSource = Pick<SystemUser, 'realName' | 'nickName' | 'userName' | 'userId'> | null | undefined;
@@ -27,6 +32,20 @@ export function getDisplayUserName(
   }
 
   return '用户';
+}
+
+export function isFemaleGender(gender?: string | null) {
+  return gender === '女' || gender === '1';
+}
+
+export function isMaleGender(gender?: string | null) {
+  return gender === '男' || gender === '0' || gender === '2';
+}
+
+export function getDefaultAvatarByGender(gender?: string | null): ImageSourcePropType {
+  if (isFemaleGender(gender)) return DEFAULT_AVATAR1;
+  if (isMaleGender(gender)) return DEFAULT_AVATAR2;
+  return DEFAULT_AVATAR;
 }
 
 export function maskPhoneNumber(phone?: string | null): string {
