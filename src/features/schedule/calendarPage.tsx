@@ -233,8 +233,8 @@ function TimelineSection({
             </View>
             <View style={styles.cardSide}>
               <TouchableOpacity
-                activeOpacity={item.kind === 'activity' ? 0.7 : 1}
-                disabled={item.kind !== 'activity'}
+                activeOpacity={item.kind === 'activity' || item.kind === 'live' ? 0.7 : 1}
+                disabled={item.kind !== 'activity' && item.kind !== 'live'}
                 onPress={() => onPressItem(item)}>
                 <Flex style={styles.taskCard} align="center">
                   <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
@@ -401,6 +401,10 @@ export default function ScheduleCalendarPage() {
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
     if (item.kind === 'activity' && item.activityId) {
       navigation.navigate('ActivityDetail', { id: item.activityId });
+      return;
+    }
+    if (item.kind === 'live' && item.liveId) {
+      navigation.navigate('LiveDetail', { liveId: item.liveId });
     }
   }, [navigation]);
 
