@@ -78,6 +78,7 @@ export const getWearableDataDetailByDateRange = (params: {
   startDate: string;
   endDate: string;
   type: WearableDataType;
+  returnOriginalData?: boolean;
 }) =>
   request.post<WearableDataRangeResult>(
     '/patient/wearableData/detailByBetweenCustomerLocalDate',

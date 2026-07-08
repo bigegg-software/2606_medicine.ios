@@ -12,6 +12,7 @@ import {
     buildWearableHeartRateSeries,
     buildWearableOxygenSeries,
     filterMeasureItemsInRange,
+    getWearableReturnOriginalDataParam,
     type LabeledValue,
 } from '@/src/features/profile/vitals/vitalsHelpers';
 import type { BloodPressurePoint } from '../../components/BloodPressureChart';
@@ -194,7 +195,12 @@ async function loadWearableItems(
                 : range === '7days'
                     ? moment().subtract(6, 'days').format('YYYY-MM-DD')
                     : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
-        const res = await getWearableDataDetailByDateRange({ startDate, endDate, type });
+        const res = await getWearableDataDetailByDateRange({
+            startDate,
+            endDate,
+            type,
+            ...getWearableReturnOriginalDataParam(range),
+        });
         if (!isResourceApiOk(res as { code?: number })) return [];
         const data = apiResourceData<WearableDataItem[]>(
             res as unknown as { code?: number; data?: WearableDataItem[] },

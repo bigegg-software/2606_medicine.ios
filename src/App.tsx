@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, AppState, Platform, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { Provider as AntdProvider } from '@ant-design/react-native';
+import { Provider as AntdProvider, Toast } from '@ant-design/react-native';
 import zhCN from '@ant-design/react-native/lib/locale-provider/zh_CN';
 import { useFonts } from 'expo-font';
 import { Provider, useSelector } from 'react-redux';
@@ -16,7 +16,9 @@ import { SET_LOGIN } from '@/store/type/login';
 import { buildScaledAntdTheme } from '@/common/antdTheme';
 import { FontSizeProvider, useFontSize } from '@/common/FontSizeContext';
 import { AppTheme } from '@/common/theme';
-import { checkAutoSyncOnLaunch } from '@/utils/checkAutoSyncOnLaunch';
+// import { checkAutoSyncOnLaunch } from '@/utils/checkAutoSyncOnLaunch';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import updateHealthKit from '@/utils/healthKit';
 import { addPushNotificationListeners, registerIosPushToken, syncNotificationSettingsFromUserExtr } from '@/src/utils/pushNotifications';
 import SyncReminderWatcher from '@/src/components/SyncReminderWatcher';
 import SessionExpiredWatcher from '@/src/components/SessionExpiredWatcher';
@@ -36,10 +38,25 @@ function AutoSyncOnLaunch() {
       return;
     }
 
+
+
     checkedRef.current = true;
-    if (autoSyncData === 1) {
-      void checkAutoSyncOnLaunch(userId, autoSyncData);
-    }
+    if (autoSyncData !== 1) return;
+    // if (autoSyncData === 1) {
+    //   void checkAutoSyncOnLaunch(userId, autoSyncData);
+    // }
+    setTimeout(() => {
+      if (AppState.currentState !== 'active') return;
+      void updateHealthKit(null).then(syncRes => {
+        if (typeof syncRes === 'object' && syncRes !== null && 'code' in syncRes && !isResourceApiOk(syncRes as { code?: number }) && (syncRes as { code?: number }).code !== 0) {
+          const msg = (syncRes as { msg?: string }).msg;
+          if (msg) Toast.show(msg);
+        }
+      }).catch((err: unknown) => {
+        const msg = err && typeof err === 'object' && 'msg' in err ? String((err as { msg?: string }).msg) : '';
+        if (msg) Toast.show(msg);
+      });
+    }, 2500);
   }, [autoSyncData, isLogin, userExtr, userId]);
 
   return null;

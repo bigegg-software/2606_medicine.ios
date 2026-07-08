@@ -28,10 +28,12 @@ import {
     calcBloodSugarPeriodStats,
     flattenStatisChildItems,
     formatBloodSugarDetailPointDisplay,
+    type BloodSugarDetailPoint,
+} from './helpers/bloodSugar';
+import {
     mapDetailChartRangeToVitalsRange,
     normalizeStatisRangeData,
-    type BloodSugarDetailPoint,
-} from './detailHelpers';
+} from './helpers/shared';
 import type { BloodSugarPoint } from './components/BloodSugarDetailChart';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;

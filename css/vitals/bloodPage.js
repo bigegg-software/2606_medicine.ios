@@ -103,6 +103,9 @@ const styles = StyleSheet.create({
     analysis1: { fontWeight: 500, textAlign: "center", fontSize: 12, color: "#666666" },
     analysis2: { fontWeight: "bold", textAlign: "center", fontSize: 25, color: "#333333", marginTop: 8 },
     analysisContent: { marginTop: 15, paddingHorizontal: 18 },
+    analysis3: { fontWeight: "bold", textAlign: "center", fontSize: 25, color: "#EE9C44", marginTop: 8 },
+    analysisIntro: { marginTop: 12, borderRadius: 8, backgroundColor:"#F6F8FB",paddingVertical:10 },
+    analysisIntroText: { fontWeight: 500, fontSize: 12, color: '#666666'},
 })
 
 export default styles

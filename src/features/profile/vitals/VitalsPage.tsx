@@ -59,6 +59,7 @@ import {
   getSleepFetchDateRange,
   getSleepSummary,
   getStepsSummary,
+  getWearableReturnOriginalDataParam,
   sortWearableItems,
   toHourPoints,
   VITAL_KEYS,
@@ -134,6 +135,7 @@ export default function VitalsPage() {
           startDate: dateRange.startDate,
           endDate: dateRange.endDate,
           type,
+          ...getWearableReturnOriginalDataParam(activeNav),
         })) as unknown as WearableDataRangeResult;
         if (!isResourceApiOk(res)) return [];
         const data = apiResourceData<WearableDataItem[]>(res);

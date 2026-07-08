@@ -9,9 +9,9 @@ import type {
 } from '@/api/measureData';
 import { VITAL_KEY_API_TYPE, VITAL_KEYS } from '@/api/measureData';
 import type { WearableDataItem, WearableOriginalReading } from '@/api/wearableData';
-import type { BloodPressurePoint } from '@/src/features/home/components/BloodPressureChart';
-import { TODAY_AXIS_LABELS } from '@/src/features/home/components/chartAxis';
-import type { SleepPieSegment } from '@/src/features/home/components/SleepPieChart';
+import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
+import { TODAY_AXIS_LABELS } from '@/src/features/profile/components/chartAxis';
+import type { SleepPieSegment } from '@/src/features/profile/components/SleepPieChart';
 import { getLevelColor } from './vitalLevelColors';
 
 export { getLevelColor, getLevelBgColor } from './vitalLevelColors';
@@ -19,6 +19,13 @@ export { getLevelColor, getLevelBgColor } from './vitalLevelColors';
 export { TODAY_AXIS_LABELS as TODAY_HOUR_LABELS };
 
 export type VitalsRange = 'today' | '7Days' | '30Days';
+
+export type WearableDetailRange = VitalsRange | 'week' | 'month' | '7days';
+
+/** 7/30 天汇总不需要 originalData；今天不传，走后端默认 true */
+export function getWearableReturnOriginalDataParam(range: WearableDetailRange) {
+  return range === 'today' ? {} : { returnOriginalData: false as const };
+}
 
 export const VITALS_NAV_LIST: { label: string; value: VitalsRange }[] = [
   { label: '今日', value: 'today' },

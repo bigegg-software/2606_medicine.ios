@@ -3,7 +3,7 @@ import { View, Text, Image, Dimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import * as echarts from 'echarts/core';
-import { BarChart } from 'echarts/charts';
+import { BarChart, LineChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, MarkLineComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import moment from 'moment';
@@ -16,12 +16,15 @@ export type StepsPoint = {
     dataTime?: string;
     customerLocalDate?: string;
     stepGoals?: number;
+    energyGoals?: number;
 };
 
 export type StepsChartRange = 'today' | 'week' | 'month';
 
 const BAR_COLOR = '#EE9C44';
+const GOAL_MET_COLOR = '#6D925E';
 const BAR_WIDTH = 10;
+const MONTH_BAR_WIDTH = BAR_WIDTH / 2;
 
 const CHART_PADDING = 54;
 const CHART_WIDTH = Dimensions.get('window').width - CHART_PADDING;
@@ -170,14 +173,35 @@ function isValidPoint(point: StepsPoint) {
     return point.value > 0;
 }
 
+function getPeriodBarColor(point: StepsPoint) {
+    const goal = point.energyGoals ?? point.stepGoals;
+    if (goal != null && goal > 0 && point.value >= goal) {
+        return GOAL_MET_COLOR;
+    }
+    return BAR_COLOR;
+}
+
+function buildPeriodBarDataItem(point: StepsPoint, value: number | number[]) {
+    if (!isValidPoint(point)) return null;
+    return {
+        value,
+        name: point.hour,
+        itemStyle: {
+            color: getPeriodBarColor(point),
+            borderRadius: [2, 2, 0, 0] as [number, number, number, number],
+        },
+    };
+}
+
 function buildBarSeries(
-    data: Array<{ value: number | number[]; name?: string } | null>,
+    data: Array<{ value: number | number[]; name?: string; itemStyle?: { color: string; borderRadius: [number, number, number, number] } } | null>,
     markLine?: ReturnType<typeof buildSelectionMarkLine>,
+    barWidth = BAR_WIDTH,
 ) {
     return [
         {
             type: 'bar',
-            barWidth: BAR_WIDTH,
+            barWidth,
             itemStyle: {
                 color: BAR_COLOR,
                 borderRadius: [2, 2, 0, 0],
@@ -189,7 +213,7 @@ function buildBarSeries(
     ];
 }
 
-echarts.use([SkiaRenderer, BarChart, GridComponent, TooltipComponent, MarkLineComponent]);
+echarts.use([SkiaRenderer, BarChart, LineChart, GridComponent, TooltipComponent, MarkLineComponent]);
 
 type Props = {
     range: StepsChartRange;
@@ -197,6 +221,8 @@ type Props = {
     onPointChange?: (point: StepsPoint | undefined) => void;
     /** 图表选中提示数值后缀，传空字符串则不显示单位 */
     valueUnit?: string;
+    /** 今日视图使用折线图（消耗页） */
+    todayLineChart?: boolean;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
@@ -589,17 +615,92 @@ function buildTodayBarSeries(points: StepsPoint[], selectedDataX: number | null)
     return buildBarSeries(barData, buildSelectionMarkLine('today', selectedDataX, []));
 }
 
+function buildTodayLineSeries(
+    lineData: Array<{ value: [number, number]; name?: string } | null>,
+    color: string,
+    markLine?: ReturnType<typeof buildSelectionMarkLine>,
+) {
+    return {
+        name: 'today-line',
+        type: 'line' as const,
+        smooth: 0.6,
+        smoothMonotone: 'x' as const,
+        connectNulls: true,
+        showSymbol: false,
+        data: lineData,
+        lineStyle: { color, width: 2 },
+        itemStyle: { color },
+        markLine,
+        z: 5,
+    };
+}
+
+function getPointGoal(point: StepsPoint) {
+    return point.energyGoals ?? point.stepGoals;
+}
+
+function buildTodayLineData(points: StepsPoint[]) {
+    return points
+        .filter(isValidPoint)
+        .sort((a, b) => parsePointX(a) - parsePointX(b))
+        .map(point => ({
+            value: [parsePointX(point), point.value] as [number, number],
+            name: point.hour,
+        }));
+}
+
+function buildTodayLineSeriesList(
+    points: StepsPoint[],
+    selectedDataX: number | null,
+    colorByGoal: boolean,
+) {
+    const sorted = points.filter(isValidPoint).sort((a, b) => parsePointX(a) - parsePointX(b));
+    const markLine = buildSelectionMarkLine('today', selectedDataX, []);
+
+    if (!sorted.length) {
+        return [buildTodayLineSeries([], BAR_COLOR, markLine)];
+    }
+
+    if (!colorByGoal) {
+        return [buildTodayLineSeries(buildTodayLineData(points), BAR_COLOR, markLine)];
+    }
+
+    const goal = getPointGoal(sorted[sorted.length - 1]) ?? getPointGoal(sorted[0]);
+    if (!goal || goal <= 0) {
+        return [buildTodayLineSeries(buildTodayLineData(points), BAR_COLOR, markLine)];
+    }
+
+    const metIndex = sorted.findIndex(point => point.value >= goal);
+    if (metIndex === -1) {
+        return [buildTodayLineSeries(buildTodayLineData(points), BAR_COLOR, markLine)];
+    }
+
+    if (metIndex === 0) {
+        return [buildTodayLineSeries(buildTodayLineData(points), GOAL_MET_COLOR, markLine)];
+    }
+
+    const beforeGoal = sorted.slice(0, metIndex + 1).map(point => ({
+        value: [parsePointX(point), point.value] as [number, number],
+        name: point.hour,
+    }));
+    const afterGoal = sorted.slice(metIndex).map(point => ({
+        value: [parsePointX(point), point.value] as [number, number],
+        name: point.hour,
+    }));
+
+    return [
+        buildTodayLineSeries(beforeGoal, BAR_COLOR),
+        buildTodayLineSeries(afterGoal, GOAL_MET_COLOR, markLine),
+    ];
+}
+
 function buildCategoryBarSeries(
     points: StepsPoint[],
     range: StepsChartRange,
     labels: string[],
     selectedDataX: number | null,
 ) {
-    const barData = points.map(point => (
-        isValidPoint(point)
-            ? { value: point.value, name: point.hour }
-            : null
-    ));
+    const barData = points.map(point => buildPeriodBarDataItem(point, point.value));
 
     return buildBarSeries(barData, buildSelectionMarkLine(range, selectedDataX, labels));
 }
@@ -609,18 +710,19 @@ function buildMonthBarSeries(
     labels: string[],
     selectedDataX: number | null,
 ) {
-    const barData = points.map((point, index) => (
-        isValidPoint(point)
-            ? { value: [index, point.value], name: point.hour }
-            : null
-    ));
+    const barData = points.map((point, index) => buildPeriodBarDataItem(point, [index, point.value]));
 
-    return buildBarSeries(barData, buildSelectionMarkLine('month', selectedDataX, labels));
+    return buildBarSeries(
+        barData,
+        buildSelectionMarkLine('month', selectedDataX, labels),
+        MONTH_BAR_WIDTH,
+    );
 }
 
 function buildTodayOption(
     points: StepsPoint[],
     selectedDataX: number | null,
+    todayLineChart = false,
 ) {
     return {
         animation: false,
@@ -639,7 +741,9 @@ function buildTodayOption(
             splitLine: GRID_SPLIT_LINE,
         },
         yAxis: buildYAxis(points),
-        series: buildTodayBarSeries(points, selectedDataX),
+        series: todayLineChart
+            ? buildTodayLineSeriesList(points, selectedDataX, todayLineChart)
+            : buildTodayBarSeries(points, selectedDataX),
     };
 }
 
@@ -725,7 +829,13 @@ function getDefaultData(range: StepsChartRange) {
     }
 }
 
-export default function StepsDetailChart({ range, data, onPointChange, valueUnit = '步' }: Props) {
+export default function StepsDetailChart({
+    range,
+    data,
+    onPointChange,
+    valueUnit = '步',
+    todayLineChart = false,
+}: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
     const points = data ?? getDefaultData(range);
@@ -799,13 +909,13 @@ export default function StepsDetailChart({ range, data, onPointChange, valueUnit
 
     const option = useMemo(() => {
         if (range === 'today') {
-            return buildTodayOption(points, selectedDataX);
+            return buildTodayOption(points, selectedDataX, todayLineChart);
         }
         if (range === 'month') {
             return buildMonthOption(points, categoryLabels, selectedDataX);
         }
         return buildCategoryOption(points, categoryLabels, 'week', selectedDataX);
-    }, [categoryLabels, data, points, range, selectedDataX]);
+    }, [categoryLabels, data, points, range, selectedDataX, todayLineChart]);
 
     useEffect(() => {
         let chart: ReturnType<typeof echarts.init> | undefined;

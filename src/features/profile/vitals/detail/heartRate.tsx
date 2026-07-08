@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, Image } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,15 +14,15 @@ import {
     type WearableDataItem,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDateRange, sortWearableItems } from '../vitalsHelpers';
+import { getDateRange, sortWearableItems, getWearableReturnOriginalDataParam } from '../vitalsHelpers';
 import {
     buildHeartRateDetailPeriodSeries,
     buildHeartRateDetailTodaySeries,
     calcHeartRateDetailStats,
     formatHeartRateDetailPointDisplay,
-    mapDetailChartRangeToVitalsRange,
     type HeartRateDetailPoint,
-} from './detailHelpers';
+} from './helpers/heartRate';
+import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 
 function formatStatusText(status?: string) {
     return status?.replace(/^・/, '') || '--';
@@ -68,6 +68,7 @@ export default function VitalsPage() {
                 startDate,
                 endDate,
                 type: WEARABLE_DATA_TYPES.heartRate,
+                ...getWearableReturnOriginalDataParam(range),
             })) as unknown as { code?: number; data?: WearableDataItem[] };
 
             if (!isResourceApiOk(res)) {
@@ -118,13 +119,9 @@ export default function VitalsPage() {
         }
     }, []);
 
-    useEffect(() => {
-        loadHeartRateData(selectedType);
-    }, [loadHeartRateData, selectedType]);
-
     useFocusEffect(
         useCallback(() => {
-            loadHeartRateData(selectedType);
+            void loadHeartRateData(selectedType);
         }, [loadHeartRateData, selectedType]),
     );
 
@@ -146,7 +143,9 @@ export default function VitalsPage() {
 
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>平均心率（次/分）</Text>
+                            <Text style={styles.rowTitle}>
+                                {selectedType === 'today' ? '心率（次/分）' : '平均心率（次/分）'}
+                            </Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}

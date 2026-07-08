@@ -22,6 +22,7 @@ const OXYGEN_THRESHOLD = 95;
 const COLOR_ABOVE_THRESHOLD = '#6D925E';
 const COLOR_BELOW_THRESHOLD = '#EE9C44';
 const BAR_WIDTH = 10;
+const MONTH_BAR_WIDTH = BAR_WIDTH / 2;
 const BAR_STACK = 'bloodOxygenRange';
 
 const INVISIBLE_BAR_STYLE = {
@@ -175,6 +176,21 @@ function isValidPoint(point: BloodOxygenPoint) {
     return point.min > 0 && point.max > 0 && point.max >= point.min;
 }
 
+function getOxygenChartValue(point: BloodOxygenPoint) {
+    return point.min === point.max
+        ? point.min
+        : Math.round((point.min + point.max) / 2);
+}
+
+function getOxygenPointColor(value: number) {
+    return value >= OXYGEN_THRESHOLD ? COLOR_ABOVE_THRESHOLD : COLOR_BELOW_THRESHOLD;
+}
+
+function isTodayPointSelected(point: BloodOxygenPoint, selectedDataX: number | null) {
+    if (selectedDataX == null) return false;
+    return Math.abs(parsePointX(point) - selectedDataX) < 0.001;
+}
+
 function getBelowSegmentHeight(min: number, max: number) {
     if (min >= OXYGEN_THRESHOLD) return 0;
     return Math.min(max, OXYGEN_THRESHOLD) - min;
@@ -188,6 +204,7 @@ function getAboveSegmentHeight(min: number, max: number) {
 function buildIntervalCapSeries(
     points: BloodOxygenPoint[],
     getX: (point: BloodOxygenPoint, index: number) => number,
+    barWidth = BAR_WIDTH,
 ) {
     const capData: Array<{
         value: [number, number];
@@ -201,12 +218,12 @@ function buildIntervalCapSeries(
         capData.push(
             {
                 value: [x, point.min],
-                symbolSize: [BAR_WIDTH, 3],
+                symbolSize: [barWidth, 3],
                 itemStyle: { color: point.min >= OXYGEN_THRESHOLD ? COLOR_ABOVE_THRESHOLD : COLOR_BELOW_THRESHOLD },
             },
             {
                 value: [x, point.max],
-                symbolSize: [BAR_WIDTH, 3],
+                symbolSize: [barWidth, 3],
                 itemStyle: { color: point.max > OXYGEN_THRESHOLD ? COLOR_ABOVE_THRESHOLD : COLOR_BELOW_THRESHOLD },
             },
         );
@@ -269,6 +286,7 @@ function buildRangeBarSeries(
     aboveData: Array<{ value: number | number[]; name?: string } | null>,
     capSeries: Record<string, unknown>,
     markLine?: ReturnType<typeof buildCombinedMarkLine>,
+    barWidth = BAR_WIDTH,
 ) {
     return [
         {
@@ -276,7 +294,7 @@ function buildRangeBarSeries(
             type: 'bar',
             stack: BAR_STACK,
             silent: true,
-            barWidth: BAR_WIDTH,
+            barWidth,
             itemStyle: INVISIBLE_BAR_STYLE,
             emphasis: { disabled: true },
             data: baseData,
@@ -286,7 +304,7 @@ function buildRangeBarSeries(
             name: 'below',
             type: 'bar',
             stack: BAR_STACK,
-            barWidth: BAR_WIDTH,
+            barWidth,
             itemStyle: {
                 color: COLOR_BELOW_THRESHOLD,
                 borderRadius: [2, 2, 0, 0],
@@ -298,7 +316,7 @@ function buildRangeBarSeries(
             name: 'above',
             type: 'bar',
             stack: BAR_STACK,
-            barWidth: BAR_WIDTH,
+            barWidth,
             itemStyle: {
                 color: COLOR_ABOVE_THRESHOLD,
                 borderRadius: [2, 2, 0, 0],
@@ -316,6 +334,7 @@ echarts.use([SkiaRenderer, BarChart, ScatterChart, GridComponent, TooltipCompone
 type Props = {
     range: BloodOxygenChartRange;
     data?: BloodOxygenPoint[];
+    onPointChange?: (point: BloodOxygenPoint | undefined) => void;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
@@ -663,30 +682,22 @@ function findPointAtDataX(
     return points[index];
 }
 
-function buildTodayBarSeries(points: BloodOxygenPoint[], selectedDataX: number | null) {
-    const baseData = points.map(point => (
-        isValidPoint(point)
-            ? { value: [parsePointX(point), point.min], name: point.hour }
-            : null
-    ));
-    const belowData = points.map(point => (
-        isValidPoint(point)
-            ? { value: [parsePointX(point), getBelowSegmentHeight(point.min, point.max)], name: point.hour }
-            : null
-    ));
-    const aboveData = points.map(point => (
-        isValidPoint(point)
-            ? { value: [parsePointX(point), getAboveSegmentHeight(point.min, point.max)], name: point.hour }
-            : null
-    ));
-
-    return buildRangeBarSeries(
-        baseData,
-        belowData,
-        aboveData,
-        buildIntervalCapSeries(points, point => parsePointX(point)),
-        buildCombinedMarkLine('today', selectedDataX, []),
-    );
+function buildTodayScatterData(
+    points: BloodOxygenPoint[],
+    selectedDataX: number | null,
+) {
+    return points
+        .map(point => {
+            if (!isValidPoint(point)) return null;
+            const value = getOxygenChartValue(point);
+            return {
+                value: [parsePointX(point), value] as [number, number],
+                name: point.hour,
+                symbolSize: isTodayPointSelected(point, selectedDataX) ? 10 : 8,
+                itemStyle: { color: getOxygenPointColor(value) },
+            };
+        })
+        .filter(item => item != null);
 }
 
 function buildCategoryBarSeries(
@@ -745,8 +756,9 @@ function buildMonthBarSeries(
         baseData,
         belowData,
         aboveData,
-        buildIntervalCapSeries(points, (_, index) => index),
+        buildIntervalCapSeries(points, (_, index) => index, MONTH_BAR_WIDTH),
         buildCombinedMarkLine('month', selectedDataX, labels),
+        MONTH_BAR_WIDTH,
     );
 }
 
@@ -771,7 +783,16 @@ function buildTodayOption(
             splitLine: GRID_SPLIT_LINE,
         },
         yAxis: buildYAxis(points),
-        series: buildTodayBarSeries(points, selectedDataX),
+        series: [
+            {
+                name: 'oxygen',
+                type: 'scatter',
+                data: buildTodayScatterData(points, selectedDataX),
+                symbol: 'circle',
+                markLine: buildCombinedMarkLine('today', selectedDataX, []),
+                z: 10,
+            },
+        ],
     };
 }
 
@@ -867,7 +888,7 @@ function getDefaultData(range: BloodOxygenChartRange) {
     }
 }
 
-export default function BloodOxygenDetailChart({ range, data }: Props) {
+export default function BloodOxygenDetailChart({ range, data, onPointChange }: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
     const points = data ?? getDefaultData(range);
@@ -893,6 +914,10 @@ export default function BloodOxygenDetailChart({ range, data }: Props) {
         () => findPointAtDataX(range, points, selectedDataX),
         [points, range, selectedDataX],
     );
+
+    useEffect(() => {
+        onPointChange?.(selectedPoint);
+    }, [onPointChange, selectedPoint]);
 
     const selectAtChartX = useCallback((chartX: number) => {
         const nearestDataX = findNearestSelectableDataX(

@@ -31,11 +31,13 @@ import {
     countBloodPressureHypertensionItems,
     flattenStatisChildItems,
     formatBloodPressureDetailPointDisplay,
-    mapDetailChartRangeToVitalsRange,
-    normalizeStatisRangeData,
     type BloodPressureAnalysisItem,
     type BloodPressureDetailPoint,
-} from './detailHelpers';
+} from './helpers/bloodPressure';
+import {
+    mapDetailChartRangeToVitalsRange,
+    normalizeStatisRangeData,
+} from './helpers/shared';
 import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;

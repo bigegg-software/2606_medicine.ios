@@ -14,16 +14,16 @@ import {
     type WearableDataItem,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDateRange, sortWearableItems } from '../vitalsHelpers';
+import { getDateRange, sortWearableItems, getWearableReturnOriginalDataParam } from '../vitalsHelpers';
 import {
     buildEnergyDetailPeriodSeries,
     buildEnergyDetailTodaySeries,
     calcEnergyDetailOverview,
     formatEnergyDetailPointDisplay,
     getEnergyDetailGoal,
-    mapDetailChartRangeToVitalsRange,
     type EnergyDetailPoint,
-} from './detailHelpers';
+} from './helpers/energy';
+import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 
 const EMPTY_OVERVIEW = {
     avgTotal: '--',
@@ -72,11 +72,13 @@ export default function ConsumptionPage() {
                     startDate,
                     endDate,
                     type: WEARABLE_DATA_TYPES.activeEnergy,
+                    ...getWearableReturnOriginalDataParam(range),
                 }),
                 getWearableDataDetailByDateRange({
                     startDate,
                     endDate,
                     type: WEARABLE_DATA_TYPES.basalEnergy,
+                    ...getWearableReturnOriginalDataParam(range),
                 }),
             ]);
             const activeRes = activeRawRes as unknown as { code?: number; data?: WearableDataItem[] };
@@ -182,6 +184,7 @@ export default function ConsumptionPage() {
                             data={chartData}
                             onPointChange={handleChartPointChange}
                             valueUnit="千卡"
+                            todayLineChart
                         />
                     </View>
 

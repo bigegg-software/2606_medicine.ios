@@ -3,7 +3,7 @@ import { View, Text, Image, Dimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import * as echarts from 'echarts/core';
-import { BarChart, ScatterChart } from 'echarts/charts';
+import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, MarkLineComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import moment from 'moment';
@@ -321,11 +321,12 @@ function buildRangeBarSeries(
     ];
 }
 
-echarts.use([SkiaRenderer, BarChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent]);
+echarts.use([SkiaRenderer, BarChart, LineChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent]);
 
 type Props = {
     range: BodyTemperatureChartRange;
     data?: BodyTemperatureRangePoint[];
+    onPointChange?: (point: BodyTemperatureRangePoint | undefined) => void;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
@@ -673,24 +674,43 @@ function findPointAtDataX(
     return points[index];
 }
 
-function buildTodayBarSeries(points: BodyTemperatureRangePoint[], selectedDataX: number | null) {
-    const baseData = points.map(point => (
-        isValidPoint(point)
-            ? { value: [parsePointX(point), point.min], name: point.hour }
-            : null
-    ));
-    const rangeData = points.map(point => (
-        isValidPoint(point)
-            ? buildRangeBarItem(point, [parsePointX(point), getRangeHeight(point.min, point.max)])
-            : null
-    ));
+function getBodyTemperatureChartValue(point: BodyTemperatureRangePoint) {
+    return point.min === point.max
+        ? point.min
+        : Number(((point.min + point.max) / 2).toFixed(1));
+}
 
-    return buildRangeBarSeries(
-        baseData,
-        rangeData,
-        buildIntervalCapSeries(points, point => parsePointX(point)),
-        buildCombinedMarkLine('today', selectedDataX, []),
-    );
+function buildTodayLineSeries(
+    lineData: Array<{ value: [number, number]; name?: string } | null>,
+    markLine?: ReturnType<typeof buildCombinedMarkLine>,
+) {
+    const validCount = lineData.filter(item => item != null).length;
+    const singlePoint = validCount === 1;
+
+    return {
+        name: 'bodyTemperature-line',
+        type: 'line' as const,
+        smooth: true,
+        connectNulls: true,
+        showSymbol: singlePoint,
+        symbol: 'circle',
+        symbolSize: singlePoint ? 8 : 4,
+        data: lineData,
+        lineStyle: { color: BAR_COLOR_NORMAL, width: 2 },
+        itemStyle: { color: BAR_COLOR_NORMAL },
+        markLine,
+        z: 5,
+    };
+}
+
+function buildTodayLineData(points: BodyTemperatureRangePoint[]) {
+    return points
+        .filter(isValidPoint)
+        .sort((a, b) => parsePointX(a) - parsePointX(b))
+        .map(point => ({
+            value: [parsePointX(point), getBodyTemperatureChartValue(point)] as [number, number],
+            name: point.hour,
+        }));
 }
 
 function buildCategoryBarSeries(
@@ -763,7 +783,12 @@ function buildTodayOption(
             splitLine: GRID_SPLIT_LINE,
         },
         yAxis: buildYAxis(),
-        series: buildTodayBarSeries(points, selectedDataX),
+        series: [
+            buildTodayLineSeries(
+                buildTodayLineData(points),
+                buildCombinedMarkLine('today', selectedDataX, []),
+            ),
+        ],
     };
 }
 
@@ -859,7 +884,7 @@ function getDefaultData(range: BodyTemperatureChartRange) {
     }
 }
 
-export default function BodyTemperatureDetailChart({ range, data }: Props) {
+export default function BodyTemperatureDetailChart({ range, data, onPointChange }: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
     const points = data ?? getDefaultData(range);
@@ -885,6 +910,10 @@ export default function BodyTemperatureDetailChart({ range, data }: Props) {
         () => findPointAtDataX(range, points, selectedDataX),
         [points, range, selectedDataX],
     );
+
+    useEffect(() => {
+        onPointChange?.(selectedPoint);
+    }, [onPointChange, selectedPoint]);
 
     const selectAtChartX = useCallback((chartX: number) => {
         const nearestDataX = findNearestSelectableDataX(

@@ -14,16 +14,16 @@ import {
     type WearableDataItem,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDateRange, sortWearableItems } from '../vitalsHelpers';
+import { getDateRange, sortWearableItems, getWearableReturnOriginalDataParam } from '../vitalsHelpers';
 import {
     buildStepsDetailPeriodSeries,
     buildStepsDetailTodaySeries,
     calcStepsDetailOverview,
     formatStepsDetailPointDisplay,
     getStepsDetailGoal,
-    mapDetailChartRangeToVitalsRange,
     type StepsDetailPoint,
-} from './detailHelpers';
+} from './helpers/steps';
+import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 
 const EMPTY_OVERVIEW = {
     totalSteps: '--',
@@ -71,6 +71,7 @@ export default function StepsPage() {
                 startDate,
                 endDate,
                 type: WEARABLE_DATA_TYPES.steps,
+                ...getWearableReturnOriginalDataParam(range),
             })) as unknown as { code?: number; data?: WearableDataItem[] };
 
             if (!isResourceApiOk(res)) {
