@@ -50,6 +50,8 @@ export type HealthGoalTarget = {
   xuezhiLdlCImproveDirection?: number;
   improveDirectionVal?: number;
   exImpRate?: number;
+  tiZhongRate?: number;
+  tiZhongImproveDirection?: number;
   /** 改善进度百分比 0-100 */
   improvePercent?: number;
   /** 指标是否下降 1.是 */

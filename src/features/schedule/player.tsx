@@ -492,13 +492,13 @@ export default function PlayerPage() {
     const handleNextVideo = useCallback(() => {
         if (taskLoading || submitting) return;
 
-        if (videos.length <= 1 || activeVideoIndex >= videos.length - 1) {
-            Toast.info('没有下一个了', 1.5);
+        if (videos.length <= 1) {
+            Toast.info('没有更多了', 1.5);
             return;
         }
 
-        setActiveVideoIndex(prev => prev + 1);
-    }, [activeVideoIndex, submitting, taskLoading, videos.length]);
+        setActiveVideoIndex(prev => (prev + 1) % videos.length);
+    }, [submitting, taskLoading, videos.length]);
 
     const handleSubmitTraining = useCallback(() => {
         showEndTrainingConfirm();

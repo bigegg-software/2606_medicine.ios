@@ -1,11 +1,9 @@
 import axios, { type InternalAxiosRequestConfig } from 'axios';
-import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { baseURL } from '@/utils/config';
 import store from '@/store/store';
 import { SET_LOGIN, SET_LOGIN_EXPIRED } from '@/store/type/login';
 import { clearAll } from '@/services/storage';
-import { navigationRef } from '@/utils/navigationRef';
 
 const apiClient = axios.create({
   baseURL,
@@ -15,6 +13,10 @@ const apiClient = axios.create({
 
 const AUTH_SKIP_PATHS = ['/auth/login', '/auth/logout', '/resource/sms/code'];
 let isHandling401 = false;
+
+export function resetUnauthorizedHandling() {
+  isHandling401 = false;
+}
 
 type ApiPayload = {
   code?: number;
@@ -46,8 +48,11 @@ function parseResponseData(data: unknown): ApiPayload | undefined {
   return undefined;
 }
 
-async function handleUnauthorized(config?: InternalAxiosRequestConfig, data?: ApiPayload) {
-  if (isHandling401 || shouldSkipUnauthorizedHandler(config?.url)) {
+async function handleUnauthorized(config?: InternalAxiosRequestConfig) {
+  if (shouldSkipUnauthorizedHandler(config?.url)) {
+    return;
+  }
+  if (isHandling401 || store.getState().login.loginExpired) {
     return;
   }
 
@@ -57,33 +62,9 @@ async function handleUnauthorized(config?: InternalAxiosRequestConfig, data?: Ap
   }
 
   isHandling401 = true;
-
   store.dispatch({ type: SET_LOGIN, payload: false });
   store.dispatch({ type: SET_LOGIN_EXPIRED, payload: true });
   await clearAll();
-
-  const message = data?.msg ?? data?.message ?? '认证失败，登录已过期，请重新登录';
-
-  Alert.alert(
-    '提示',
-    message,
-    [
-      {
-        text: '确定',
-        onPress: () => {
-          isHandling401 = false;
-          store.dispatch({ type: SET_LOGIN_EXPIRED, payload: false });
-          if (navigationRef.isReady()) {
-            navigationRef.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
-          }
-        },
-      },
-    ],
-    { cancelable: false },
-  );
 }
 
 apiClient.interceptors.request.use(
@@ -101,14 +82,14 @@ apiClient.interceptors.response.use(
   response => {
     const data = parseResponseData(response.data);
     if (isUnauthorized(response.status, data)) {
-      void handleUnauthorized(response.config, data);
+      void handleUnauthorized(response.config);
     }
     return data ?? response.data;
   },
   error => {
     const data = parseResponseData(error.response?.data);
     if (isUnauthorized(error.response?.status, data)) {
-      void handleUnauthorized(error.config, data);
+      void handleUnauthorized(error.config);
     }
     return Promise.reject(error);
   },

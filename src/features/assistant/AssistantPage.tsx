@@ -273,6 +273,7 @@ export default function AssistantPage() {
     input,
     setInput,
     loading,
+    actionLoading,
     initializing,
     displayItems,
     sendMessage,
@@ -588,7 +589,7 @@ export default function AssistantPage() {
                 key={item.label}
                 style={styles.quickActionBtn}
                 activeOpacity={0.8}
-                disabled={loading || initializing}
+                disabled={loading || actionLoading || initializing}
                 onPress={() => handleQuickActionPress(item)}>
                 <Text style={styles.quickActionText}>{item.label}</Text>
               </TouchableOpacity>
@@ -617,7 +618,7 @@ export default function AssistantPage() {
               />
               <SpeechToText
                 ref={speechToTextRef}
-                disabled={loading || initializing}
+                disabled={loading || actionLoading || initializing}
                 onMicPress={handleMicPress}
                 onStart={handleVoiceStart}
                 onTextChange={handleVoiceTextChange}

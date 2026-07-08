@@ -45,6 +45,7 @@ export type CalendarTimelineItem = {
   desc: string;
   kind: 'diet' | 'ex' | 'drug' | 'activity' | 'live';
   activityId?: string;
+  liveId?: string;
   exerciseTypeLabel?: string;
   sortValue: number;
   period: 'morning' | 'afternoon' | 'exercise';
@@ -162,6 +163,7 @@ function mapLiveTimelineItem(item: DailyLiveItem, index: number): CalendarTimeli
     title: item.title?.trim() || '直播',
     desc: anchor ? `${anchor}${intro ? ` · ${intro}` : ''}` : intro || item.statusName?.trim() || '直播',
     kind: 'live',
+    liveId: item.liveId != null ? String(item.liveId) : undefined,
     sortValue: sortValue || index + 200,
     period: resolvePeriod(sortValue || 540),
   };

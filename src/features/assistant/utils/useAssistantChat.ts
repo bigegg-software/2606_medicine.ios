@@ -302,6 +302,7 @@ export function useAssistantChat() {
   const [input, setInput] = useState('');
   const [chatId, setChatId] = useState('');
   const [loading, setLoading] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [chatGuide, setChatGuide] = useState<ChatGuideState>(createDefaultGuide);
 
@@ -309,6 +310,7 @@ export function useAssistantChat() {
   const chatGuideRef = useRef<ChatGuideState>(createDefaultGuide());
   const messagesRef = useRef<AssistantMessage[]>([]);
   const loadingRef = useRef(false);
+  const actionLoadingRef = useRef(false);
   const esRef = useRef<EventSource | null>(null);
   const frontIdRef = useRef('');
   const fullTextRef = useRef('');
@@ -327,6 +329,10 @@ export function useAssistantChat() {
   useEffect(() => {
     loadingRef.current = loading;
   }, [loading]);
+
+  useEffect(() => {
+    actionLoadingRef.current = actionLoading;
+  }, [actionLoading]);
 
   useEffect(() => {
     chatGuideRef.current = chatGuide;
@@ -607,7 +613,7 @@ export function useAssistantChat() {
     attachments: MedicalRecordAttachment[],
     question = '',
   ) => {
-    if (!attachments.length || loadingRef.current || !chatIdRef.current) return false;
+    if (!attachments.length || loadingRef.current || actionLoadingRef.current || !chatIdRef.current) return false;
     const text = question.trim();
     if (text) {
       setInput('');
@@ -620,7 +626,7 @@ export function useAssistantChat() {
     const attachments = consumePendingAttachments();
     if (!attachments.length) return;
 
-    if (!chatIdRef.current || loadingRef.current || initializingRef.current) {
+    if (!chatIdRef.current || loadingRef.current || actionLoadingRef.current || initializingRef.current) {
       pushPendingAttachments(attachments);
       return;
     }
@@ -667,9 +673,9 @@ export function useAssistantChat() {
   );
 
   const runHealthStatusQuickAction = useCallback(async (question?: string) => {
-    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+    if (loadingRef.current || actionLoadingRef.current || initializing || !chatIdRef.current) return false;
 
-    setLoading(true);
+    setActionLoading(true);
     try {
       const result = await requestHealthStatusQuickAction({
         chatId: chatIdRef.current,
@@ -706,14 +712,14 @@ export function useAssistantChat() {
       console.error('runHealthStatusQuickAction failed:', error);
       return false;
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   }, [initializing]);
 
   const runTodayScheduleQuickAction = useCallback(async (question?: string) => {
-    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+    if (loadingRef.current || actionLoadingRef.current || initializing || !chatIdRef.current) return false;
 
-    setLoading(true);
+    setActionLoading(true);
     try {
       const result = await requestTodayScheduleQuickAction({
         chatId: chatIdRef.current,
@@ -750,7 +756,7 @@ export function useAssistantChat() {
       console.error('runTodayScheduleQuickAction failed:', error);
       return false;
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   }, [initializing]);
 
@@ -814,9 +820,9 @@ export function useAssistantChat() {
   }, [cleanupStream]);
 
   const runMedicationReminder = useCallback(async () => {
-    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+    if (loadingRef.current || actionLoadingRef.current || initializing || !chatIdRef.current) return false;
 
-    setLoading(true);
+    setActionLoading(true);
     try {
       const result = await requestMedicationReminderQuickAction({
         chatId: chatIdRef.current,
@@ -853,14 +859,14 @@ export function useAssistantChat() {
       console.error('runMedicationReminder failed:', error);
       return false;
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   }, [initializing]);
 
   const runQuestionnaireQuickAction = useCallback(async () => {
-    if (loadingRef.current || initializing || !chatIdRef.current) return false;
+    if (loadingRef.current || actionLoadingRef.current || initializing || !chatIdRef.current) return false;
 
-    setLoading(true);
+    setActionLoading(true);
     try {
       const result = await requestQuestionnaireQuickAction({
         chatId: chatIdRef.current,
@@ -897,7 +903,7 @@ export function useAssistantChat() {
       console.error('runQuestionnaireQuickAction failed:', error);
       return false;
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   }, [initializing]);
 
@@ -908,6 +914,7 @@ export function useAssistantChat() {
     input,
     setInput,
     loading,
+    actionLoading,
     initializing,
     displayItems,
     sendMessage,

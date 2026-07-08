@@ -627,6 +627,10 @@ function resolveHealthGoalProgressState(
   return { kind: 'progress', value: normalizeProgress(progress) };
 }
 
+function isNonQuantifiableHealthGoal(target: HealthGoalTarget) {
+  return target.healthGoalVo?.assessmentType?.trim() === 'question_type';
+}
+
 function formatHealthGoalStatusByProgress(progress: number) {
   if (progress >= 80) return '接近目标达成';
   if (progress >= 60) return '改善明显';
@@ -637,9 +641,10 @@ function formatHealthGoalStatusByProgress(progress: number) {
 
 function getHealthGoalStatusText(target: HealthGoalTarget, progressInfo?: ProgressInfo) {
   const state = resolveHealthGoalProgressState(target, progressInfo);
-  if (state.kind === 'no_data') return '等待评估';
-  if (state.kind === 'declined') return '需关注';
-  return formatHealthGoalStatusByProgress(state.value);
+  if (state.kind === 'declined') return '指标下降需关注';
+  if (state.kind === 'progress') return formatHealthGoalStatusByProgress(state.value);
+  if (isNonQuantifiableHealthGoal(target)) return '持续改善中';
+  return '等待评估';
 }
 
 function getHealthGoalIcon(target: HealthGoalTarget) {
@@ -694,6 +699,30 @@ export function toHealthGoalDisplayItem(
     assessmentType: assessmentType ?? '',
     assessmentValue: assessmentValue ?? '',
   };
+}
+
+const HEALTH_INDICATOR_VALUE_ORDER = ['xueYa', 'xueTang', 'tiZhong', 'xueZhi'] as const;
+
+const HEALTH_GOAL_TYPE_ORDER: Record<string, number> = {
+  health_indicator_type: 0,
+  sys_health_test_item: 1,
+  question_type: 2,
+};
+
+function getHealthGoalSortIndex(item: HealthGoalDisplayItem) {
+  const typeRank = HEALTH_GOAL_TYPE_ORDER[item.assessmentType] ?? 99;
+  if (item.assessmentType !== 'health_indicator_type') {
+    return typeRank * 100;
+  }
+
+  const valueRank = HEALTH_INDICATOR_VALUE_ORDER.indexOf(
+    item.assessmentValue as typeof HEALTH_INDICATOR_VALUE_ORDER[number],
+  );
+  return typeRank * 100 + (valueRank >= 0 ? valueRank : 99);
+}
+
+export function sortHealthGoalDisplayItems(items: HealthGoalDisplayItem[]) {
+  return [...items].sort((left, right) => getHealthGoalSortIndex(left) - getHealthGoalSortIndex(right));
 }
 
 export function toTodayTaskItem(

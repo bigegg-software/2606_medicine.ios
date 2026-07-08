@@ -341,7 +341,10 @@ export default function VitalsPage() {
     if (uploading) return;
     try {
       const res = (await updateHealthKit(days)) as { code?: number; msg?: string } | undefined;
-      if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
+      if (res?.code == 500) {
+        Alert.alert('同步完成', res.msg ?? '请稍后重试');
+        return
+      } else if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
         Alert.alert('同步失败', res.msg ?? '请稍后重试');
         return;
       }
@@ -781,30 +784,32 @@ export default function VitalsPage() {
               </TouchableOpacity>
             </Flex>
           </Flex>
-          <Flex style={styles.vValueBox} justify="between" align="center">
-            <View>
-              <Text style={styles.vUnit}>总胆固醇 TC</Text>
-              <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
-              <Text style={styles.vUnit}>mmol/L</Text>
-              {bloodLipids.status ? (
-                <Text style={[styles.vStatus, { color: bloodLipids.statusColor }]}>{bloodLipids.status}</Text>
-              ) : null}
-            </View>
-            <View style={styles.vRightBox}>
-              <Flex justify="between" style={{ marginBottom: 6 }}>
-                <Text style={styles.vText1}>TG</Text>
-                <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
-              </Flex>
-              <Flex justify="between" style={{ marginBottom: 6 }}>
-                <Text style={styles.vText1}>HDL-C</Text>
-                <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
-              </Flex>
-              <Flex justify="between">
-                <Text style={styles.vText1}>LDL-C</Text>
-                <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
-              </Flex>
-            </View>
-          </Flex>
+          <TouchableOpacity onPress={() => navigation.navigate('BloodLipidPage')}>
+            <Flex style={styles.vValueBox} justify="between" align="center">
+              <View>
+                <Text style={styles.vUnit}>总胆固醇 TC</Text>
+                <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
+                <Text style={styles.vUnit}>mmol/L</Text>
+                {bloodLipids.status ? (
+                  <Text style={[styles.vStatus, { color: bloodLipids.statusColor }]}>{bloodLipids.status}</Text>
+                ) : null}
+              </View>
+              <View style={styles.vRightBox}>
+                <Flex justify="between" style={{ marginBottom: 6 }}>
+                  <Text style={styles.vText1}>TG</Text>
+                  <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
+                </Flex>
+                <Flex justify="between" style={{ marginBottom: 6 }}>
+                  <Text style={styles.vText1}>HDL-C</Text>
+                  <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
+                </Flex>
+                <Flex justify="between">
+                  <Text style={styles.vText1}>LDL-C</Text>
+                  <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
+                </Flex>
+              </View>
+            </Flex>
+          </TouchableOpacity>
         </View>
       </ScrollView>
       <TouchableOpacity

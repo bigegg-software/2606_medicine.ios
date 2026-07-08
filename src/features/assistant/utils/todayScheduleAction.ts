@@ -50,6 +50,7 @@ export type TodayScheduleItem = {
   taken?: boolean;
   medicationKey?: string;
   activityId?: string;
+  liveId?: string;
   progress?: number;
   exerciseType?: string;
   exerciseChildType?: string;
@@ -144,6 +145,7 @@ function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleIte
     taken: item.taken,
     medicationKey: item.key,
     activityId: item.activityId,
+    liveId: item.liveId,
   };
 }
 
@@ -259,6 +261,7 @@ function mapLiveTimelineItem(item: DailyLiveItem, index: number): CalendarTimeli
     title: item.title?.trim() || '直播',
     desc: anchor ? `${anchor}${intro ? ` · ${intro}` : ''}` : intro || item.statusName?.trim() || '直播',
     kind: 'live',
+    liveId: item.liveId != null ? String(item.liveId) : undefined,
     sortValue: sortValue || index + 200,
     period: sortValue < 12 * 60 ? 'morning' : 'afternoon',
   };

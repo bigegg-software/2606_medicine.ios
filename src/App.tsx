@@ -19,6 +19,7 @@ import { AppTheme } from '@/common/theme';
 import { checkAutoSyncOnLaunch } from '@/utils/checkAutoSyncOnLaunch';
 import { addPushNotificationListeners, registerIosPushToken, syncNotificationSettingsFromUserExtr } from '@/src/utils/pushNotifications';
 import SyncReminderWatcher from '@/src/components/SyncReminderWatcher';
+import SessionExpiredWatcher from '@/src/components/SessionExpiredWatcher';
 import UploadProgressBar from '@/src/components/UploadProgressBar';
 
 function AutoSyncOnLaunch() {
@@ -94,6 +95,7 @@ function AppShell() {
         <PushNotificationListener />
         <AutoSyncOnLaunch />
         <SyncReminderWatcher />
+        <SessionExpiredWatcher />
         <View style={{ flex: 1 }}>
           <NavigationContainer ref={navigationRef}>
             <RootStack />

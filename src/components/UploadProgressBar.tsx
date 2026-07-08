@@ -190,7 +190,7 @@ export default function UploadProgressBar() {
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View style={[styles.container, containerStyle]}>
-        <SyncProgressRing progress={80} />
+        <SyncProgressRing progress={progress} />
       </Animated.View>
     </GestureDetector>
   );

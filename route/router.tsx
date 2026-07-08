@@ -88,6 +88,8 @@ import BloodOxygenPage from '@/src/features/profile/vitals/detail/bloodOxygen';
 import BodyTemperaturePage from '@/src/features/profile/vitals/detail/bodyTemperature';
 import StepsPage from '@/src/features/profile/vitals/detail/steps';
 import ConsumptionPage from '@/src/features/profile/vitals/detail/consumption';
+import WeightPage from '@/src/features/profile/vitals/detail/weightPage';
+import BloodLipidPage from '@/src/features/profile/vitals/detail/blooLipid';
 
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
@@ -147,6 +149,8 @@ export type RootStackParamList = {
   BodyTemperaturePage: undefined;
   StepsPage: undefined;
   ConsumptionPage: undefined;
+  WeightPage: undefined;
+  BloodLipidPage: undefined;
   CalendarPage: undefined;
   ScheduleHistoryPage: undefined;
   ScheduleHistoryDetailPage: { exPatientRuleId: string };
@@ -365,6 +369,8 @@ export default function RootStack() {
       <Stack.Screen name="BodyTemperaturePage" component={BodyTemperaturePage} options={{ title: "体温", showHeaderBackground: false }} />
       <Stack.Screen name="StepsPage" component={StepsPage} options={{ title: "步数", showHeaderBackground: false }} />
       <Stack.Screen name="ConsumptionPage" component={ConsumptionPage} options={{ title: "消耗", showHeaderBackground: false }} />
+      <Stack.Screen name="WeightPage" component={WeightPage} options={{ title: "体重", showHeaderBackground: false }} />
+      <Stack.Screen name="BloodLipidPage" component={BloodLipidPage} options={{ title: "血脂", showHeaderBackground: false }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
       <Stack.Screen

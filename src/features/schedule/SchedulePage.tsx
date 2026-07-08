@@ -36,6 +36,7 @@ import {
   normalizeProgress,
   sortHistoryPlans,
   enrichHealthGoalTargets,
+  sortHealthGoalDisplayItems,
   toHealthGoalDisplayItem,
   toHistoryPlanItem,
   toTodayTaskItem,
@@ -137,8 +138,10 @@ export default function SchedulePage() {
     [prescription?.ruleRatioList, dictMaps, todayTaskProgressMap],
   );
   const goalItems = useMemo(
-    () => (prescription?.healthGoalTargetList ?? []).map((target, index) =>
-      toHealthGoalDisplayItem(target, index, prescription?.progressInfo),
+    () => sortHealthGoalDisplayItems(
+      (prescription?.healthGoalTargetList ?? []).map((target, index) =>
+        toHealthGoalDisplayItem(target, index, prescription?.progressInfo),
+      ),
     ),
     [prescription?.healthGoalTargetList, prescription?.progressInfo],
   );
@@ -347,9 +350,14 @@ export default function SchedulePage() {
                       navigation.navigate('BloodSugarPage');
                     } else if (
                       item.assessmentType === 'health_indicator_type' &&
-                      item.assessmentValue === 'xueTang'
+                      item.assessmentValue === 'xueZhi'
                     ) {
-                      navigation.navigate('BloodSugarPage');
+                      navigation.navigate('VitalsPage');
+                    } else if (
+                      item.assessmentType === 'health_indicator_type' &&
+                      item.assessmentValue === 'tiZhong'
+                    ) {
+                      navigation.navigate('WeightPage');
                     }
                   }}>
                     <Image style={styles.backImg} source={item.backImage} />

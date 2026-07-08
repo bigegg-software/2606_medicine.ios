@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, Platform, useWindowDimensions, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
+import { View, Text, Image,ScrollView, TouchableOpacity, Platform, useWindowDimensions, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
@@ -61,10 +61,15 @@ import {
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import {
   buildExercisePrescriptionMetrics,
+  enrichHealthGoalTargets,
   loadScheduleDictMaps,
   loadTodayTaskProgressMap,
   type ScheduleDictMaps,
 } from '@/src/features/schedule/scheduleHelpers';
+import {
+  loadHomePrescriptionGoalDisplay,
+  type HomePrescriptionGoalDisplay,
+} from '@/src/features/home/homePrescriptionGoalHelpers';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -236,7 +241,11 @@ export default function HomeTab() {
   const [exercisePrescription, setExercisePrescription] = useState<InUseExPatientRule | null>(null);
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
+  const [homePrescriptionGoal, setHomePrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(null);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
+  const userId = useSelector(
+    (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
+  );
 
   const exercisePrescriptionMetrics = useMemo(
     () => buildExercisePrescriptionMetrics(
@@ -406,20 +415,28 @@ export default function HomeTab() {
       if (!isResourceApiOk(payload)) {
         setExercisePrescription(null);
         setExerciseProgressMap({});
+        setHomePrescriptionGoal(null);
         return;
       }
 
-      const prescription = apiResourceData<InUseExPatientRule>(payload) ?? null;
+      let prescription = apiResourceData<InUseExPatientRule>(payload) ?? null;
+      if (prescription?.healthGoalTargetList?.length) {
+        const enrichedTargets = await enrichHealthGoalTargets(prescription.healthGoalTargetList);
+        prescription = { ...prescription, healthGoalTargetList: enrichedTargets };
+      }
       setExercisePrescription(prescription);
       const progressMap = prescription?.exPatientRuleId != null
         ? await loadTodayTaskProgressMap(prescription.exPatientRuleId).catch(() => ({}))
         : {};
       setExerciseProgressMap(progressMap);
+      const goalDisplay = await loadHomePrescriptionGoalDisplay(prescription, userId);
+      setHomePrescriptionGoal(goalDisplay);
     } catch {
       setExercisePrescription(null);
       setExerciseProgressMap({});
+      setHomePrescriptionGoal(null);
     }
-  }, []);
+  }, [userId]);
 
   useEffect(() => {
     if (userExtr == null) {
@@ -436,7 +453,7 @@ export default function HomeTab() {
   );
 
   const content = (
-    <View style={[styles.scrollView, styles.scroll]}>
+    <ScrollView style={[styles.scrollView, styles.scroll]}>
       <Image
         source={require('@/assets/images/home/back.png')}
         style={[bannerSize, { position: "absolute", top: 0, left: 0 }]}
@@ -576,7 +593,7 @@ export default function HomeTab() {
             ) : null}
           </View>
         </View>
-        <TouchableOpacity style={styles.scheduleBoxShadow} onPress={() => navigation.navigate('Schedule')}>
+        <View style={styles.scheduleBoxShadow}>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -590,10 +607,12 @@ export default function HomeTab() {
                   <Image source={require('@/assets/images/home/yd.png')} style={styles.cfIcon} />
                   <Text style={styles.cfIconText}>运动处方</Text>
                 </Flex>
-                <Flex>
-                  <Text style={styles.cfMore}>查看详情</Text>
-                  <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
-                </Flex>
+                <TouchableOpacity onPress={() => navigation.navigate('Schedule')}>
+                  <Flex>
+                    <Text style={styles.cfMore}>查看详情</Text>
+                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
+                  </Flex>
+                </TouchableOpacity>
               </Flex>
               <Flex justify='between' style={styles.cfContent}>
                 {exercisePrescriptionMetrics.map(item => (
@@ -614,20 +633,27 @@ export default function HomeTab() {
                   </View>
                 ))}
               </Flex>
-              <Flex style={styles.cfBottom}>
-                <Text style={styles.btm1}>血糖控制目标</Text>
-                <Text style={styles.btmText}>30</Text>
-                <Text style={styles.btm1}>天</Text>
-                <Flex style={styles.ydbBox}>
-                  <Text style={styles.ydbText}>已达标15天</Text>
+              {homePrescriptionGoal ? (
+                <Flex style={styles.cfBottom} align="center">
+                  {homePrescriptionGoal.layout === 'metric' ? (
+                    <>
+                      <Text style={styles.btm1}>{homePrescriptionGoal.label}</Text>
+                      <Text style={styles.btmText}>{homePrescriptionGoal.value}</Text>
+                      <Text style={styles.btm1}>{homePrescriptionGoal.unit}</Text>
+                      <Flex style={styles.ydbBox}>
+                        <Text style={styles.ydbText}>{homePrescriptionGoal.badge}</Text>
+                      </Flex>
+                    </>
+                  ) : (
+                    <Text style={styles.btm1} numberOfLines={2}>{homePrescriptionGoal.text}</Text>
+                  )}
                 </Flex>
-              </Flex>
+              ) : null}
             </View>
           </View>
-        </TouchableOpacity>
+        </View>
 
-        <TouchableOpacity style={styles.scheduleBoxShadow} onPress={() => navigation.navigate('Medication', { tab: 'meal' })}>
-
+        <View style={styles.scheduleBoxShadow}>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -641,10 +667,12 @@ export default function HomeTab() {
                   <Image source={require('@/assets/images/home/yy.png')} style={styles.cfIcon} />
                   <Text style={styles.cfIconText}>营养处方</Text>
                 </Flex>
-                <Flex>
-                  <Text style={styles.cfMore}>查看详情</Text>
-                  <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
-                </Flex>
+                <TouchableOpacity onPress={() => navigation.navigate('Medication', { tab: 'meal' })}>
+                  <Flex>
+                    <Text style={styles.cfMore}>查看详情</Text>
+                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
+                  </Flex>
+                </TouchableOpacity>
               </Flex>
               <Flex justify='between' style={styles.yyContent}>
                 <Flex style={styles.yyItem} align="center">
@@ -771,11 +799,11 @@ export default function HomeTab() {
               </Text>
             </Flex>
           </View>
-        </TouchableOpacity>
+        </View>
       </View>
 
 
-    </View>
+    </ScrollView>
   );
 
   return (
