@@ -45,8 +45,8 @@ import {
     NUTRITION_COLOR,
     type MealCardData,
     type NutritionDisplay,
-} from '@/src/features/profile/medication/meal/dietRuleHelpers';
-import { buildDietAiAdviceParamJson } from '@/src/features/profile/medication/meal/mealAiAdviceHelpers';
+} from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
+import { buildDietAiAdviceParamJson } from '@/src/features/profile/medication/meal/utils/mealAiAdviceHelpers';
 import {
     formatMealServingText,
     formatNutritionInteger,
@@ -56,8 +56,8 @@ import {
     sumCalories,
     sumProtein,
     sumWaterIntake,
-} from '@/src/features/profile/medication/meal/mealDetailHelpers';
-import { consumeMealInputReset } from '@/src/features/profile/medication/meal/mealInputReset';
+} from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import { consumeMealInputReset } from '@/src/features/profile/medication/meal/utils/mealInputReset';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import Svg, { ClipPath, Defs, G, Path, Polygon } from 'react-native-svg';

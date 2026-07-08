@@ -11,7 +11,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import mealStyles from '@/css/medication/meal';
-import type { MealCardData } from '@/src/features/profile/medication/meal/dietRuleHelpers';
+import type { MealCardData } from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 
 const SWIPE_THRESHOLD = 40;
 const SWIPE_MAX_DRAG = 28;

@@ -6,7 +6,7 @@ import {
     chunkPairs,
     formatNutritionValue,
     type NutritionEntry,
-} from '@/src/features/profile/medication/meal/mealNutritionHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealNutritionHelpers';
 
 function NutritionCol({ entry }: { entry: NutritionEntry }) {
     return (

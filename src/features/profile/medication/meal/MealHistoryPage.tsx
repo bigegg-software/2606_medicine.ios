@@ -39,7 +39,7 @@ import {
   getPrescriptionDateRange,
   getPrescriptionPeriodDayCount,
   normalizeComplianceRate,
-} from './mealHistoryHelpers';
+} from './utils/mealHistoryHelpers';
 
 const PAGE_SIZE = 20;
 const HISTORY_TABS = [

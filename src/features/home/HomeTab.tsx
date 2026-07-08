@@ -51,14 +51,14 @@ import {
 import {
   calcNutritionProgress,
   getDietRuleSummary,
-} from '@/src/features/profile/medication/meal/dietRuleHelpers';
+} from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 import {
   formatNutritionInteger,
   getFoodRecordsByCategory,
   sumCalories,
   sumProtein,
   sumWaterIntake,
-} from '@/src/features/profile/medication/meal/mealDetailHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import {
   buildExercisePrescriptionMetrics,
   loadScheduleDictMaps,

@@ -9,7 +9,7 @@ import type { FoodIdentifyData, FoodIdentifyItem } from '@/api/mealRecognition';
 import styles from '@/css/medication/deal/mealResult';
 import PageLayout from '@/src/components/PageLayout';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
-import { toNumber } from '@/src/features/profile/medication/meal/mealDetailHelpers';
+import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
 import FoodDetailCard, {
@@ -21,9 +21,9 @@ import NutritionTable from './components/NutritionTable';
 import {
     buildAggregatedNutritionEntries,
     PREVIEW_NUTRITION_KEYS,
-} from './mealNutritionHelpers';
-import type { ManualCorrectionSavePayload } from './manualCorrectionHelpers';
-import { markMealInputForReset } from './mealInputReset';
+} from './utils/mealNutritionHelpers';
+import type { ManualCorrectionSavePayload } from './utils/manualCorrectionHelpers';
+import { markMealInputForReset } from './utils/mealInputReset';
 
 function getMealCategoryByTime() {
     const hour = new Date().getHours();

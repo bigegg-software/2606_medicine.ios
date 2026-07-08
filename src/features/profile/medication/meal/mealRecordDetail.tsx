@@ -12,7 +12,7 @@ import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
 import {
     mealDetailItemToFoodItem,
     normalizeMealDetailInfo,
-} from '@/src/features/profile/medication/meal/mealDetailHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import FoodDetailCard, {
     createFoodItemStateFromMealDetail,
     type FoodItemEditState,

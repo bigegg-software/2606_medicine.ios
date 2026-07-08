@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, Platform } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Switch, Toast, WhiteSpace, WingBlank } from '@ant-design/react-native';
@@ -8,6 +8,14 @@ import { FONT_SIZE_OPTIONS } from '@/common/fontSize';
 import { useFontSize } from '@/common/FontSizeContext';
 import { AppTheme } from '@/common/theme';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+    buildNotificationSettingsPayload,
+    parseNotificationSettings,
+} from '@/src/utils/notificationSettingsHelpers';
+import {
+    applyNotificationSettings,
+    registerIosPushToken,
+} from '@/src/utils/pushNotifications';
 import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
 import styles from '@/css/profile/settings';
@@ -49,6 +57,7 @@ export default function SettingsPage() {
     const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
     const [syncRange, setSyncRange] = useState<SyncRange>('7d');
     const [savingSync, setSavingSync] = useState(false);
+    const [savingNotification, setSavingNotification] = useState(false);
     const [notificationEnabled, setNotificationEnabled] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
     const [vibrationEnabled, setVibrationEnabled] = useState(false);
@@ -57,6 +66,14 @@ export default function SettingsPage() {
         setAutoSyncEnabled(userExtr?.autoSyncData !== 0);
         setSyncRange(syncRangeFromDays(userExtr?.synWdataDays));
     }, [userExtr?.autoSyncData, userExtr?.synWdataDays]);
+
+    useEffect(() => {
+        const settings = parseNotificationSettings(userExtr);
+        setNotificationEnabled(settings.enabled);
+        setSoundEnabled(settings.soundEnabled);
+        setVibrationEnabled(settings.vibrationEnabled);
+        applyNotificationSettings(settings);
+    }, [userExtr?.isSendSysMsg, userExtr?.params]);
 
     const saveSyncSettings = useCallback(async (payload: { autoSyncData?: number; synWdataDays?: number }) => {
         setSavingSync(true);
@@ -102,6 +119,86 @@ export default function SettingsPage() {
             setSyncRange(prev);
         }
     }, [saveSyncSettings, syncRange]);
+
+    const saveNotificationSettings = useCallback(async (next: {
+        enabled: boolean;
+        soundEnabled: boolean;
+        vibrationEnabled: boolean;
+    }) => {
+        setSavingNotification(true);
+        try {
+            const payload = buildNotificationSettingsPayload(next, userExtr?.params);
+            const res = await updateExtrInfo(payload);
+            if (!isResourceApiOk(res as { code?: number })) {
+                Toast.fail((res as { msg?: string })?.msg || '保存通知设置失败', 1.5);
+                return false;
+            }
+
+            applyNotificationSettings(next);
+            if (userExtr) {
+                dispatch({
+                    type: SET_USER_EXTR,
+                    payload: {
+                        ...userExtr,
+                        isSendSysMsg: payload.isSendSysMsg,
+                        params: payload.params,
+                    },
+                });
+            }
+            return true;
+        } catch {
+            Toast.fail('保存通知设置失败', 1.5);
+            return false;
+        } finally {
+            setSavingNotification(false);
+        }
+    }, [dispatch, userExtr]);
+
+    const handleNotificationChange = useCallback(async (checked: boolean) => {
+        const prev = {
+            enabled: notificationEnabled,
+            soundEnabled,
+            vibrationEnabled,
+        };
+        setNotificationEnabled(checked);
+        if (checked && Platform.OS === 'ios') {
+            await registerIosPushToken().catch(() => undefined);
+        }
+        const ok = await saveNotificationSettings({
+            enabled: checked,
+            soundEnabled: prev.soundEnabled,
+            vibrationEnabled: prev.vibrationEnabled,
+        });
+        if (!ok) {
+            setNotificationEnabled(prev.enabled);
+        }
+    }, [notificationEnabled, saveNotificationSettings, soundEnabled, vibrationEnabled]);
+
+    const handleSoundChange = useCallback(async (checked: boolean) => {
+        const prev = soundEnabled;
+        setSoundEnabled(checked);
+        const ok = await saveNotificationSettings({
+            enabled: notificationEnabled,
+            soundEnabled: checked,
+            vibrationEnabled,
+        });
+        if (!ok) {
+            setSoundEnabled(prev);
+        }
+    }, [notificationEnabled, saveNotificationSettings, soundEnabled, vibrationEnabled]);
+
+    const handleVibrationChange = useCallback(async (checked: boolean) => {
+        const prev = vibrationEnabled;
+        setVibrationEnabled(checked);
+        const ok = await saveNotificationSettings({
+            enabled: notificationEnabled,
+            soundEnabled,
+            vibrationEnabled: checked,
+        });
+        if (!ok) {
+            setVibrationEnabled(prev);
+        }
+    }, [notificationEnabled, saveNotificationSettings, soundEnabled, vibrationEnabled]);
 
     const handleSelect = (next: (typeof FONT_SIZE_OPTIONS)[number]['key']) => {
         void setOption(next);
@@ -169,8 +266,9 @@ export default function SettingsPage() {
                             <Switch
                                 style={styles.switch}
                                 checked={notificationEnabled}
-                                onChange={setNotificationEnabled}
+                                onChange={handleNotificationChange}
                                 color={AppTheme.primaryColor}
+                                disabled={savingNotification}
                             />
                         </Flex>
                         <WhiteSpace size="md" />
@@ -186,8 +284,9 @@ export default function SettingsPage() {
                             <Switch
                                 style={styles.switch}
                                 checked={soundEnabled}
-                                onChange={setSoundEnabled}
+                                onChange={handleSoundChange}
                                 color={AppTheme.primaryColor}
+                                disabled={!notificationEnabled || savingNotification}
                             />
                         </Flex>
                         <WhiteSpace size="md" />
@@ -203,8 +302,9 @@ export default function SettingsPage() {
                             <Switch
                                 style={styles.switch}
                                 checked={vibrationEnabled}
-                                onChange={setVibrationEnabled}
+                                onChange={handleVibrationChange}
                                 color={AppTheme.primaryColor}
+                                disabled={!notificationEnabled || savingNotification}
                             />
                         </Flex>
                     </WingBlank>

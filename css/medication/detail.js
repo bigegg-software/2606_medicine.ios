@@ -40,6 +40,17 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#FF8B07',
     },
+    statusEndedBadge: {
+        height: 24,
+        backgroundColor: 'rgba(23,63,125,0.08)',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+    },
+    statusEndedText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: AppTheme.primaryColor,
+    },
     detailImage: {
         width: 24,
         height: 24,

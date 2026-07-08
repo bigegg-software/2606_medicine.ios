@@ -10,6 +10,7 @@ import {
 import {
     loadMedicationDictMaps,
     formatMedicationDoseText,
+    getDrugPatientRuleStatusLabel,
     type MedicationDictMaps,
 } from './medicationHelpers';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -82,6 +83,9 @@ export default function MedicationDetailPage({ route }: Props) {
     const drugList = info.drugRuleList ?? [];
     const dict = dictMaps ?? { amountUnit: {}, eventBased: {}, amountUnitOptions: [], eventBasedOptions: [] };
     const isPaused = info.status === 1;
+    const isEnded = info.status === 2;
+    const showStatusBadge = isPaused || isEnded;
+    const statusLabel = getDrugPatientRuleStatusLabel(info.status);
     const stopReason = info.stopReason?.trim();
 
     return (
@@ -99,9 +103,11 @@ export default function MedicationDetailPage({ route }: Props) {
                                 {info.diagnosis ? <Text style={styles.detailSubtitle}>{info.diagnosis}</Text> : null}
                             </View>
                         </Flex>
-                        {isPaused ? (
-                            <Flex style={styles.statusPausedBadge}>
-                                <Text style={styles.statusPausedText}>已暂停</Text>
+                        {showStatusBadge ? (
+                            <Flex style={isPaused ? styles.statusPausedBadge : styles.statusEndedBadge}>
+                                <Text style={isPaused ? styles.statusPausedText : styles.statusEndedText}>
+                                    {statusLabel}
+                                </Text>
                             </Flex>
                         ) : null}
                     </Flex>

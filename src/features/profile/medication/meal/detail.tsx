@@ -6,7 +6,7 @@ import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/die
 import styles from '@/css/medication/deal/detail';
 import PageLayout from '@/src/components/PageLayout';
 import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
-import { formatDietNumber, getDietRuleSummary } from './dietRuleHelpers';
+import { formatDietNumber, getDietRuleSummary } from './utils/dietRuleHelpers';
 
 export default function MealDetailPage() {
     const [loading, setLoading] = useState(true);

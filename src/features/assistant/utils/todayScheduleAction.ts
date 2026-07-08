@@ -20,7 +20,7 @@ import { loadMedicationPlanGroupsForDate } from '@/src/features/profile/medicati
 import {
   buildMealCardsFromRule,
   type MealCardData,
-} from '@/src/features/profile/medication/meal/dietRuleHelpers';
+} from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 import {
   loadScheduleDictMaps,
   loadTodayTaskProgressMap,

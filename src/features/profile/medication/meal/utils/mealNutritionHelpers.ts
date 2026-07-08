@@ -1,6 +1,6 @@
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
 import type { MealDetailItem } from '@/api/mealDetail';
-import { toNumber } from '@/src/features/profile/medication/meal/mealDetailHelpers';
+import { toNumber } from './mealDetailHelpers';
 
 export const NUTRITION_LABELS: Record<string, string> = {
     fiber: '膳食纤维',

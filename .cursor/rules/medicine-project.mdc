@@ -16,3 +16,4 @@ Read @AGENTS.md in the project root for full conventions.
 - Schedule helpers: `scheduleHelpers.ts`; player logic: `playerHelpers.ts`
 - Player: training records need >= 1 minute; exit dialogs via `getExitConfirmContent()`
 - id给后端传输统一使用string类型
+- 方法类的需要写到utils中 在本文件同级创建

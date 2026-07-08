@@ -186,7 +186,7 @@ export type RootStackParamList = {
     item: import('@/api/mealRecognition').FoodIdentifyItem;
     state: import('@/src/features/profile/medication/meal/components/FoodDetailCard').FoodItemEditState;
     recordTime: string;
-    onSave?: (payload: import('@/src/features/profile/medication/meal/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
+    onSave?: (payload: import('@/src/features/profile/medication/meal/utils/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
   };
   MealResultPage: {
     ossUrl?: string;

@@ -24,8 +24,8 @@ import {
     formToFoodIdentifyItem,
     validateNutrientValue,
     type ManualCorrectionForm,
-} from './manualCorrectionHelpers';
-import { NUTRITION_UNITS } from './mealNutritionHelpers';
+} from './utils/manualCorrectionHelpers';
+import { NUTRITION_UNITS } from './utils/mealNutritionHelpers';
 
 const MANUAL_CORRECTION_KEYBOARD_ACCESSORY_ID = 'manualCorrectionKeyboardDone';
 

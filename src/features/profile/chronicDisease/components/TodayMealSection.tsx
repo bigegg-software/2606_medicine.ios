@@ -9,13 +9,13 @@ import MiniProgressRing from '@/src/features/home/components/MiniProgressRing';
 import {
     calcNutritionProgress,
     getDietRuleSummary,
-} from '@/src/features/profile/medication/meal/dietRuleHelpers';
+} from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 import {
     formatNutritionInteger,
     sumCalories,
     sumProtein,
     sumWaterIntake,
-} from '@/src/features/profile/medication/meal/mealDetailHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/chronicDisease/detail';
 

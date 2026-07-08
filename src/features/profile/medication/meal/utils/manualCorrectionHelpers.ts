@@ -1,6 +1,6 @@
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
-import { toNumber } from '@/src/features/profile/medication/meal/mealDetailHelpers';
-import type { FoodItemEditState, FoodUnitValue } from './components/FoodDetailCard';
+import { toNumber } from './mealDetailHelpers';
+import type { FoodItemEditState, FoodUnitValue } from '../components/FoodDetailCard';
 import { isGramUnit } from './foodUnitHelpers';
 import { ALL_NUTRITION_KEYS, getOtherNutrientValue, NUTRITION_LABELS } from './mealNutritionHelpers';
 

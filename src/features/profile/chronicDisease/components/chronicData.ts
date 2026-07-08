@@ -35,7 +35,7 @@ import {
 import {
     getCurrentMealLabel,
     isCurrentMealRecorded,
-} from '@/src/features/profile/medication/meal/mealDetailHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 
 export { type ChronicDiseaseControlStatus, CHRONIC_DISEASE_CONTROL_STATUS_LABELS };
 

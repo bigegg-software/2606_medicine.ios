@@ -10,8 +10,8 @@ import styles from '@/css/medication/deal/water';
 import { LinearGradient } from 'expo-linear-gradient';
 import PageLayout from '@/src/components/PageLayout';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
-import { getDietRuleSummary } from '@/src/features/profile/medication/meal/dietRuleHelpers';
-import { getWaterSummary, sumWaterIntake } from '@/src/features/profile/medication/meal/mealDetailHelpers';
+import { getDietRuleSummary } from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
+import { getWaterSummary, sumWaterIntake } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import WaterCup from './components/WaterCup';
 
 function buildWaterMealPayload(waterIntake: number, timeStr: string) {

@@ -19,14 +19,14 @@ import type { MealDetailItem } from '@/api/mealDetail';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import styles from '@/css/medication/mealHistory';
 import mealStyles from '@/css/medication/meal';
-import { NUTRITION_COLOR } from './dietRuleHelpers';
+import { NUTRITION_COLOR } from './utils/dietRuleHelpers';
 import {
   buildDayNutritionSummary,
   buildMealSections,
   buildWaterTimeline,
   formatMealHistoryDate,
-} from './mealHistoryHelpers';
-import { formatNutritionInteger } from './mealDetailHelpers';
+} from './utils/mealHistoryHelpers';
+import { formatNutritionInteger } from './utils/mealDetailHelpers';
 
 type Route = RouteProp<RootStackParamList, 'MealDayDetailPage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
