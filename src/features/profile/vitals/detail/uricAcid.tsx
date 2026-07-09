@@ -29,6 +29,7 @@ import {
     URIC_ACID_RECENT_PAGE_SIZE,
     type UricAcidDetailPoint,
 } from './helpers/uricAcid';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -138,6 +139,10 @@ export default function UricAcidPage() {
     const safetyLineY = useMemo(() => getUricAcidSafetyLineY(userGender), [userGender]);
     const safetyLineLabel = useMemo(() => formatUricAcidSafetyLineLabel(userGender), [userGender]);
 
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '尿酸',
+    });
+
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <View style={styles.pageContent}>
@@ -216,6 +221,7 @@ export default function UricAcidPage() {
                     </TouchableOpacity>
                 </Flex>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

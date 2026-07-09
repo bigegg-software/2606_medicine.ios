@@ -34,6 +34,7 @@ import {
     type BloodLipidGoalRow,
     type BloodLipidMetricKey,
 } from './helpers/bloodLipid';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -163,6 +164,10 @@ export default function BloodLipidPage() {
             void loadMeasureData();
         }, [loadMeasureData]),
     );
+
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '血脂',
+    });
 
     const chartData = useMemo(
         () => buildBloodLipidDetailSeries(allItems, selectedLipidType),
@@ -373,6 +378,7 @@ export default function BloodLipidPage() {
                     </TouchableOpacity>
                 </Flex>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

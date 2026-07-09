@@ -23,6 +23,7 @@ import {
     type BloodOxygenDetailPoint,
 } from './helpers/bloodOxygen';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 function formatStatusText(status?: string) {
     return status?.replace(/^・/, '') || '--';
@@ -115,6 +116,10 @@ export default function VitalsPage() {
         }, [loadBloodOxygenData, selectedType]),
     );
 
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '血氧',
+    });
+
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <View style={styles.pageContent}>
@@ -179,6 +184,7 @@ export default function VitalsPage() {
                     </View>
                 </ScrollView>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

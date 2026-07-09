@@ -34,6 +34,7 @@ import {
     mapDetailChartRangeToVitalsRange,
     normalizeStatisRangeData,
 } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 import type { BloodSugarPoint } from './components/BloodSugarDetailChart';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -242,6 +243,10 @@ export default function VitalsPage() {
         }, [loadGoalSummary, loadMeasureData, selectedType]),
     );
 
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '血糖',
+    });
+
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <View style={styles.pageContent}>
@@ -349,6 +354,7 @@ export default function VitalsPage() {
                     </TouchableOpacity>
                 </Flex>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

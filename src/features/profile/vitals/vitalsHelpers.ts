@@ -1058,6 +1058,22 @@ export function getEnergyDisplayDataTime(activeItems: WearableDataItem[], basalI
   }
 
   const { activeItems: dayActive, basalItems: dayBasal } = resolveEnergyDisplayDay(activeItems, basalItems);
+  const events = [
+    ...collectWearableReadings(dayActive, reading => parseMeasureNumber(reading.value)),
+    ...collectWearableReadings(dayBasal, reading => parseMeasureNumber(reading.value)),
+  ].sort((a, b) => a.ts.valueOf() - b.ts.valueOf());
+
+  if (events.length) {
+    const ts = events[events.length - 1].ts;
+    return ts.isSame(moment(), 'day') ? ts.format('HH:mm') : ts.format('M/D');
+  }
+
+  const bars = buildEnergyTodayBarSeries(activeItems, basalItems);
+  const lastBar = bars[bars.length - 1];
+  if (lastBar?.label && lastBar.label !== '--') {
+    return lastBar.label;
+  }
+
   const latest = pickLatestEnergyReferenceItem(dayActive, dayBasal);
   return formatWearableDataTime(latest);
 }
@@ -1349,6 +1365,57 @@ export function formatWearableDataTime(item?: WearableDataItem) {
     return ts.format('HH:mm');
   }
   return date.format('M/D');
+}
+
+function formatTodayLatestReadingTime(
+  items: WearableDataItem[],
+  collectReadings: (source: WearableDataItem[]) => WearableTimedReading[],
+) {
+  const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
+  const source = todayItems.length ? todayItems : items;
+  const readings = collectReadings(source);
+  const ts = readings.length
+    ? readings[readings.length - 1].ts
+    : (() => {
+      const latest = getLatestWearableItem(source);
+      return latest ? getWearableTimestamp(latest) : null;
+    })();
+  if (!ts) return '';
+  return ts.isSame(moment(), 'day') ? ts.format('HH:mm') : ts.format('M/D');
+}
+
+function parseWearableClockTime(value?: string) {
+  if (!value?.trim()) return null;
+  const normalized = value.trim().replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+  const parsed = moment(normalized);
+  return parsed.isValid() ? parsed : null;
+}
+
+export function getHeartRateDisplayDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
+  if (range !== 'today') return getLatestWearableDataTime(items, range);
+  return formatTodayLatestReadingTime(items, collectHeartRateReadings);
+}
+
+export function getBloodOxygenDisplayDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
+  if (range !== 'today') return getLatestWearableDataTime(items, range);
+  return formatTodayLatestReadingTime(items, collectOxygenReadings);
+}
+
+export function getStepsDisplayDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
+  if (range !== 'today') return getLatestWearableDataTime(items, range);
+  return formatTodayLatestReadingTime(items, sourceItems =>
+    collectWearableReadings(sourceItems, reading => parseMeasureNumber(reading.value)),
+  );
+}
+
+export function getSleepDisplayDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
+  const item = getDisplaySleepItem(items, range);
+  if (!item) return '';
+  const wakeMoment = parseWearableClockTime(item.wakeUpTimeStr ?? item.endTimeStr);
+  if (wakeMoment) return wakeMoment.format('M/D');
+  const bedMoment = parseWearableClockTime(item.bedTimeStr ?? item.startTimeStr);
+  if (bedMoment) return bedMoment.format('M/D');
+  return getWearableDate(item).format('M/D');
 }
 
 export function getLatestMeasureDataTime(items: MeasureDataItem[], range: VitalsRange = 'today') {

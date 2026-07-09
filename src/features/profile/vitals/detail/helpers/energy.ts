@@ -52,12 +52,15 @@ export function getEnergyDetailGoal(
   basalItems: WearableDataItem[],
   goalOverride?: number,
 ) {
+  if (goalOverride != null && Number.isFinite(goalOverride) && goalOverride >= 0) {
+    return Math.round(goalOverride);
+  }
   const item =
     getTodayWearableItem(activeItems) ??
     getLatestWearableItem(activeItems) ??
     getTodayWearableItem(basalItems) ??
     getLatestWearableItem(basalItems);
-  return parseMeasureNumber(item?.energyGoals) ?? goalOverride ?? 2000;
+  return parseMeasureNumber(item?.energyGoals) ?? 2000;
 }
 
 function getEnergyStatusDisplay(total: number, goal: number) {

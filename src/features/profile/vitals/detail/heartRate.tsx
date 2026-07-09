@@ -23,6 +23,7 @@ import {
     type HeartRateDetailPoint,
 } from './helpers/heartRate';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 function formatStatusText(status?: string) {
     return status?.replace(/^・/, '') || '--';
@@ -125,6 +126,10 @@ export default function VitalsPage() {
         }, [loadHeartRateData, selectedType]),
     );
 
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '心率',
+    });
+
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <View style={styles.pageContent}>
@@ -197,6 +202,7 @@ export default function VitalsPage() {
                     </Flex>
                 </ScrollView>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

@@ -8,6 +8,7 @@ import AutoSyncPromptModal from './components/AutoSyncPromptModal';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTheme } from '@/common/theme';
 import updateHealthKit from '@/utils/healthKit';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -50,6 +51,14 @@ import {
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { updateExtrInfo } from '@/api/user';
 import {
+  getGoalSaveErrorMessage,
+  getGoalSaveSuccessMessage,
+  resolveEnergyTarget,
+  resolveSleepTargetHours,
+  resolveStepTarget,
+  saveVitalsGoalTarget,
+} from './detail/helpers/vitalsGoalTargets';
+import {
   VITALS_NAV_LIST,
   buildBloodPressureSeriesFromItems,
   buildBloodGlucoseSeriesFromItems,
@@ -66,7 +75,10 @@ import {
   formatMeasureDataTime,
   formatMeasureDisplay,
   getLatestMeasureDataTime,
-  getLatestWearableDataTime,
+  getHeartRateDisplayDataTime,
+  getBloodOxygenDisplayDataTime,
+  getStepsDisplayDataTime,
+  getSleepDisplayDataTime,
   normalizeMeasureRangeData,
   getBloodOxygenDisplay,
   getChartLabels,
@@ -105,6 +117,7 @@ const ENERGY_GOAL_MAX = 5000;
 export default function VitalsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation: any = useNavigation();
+  const insets = useSafeAreaInsets();
   const uploading = useSelector((state: RootState) => state.upload.uploading);
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
@@ -138,13 +151,13 @@ export default function VitalsPage() {
 
   useEffect(() => {
     if (userExtr?.sleepGoals != null && userExtr.sleepGoals > 0) {
-      setSleepTarget(Math.round((userExtr.sleepGoals / 60) * 2) / 2);
+      setSleepTarget(resolveSleepTargetHours(userExtr.sleepGoals));
     }
     if (userExtr?.stepGoals != null && userExtr.stepGoals >= 0) {
-      setStepTarget(Math.round(userExtr.stepGoals / 500) * 500);
+      setStepTarget(resolveStepTarget(userExtr.stepGoals));
     }
     if (userExtr?.energyGoals != null && userExtr.energyGoals >= 0) {
-      setEnergyTarget(Math.round(userExtr.energyGoals / 50) * 50);
+      setEnergyTarget(resolveEnergyTarget(userExtr.energyGoals));
     }
   }, [userExtr?.sleepGoals, userExtr?.stepGoals, userExtr?.energyGoals]);
 
@@ -412,7 +425,7 @@ export default function VitalsPage() {
     [activeNav, wearableHeartRate],
   );
   const heartRateDataTime = useMemo(
-    () => getLatestWearableDataTime(wearableHeartRate, activeNav),
+    () => getHeartRateDisplayDataTime(wearableHeartRate, activeNav),
     [wearableHeartRate, activeNav],
   );
 
@@ -425,7 +438,7 @@ export default function VitalsPage() {
     [sleepSummary.stageTimeline],
   );
   const sleepDataTime = useMemo(
-    () => getLatestWearableDataTime(wearableSleep, activeNav),
+    () => getSleepDisplayDataTime(wearableSleep, activeNav),
     [wearableSleep, activeNav],
   );
   const stepsSummary = useMemo(
@@ -441,7 +454,7 @@ export default function VitalsPage() {
     [stepsSummary.barSeries],
   );
   const stepsDataTime = useMemo(
-    () => getLatestWearableDataTime(wearableSteps, activeNav),
+    () => getStepsDisplayDataTime(wearableSteps, activeNav),
     [wearableSteps, activeNav],
   );
   const stepsChart = useMemo(
@@ -485,7 +498,7 @@ export default function VitalsPage() {
     [activeNav, wearableOxygen],
   );
   const bloodOxygenDataTime = useMemo(
-    () => getLatestWearableDataTime(wearableOxygen, activeNav),
+    () => getBloodOxygenDisplayDataTime(wearableOxygen, activeNav),
     [wearableOxygen, activeNav],
   );
 
@@ -695,21 +708,17 @@ export default function VitalsPage() {
   const handleSaveSleepTarget = useCallback(async (target: number) => {
     setSavingSleep(true);
     try {
-      const sleepGoalsMinutes = Math.round(target * 60);
-      const res = await updateExtrInfo({ sleepGoals: sleepGoalsMinutes });
-      if (isResourceApiOk(res as { code?: number })) {
+      const result = await saveVitalsGoalTarget('sleep', target, userExtr, dispatch);
+      if (result.ok) {
         setSleepTarget(target);
-        if (userExtr) {
-          dispatch({ type: SET_USER_EXTR, payload: { ...userExtr, sleepGoals: sleepGoalsMinutes } });
-        }
-        Alert.alert('成功', '睡眠目标已保存');
+        Alert.alert('成功', getGoalSaveSuccessMessage('sleep'));
         setShowSleepTargetModal(false);
         await loadMeasureDataRef.current();
       } else {
-        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存失败，请稍后重试');
+        Alert.alert('失败', result.message);
       }
     } catch {
-      Alert.alert('错误', '保存睡眠目标失败，请稍后重试');
+      Alert.alert('错误', getGoalSaveErrorMessage('sleep'));
     } finally {
       setSavingSleep(false);
     }
@@ -718,20 +727,17 @@ export default function VitalsPage() {
   const handleSaveStepTarget = useCallback(async (target: number) => {
     setSavingStep(true);
     try {
-      const res = await updateExtrInfo({ stepGoals: target });
-      if (isResourceApiOk(res as { code?: number })) {
+      const result = await saveVitalsGoalTarget('steps', target, userExtr, dispatch);
+      if (result.ok) {
         setStepTarget(target);
-        if (userExtr) {
-          dispatch({ type: SET_USER_EXTR, payload: { ...userExtr, stepGoals: target } });
-        }
-        Alert.alert('成功', '步数目标已保存');
+        Alert.alert('成功', getGoalSaveSuccessMessage('steps'));
         setShowStepTargetModal(false);
         await loadMeasureDataRef.current();
       } else {
-        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存失败，请稍后重试');
+        Alert.alert('失败', result.message);
       }
     } catch {
-      Alert.alert('错误', '保存步数目标失败，请稍后重试');
+      Alert.alert('错误', getGoalSaveErrorMessage('steps'));
     } finally {
       setSavingStep(false);
     }
@@ -740,27 +746,24 @@ export default function VitalsPage() {
   const handleSaveEnergyTarget = useCallback(async (target: number) => {
     setSavingEnergy(true);
     try {
-      const res = await updateExtrInfo({ energyGoals: target });
-      if (isResourceApiOk(res as { code?: number })) {
+      const result = await saveVitalsGoalTarget('energy', target, userExtr, dispatch);
+      if (result.ok) {
         setEnergyTarget(target);
-        if (userExtr) {
-          dispatch({ type: SET_USER_EXTR, payload: { ...userExtr, energyGoals: target } });
-        }
-        Alert.alert('成功', '消耗目标已保存');
+        Alert.alert('成功', getGoalSaveSuccessMessage('energy'));
         setShowEnergyTargetModal(false);
         await loadMeasureDataRef.current();
       } else {
-        Alert.alert('失败', (res as { msg?: string })?.msg ?? '保存失败，请稍后重试');
+        Alert.alert('失败', result.message);
       }
     } catch {
-      Alert.alert('错误', '保存消耗目标失败，请稍后重试');
+      Alert.alert('错误', getGoalSaveErrorMessage('energy'));
     } finally {
       setSavingEnergy(false);
     }
   }, [dispatch, userExtr]);
 
   return (
-    <PageLayout style={styles.container}>
+    <PageLayout style={styles.container} edges={[]}>
       {/* <Flex style={styles.navBox}>
         {VITALS_NAV_LIST.map(item => (
           <TouchableOpacity
@@ -790,190 +793,205 @@ export default function VitalsPage() {
         </View>
       ) : null}
 
-      <ScrollView contentContainerStyle={styles.body}>
-        <VitalCard
-          label="血压"
-          icon={require('@/assets/images/vitals/icon_xy.png')}
-          unit="mmHg"
-          value={bloodPressure.value}
-          status={bloodPressure.status}
-          statusColor={bloodPressure.statusColor}
-          dataTime={bloodPressureDataTime}
-          onAdd={() => navigation.navigate('AddDataPage', { type: '血压' })}
-          onAll={() => navigation.navigate('AllDataPage', { type: '血压' })}
-          onPress={() => navigation.navigate('BloodPressurePage')}
-          chart={<BloodPressureChart data={bloodPressureSeries} labels={chartLabels} hideXAxis />}
-        />
+      <View style={styles.pageContent}>
+        <ScrollView contentContainerStyle={[styles.body, { paddingBottom: 96 + insets.bottom }]}>
+          <VitalCard
+            label="血压"
+            icon={require('@/assets/images/vitals/icon_xy.png')}
+            unit="mmHg"
+            value={bloodPressure.value}
+            status={bloodPressure.status}
+            statusColor={bloodPressure.statusColor}
+            dataTime={bloodPressureDataTime}
+            onAdd={() => navigation.navigate('AddDataPage', { type: '血压' })}
+            onAll={() => navigation.navigate('AllDataPage', { type: '血压' })}
+            onPress={() => navigation.navigate('BloodPressurePage')}
+            chart={<BloodPressureChart data={bloodPressureSeries} labels={chartLabels} hideXAxis />}
+          />
 
-        <VitalCard
-          label="血糖"
-          icon={require('@/assets/images/vitals/icon_xt.png')}
-          unit="mmol/L"
-          value={glucose.value}
-          status={glucose.status}
-          statusColor={glucose.statusColor}
-          dataTime={glucoseDataTime}
-          onAdd={() => navigation.navigate('AddDataPage', { type: '血糖' })}
-          onAll={() => navigation.navigate('AllDataPage', { type: '血糖' })}
-          onPress={() => navigation.navigate('BloodSugarPage')}
-          chart={<BloodGlucoseChart data={glucoseSeries} labels={chartLabels} hideXAxis />}
-        />
+          <VitalCard
+            label="血糖"
+            icon={require('@/assets/images/vitals/icon_xt.png')}
+            unit="mmol/L"
+            value={glucose.value}
+            status={glucose.status}
+            statusColor={glucose.statusColor}
+            dataTime={glucoseDataTime}
+            onAdd={() => navigation.navigate('AddDataPage', { type: '血糖' })}
+            onAll={() => navigation.navigate('AllDataPage', { type: '血糖' })}
+            onPress={() => navigation.navigate('BloodSugarPage')}
+            chart={<BloodGlucoseChart data={glucoseSeries} labels={chartLabels} hideXAxis />}
+          />
 
-        <VitalCard
-          label="心率"
-          icon={require('@/assets/images/vitals/icon_xl.png')}
-          unit="次/分钟"
-          value={heartRate.value}
-          status={heartRate.status}
-          statusColor={heartRate.statusColor}
-          dataTime={heartRateDataTime}
-          onAll={() => navigation.navigate('AllDataPage', { type: '心率' })}
-          onPress={() => navigation.navigate('HeartRatePage')}
-          chart={<HeartRateChart data={toHourPoints(heartRateSeries)} hideXAxis />}
-        />
+          <VitalCard
+            label="心率"
+            icon={require('@/assets/images/vitals/icon_xl.png')}
+            unit="次/分钟"
+            value={heartRate.value}
+            status={heartRate.status}
+            statusColor={heartRate.statusColor}
+            dataTime={heartRateDataTime}
+            onAll={() => navigation.navigate('AllDataPage', { type: '心率' })}
+            onPress={() => navigation.navigate('HeartRatePage')}
+            chart={<HeartRateChart data={toHourPoints(heartRateSeries)} hideXAxis />}
+          />
 
-        <VitalCard
-          label="睡眠"
-          icon={require('@/assets/images/vitals/icon_sleep.png')}
-          unit="小时"
-          value={sleepSummary.duration}
-          status={sleepSummary.quality.label}
-          statusColor={sleepSummary.quality.color}
-          dataTime={sleepDataTime}
-          onPress={() => navigation.navigate('SleepPage')}
-          chart={sleepChart}
-        />
+          <VitalCard
+            label="睡眠"
+            icon={require('@/assets/images/vitals/icon_sleep.png')}
+            unit="小时"
+            value={sleepSummary.duration}
+            status={sleepSummary.quality.label}
+            statusColor={sleepSummary.quality.color}
+            dataTime={sleepDataTime}
+            onPress={() => navigation.navigate('SleepPage')}
+            chart={sleepChart}
+          />
 
-        <VitalCard
-          label="血氧"
-          icon={require('@/assets/images/vitals/icon_o2.png')}
-          unit="%"
-          value={bloodOxygen.value}
-          status={bloodOxygen.status}
-          statusColor={bloodOxygen.statusColor}
-          dataTime={bloodOxygenDataTime}
-          onAll={() => navigation.navigate('AllDataPage', { type: '血氧' })}
-          onPress={() => navigation.navigate('BloodOxygenPage')}
-          chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} hideXAxis />}
-        />
+          <VitalCard
+            label="血氧"
+            icon={require('@/assets/images/vitals/icon_o2.png')}
+            unit="%"
+            value={bloodOxygen.value}
+            status={bloodOxygen.status}
+            statusColor={bloodOxygen.statusColor}
+            dataTime={bloodOxygenDataTime}
+            onAll={() => navigation.navigate('AllDataPage', { type: '血氧' })}
+            onPress={() => navigation.navigate('BloodOxygenPage')}
+            chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} hideXAxis />}
+          />
 
-        <VitalCard
-          label="体温"
-          icon={require('@/assets/images/vitals/icon_tw.png')}
-          unit="℃"
-          value={bodyTemperature.value}
-          status={bodyTemperature.status}
-          statusColor={bodyTemperature.statusColor}
-          dataTime={bodyTemperatureDataTime}
-          onAdd={() => navigation.navigate('AddDataPage', { type: '体温' })}
-          onAll={() => navigation.navigate('AllDataPage', { type: '体温' })}
-          onPress={() => navigation.navigate('BodyTemperaturePage')}
-          chart={<BodyTemperatureChart data={toHourPoints(bodyTemperatureSeries)} />}
-        />
-        <View style={styles.vCard}>
-          <Flex justify="between" align="center">
-            <Flex>
-              <Image source={require('@/assets/images/vitals/icon_xz.png')} style={styles.vIcon} />
-              <Text style={styles.vLabel}>血脂</Text>
+          <VitalCard
+            label="体温"
+            icon={require('@/assets/images/vitals/icon_tw.png')}
+            unit="℃"
+            value={bodyTemperature.value}
+            status={bodyTemperature.status}
+            statusColor={bodyTemperature.statusColor}
+            dataTime={bodyTemperatureDataTime}
+            onAdd={() => navigation.navigate('AddDataPage', { type: '体温' })}
+            onAll={() => navigation.navigate('AllDataPage', { type: '体温' })}
+            onPress={() => navigation.navigate('BodyTemperaturePage')}
+            chart={<BodyTemperatureChart data={toHourPoints(bodyTemperatureSeries)} />}
+          />
+          <View style={styles.vCard}>
+            <Flex justify="between" align="center">
+              <Flex>
+                <Image source={require('@/assets/images/vitals/icon_xz.png')} style={styles.vIcon} />
+                <Text style={styles.vLabel}>血脂</Text>
+              </Flex>
+              <Flex>
+                <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '血脂' })}>
+                  <Text style={styles.vMore}>新增记录</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('AllDataPage', { type: '血脂' })}>
+                  <Text style={styles.vMore}>全部记录</Text>
+                </TouchableOpacity>
+              </Flex>
             </Flex>
-            <Flex>
-              <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '血脂' })}>
-                <Text style={styles.vMore}>新增记录</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('AllDataPage', { type: '血脂' })}>
-                <Text style={styles.vMore}>全部记录</Text>
-              </TouchableOpacity>
-            </Flex>
-          </Flex>
-          <TouchableOpacity onPress={() => navigation.navigate('BloodLipidPage')}>
-            <Flex style={styles.vValueBox} justify="between" align="center">
-              <View>
-                <Text style={styles.vUnit}>总胆固醇 TC</Text>
-                <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
-                <Text style={styles.vUnit}>mmol/L</Text>
-                {bloodLipids.status ? (
-                  <Text style={[styles.vStatus, { color: bloodLipids.statusColor }]}>{bloodLipids.status}</Text>
-                ) : null}
-              </View>
-              <View style={styles.vRightBox}>
-                <Flex justify="between" style={{ marginBottom: 6 }}>
-                  <Text style={styles.vText1}>TG</Text>
-                  <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
-                </Flex>
-                <Flex justify="between" style={{ marginBottom: 6 }}>
-                  <Text style={styles.vText1}>HDL-C</Text>
-                  <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
-                </Flex>
-                <Flex justify="between">
-                  <Text style={styles.vText1}>LDL-C</Text>
-                  <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
-                </Flex>
-              </View>
+            <TouchableOpacity onPress={() => navigation.navigate('BloodLipidPage')}>
+              <Flex style={styles.vValueBox} justify="between" align="center">
+                <View>
+                  <Text style={styles.vUnit}>总胆固醇 TC</Text>
+                  <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
+                  <Text style={styles.vUnit}>mmol/L</Text>
+                  {bloodLipids.status ? (
+                    <Text style={[styles.vStatus, { color: bloodLipids.statusColor }]}>{bloodLipids.status}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.vRightBox}>
+                  <Flex justify="between" style={{ marginBottom: 6 }}>
+                    <Text style={styles.vText1}>TG</Text>
+                    <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
+                  </Flex>
+                  <Flex justify="between" style={{ marginBottom: 6 }}>
+                    <Text style={styles.vText1}>HDL-C</Text>
+                    <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
+                  </Flex>
+                  <Flex justify="between">
+                    <Text style={styles.vText1}>LDL-C</Text>
+                    <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
+                  </Flex>
+                </View>
+              </Flex>
+            </TouchableOpacity>
+          </View>
+          <VitalCard
+            label="体重"
+            icon={require('@/assets/images/vitals/icon_tz.png')}
+            unit="kg"
+            value={weight.value}
+            status={weight.status}
+            statusColor={weight.statusColor}
+            dataTime={weightDataTime}
+            onAll={() => navigation.navigate('AllDataPage', { type: '体重' })}
+            onPress={() => navigation.navigate('WeightPage')}
+            chart={<WeightChart data={toHourPoints(weightSeries)} hideXAxis />}
+          />
+
+          <VitalCard
+            label="尿酸"
+            icon={require('@/assets/images/vitals/icon_ns.png')}
+            unit="(μmol/L)"
+            value={uricAcid.value}
+            status={uricAcid.statusLabel}
+            statusColor={uricAcid.statusColor}
+            dataTime={uricAcidDataTime}
+            onPress={() => navigation.navigate('UricAcidPage')}
+            chart={<UricAcidChart data={toHourPoints(uricAcidSeries)} labels={chartLabels} hideXAxis />}
+          />
+
+          <VitalCard
+            label="步数"
+            icon={require('@/assets/images/vitals/icon_bs.png')}
+            unit={stepsSummary.unit}
+            value={stepsSummary.value}
+            status={stepsSummary.status.replace(/^・/, '')}
+            statusColor={stepsSummary.statusColor}
+            dataTime={stepsDataTime}
+            onAll={() => navigation.navigate('AllDataPage', { type: '步数' })}
+            onPress={() => navigation.navigate('StepsPage')}
+            chart={stepsChart}
+          />
+
+          <VitalCard
+            label="消耗"
+            icon={require('@/assets/images/vitals/icon_xh.png')}
+            unit={energySummary.unit}
+            value={energySummary.total}
+            status={energySummary.status.replace(/^・/, '')}
+            statusColor={energySummary.statusColor}
+            dataTime={energyDataTime}
+            onAll={() => navigation.navigate('AllDataPage', { type: '消耗' })}
+            onPress={() => navigation.navigate('ConsumptionPage')}
+            chart={energyChart}
+          />
+
+
+        </ScrollView>
+        <Flex
+          justify="between"
+          style={[
+            styles.bottomBar,
+            { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+          ]}
+        >
+          <TouchableOpacity
+            style={[styles.bottomBarButtonLeft, { flex: 1 }, uploading && { opacity: 0.5 }]}
+            onPress={handleUploadData}
+            disabled={uploading}
+            activeOpacity={0.8}
+          >
+            <Flex justify="center" style={{ flex: 1 }}>
+              <Image
+                style={styles.bottomBarButtonImg}
+                source={require('@/assets/images/vitals/upload.png')}
+              />
+              <Text style={styles.bottomBarButtonTextLeft}>同步数据</Text>
             </Flex>
           </TouchableOpacity>
-        </View>
-        <VitalCard
-          label="体重"
-          icon={require('@/assets/images/vitals/icon_tz.png')}
-          unit="kg"
-          value={weight.value}
-          status={weight.status}
-          statusColor={weight.statusColor}
-          dataTime={weightDataTime}
-          onAll={() => navigation.navigate('AllDataPage', { type: '体重' })}
-          onPress={() => navigation.navigate('WeightPage')}
-          chart={<WeightChart data={toHourPoints(weightSeries)} hideXAxis />}
-        />
-
-        <VitalCard
-          label="尿酸"
-          icon={require('@/assets/images/vitals/icon_ns.png')}
-          unit="(μmol/L)"
-          value={uricAcid.value}
-          status={uricAcid.statusLabel}
-          statusColor={uricAcid.statusColor}
-          dataTime={uricAcidDataTime}
-          onPress={() => navigation.navigate('UricAcidPage')}
-          chart={<UricAcidChart data={toHourPoints(uricAcidSeries)} labels={chartLabels} hideXAxis />}
-        />
-
-        <VitalCard
-          label="步数"
-          icon={require('@/assets/images/vitals/icon_bs.png')}
-          unit={stepsSummary.unit}
-          value={stepsSummary.value}
-          status={stepsSummary.status.replace(/^・/, '')}
-          statusColor={stepsSummary.statusColor}
-          dataTime={stepsDataTime}
-          onAll={() => navigation.navigate('AllDataPage', { type: '步数' })}
-          onPress={() => navigation.navigate('StepsPage')}
-          chart={stepsChart}
-        />
-
-        <VitalCard
-          label="消耗"
-          icon={require('@/assets/images/vitals/icon_xh.png')}
-          unit={energySummary.unit}
-          value={energySummary.total}
-          status={energySummary.status.replace(/^・/, '')}
-          statusColor={energySummary.statusColor}
-          dataTime={energyDataTime}
-          onAll={() => navigation.navigate('AllDataPage', { type: '消耗' })}
-          onPress={() => navigation.navigate('ConsumptionPage')}
-          chart={energyChart}
-        />
-
-
-      </ScrollView>
-      <TouchableOpacity
-        style={[styles.addBtn, uploading && { opacity: 0.5 }]}
-        onPress={handleUploadData}
-        disabled={uploading}
-        activeOpacity={0.8}>
-        <Flex justify="center" align="center" style={{ flex: 1 }}>
-          <Text style={styles.addText}>上传体征数据</Text>
         </Flex>
-      </TouchableOpacity>
+      </View>
 
       <GoalTargetModal
         visible={showSleepTargetModal}

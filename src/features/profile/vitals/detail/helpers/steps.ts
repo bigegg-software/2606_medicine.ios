@@ -26,8 +26,11 @@ function collectStepsReadings(items: WearableDataItem[]) {
 }
 
 export function getStepsDetailGoal(items: WearableDataItem[], goalOverride?: number) {
+  if (goalOverride != null && Number.isFinite(goalOverride) && goalOverride >= 0) {
+    return Math.round(goalOverride);
+  }
   const item = getTodayWearableItem(items) ?? getLatestWearableItem(items);
-  return parseMeasureNumber(item?.stepGoals) ?? goalOverride ?? 10000;
+  return parseMeasureNumber(item?.stepGoals) ?? 10000;
 }
 
 export function formatStepsGoalLabel(goal: number) {

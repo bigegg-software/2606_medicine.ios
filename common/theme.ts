@@ -1,5 +1,5 @@
 export const AppTheme = {
-  primaryColor: '#053A93',
+  primaryColor: '#6D925E',
   onPrimaryColor: '#FFFFFF',
   accentColor: '#D4A24C',
   backgroundColor: '#F5F8FF',

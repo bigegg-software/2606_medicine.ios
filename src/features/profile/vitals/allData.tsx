@@ -29,7 +29,12 @@ import { getLevelBgColor, getLevelColor } from './vitalLevelColors';
 import {
   getTotalCholesterolStatusLabel,
   getUricAcidStatusLabel,
+  getSleepQuality,
 } from './vitalsHelpers';
+import {
+  resolveEnergyTarget,
+  resolveStepTarget,
+} from './detail/helpers/vitalsGoalTargets';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 
@@ -52,6 +57,7 @@ const PAGE_TITLES: Record<VitalsMeasureType, string> = {
   心率: '心率记录',
   步数: '步数记录',
   消耗: '消耗记录',
+  睡眠: '睡眠记录',
 };
 
 const MEASURE_UNITS: Record<MeasureDataType, string> = {
@@ -368,6 +374,49 @@ function buildEnergyWearableRecords(
   return fallbackRecords;
 }
 
+function getSleepMinutesFromItem(data?: WearableDataItem) {
+  if (!data) return 0;
+
+  const stageTotal = ['deepSleepTime', 'coreSleepTime', 'remSleepTime', 'awakeSleepTime']
+    .reduce((sum, key) => sum + Math.max(0, Math.round(Number(data[key as keyof WearableDataItem] ?? 0))), 0);
+  if (stageTotal > 0) return stageTotal;
+
+  const candidates = [data.asleepTime, data.sleepTime, data.inbedSleepTime];
+  for (const value of candidates) {
+    const minutes = Math.round(Number(value ?? 0));
+    if (minutes > 0) return minutes;
+  }
+
+  return 0;
+}
+
+function buildSleepWearableRecordsFromItem(
+  data: WearableDataItem | undefined,
+  selectedDate: string,
+): WearableReadingRecord[] {
+  const minutes = getSleepMinutesFromItem(data);
+  if (minutes <= 0) return [];
+
+  const timeText = data?.bedTimeStr ?? data?.startTimeStr ?? data?.endTimeStr ?? '--';
+  const recordTime = /^\d{4}-\d{2}-\d{2}/.test(timeText) ? timeText : `${selectedDate} ${timeText}`;
+  const quality = getSleepQuality(data);
+  const sourceName = flattenWearableOriginalData(data?.originalData)[0]?.sourceName;
+
+  return [{
+    key: 'sleep-total',
+    label: '睡眠',
+    time: /T(\d{2}:\d{2})/.test(timeText)
+      ? timeText.match(/T(\d{2}:\d{2})/)?.[1] ?? '--'
+      : /^\d{2}:\d{2}/.test(timeText)
+        ? timeText.slice(0, 5)
+        : '--',
+    recordTime,
+    value: Math.round((minutes / 60) * 10) / 10,
+    level: quality.label || '正常',
+    sourceName,
+  }];
+}
+
 function flattenWearableOriginalData(readings?: WearableOriginalReading[] | WearableOriginalReading[][]) {
   if (!readings?.length) return [] as WearableOriginalReading[];
   if (Array.isArray(readings[0])) {
@@ -633,9 +682,13 @@ function WearableRecordCard({
 export default function AllDataPage({ route }: Props) {
   const measureType = (route.params?.type ?? '血压') as VitalsMeasureType;
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
+  const userExtr = useSelector((state: RootState) => state.user.userExtr);
+  const storeStepGoal = userExtr?.stepGoals;
+  const storeEnergyGoal = userExtr?.energyGoals;
   const isEnergyType = measureType === '消耗';
+  const isSleepType = measureType === '睡眠';
   const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率' | '步数'];
-  const isWearableType = Boolean(wearableConfig) || isEnergyType;
+  const isWearableType = Boolean(wearableConfig) || isEnergyType || isSleepType;
   const navigation = useNavigation<Nav>();
   const [currentMonth, setCurrentMonth] = useState(moment());
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
@@ -684,9 +737,27 @@ export default function AllDataPage({ route }: Props) {
           ? apiResourceData<WearableDataItem>(basalRes as unknown as WearableDataDetailResult)
           : undefined;
         const energyGoalsRaw = activeData?.energyGoals ?? basalData?.energyGoals;
-        const energyGoals = energyGoalsRaw != null ? Number(energyGoalsRaw) : undefined;
+        const energyGoals = storeEnergyGoal != null
+          ? resolveEnergyTarget(storeEnergyGoal)
+          : energyGoalsRaw != null
+            ? Number(energyGoalsRaw)
+            : undefined;
 
         setWearableRecords(buildEnergyWearableRecords(activeData, basalData, selectedDate, energyGoals));
+        return;
+      }
+
+      if (isSleepType) {
+        const res = (await getWearableDataDetailByCustomerLocalDate({
+          customerLocalDate: selectedDate,
+          type: WEARABLE_DATA_TYPES.sleep,
+        })) as unknown as WearableDataDetailResult;
+        if (!isResourceApiOk(res)) {
+          setWearableRecords([]);
+          return;
+        }
+        const data = apiResourceData<WearableDataItem>(res);
+        setWearableRecords(buildSleepWearableRecordsFromItem(data, selectedDate));
         return;
       }
 
@@ -701,8 +772,14 @@ export default function AllDataPage({ route }: Props) {
         }
         const data = apiResourceData<WearableDataItem>(res);
         const wearableOptions: WearableDetailOptions | undefined =
-          measureType === '步数' && data?.stepGoals != null
-            ? { stepGoals: Number(data.stepGoals) }
+          measureType === '步数'
+            ? {
+              stepGoals: storeStepGoal != null
+                ? resolveStepTarget(storeStepGoal)
+                : data?.stepGoals != null
+                  ? Number(data.stepGoals)
+                  : undefined,
+            }
             : undefined;
         setWearableRecords(buildWearableRecordsFromItem(data, wearableConfig, selectedDate, wearableOptions));
         return;
@@ -724,7 +801,7 @@ export default function AllDataPage({ route }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [isEnergyType, measureType, selectedDate, wearableConfig]);
+  }, [isEnergyType, isSleepType, measureType, selectedDate, storeEnergyGoal, storeStepGoal, wearableConfig]);
 
   const loadRecordsRef = useRef(loadRecords);
   loadRecordsRef.current = loadRecords;
@@ -831,8 +908,8 @@ export default function AllDataPage({ route }: Props) {
             <WearableRecordCard
               key={item.key}
               item={item}
-              label={item.label ?? wearableConfig?.label ?? ENERGY_WEARABLE_CONFIG.label}
-              unit={wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
+              label={item.label ?? wearableConfig?.label ?? (isSleepType ? '睡眠' : ENERGY_WEARABLE_CONFIG.label)}
+              unit={isSleepType ? '小时' : wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
               showLevel={measureType !== '消耗' && measureType !== '步数'}
               expanded={expandedKey === item.key}
               onToggle={() => setExpandedKey(prev => (prev === item.key ? null : item.key))}

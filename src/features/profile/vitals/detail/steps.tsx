@@ -27,6 +27,7 @@ import {
     type StepsDetailPoint,
 } from './helpers/steps';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 const DEFAULT_STEP_TARGET = 10000;
 
@@ -81,7 +82,8 @@ export default function StepsPage() {
         setSuggestionLabel(display.suggestionLabel);
     }, [selectedType, stepGoal]);
 
-    const loadStepsData = useCallback(async (range: StepsChartRange) => {
+    const loadStepsData = useCallback(async (range: StepsChartRange, goalOverride?: number) => {
+        const fallbackGoal = goalOverride ?? defaultStepGoal;
         try {
             const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
             const res = (await getWearableDataDetailByDateRange({
@@ -93,19 +95,19 @@ export default function StepsPage() {
 
             if (!isResourceApiOk(res)) {
                 setChartData([]);
-                const emptyDisplay = resetHeaderDisplay(range, defaultStepGoal);
+                const emptyDisplay = resetHeaderDisplay(range, fallbackGoal);
                 setDisplayValue(emptyDisplay.value);
                 setDisplayStatus(emptyDisplay.status);
                 setDisplayStatusColor(emptyDisplay.statusColor);
                 setCurrentLabel(emptyDisplay.currentLabel);
                 setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setOverview(EMPTY_OVERVIEW);
-                setStepGoal(defaultStepGoal);
+                setStepGoal(fallbackGoal);
                 return;
             }
 
             const items = sortWearableItems(apiResourceData<WearableDataItem[]>(res) ?? []);
-            const goal = getStepsDetailGoal(items, defaultStepGoal);
+            const goal = getStepsDetailGoal(items, fallbackGoal);
             setStepGoal(goal);
 
             if (range === 'today') {
@@ -126,14 +128,14 @@ export default function StepsPage() {
             }
         } catch {
             setChartData([]);
-            const emptyDisplay = resetHeaderDisplay(range, defaultStepGoal);
+            const emptyDisplay = resetHeaderDisplay(range, fallbackGoal);
             setDisplayValue(emptyDisplay.value);
             setDisplayStatus(emptyDisplay.status);
             setDisplayStatusColor(emptyDisplay.statusColor);
             setCurrentLabel(emptyDisplay.currentLabel);
             setSuggestionLabel(emptyDisplay.suggestionLabel);
             setOverview(EMPTY_OVERVIEW);
-            setStepGoal(defaultStepGoal);
+            setStepGoal(fallbackGoal);
         }
     }, [defaultStepGoal]);
 
@@ -142,6 +144,14 @@ export default function StepsPage() {
             void loadStepsData(selectedType);
         }, [loadStepsData, selectedType]),
     );
+
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '步数',
+        goalKind: 'steps',
+        onGoalSaved: (target) => {
+            void loadStepsData(selectedType, target);
+        },
+    });
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -203,6 +213,7 @@ export default function StepsPage() {
 
                 </ScrollView>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

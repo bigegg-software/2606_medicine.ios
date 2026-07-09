@@ -41,6 +41,7 @@ import {
     type SleepDetailStats,
 } from './helpers/sleep';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 const EMPTY_STATS: SleepDetailStats = {
     totalSleep: '--',
@@ -104,8 +105,8 @@ export default function SleepPage() {
         setSuggestionLabel(display.suggestionLabel);
     }, [selectedType, sleepGoal]);
 
-    const loadSleepData = useCallback(async (range: SleepChartRange) => {
-        const goalHours = defaultSleepGoal;
+    const loadSleepData = useCallback(async (range: SleepChartRange, goalHoursOverride?: number) => {
+        const goalHours = goalHoursOverride ?? defaultSleepGoal;
         try {
             const { startDate, endDate } = getSleepFetchDateRange(mapDetailChartRangeToVitalsRange(range));
             const res = (await getWearableDataDetailByDateRange({
@@ -167,6 +168,15 @@ export default function SleepPage() {
             void loadSleepData(selectedType);
         }, [loadSleepData, selectedType]),
     );
+
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '睡眠',
+        goalKind: 'sleep',
+        onGoalSaved: (target) => {
+            setSuggestionLabel(formatSleepSuggestionTimeText(target));
+            void loadSleepData(selectedType, target);
+        },
+    });
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -301,6 +311,7 @@ export default function SleepPage() {
                     </View>
                 </ScrollView>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

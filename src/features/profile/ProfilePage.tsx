@@ -110,7 +110,7 @@ export default function ProfilePage() {
             <View>
               <Text style={styles.name}>{name}</Text>
               <Flex style={{ marginTop: 7 }}>
-                <Image style={styles.avatarIcon} tintColor={"#999999"} source={require('@/assets/images/user/img1.png')} />
+                <Image style={styles.avatarIcon} source={require('@/assets/images/user/img1.png')} />
                 <Text style={styles.avatarValue}>{Number(systemUser?.tokens ?? 0).toFixed(2)}</Text>
               </Flex>
             </View>
@@ -126,9 +126,7 @@ export default function ProfilePage() {
         <Flex justify="around" align="center" style={styles.navList}>
           {navList.map((item, index) => <TouchableOpacity key={index} onPress={() => navigation.navigate(item.route)}>
             <Flex direction="column" justify="start" align='center'>
-              <Flex justify='center' align='center' style={styles.navListItem}>
-                <Image style={styles.navListItemImg} source={item.img} />
-              </Flex>
+              <Image style={styles.navListItemImg} source={item.img} />
               <Text style={styles.navListItemText}>{item.label}</Text>
             </Flex>
           </TouchableOpacity>)}

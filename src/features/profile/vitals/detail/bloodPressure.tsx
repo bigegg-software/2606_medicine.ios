@@ -38,6 +38,7 @@ import {
     mapDetailChartRangeToVitalsRange,
     normalizeStatisRangeData,
 } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -113,6 +114,10 @@ export default function VitalsPage() {
     const navigateToAddData = useCallback(() => {
         navigation.navigate('AddDataPage', { type: '血压' });
     }, [navigation]);
+
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '血压',
+    });
 
     const handleChartPointChange = useCallback((point: BloodPressurePoint | undefined) => {
         const display = formatBloodPressureDetailPointDisplay(
@@ -358,6 +363,7 @@ export default function VitalsPage() {
                     </TouchableOpacity>
                 </Flex>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }

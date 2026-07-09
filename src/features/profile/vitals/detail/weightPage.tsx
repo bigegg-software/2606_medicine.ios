@@ -47,6 +47,7 @@ import {
   mapDetailChartRangeToVitalsRange,
   normalizeStatisRangeData,
 } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -294,6 +295,10 @@ export default function WeightPage() {
     }, [loadWeightGoal, loadMeasureData, selectedType]),
   );
 
+  const { menuModals } = useVitalsDetailMoreMenu({
+    allRecordsType: '体重',
+  });
+
   const weightTrend = useMemo(
     () => calcWeightTrendFromPoints(chartData, 'weight'),
     [chartData],
@@ -409,6 +414,7 @@ export default function WeightPage() {
           </TouchableOpacity>
         </Flex>
       </View >
+      {menuModals}
     </PageLayout >
   );
 }

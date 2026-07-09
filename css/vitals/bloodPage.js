@@ -522,6 +522,11 @@ const styles = StyleSheet.create({
         position: 'absolute',
         resizeMode: 'contain',
     },
+    uploadIcon: {
+        width: 20,
+        height: 20,
+        marginRight: 16
+    }
 })
 
 export default styles

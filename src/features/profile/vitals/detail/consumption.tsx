@@ -1,6 +1,8 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/vitals/bloodPage';
@@ -24,6 +26,8 @@ import {
     type EnergyDetailPoint,
 } from './helpers/energy';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveEnergyTarget } from './helpers/vitalsGoalTargets';
 
 const EMPTY_OVERVIEW = {
     avgTotal: '--',
@@ -41,15 +45,20 @@ function resetHeaderDisplay(range: StepsChartRange, goal: number) {
 
 export default function ConsumptionPage() {
     const insets = useSafeAreaInsets();
+    const storeEnergyGoal = useSelector((state: RootState) => state.user.userExtr?.energyGoals);
+    const defaultEnergyGoal = useMemo(
+        () => resolveEnergyTarget(storeEnergyGoal),
+        [storeEnergyGoal],
+    );
     const [selectedType, setSelectedType] = useState<StepsChartRange>('today');
     const [chartData, setChartData] = useState<StepsPoint[]>([]);
     const [displayValue, setDisplayValue] = useState('--');
     const [displayStatus, setDisplayStatus] = useState('--');
     const [displayStatusColor, setDisplayStatusColor] = useState('#999999');
     const [currentLabel, setCurrentLabel] = useState('当前：今天');
-    const [suggestionLabel, setSuggestionLabel] = useState('目标：2,000');
+    const [suggestionLabel, setSuggestionLabel] = useState(() => `目标：${defaultEnergyGoal.toLocaleString('en-US')}`);
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
-    const [energyGoal, setEnergyGoal] = useState(2000);
+    const [energyGoal, setEnergyGoal] = useState(defaultEnergyGoal);
 
     const handleChartPointChange = useCallback((point: StepsPoint | undefined) => {
         const display = formatEnergyDetailPointDisplay(
@@ -64,7 +73,8 @@ export default function ConsumptionPage() {
         setSuggestionLabel(display.suggestionLabel);
     }, [selectedType, energyGoal]);
 
-    const loadEnergyData = useCallback(async (range: StepsChartRange) => {
+    const loadEnergyData = useCallback(async (range: StepsChartRange, goalOverride?: number) => {
+        const fallbackGoal = goalOverride ?? defaultEnergyGoal;
         try {
             const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
             const [activeRawRes, basalRawRes] = await Promise.all([
@@ -93,18 +103,18 @@ export default function ConsumptionPage() {
 
             if (!activeItems.length && !basalItems.length) {
                 setChartData([]);
-                const emptyDisplay = resetHeaderDisplay(range, 2000);
+                const emptyDisplay = resetHeaderDisplay(range, fallbackGoal);
                 setDisplayValue(emptyDisplay.value);
                 setDisplayStatus(emptyDisplay.status);
                 setDisplayStatusColor(emptyDisplay.statusColor);
                 setCurrentLabel(emptyDisplay.currentLabel);
                 setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setOverview(EMPTY_OVERVIEW);
-                setEnergyGoal(2000);
+                setEnergyGoal(fallbackGoal);
                 return;
             }
 
-            const goal = getEnergyDetailGoal(activeItems, basalItems);
+            const goal = getEnergyDetailGoal(activeItems, basalItems, fallbackGoal);
             setEnergyGoal(goal);
 
             if (range === 'today') {
@@ -125,22 +135,30 @@ export default function ConsumptionPage() {
             }
         } catch {
             setChartData([]);
-            const emptyDisplay = resetHeaderDisplay(range, 2000);
+            const emptyDisplay = resetHeaderDisplay(range, fallbackGoal);
             setDisplayValue(emptyDisplay.value);
             setDisplayStatus(emptyDisplay.status);
             setDisplayStatusColor(emptyDisplay.statusColor);
             setCurrentLabel(emptyDisplay.currentLabel);
             setSuggestionLabel(emptyDisplay.suggestionLabel);
             setOverview(EMPTY_OVERVIEW);
-            setEnergyGoal(2000);
+            setEnergyGoal(fallbackGoal);
         }
-    }, []);
+    }, [defaultEnergyGoal]);
 
     useFocusEffect(
         useCallback(() => {
             void loadEnergyData(selectedType);
         }, [loadEnergyData, selectedType]),
     );
+
+    const { menuModals } = useVitalsDetailMoreMenu({
+        allRecordsType: '消耗',
+        goalKind: 'energy',
+        onGoalSaved: (target) => {
+            void loadEnergyData(selectedType, target);
+        },
+    });
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -200,6 +218,7 @@ export default function ConsumptionPage() {
                     </Flex>
                 </ScrollView>
             </View>
+            {menuModals}
         </PageLayout>
     );
 }
