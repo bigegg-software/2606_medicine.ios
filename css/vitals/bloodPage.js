@@ -316,6 +316,10 @@ const styles = StyleSheet.create({
         color: "#FB4550",
     },
     btmText: {
+        position: "absolute",
+        bottom: 20,
+        left: 0,
+        right: 0,
         textAlign: "center",
         fontWeight: 500,
         fontSize: 11,
@@ -348,8 +352,176 @@ const styles = StyleSheet.create({
     },
     tabItemTextActive: {
         color: '#FFFFFF',
-    }
+    },
+    colBor: {
+        width: 10,
+        height: 10,
+        backgroundColor: "#CFC9FF",
+        borderRadius: 5
+    },
+    sleepPieWrap: {
+        width: 90,
+        height: 90,
+        borderRadius: 45,
+        backgroundColor: '#CFC9FF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        overflow: 'hidden',
+    },
+    sleepAnalysisBody: {
+        marginTop: 16,
+        width: '100%',
+        alignItems: 'center',
+    },
+    sleepPieColumn: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sleepAnalysisLegend: {
+        flex: 1,
+        gap: 12,
+        justifyContent: 'center',
+        paddingRight: 4,
+    },
+    sleepAnalysisLegendRow: {
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    sleepAnalysisLegendLabel: {
+        alignItems: 'center',
+    },
+    sleepAnalysisLegendLabelText: {
+        marginLeft: 8,
+        fontWeight: 500,
+        fontSize: 14,
+        color: '#333333',
+    },
+    sleepAnalysisLegendValue: {
+        fontWeight: "bold",
+        fontSize: 14,
+        color: '#333333',
+    },
+    mbBox: {
+        marginTop: 12,
+        height: 38,
+        backgroundColor: '#F6F8FB',
+        borderRadius: 8,
+        paddingHorizontal: 10,
+    },
+    mbBoxContent: {
+        height: 22,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
+        borderWidth: 1,
+        paddingHorizontal: 6,
+        borderColor: '#EE9C44',
+        marginRight: 6
+    },
+    mbBoxText: {
+        fontWeight: "bold",
+        fontSize: 11,
+        color: "#EE9C44",
 
+    },
+    mbBoxMessage: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#666666',
+    },
+    sleepStageDetailWrap: {
+        marginTop: 12,
+        overflow: 'visible',
+    },
+    sleepStageDetailBody: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+        position: 'relative',
+    },
+    sleepStageYLabels: {
+        position: 'relative',
+        zIndex: 1,
+    },
+    sleepStageYLabel: {
+        position: 'absolute',
+        left: 8,
+        fontWeight: 500,
+        fontSize: 11,
+        color: '#B2B2B2',
+        lineHeight: 16,
+    },
+    sleepStageEmptyPlot: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: '#F6F8FB',
+    },
+    sleepStageTimeRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        paddingTop: 6,
+    },
+    sleepStageTimeBlock: {
+        gap: 2,
+    },
+    sleepStageTimeBlockRight: {
+        alignItems: 'flex-end',
+    },
+    sleepStageTimeDate: {
+        fontWeight: 500,
+        fontSize: 11,
+        color: '#B2B2B2',
+        lineHeight: 16,
+    },
+    sleepStageTimeDateRight: {
+        textAlign: 'right',
+    },
+    sleepStageTimeText: {
+        fontWeight: 500,
+        fontSize: 11,
+        color: '#B2B2B2',
+        lineHeight: 16,
+    },
+    sleepStageTimeTextRight: {
+        textAlign: 'right',
+    },
+    analysisScore: {
+        fontWeight: "bold",
+        fontSize: 40,
+        color: "#333333",
+    },
+    analysisUnit: {
+        fontWeight: "bold",
+        fontSize: 12,
+        color: "#333333",
+        lineHeight: 30,
+    },
+    analysisDescription: {
+        fontWeight: "bold",
+        fontSize: 12,
+        color: "#333333",
+    },
+    sleepScoreBarWrap: {
+        marginTop: 2,
+        width: '100%',
+    },
+    sleepScoreBarTrack: {
+        position: 'relative',
+        height: 12,
+        backgroundColor: '#ECEDF1',
+        borderRadius: 25,
+        overflow: 'visible',
+    },
+    sleepScoreBarDivider: {
+        position: 'absolute',
+        top: 0,
+        width: 1,
+        height: 12,
+        backgroundColor: '#A4AABC',
+    },
+    sleepScoreBarMarker: {
+        position: 'absolute',
+        resizeMode: 'contain',
+    },
 })
 
 export default styles

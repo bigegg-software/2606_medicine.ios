@@ -35,6 +35,8 @@ export type WearableDataItem = {
   customerLocalDate?: string;
   startTimeStr?: string;
   endTimeStr?: string;
+  bedTimeStr?: string;
+  wakeUpTimeStr?: string;
   originalData?: WearableOriginalReading[] | WearableOriginalReading[][];
   stepCount?: number;
   heartRate?: number;
