@@ -30,6 +30,10 @@ export function getStepsDetailGoal(items: WearableDataItem[], goalOverride?: num
   return parseMeasureNumber(item?.stepGoals) ?? goalOverride ?? 10000;
 }
 
+export function formatStepsGoalLabel(goal: number) {
+  return `目标：${Math.round(goal).toLocaleString('en-US')}`;
+}
+
 function getStepsStatusDisplay(steps: number, goal: number) {
   if (steps <= 0) {
     return { status: '--', statusColor: '#999999' };
@@ -134,7 +138,7 @@ export function formatStepsDetailPointDisplay(
       status: '--',
       statusColor: '#999999',
       currentLabel: range === 'today' ? '当前：今天' : '当前：--',
-      suggestionLabel: `目标：${goalOverride ?? 10000}`,
+      suggestionLabel: formatStepsGoalLabel(goalOverride ?? 10000),
     };
   }
 
@@ -146,7 +150,7 @@ export function formatStepsDetailPointDisplay(
     status,
     statusColor,
     currentLabel: formatStepsCurrentLabel(range, point),
-    suggestionLabel: `目标：${Math.round(goal).toLocaleString('en-US')}`,
+    suggestionLabel: formatStepsGoalLabel(goal),
   };
 }
 

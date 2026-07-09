@@ -47,6 +47,7 @@ const PAGE_TITLES: Record<VitalsMeasureType, string> = {
   体温: '体温记录',
   尿酸: '尿酸记录',
   血脂: '血脂记录',
+  体重: '体重记录',
   血氧: '血氧记录',
   心率: '心率记录',
   步数: '步数记录',
@@ -59,6 +60,7 @@ const MEASURE_UNITS: Record<MeasureDataType, string> = {
   体温: '℃',
   尿酸: 'μmol/L',
   血脂: 'mmol/L',
+  体重: 'kg',
 };
 
 const MONTH_PICKER_DATA = [
@@ -146,7 +148,7 @@ function formatMeasureValue(item: MeasureDataItem, type: MeasureDataType) {
     if (ldl != null && !Number.isNaN(Number(ldl))) parts.push(`LDL ${Number(ldl).toFixed(2)}`);
     return parts.length ? parts.join('  ') : '--';
   }
-  if (type === '体温' || type === '血糖') {
+  if (type === '体温' || type === '血糖' || type === '体重') {
     const val = Number(item.val);
     return !Number.isNaN(val) ? val.toFixed(1) : '--';
   }

@@ -126,6 +126,21 @@ function hasLineChartValue(value: LineChartSeriesItem['value']) {
   return raw != null && Number(raw) > 0;
 }
 
+/** 折线图上的全部有效点，供 scatter 层渲染 */
+export function buildLineScatterData(
+  data: LineChartSeriesItem[],
+): Array<number | [number, number] | null> {
+  return data.map(item => {
+    const raw = item.value;
+    if (raw == null) return null;
+    if (Array.isArray(raw)) {
+      const [x, y] = raw;
+      return y != null && Number(y) > 0 ? ([x, Number(y)] as [number, number]) : null;
+    }
+    return Number(raw) > 0 ? Number(raw) : null;
+  });
+}
+
 /** 连不成线的孤立点，供 scatter 层渲染 */
 export function buildIsolatedLineScatterData(
   data: LineChartSeriesItem[],

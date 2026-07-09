@@ -25,9 +25,15 @@ function getProgressTipPosition(progress: number) {
 
 type VitalsProgressRingProps = {
     progress: number;
+    trackColor?: string;
+    progressColor?: string;
 };
 
-export default function VitalsProgressRing({ progress }: VitalsProgressRingProps) {
+export default function VitalsProgressRing({
+    progress,
+    trackColor = TRACK_COLOR,
+    progressColor = PROGRESS_COLOR,
+}: VitalsProgressRingProps) {
     const value = Math.min(100, Math.max(0, Math.round(progress)));
     const tipPosition = useMemo(() => getProgressTipPosition(value), [value]);
     const progressSweep = value >= 100 ? 360 : (360 * value) / 100;
@@ -54,14 +60,14 @@ export default function VitalsProgressRing({ progress }: VitalsProgressRingProps
                     cx={CANVAS_CENTER}
                     cy={CANVAS_CENTER}
                     r={RING_RADIUS}
-                    color={TRACK_COLOR}
+                    color={trackColor}
                     style="stroke"
                     strokeWidth={STROKE_WIDTH}
                 />
                 {value > 0 ? (
                     <Path
                         path={progressPath}
-                        color={PROGRESS_COLOR}
+                        color={progressColor}
                         style="stroke"
                         strokeWidth={STROKE_WIDTH}
                         strokeCap="round"

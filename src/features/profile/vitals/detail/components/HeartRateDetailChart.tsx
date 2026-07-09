@@ -3,7 +3,7 @@ import { View, Text, Image, Dimensions } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { runOnJS } from 'react-native-reanimated';
 import * as echarts from 'echarts/core';
-import { BarChart, LineChart, ScatterChart } from 'echarts/charts';
+import { LineChart, ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent, MarkLineComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import moment from 'moment';
@@ -18,15 +18,18 @@ export type HeartRatePoint = {
 
 export type HeartRateChartRange = 'today' | 'week' | 'month';
 
-const BAR_COLOR = '#FB4550';
-const BAR_WIDTH = 10;
-const MONTH_BAR_WIDTH = BAR_WIDTH / 2;
-const BAR_STACK = 'heartRateRange';
-
-const INVISIBLE_BAR_STYLE = {
-    color: 'rgba(0,0,0,0)',
-    borderColor: 'rgba(0,0,0,0)',
-    borderWidth: 0,
+const LINE_COLOR = '#EE9C44';
+const POINT_SHADOW = {
+    shadowBlur: 3,
+    shadowColor: 'rgba(0,0,0,0.2)',
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+};
+const POINT_STYLE = {
+    color: LINE_COLOR,
+    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    ...POINT_SHADOW,
 };
 
 const CHART_PADDING = 54;
@@ -185,68 +188,7 @@ function getHeartRateChartValue(point: HeartRatePoint) {
         : Math.round((point.min + point.max) / 2);
 }
 
-function buildIntervalCapSeries(
-    points: HeartRatePoint[],
-    getX: (point: HeartRatePoint, index: number) => number,
-    barWidth = BAR_WIDTH,
-) {
-    const capData: Array<{ value: [number, number]; symbolSize: [number, number] }> = [];
-
-    points.forEach((point, index) => {
-        if (!isValidPoint(point)) return;
-        const x = getX(point, index);
-        capData.push(
-            { value: [x, point.min], symbolSize: [barWidth, 3] },
-            { value: [x, point.max], symbolSize: [barWidth, 3] },
-        );
-    });
-
-    return {
-        type: 'scatter',
-        symbol: 'rect',
-        itemStyle: { color: BAR_COLOR },
-        data: capData,
-        z: 15,
-    };
-}
-
-function buildRangeBarSeries(
-    baseData: Array<{ value: number | number[]; name?: string } | null>,
-    rangeData: Array<{ value: number | number[]; name?: string } | null>,
-    capSeries: Record<string, unknown>,
-    markLine?: ReturnType<typeof buildSelectionMarkLine>,
-    barWidth = BAR_WIDTH,
-) {
-    return [
-        {
-            name: 'base',
-            type: 'bar',
-            stack: BAR_STACK,
-            silent: true,
-            barWidth,
-            itemStyle: INVISIBLE_BAR_STYLE,
-            emphasis: { disabled: true },
-            data: baseData,
-            z: 5,
-        },
-        {
-            name: 'range',
-            type: 'bar',
-            stack: BAR_STACK,
-            barWidth,
-            itemStyle: {
-                color: BAR_COLOR,
-                borderRadius: [2, 2, 2, 2],
-            },
-            data: rangeData,
-            markLine,
-            z: 10,
-        },
-        capSeries,
-    ];
-}
-
-echarts.use([SkiaRenderer, BarChart, LineChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent]);
+echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent]);
 
 type Props = {
     range: HeartRateChartRange;
@@ -627,8 +569,74 @@ function findPointAtDataX(
     return points[index];
 }
 
-function buildTodayLineSeries(
-    lineData: Array<{ value: [number, number]; name?: string } | null>,
+function isPointSelected(
+    range: HeartRateChartRange,
+    point: HeartRatePoint,
+    index: number,
+    selectedDataX: number | null,
+) {
+    if (selectedDataX == null) return false;
+    if (range === 'today') {
+        return Math.abs(parsePointX(point) - selectedDataX) < 0.001;
+    }
+    if (range === 'month') {
+        return index === Math.round(selectedDataX);
+    }
+    return index === Math.round(selectedDataX);
+}
+
+function buildTodayScatterData(
+    points: HeartRatePoint[],
+    range: HeartRateChartRange,
+    selectedDataX: number | null,
+) {
+    return points
+        .map((point, index) => {
+            if (!isValidPoint(point)) return null;
+            return {
+                value: [parsePointX(point), getHeartRateChartValue(point)] as [number, number],
+                name: point.hour,
+                symbolSize: isPointSelected(range, point, index, selectedDataX) ? 8 : 6,
+            };
+        })
+        .filter(item => item != null);
+}
+
+function buildCategoryScatterData(
+    points: HeartRatePoint[],
+    range: HeartRateChartRange,
+    selectedDataX: number | null,
+) {
+    return points
+        .map((point, index) => {
+            if (!isValidPoint(point)) return null;
+            return {
+                value: [point.hour || String(index), getHeartRateChartValue(point)] as [string, number],
+                name: point.hour,
+                symbolSize: isPointSelected(range, point, index, selectedDataX) ? 8 : 6,
+            };
+        })
+        .filter(item => item != null);
+}
+
+function buildMonthScatterData(
+    points: HeartRatePoint[],
+    selectedDataX: number | null,
+) {
+    return points
+        .map((point, index) => {
+            if (!isValidPoint(point)) return null;
+            return {
+                value: [index, getHeartRateChartValue(point)] as [number, number],
+                name: point.hour,
+                symbolSize: isPointSelected('month', point, index, selectedDataX) ? 8 : 6,
+            };
+        })
+        .filter(item => item != null);
+}
+
+function buildHeartRateLineSeries(
+    lineData: Array<{ value: [number, number] | [string, number] | number; name?: string } | null>,
     markLine?: ReturnType<typeof buildSelectionMarkLine>,
 ) {
     return {
@@ -638,67 +646,33 @@ function buildTodayLineSeries(
         connectNulls: true,
         showSymbol: false,
         data: lineData,
-        lineStyle: { color: BAR_COLOR, width: 2 },
-        itemStyle: { color: BAR_COLOR },
+        lineStyle: { color: LINE_COLOR, width: 2 },
+        itemStyle: { color: LINE_COLOR },
         markLine,
         z: 5,
     };
 }
 
-function buildCategoryBarSeries(
-    points: HeartRatePoint[],
-    range: HeartRateChartRange,
-    labels: string[],
-    selectedDataX: number | null,
+function buildHeartRateScatterSeries(
+    scatterData: Array<{ value: [number, number] | [string, number]; name?: string; symbolSize: number } | null>,
+    markLine?: ReturnType<typeof buildSelectionMarkLine>,
 ) {
-    const baseData = points.map(point => (
-        isValidPoint(point)
-            ? { value: point.min, name: point.hour }
-            : null
-    ));
-    const rangeData = points.map(point => (
-        isValidPoint(point)
-            ? { value: point.max - point.min, name: point.hour }
-            : null
-    ));
-
-    return buildRangeBarSeries(
-        baseData,
-        rangeData,
-        buildIntervalCapSeries(points, (_, index) => index),
-        buildSelectionMarkLine(range, selectedDataX, labels),
-    );
-}
-
-function buildMonthBarSeries(
-    points: HeartRatePoint[],
-    labels: string[],
-    selectedDataX: number | null,
-) {
-    const baseData = points.map((point, index) => (
-        isValidPoint(point)
-            ? { value: [index, point.min], name: point.hour }
-            : null
-    ));
-    const rangeData = points.map((point, index) => (
-        isValidPoint(point)
-            ? { value: [index, point.max - point.min], name: point.hour }
-            : null
-    ));
-
-    return buildRangeBarSeries(
-        baseData,
-        rangeData,
-        buildIntervalCapSeries(points, (_, index) => index, MONTH_BAR_WIDTH),
-        buildSelectionMarkLine('month', selectedDataX, labels),
-        MONTH_BAR_WIDTH,
-    );
+    return {
+        name: 'heartRate-scatter',
+        type: 'scatter' as const,
+        data: scatterData,
+        symbol: 'circle',
+        itemStyle: POINT_STYLE,
+        markLine,
+        z: 10,
+    };
 }
 
 function buildTodayOption(
     points: HeartRatePoint[],
     selectedDataX: number | null,
 ) {
+    const markLine = buildSelectionMarkLine('today', selectedDataX, []);
     return {
         animation: false,
         tooltip: {
@@ -717,13 +691,17 @@ function buildTodayOption(
         },
         yAxis: buildYAxis(points),
         series: [
-            buildTodayLineSeries(
+            buildHeartRateLineSeries(
                 points.map(point => (
                     isValidPoint(point)
                         ? { value: [parsePointX(point), getHeartRateChartValue(point)] as [number, number], name: point.hour }
                         : null
                 )),
-                buildSelectionMarkLine('today', selectedDataX, []),
+                markLine,
+            ),
+            buildHeartRateScatterSeries(
+                buildTodayScatterData(points, 'today', selectedDataX),
+                markLine,
             ),
         ],
     };
@@ -734,6 +712,7 @@ function buildMonthOption(
     labels: string[],
     selectedDataX: number | null,
 ) {
+    const markLine = buildSelectionMarkLine('month', selectedDataX, labels);
     return {
         animation: false,
         tooltip: {
@@ -751,7 +730,20 @@ function buildMonthOption(
             splitLine: GRID_SPLIT_LINE,
         },
         yAxis: buildYAxis(points),
-        series: buildMonthBarSeries(points, labels, selectedDataX),
+        series: [
+            buildHeartRateLineSeries(
+                points.map((point, index) => (
+                    isValidPoint(point)
+                        ? { value: [index, getHeartRateChartValue(point)] as [number, number], name: point.hour }
+                        : null
+                )),
+                markLine,
+            ),
+            buildHeartRateScatterSeries(
+                buildMonthScatterData(points, selectedDataX),
+                markLine,
+            ),
+        ],
     };
 }
 
@@ -761,6 +753,7 @@ function buildCategoryOption(
     range: HeartRateChartRange,
     selectedDataX: number | null,
 ) {
+    const markLine = buildSelectionMarkLine(range, selectedDataX, labels);
     return {
         animation: false,
         tooltip: {
@@ -777,7 +770,20 @@ function buildCategoryOption(
             splitLine: GRID_SPLIT_LINE,
         },
         yAxis: buildYAxis(points),
-        series: buildCategoryBarSeries(points, range, labels, selectedDataX),
+        series: [
+            buildHeartRateLineSeries(
+                points.map(point => (
+                    isValidPoint(point)
+                        ? { value: getHeartRateChartValue(point), name: point.hour }
+                        : null
+                )),
+                markLine,
+            ),
+            buildHeartRateScatterSeries(
+                buildCategoryScatterData(points, range, selectedDataX),
+                markLine,
+            ),
+        ],
     };
 }
 

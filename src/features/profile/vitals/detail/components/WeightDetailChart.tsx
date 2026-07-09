@@ -8,12 +8,33 @@ import { GridComponent, TooltipComponent, MarkLineComponent } from 'echarts/comp
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import moment from 'moment';
 import styles from '@/css/vitals/bloodPage';
-import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
-import {
-    toBloodPressureSeriesData,
-    type LineChartSeriesItem,
-} from '@/src/features/profile/components/chartAxis';
 import { readSelectionPixelX } from './detailChartSelection';
+export type WeightDetailPoint = {
+    hour: string;
+    min: number;
+    max: number;
+    x?: number;
+    dataTime?: string;
+    customerLocalDate?: string;
+    statusLabel?: string;
+    bmi?: number;
+};
+
+export type WeightChartRange = 'today' | 'week' | 'month';
+
+const LINE_COLOR = '#6D925E';
+const POINT_SHADOW = {
+    shadowBlur: 3,
+    shadowColor: 'rgba(0,0,0,0.2)',
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+};
+const POINT_STYLE = {
+    color: LINE_COLOR,
+    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    ...POINT_SHADOW,
+};
 
 const CHART_PADDING = 54;
 const CHART_WIDTH = Dimensions.get('window').width - CHART_PADDING;
@@ -40,12 +61,13 @@ const PLOT_LEFT = CHART_GRID.left;
 const PLOT_WIDTH = CHART_WIDTH - CHART_GRID.left - CHART_GRID.right;
 const GRID_TOP_Y = CHART_GRID.top;
 const SELECT_LINE_COLOR = '#6D925E';
+const SAFETY_LINE_COLOR = '#EE9C44';
 const GRID_BOTTOM_Y = CHART_HEIGHT - CHART_GRID.bottom;
 const X_LABEL_TOP = GRID_BOTTOM_Y + Y_AXIS_LINE_EXTEND - 12;
 const CHART_TOUCH_HEIGHT = CHART_HEIGHT - GRID_TOP_Y;
 const HIDDEN_AXIS_LABEL = { show: false };
 const TODAY_TICK_HOURS = [0, 6, 12, 18, 24];
-const Y_AXIS_INTERVAL = 50;
+const Y_AXIS_INTERVAL = 2;
 const MONTH_DAY_COUNT = 30;
 const MONTH_X_MAX = MONTH_DAY_COUNT - 1;
 const MONTH_TICK_INTERVAL = 5;
@@ -128,18 +150,37 @@ function ChartSelectionSlider({
     );
 }
 
-function buildYAxis(points: BloodPressurePoint[]) {
-    const values = points.flatMap(point => [point.high, point.low]).filter(value => value > 0);
-    const peak = values.length ? Math.max(...values) : 140;
+function buildYAxis(points: WeightDetailPoint[]) {
+    const values = points.flatMap(point => [point.min, point.max]).filter(value => value > 0);
+    const peak = values.length ? Math.max(...values) : 70;
+    const floor = values.length ? Math.min(...values) : 50;
+    const min = Math.max(0, Math.floor((floor - 2) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL);
     const max = Math.max(
-        Y_AXIS_INTERVAL * 3,
-        Math.ceil((peak + 20) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL,
+        min + Y_AXIS_INTERVAL * 4,
+        Math.ceil((peak + 2) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL,
     );
 
     return {
         ...Y_AXIS,
+        min,
         max,
     };
+}
+
+type YAxisBuilder = (points: WeightDetailPoint[]) => {
+    min: number;
+    max: number;
+    interval: number;
+};
+
+function resolveYAxis(points: WeightDetailPoint[], yAxisBuilder?: YAxisBuilder) {
+    if (yAxisBuilder) {
+        return {
+            ...Y_AXIS,
+            ...yAxisBuilder(points),
+        };
+    }
+    return buildYAxis(points);
 }
 
 const Y_AXIS = {
@@ -158,49 +199,39 @@ const Y_AXIS = {
     splitLine: GRID_SPLIT_LINE,
 };
 
-const POINT_SHADOW = {
-    shadowBlur: 3,
-    shadowColor: 'rgba(0,0,0,0.2)',
-    shadowOffsetX: 0,
-    shadowOffsetY: 0,
-};
-const HIGH_POINT_STYLE = {
-    color: '#EE9C44',
-    borderColor: '#FFFFFF',
-    borderWidth: 1,
-    ...POINT_SHADOW,
-};
-const LOW_POINT_STYLE = {
-    color: '#6D925E',
-    borderColor: '#FFFFFF',
-    borderWidth: 1,
-    ...POINT_SHADOW,
-};
+function isValidPoint(point: WeightDetailPoint) {
+    return point.min > 0 && point.max > 0 && point.max >= point.min;
+}
 
-const LOW_LINE_STYLE = {
-    color: '#6D925E',
-    width: 2,
-};
-const HIGH_LINE_STYLE = {
-    color: '#EE9C44',
-    width: 2,
-};
+function getWeightChartValue(point: WeightDetailPoint) {
+    const value = point.min === point.max
+        ? point.min
+        : (point.min + point.max) / 2;
+    return Number(value.toFixed(1));
+}
+
+function formatWeightChartLabel(point: WeightDetailPoint) {
+    if (point.min === point.max) return point.min.toFixed(1);
+    return `${point.min.toFixed(1)}-${point.max.toFixed(1)}`;
+}
 
 echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent]);
 
-export type BloodPressureChartRange = 'today' | 'week' | 'month';
-
 type Props = {
-    range: BloodPressureChartRange;
-    data?: BloodPressurePoint[];
-    onPointChange?: (point: BloodPressurePoint | undefined) => void;
+    range: WeightChartRange;
+    data?: WeightDetailPoint[];
+    onPointChange?: (point: WeightDetailPoint | undefined) => void;
+    categoryLabels?: string[];
+    yAxisBuilder?: YAxisBuilder;
+    safetyLineY?: number;
+    safetyLineLabel?: string;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
     return hour + minute / 60;
 }
 
-function parsePointX(point: BloodPressurePoint) {
+function parsePointX(point: WeightDetailPoint) {
     if (point.x != null) return point.x;
     if (!point.hour) return 0;
     const [hourText, minuteText] = point.hour.split(':');
@@ -282,7 +313,7 @@ function getTodayGridLinePositions() {
     }));
 }
 
-function getCategoryGridExtensionPositions(range: BloodPressureChartRange, labels: string[]) {
+function getCategoryGridExtensionPositions(range: WeightChartRange, labels: string[]) {
     if (range === 'month') {
         return getMonthAxisTicks(labels).map(tick => ({
             left: tick.left,
@@ -317,10 +348,10 @@ function ChartGridExtensionLines({ positions }: { positions: Array<{ left: numbe
 }
 
 function getDefaultSelectedDataX(
-    range: BloodPressureChartRange,
-    points: BloodPressurePoint[],
+    range: WeightChartRange,
+    points: WeightDetailPoint[],
 ) {
-    const validPoints = points.filter(point => point.high > 0 || point.low > 0);
+    const validPoints = points.filter(isValidPoint);
     if (!validPoints.length) return null;
 
     if (range === 'today') {
@@ -330,7 +361,7 @@ function getDefaultSelectedDataX(
 
     let latestIndex = -1;
     points.forEach((point, index) => {
-        if (point.high > 0 || point.low > 0) {
+        if (isValidPoint(point)) {
             latestIndex = index;
         }
     });
@@ -338,7 +369,7 @@ function getDefaultSelectedDataX(
 }
 
 function dataXToPixelLeft(
-    range: BloodPressureChartRange,
+    range: WeightChartRange,
     dataX: number,
     categoryCount: number,
 ) {
@@ -359,30 +390,61 @@ function dataXToPixelLeft(
     return Math.max(PLOT_LEFT, Math.min(plotRight, left));
 }
 
-function buildSelectionMarkLine(
-    range: BloodPressureChartRange,
+function buildCombinedMarkLine(
+    range: WeightChartRange,
     selectedDataX: number | null,
     labels: string[],
+    safetyLineY?: number,
 ) {
-    if (selectedDataX == null) return undefined;
+    const data: Array<Record<string, unknown>> = [];
 
-    const xAxisValue = range === 'today' || range === 'month'
-        ? selectedDataX
-        : labels[Math.round(selectedDataX)];
+    if (selectedDataX != null) {
+        const xAxisValue = range === 'today' || range === 'month'
+            ? selectedDataX
+            : Math.round(selectedDataX);
 
-    if (range !== 'today' && !xAxisValue) return undefined;
+        data.push({
+            xAxis: xAxisValue,
+            lineStyle: {
+                color: SELECT_LINE_COLOR,
+                width: 1,
+            },
+            label: { show: false },
+        });
+    }
+
+    if (safetyLineY != null) {
+        data.push({
+            yAxis: safetyLineY,
+            lineStyle: {
+                color: SAFETY_LINE_COLOR,
+                width: 3,
+                type: 'dashed',
+            },
+            label: { show: false },
+        });
+    }
+
+    if (!data.length) return undefined;
 
     return {
         silent: true,
         symbol: ['none', 'none'],
-        lineStyle: {
-            color: SELECT_LINE_COLOR,
-            width: 1,
-        },
-        label: { show: false },
-        data: [{ xAxis: xAxisValue }],
+        data,
         z: 1,
     };
+}
+
+function getSafetyLineLabelTop(yMin: number, yMax: number, safetyLineY: number) {
+    const plotHeight = GRID_BOTTOM_Y - GRID_TOP_Y;
+    if (yMax <= yMin) return GRID_TOP_Y;
+
+    const lineTop = GRID_TOP_Y + ((yMax - safetyLineY) / (yMax - yMin)) * plotHeight;
+    return Math.max(GRID_TOP_Y, lineTop - 22);
+}
+
+function getCategoryPointPixelX(index: number, count: number) {
+    return PLOT_LEFT + ((index + 0.5) / count) * PLOT_WIDTH;
 }
 
 function TodayXAxisLabels() {
@@ -496,8 +558,8 @@ function CategoryXAxisLabels({ labels }: { labels: string[] }) {
 }
 
 function findNearestSelectableDataX(
-    range: BloodPressureChartRange,
-    points: BloodPressurePoint[],
+    range: WeightChartRange,
+    points: WeightDetailPoint[],
     pixelX: number,
     categoryCount: number,
 ): number | null {
@@ -506,27 +568,71 @@ function findNearestSelectableDataX(
             dataX: range === 'today' ? parsePointX(point) : index,
             point,
         }))
-        .filter(({ point }) => point.high > 0 || point.low > 0);
+        .filter(({ point }) => isValidPoint(point));
 
     if (!validEntries.length) return null;
 
     const clampedPixelX = Math.max(PLOT_LEFT, Math.min(PLOT_LEFT + PLOT_WIDTH, pixelX));
-    const touchDataX = range === 'today'
-        ? ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * 24
-        : range === 'month'
-            ? ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * MONTH_X_MAX
-            : ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * categoryCount - 0.5;
 
+    if (range === 'today') {
+        const touchDataX = ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * 24;
+        return validEntries.reduce((nearest, entry) => {
+            const currentDistance = Math.abs(entry.dataX - touchDataX);
+            const nearestDistance = Math.abs(nearest.dataX - touchDataX);
+            return currentDistance < nearestDistance ? entry : nearest;
+        }).dataX;
+    }
+
+    if (range === 'month') {
+        const touchDataX = ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * MONTH_X_MAX;
+        return validEntries.reduce((nearest, entry) => {
+            const currentDistance = Math.abs(entry.dataX - touchDataX);
+            const nearestDistance = Math.abs(nearest.dataX - touchDataX);
+            return currentDistance < nearestDistance ? entry : nearest;
+        }).dataX;
+    }
+
+    const count = Math.max(categoryCount, points.length, 1);
     return validEntries.reduce((nearest, entry) => {
-        const currentDistance = Math.abs(entry.dataX - touchDataX);
-        const nearestDistance = Math.abs(nearest.dataX - touchDataX);
+        const currentDistance = Math.abs(getCategoryPointPixelX(entry.dataX, count) - clampedPixelX);
+        const nearestDistance = Math.abs(getCategoryPointPixelX(nearest.dataX, count) - clampedPixelX);
         return currentDistance < nearestDistance ? entry : nearest;
     }).dataX;
 }
 
+function SelectionTooltip({
+    point,
+    lineLeft,
+}: {
+    point: WeightDetailPoint;
+    lineLeft: number;
+}) {
+    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
+
+    return (
+        <View
+            pointerEvents="none"
+            style={[
+                styles.chartSelectionTip,
+                {
+                    top: GRID_TOP_Y + 6,
+                    left: tipLeft,
+                },
+            ]}
+        >
+            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
+            {isValidPoint(point) ? (
+                <Text style={styles.chartSelectionTipValue}>
+                    {formatWeightChartLabel(point)}
+                </Text>
+            ) : null}
+        </View>
+    );
+}
+
 function findPointAtDataX(
-    range: BloodPressureChartRange,
-    points: BloodPressurePoint[],
+    range: WeightChartRange,
+    points: WeightDetailPoint[],
     dataX: number | null | undefined,
 ) {
     if (dataX == null) return undefined;
@@ -540,8 +646,8 @@ function findPointAtDataX(
 }
 
 function isPointSelected(
-    range: BloodPressureChartRange,
-    point: BloodPressurePoint,
+    range: WeightChartRange,
+    point: WeightDetailPoint,
     index: number,
     selectedDataX: number | null,
 ) {
@@ -556,16 +662,15 @@ function isPointSelected(
 }
 
 function buildTodayScatterData(
-    points: BloodPressurePoint[],
-    key: 'high' | 'low',
-    range: BloodPressureChartRange,
+    points: WeightDetailPoint[],
+    range: WeightChartRange,
     selectedDataX: number | null,
 ) {
     return points
         .map((point, index) => {
-            if (point[key] <= 0) return null;
+            if (!isValidPoint(point)) return null;
             return {
-                value: [parsePointX(point), point[key]] as [number, number],
+                value: [parsePointX(point), getWeightChartValue(point)] as [number, number],
                 name: point.hour,
                 symbolSize: isPointSelected(range, point, index, selectedDataX) ? 8 : 6,
             };
@@ -573,34 +678,16 @@ function buildTodayScatterData(
         .filter(item => item != null);
 }
 
-function buildTodayLineData(points: BloodPressurePoint[], key: 'high' | 'low') {
-    const series = toBloodPressureSeriesData(points);
-    return key === 'high' ? series.high : series.low;
-}
-
-function buildCategoryLineData(points: BloodPressurePoint[], key: 'high' | 'low') {
-    const series = toBloodPressureSeriesData(points);
-    return key === 'high' ? series.high : series.low;
-}
-
-function buildMonthLineData(points: BloodPressurePoint[], key: 'high' | 'low'): LineChartSeriesItem[] {
-    return points.map((point, index) => ({
-        value: point[key] > 0 ? [index, point[key]] as [number, number] : null,
-        name: point.hour,
-    }));
-}
-
 function buildCategoryScatterData(
-    points: BloodPressurePoint[],
-    key: 'high' | 'low',
-    range: BloodPressureChartRange,
+    points: WeightDetailPoint[],
+    range: WeightChartRange,
     selectedDataX: number | null,
 ) {
     return points
         .map((point, index) => {
-            if (point[key] <= 0) return null;
+            if (!isValidPoint(point)) return null;
             return {
-                value: [point.hour || String(index), point[key]] as [string, number],
+                value: [index, getWeightChartValue(point)] as [number, number],
                 name: point.hour,
                 symbolSize: isPointSelected(range, point, index, selectedDataX) ? 8 : 6,
             };
@@ -609,15 +696,14 @@ function buildCategoryScatterData(
 }
 
 function buildMonthScatterData(
-    points: BloodPressurePoint[],
-    key: 'high' | 'low',
+    points: WeightDetailPoint[],
     selectedDataX: number | null,
 ) {
     return points
         .map((point, index) => {
-            if (point[key] <= 0) return null;
+            if (!isValidPoint(point)) return null;
             return {
-                value: [index, point[key]] as [number, number],
+                value: [index, getWeightChartValue(point)] as [number, number],
                 name: point.hour,
                 symbolSize: isPointSelected('month', point, index, selectedDataX) ? 8 : 6,
             };
@@ -625,47 +711,48 @@ function buildMonthScatterData(
         .filter(item => item != null);
 }
 
-function buildBloodPressureLineSeries(
-    key: 'high' | 'low',
-    lineData: LineChartSeriesItem[],
-    markLine?: ReturnType<typeof buildSelectionMarkLine>,
+type MarkLineConfig = ReturnType<typeof buildCombinedMarkLine>;
+
+function buildWeightLineSeries(
+    lineData: Array<{ value: [number, number] | [string, number] | number; name?: string } | null>,
+    markLine?: MarkLineConfig,
 ) {
-    const isHigh = key === 'high';
     return {
-        name: `${key}-line`,
+        name: 'weight-line',
         type: 'line' as const,
         smooth: true,
         connectNulls: true,
         showSymbol: false,
         data: lineData,
-        lineStyle: isHigh ? HIGH_LINE_STYLE : LOW_LINE_STYLE,
-        itemStyle: { color: isHigh ? HIGH_POINT_STYLE.color : LOW_POINT_STYLE.color },
+        lineStyle: { color: LINE_COLOR, width: 2 },
+        itemStyle: { color: LINE_COLOR },
         markLine,
-        z: isHigh ? 6 : 7,
+        z: 5,
     };
 }
 
-function buildBloodPressureScatterSeries(
-    key: 'high' | 'low',
+function buildWeightScatterSeries(
     scatterData: Array<{ value: [number, number] | [string, number]; name?: string; symbolSize: number } | null>,
-    markLine?: ReturnType<typeof buildSelectionMarkLine>,
+    markLine?: MarkLineConfig,
 ) {
-    const isHigh = key === 'high';
     return {
-        name: key,
+        name: 'weight-scatter',
         type: 'scatter' as const,
         data: scatterData,
         symbol: 'circle',
-        itemStyle: isHigh ? HIGH_POINT_STYLE : LOW_POINT_STYLE,
+        itemStyle: POINT_STYLE,
         markLine,
-        z: isHigh ? 10 : 20,
+        z: 10,
     };
 }
 
 function buildTodayOption(
-    points: BloodPressurePoint[],
+    points: WeightDetailPoint[],
     selectedDataX: number | null,
+    yAxisBuilder?: YAxisBuilder,
+    safetyLineY?: number,
 ) {
+    const markLine = buildCombinedMarkLine('today', selectedDataX, [], safetyLineY);
     return {
         animation: false,
         tooltip: {
@@ -682,28 +769,32 @@ function buildTodayOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: resolveYAxis(points, yAxisBuilder),
         series: [
-            buildBloodPressureLineSeries('high', buildTodayLineData(points, 'high')),
-            buildBloodPressureLineSeries('low', buildTodayLineData(points, 'low')),
-            buildBloodPressureScatterSeries(
-                'high',
-                buildTodayScatterData(points, 'high', 'today', selectedDataX),
-                buildSelectionMarkLine('today', selectedDataX, []),
+            buildWeightLineSeries(
+                points.map(point => (
+                    isValidPoint(point)
+                        ? { value: [parsePointX(point), getWeightChartValue(point)] as [number, number], name: point.hour }
+                        : null
+                )),
+                markLine,
             ),
-            buildBloodPressureScatterSeries(
-                'low',
-                buildTodayScatterData(points, 'low', 'today', selectedDataX),
+            buildWeightScatterSeries(
+                buildTodayScatterData(points, 'today', selectedDataX),
+                markLine,
             ),
         ],
     };
 }
 
 function buildMonthOption(
-    points: BloodPressurePoint[],
+    points: WeightDetailPoint[],
     labels: string[],
     selectedDataX: number | null,
+    yAxisBuilder?: YAxisBuilder,
+    safetyLineY?: number,
 ) {
+    const markLine = buildCombinedMarkLine('month', selectedDataX, labels, safetyLineY);
     return {
         animation: false,
         tooltip: {
@@ -720,29 +811,33 @@ function buildMonthOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: resolveYAxis(points, yAxisBuilder),
         series: [
-            buildBloodPressureLineSeries('high', buildMonthLineData(points, 'high')),
-            buildBloodPressureLineSeries('low', buildMonthLineData(points, 'low')),
-            buildBloodPressureScatterSeries(
-                'high',
-                buildMonthScatterData(points, 'high', selectedDataX),
-                buildSelectionMarkLine('month', selectedDataX, labels),
+            buildWeightLineSeries(
+                points.map((point, index) => (
+                    isValidPoint(point)
+                        ? { value: [index, getWeightChartValue(point)] as [number, number], name: point.hour }
+                        : null
+                )),
+                markLine,
             ),
-            buildBloodPressureScatterSeries(
-                'low',
-                buildMonthScatterData(points, 'low', selectedDataX),
+            buildWeightScatterSeries(
+                buildMonthScatterData(points, selectedDataX),
+                markLine,
             ),
         ],
     };
 }
 
 function buildCategoryOption(
-    points: BloodPressurePoint[],
+    points: WeightDetailPoint[],
     labels: string[],
-    range: BloodPressureChartRange,
+    range: WeightChartRange,
     selectedDataX: number | null,
+    yAxisBuilder?: YAxisBuilder,
+    safetyLineY?: number,
 ) {
+    const markLine = buildCombinedMarkLine(range, selectedDataX, labels, safetyLineY);
     return {
         animation: false,
         tooltip: {
@@ -752,67 +847,39 @@ function buildCategoryOption(
         xAxis: {
             type: 'category',
             data: labels,
-            boundaryGap: false,
+            boundaryGap: true,
             axisTick: { show: false },
             axisLine: { show: false },
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: resolveYAxis(points, yAxisBuilder),
         series: [
-            buildBloodPressureLineSeries('high', buildCategoryLineData(points, 'high')),
-            buildBloodPressureLineSeries('low', buildCategoryLineData(points, 'low')),
-            buildBloodPressureScatterSeries(
-                'high',
-                buildCategoryScatterData(points, 'high', range, selectedDataX),
-                buildSelectionMarkLine(range, selectedDataX, labels),
+            buildWeightLineSeries(
+                points.map(point => (
+                    isValidPoint(point)
+                        ? { value: getWeightChartValue(point), name: point.hour }
+                        : null
+                )),
+                markLine,
             ),
-            buildBloodPressureScatterSeries(
-                'low',
-                buildCategoryScatterData(points, 'low', range, selectedDataX),
+            buildWeightScatterSeries(
+                buildCategoryScatterData(points, range, selectedDataX),
+                markLine,
             ),
         ],
     };
 }
 
-const TODAY_DEMO_DATA: BloodPressurePoint[] = [
-    { high: 126, low: 82, hour: '05:00', x: 5 },
-    { high: 132, low: 88, hour: '12:00', x: 12 },
-    { high: 128, low: 85, hour: '18:30', x: 18.5 },
-];
-
-const WEEK_DEMO_DATA: BloodPressurePoint[] = getWeekLabels().map((label, index) => ({
-    high: 130 + (index % 3) * 2,
-    low: 84 + (index % 2),
-    hour: label,
-}));
-
-const MONTH_DEMO_DATA: BloodPressurePoint[] = getMonthLabels().map((label, index) => ({
-    high: index % 4 === 0 ? 0 : 128 + (index % 5),
-    low: index % 4 === 0 ? 0 : 82 + (index % 4),
-    hour: label,
-}));
-
-function getDefaultData(range: BloodPressureChartRange) {
-    switch (range) {
-        case 'week':
-            return WEEK_DEMO_DATA;
-        case 'month':
-            return MONTH_DEMO_DATA;
-        default:
-            return TODAY_DEMO_DATA;
-    }
-}
-
-export default function BloodPressureDetailChart({ range, data, onPointChange }: Props) {
+export default function WeightDetailChart({ range, data, onPointChange, categoryLabels: categoryLabelsProp, yAxisBuilder, safetyLineY, safetyLineLabel }: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
-    const points = data ?? getDefaultData(range);
+    const points = data ?? [];
     const [selectedDataX, setSelectedDataX] = useState<number | null>(null);
     const [selectionPixelX, setSelectionPixelX] = useState<number | null>(null);
     const categoryLabels = useMemo(
-        () => (range === 'week' ? getWeekLabels() : range === 'month' ? getMonthLabels() : []),
-        [range],
+        () => categoryLabelsProp ?? (range === 'week' ? getWeekLabels() : range === 'month' ? getMonthLabels() : []),
+        [categoryLabelsProp, range],
     );
 
     useEffect(() => {
@@ -876,15 +943,25 @@ export default function BloodPressureDetailChart({ range, data, onPointChange }:
         return getCategoryGridExtensionPositions(range, categoryLabels);
     }, [categoryLabels, range]);
 
+    const yAxisConfig = useMemo(
+        () => resolveYAxis(points, yAxisBuilder),
+        [points, yAxisBuilder],
+    );
+
+    const safetyLineLabelTop = useMemo(() => {
+        if (safetyLineY == null) return null;
+        return getSafetyLineLabelTop(yAxisConfig.min, yAxisConfig.max, safetyLineY);
+    }, [safetyLineY, yAxisConfig.max, yAxisConfig.min]);
+
     const option = useMemo(() => {
         if (range === 'today') {
-            return buildTodayOption(points, selectedDataX);
+            return buildTodayOption(points, selectedDataX, yAxisBuilder, safetyLineY);
         }
         if (range === 'month') {
-            return buildMonthOption(points, categoryLabels, selectedDataX);
+            return buildMonthOption(points, categoryLabels, selectedDataX, yAxisBuilder, safetyLineY);
         }
-        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX);
-    }, [categoryLabels, data, points, range, selectedDataX]);
+        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX, yAxisBuilder, safetyLineY);
+    }, [categoryLabels, data, points, range, selectedDataX, safetyLineY, yAxisBuilder]);
 
     useEffect(() => {
         let chart: ReturnType<typeof echarts.init> | undefined;
@@ -944,6 +1021,22 @@ export default function BloodPressureDetailChart({ range, data, onPointChange }:
                 thumbCenterX={displayPixelX}
                 onSelectAtX={selectAtChartX}
             />
+            {safetyLineY != null && safetyLineLabel && safetyLineLabelTop != null ? (
+                <Text
+                    pointerEvents="none"
+                    style={[
+                        styles.chartSafetyLineLabel,
+                        {
+                            top: safetyLineLabelTop,
+                            left: PLOT_LEFT,
+                            width: PLOT_WIDTH,
+                            textAlign: 'right',
+                        },
+                    ]}
+                >
+                    {safetyLineLabel}
+                </Text>
+            ) : null}
         </View>
     );
 }

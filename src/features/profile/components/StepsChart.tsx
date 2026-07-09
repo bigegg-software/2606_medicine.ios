@@ -1,35 +1,39 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
+import { BarChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildChartXAxis, toChartValuePairs } from './chartAxis';
+import { buildCategoryAxisLabel } from './chartAxis';
 
-export type HeartRatePoint = { hour: string; value: number; x?: number };
+export type StepsBarPoint = { label: string; value: number };
 
-const HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
+const BAR_COLOR = '#EE9C44';
+
+echarts.use([SkiaRenderer, BarChart, GridComponent, TooltipComponent]);
 
 type Props = {
-  data?: HeartRatePoint[];
+  data?: StepsBarPoint[];
   hideXAxis?: boolean;
+  metricLabel?: string;
+  valueUnit?: string;
 };
 
-function buildOption(points: HeartRatePoint[], hideXAxis = false) {
-  const values = toChartValuePairs(points);
-  const validValues = points.filter(point => point.value > 0).map(point => point.value);
-  const xAxis = buildChartXAxis(points, [], false);
-  let yMin: number | undefined;
-  let yMax: number | undefined;
-  if (validValues.length) {
-    yMin = Math.max(40, Math.min(...validValues) - 10);
-    yMax = Math.min(200, Math.max(...validValues) + 10);
-  }
+function buildOption(
+  points: StepsBarPoint[],
+  hideXAxis = false,
+  metricLabel = '步数',
+  valueUnit = '步',
+) {
+  const labels = points.map(point => point.label);
+  const values = points.map(point => ({
+    value: point.value,
+    name: point.label,
+  }));
 
   return {
     animation: false,
@@ -47,7 +51,7 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
         const raw = item?.data?.value ?? item?.value;
         const value = Array.isArray(raw) ? raw[1] : raw;
         if (value == null || value === '') return title;
-        return `${title}\n心率 ${value}次/分钟`;
+        return `${title}\n${metricLabel} ${value}${valueUnit}`;
       },
     },
     grid: {
@@ -56,14 +60,16 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
       bottom: 0,
       left: 0,
     },
-    xAxis: hideXAxis
-      ? { ...xAxis, axisLabel: { show: false } }
-      : xAxis,
+    xAxis: {
+      type: 'category',
+      data: labels,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: hideXAxis ? { show: false } : buildCategoryAxisLabel(labels),
+      splitLine: { show: false },
+    },
     yAxis: {
       type: 'value',
-      min: yMin,
-      max: yMax,
-      scale: true,
       axisTick: { show: false },
       axisLine: { show: false },
       axisLabel: { show: false },
@@ -71,31 +77,29 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
     },
     series: [
       {
-        type: 'line',
-        smooth: true,
-        connectNulls: true,
-        showSymbol: validValues.length > 0 && validValues.length <= 8,
-        symbol: 'circle',
-        symbolSize: 5,
+        type: 'bar',
         data: values,
-        lineStyle: { color: '#FF2056', width: 2 },
-        itemStyle: { color: '#FF2056' },
+        barWidth: labels.length > 20 ? 3 : labels.length > 7 ? 6 : 8,
+        itemStyle: {
+          color: BAR_COLOR,
+          borderRadius: [2, 2, 0, 0],
+        },
       },
     ],
   };
 }
 
-export default function HeartRateChart({ data, hideXAxis }: Props) {
+export default function StepsChart({
+  data = [],
+  hideXAxis,
+  metricLabel = '步数',
+  valueUnit = '步',
+}: Props) {
   const skiaRef = useRef<any>(null);
-  const points = data ?? [
-    { hour: '01:00', value: 68 },
-    { hour: '07:00', value: 72 },
-    { hour: '12:00', value: 75 },
-    { hour: '18:00', value: 70 },
-    { hour: '24:00', value: 72 },
-  ];
-
-  const option = useMemo(() => buildOption(points, hideXAxis), [points, hideXAxis]);
+  const option = useMemo(
+    () => buildOption(data, hideXAxis, metricLabel, valueUnit),
+    [data, hideXAxis, metricLabel, valueUnit],
+  );
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;
@@ -122,5 +126,3 @@ export default function HeartRateChart({ data, hideXAxis }: Props) {
     </View>
   );
 }
-
-export { HOUR_LABELS };

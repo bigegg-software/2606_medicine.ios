@@ -1,6 +1,8 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/vitals/bloodPage';
@@ -20,16 +22,26 @@ import {
     buildStepsDetailTodaySeries,
     calcStepsDetailOverview,
     formatStepsDetailPointDisplay,
+    formatStepsGoalLabel,
     getStepsDetailGoal,
     type StepsDetailPoint,
 } from './helpers/steps';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+
+const DEFAULT_STEP_TARGET = 10000;
 
 const EMPTY_OVERVIEW = {
     totalSteps: '--',
     dailyAverage: '--',
     compliantDays: '--',
 };
+
+function resolveStoreStepGoal(stepGoals?: number) {
+    if (stepGoals != null && stepGoals >= 0) {
+        return Math.round(stepGoals / 500) * 500;
+    }
+    return DEFAULT_STEP_TARGET;
+}
 
 function formatOverviewNumber(value: number) {
     return value.toLocaleString('en-US');
@@ -41,15 +53,20 @@ function resetHeaderDisplay(range: StepsChartRange, goal: number) {
 
 export default function StepsPage() {
     const insets = useSafeAreaInsets();
+    const storeStepGoal = useSelector((state: RootState) => state.user.userExtr?.stepGoals);
+    const defaultStepGoal = useMemo(
+        () => resolveStoreStepGoal(storeStepGoal),
+        [storeStepGoal],
+    );
     const [selectedType, setSelectedType] = useState<StepsChartRange>('today');
     const [chartData, setChartData] = useState<StepsPoint[]>([]);
     const [displayValue, setDisplayValue] = useState('--');
     const [displayStatus, setDisplayStatus] = useState('--');
     const [displayStatusColor, setDisplayStatusColor] = useState('#999999');
     const [currentLabel, setCurrentLabel] = useState('当前：今天');
-    const [suggestionLabel, setSuggestionLabel] = useState('目标：10,000');
+    const [suggestionLabel, setSuggestionLabel] = useState(() => formatStepsGoalLabel(defaultStepGoal));
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
-    const [stepGoal, setStepGoal] = useState(10000);
+    const [stepGoal, setStepGoal] = useState(defaultStepGoal);
 
     const handleChartPointChange = useCallback((point: StepsPoint | undefined) => {
         const display = formatStepsDetailPointDisplay(
@@ -76,19 +93,19 @@ export default function StepsPage() {
 
             if (!isResourceApiOk(res)) {
                 setChartData([]);
-                const emptyDisplay = resetHeaderDisplay(range, 10000);
+                const emptyDisplay = resetHeaderDisplay(range, defaultStepGoal);
                 setDisplayValue(emptyDisplay.value);
                 setDisplayStatus(emptyDisplay.status);
                 setDisplayStatusColor(emptyDisplay.statusColor);
                 setCurrentLabel(emptyDisplay.currentLabel);
                 setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setOverview(EMPTY_OVERVIEW);
-                setStepGoal(10000);
+                setStepGoal(defaultStepGoal);
                 return;
             }
 
             const items = sortWearableItems(apiResourceData<WearableDataItem[]>(res) ?? []);
-            const goal = getStepsDetailGoal(items);
+            const goal = getStepsDetailGoal(items, defaultStepGoal);
             setStepGoal(goal);
 
             if (range === 'today') {
@@ -109,24 +126,20 @@ export default function StepsPage() {
             }
         } catch {
             setChartData([]);
-            const emptyDisplay = resetHeaderDisplay(range, 10000);
+            const emptyDisplay = resetHeaderDisplay(range, defaultStepGoal);
             setDisplayValue(emptyDisplay.value);
             setDisplayStatus(emptyDisplay.status);
             setDisplayStatusColor(emptyDisplay.statusColor);
             setCurrentLabel(emptyDisplay.currentLabel);
             setSuggestionLabel(emptyDisplay.suggestionLabel);
             setOverview(EMPTY_OVERVIEW);
-            setStepGoal(10000);
+            setStepGoal(defaultStepGoal);
         }
-    }, []);
-
-    useEffect(() => {
-        loadStepsData(selectedType);
-    }, [loadStepsData, selectedType]);
+    }, [defaultStepGoal]);
 
     useFocusEffect(
         useCallback(() => {
-            loadStepsData(selectedType);
+            void loadStepsData(selectedType);
         }, [loadStepsData, selectedType]),
     );
 

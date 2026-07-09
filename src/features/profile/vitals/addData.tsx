@@ -105,6 +105,22 @@ const MEASURE_CONFIG: Record<
     ],
     keyboardType: 'decimal-pad',
   },
+  体重: {
+    title: '新增体重记录',
+    primaryLabel: '体重 kg',
+    showSecondary: false,
+    showSite: false,
+    showStatus: false,
+    statusList: [],
+    defaultStatus: '',
+    referenceLines: [
+      'BMI 正常：18.5 – 23.9',
+      '偏瘦：<18.5',
+      '超重：24.0 – 27.9',
+      '肥胖：≥28.0',
+    ],
+    keyboardType: 'decimal-pad',
+  },
 };
 
 const TIME_PICKER_DATA = [
@@ -136,6 +152,7 @@ function formatEditMeasureValue(value: number | undefined, type: MeasureDataType
   if (Number.isNaN(num)) return String(value);
   if (type === '血压') return String(Math.round(num));
   if (type === '体温' || type === '血脂') return num.toFixed(2);
+  if (type === '体重') return num.toFixed(1);
   if (type === '尿酸') return String(Math.round(num));
   return String(value);
 }

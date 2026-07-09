@@ -3,10 +3,10 @@ export type DetailChartRange = 'today' | 'week' | 'month';
 export function getSelectionAxisValue(
     range: DetailChartRange,
     selectedDataX: number,
-    labels: string[],
+    _labels: string[],
 ) {
     if (range === 'today' || range === 'month') return selectedDataX;
-    return labels[Math.round(selectedDataX)];
+    return Math.round(selectedDataX);
 }
 
 export function readSelectionPixelX(

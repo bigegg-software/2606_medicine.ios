@@ -163,13 +163,27 @@ export function parseStepsFromItem(item?: WearableDataItem) {
 export function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEnergyBurned' | 'basalEnergyBurned') {
   if (!item) return 0;
 
+  const fieldValue = Math.round(parseMeasureNumber(item[field]) ?? 0);
   const readings = flattenWearableOriginalData(item);
-  if (readings.length) {
-    const total = readings.reduce((sum, reading) => sum + (parseMeasureNumber(reading.value) ?? 0), 0);
-    if (total > 0) return total;
+  if (!readings.length) return fieldValue;
+
+  const values = readings
+    .map(reading => parseMeasureNumber(reading.value) ?? 0)
+    .filter(value => value > 0);
+  if (!values.length) return fieldValue;
+
+  const sumReadings = Math.round(values.reduce((sum, value) => sum + value, 0));
+  const maxReading = Math.max(...values);
+  const isIncremental = fieldValue <= 0
+    ? sumReadings > maxReading * 1.5
+    : sumReadings >= fieldValue * 0.85 && maxReading <= fieldValue * 0.5;
+
+  if (isIncremental) {
+    return fieldValue > 0 ? Math.max(fieldValue, sumReadings) : sumReadings;
   }
 
-  return parseMeasureNumber(item[field]) ?? 0;
+  const lastReading = Math.round(values[values.length - 1]);
+  return Math.max(fieldValue, Math.round(maxReading), lastReading);
 }
 
 export function normalizeStatisRangeData(raw: unknown): MeasureDataStatisDayGroup[] {

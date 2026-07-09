@@ -7,29 +7,40 @@ import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
 import { buildChartXAxis, toChartValuePairs } from './chartAxis';
 
-export type HeartRatePoint = { hour: string; value: number; x?: number };
+export type WeightPoint = { hour: string; value: number; x?: number };
 
-const HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
 echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
 
 type Props = {
-  data?: HeartRatePoint[];
+  data?: WeightPoint[];
   hideXAxis?: boolean;
 };
 
-function buildOption(points: HeartRatePoint[], hideXAxis = false) {
-  const values = toChartValuePairs(points);
-  const validValues = points.filter(point => point.value > 0).map(point => point.value);
-  const xAxis = buildChartXAxis(points, [], false);
-  let yMin: number | undefined;
-  let yMax: number | undefined;
-  if (validValues.length) {
-    yMin = Math.max(40, Math.min(...validValues) - 10);
-    yMax = Math.min(200, Math.max(...validValues) + 10);
+function buildWeightAxisRange(values: Array<number | null>) {
+  const valid = values.filter((value): value is number => value != null && value > 0);
+  if (!valid.length) {
+    return { min: 50, max: 80 };
   }
+
+  const minVal = Math.min(...valid);
+  const maxVal = Math.max(...valid);
+  const padding = Math.max(2, (maxVal - minVal) * 0.2 || 2);
+
+  return {
+    min: Math.floor(minVal - padding),
+    max: Math.ceil(maxVal + padding),
+  };
+}
+
+function buildOption(points: WeightPoint[], hideXAxis = false) {
+  const chartValues = toChartValuePairs(points);
+  const validValues = points.filter(point => point.value > 0).map(point => point.value);
+  const validCount = validValues.length;
+  const { min, max } = buildWeightAxisRange(validValues);
+  const xAxis = buildChartXAxis(points, [], false);
 
   return {
     animation: false,
@@ -47,7 +58,7 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
         const raw = item?.data?.value ?? item?.value;
         const value = Array.isArray(raw) ? raw[1] : raw;
         if (value == null || value === '') return title;
-        return `${title}\n心率 ${value}次/分钟`;
+        return `${title}\n体重 ${value}kg`;
       },
     },
     grid: {
@@ -61,8 +72,8 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
       : xAxis,
     yAxis: {
       type: 'value',
-      min: yMin,
-      max: yMax,
+      min,
+      max,
       scale: true,
       axisTick: { show: false },
       axisLine: { show: false },
@@ -73,27 +84,21 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
       {
         type: 'line',
         smooth: true,
-        connectNulls: true,
-        showSymbol: validValues.length > 0 && validValues.length <= 8,
+        connectNulls: false,
+        showSymbol: validCount > 0 && validCount <= 8,
         symbol: 'circle',
         symbolSize: 5,
-        data: values,
-        lineStyle: { color: '#FF2056', width: 2 },
-        itemStyle: { color: '#FF2056' },
+        data: chartValues,
+        lineStyle: { color: '#6D925E', width: 2 },
+        itemStyle: { color: '#6D925E' },
       },
     ],
   };
 }
 
-export default function HeartRateChart({ data, hideXAxis }: Props) {
+export default function WeightChart({ data, hideXAxis }: Props) {
   const skiaRef = useRef<any>(null);
-  const points = data ?? [
-    { hour: '01:00', value: 68 },
-    { hour: '07:00', value: 72 },
-    { hour: '12:00', value: 75 },
-    { hour: '18:00', value: 70 },
-    { hour: '24:00', value: 72 },
-  ];
+  const points = data ?? [];
 
   const option = useMemo(() => buildOption(points, hideXAxis), [points, hideXAxis]);
 
@@ -122,5 +127,3 @@ export default function HeartRateChart({ data, hideXAxis }: Props) {
     </View>
   );
 }
-
-export { HOUR_LABELS };

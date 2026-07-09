@@ -12,46 +12,81 @@ export type BloodOxygenPoint = { hour: string; value: number; x?: number };
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
+const OXYGEN_THRESHOLD = 95;
+const COLOR_ABOVE_THRESHOLD = '#6D925E';
+const COLOR_BELOW_THRESHOLD = '#EE9C44';
+
+const POINT_SHADOW = {
+  shadowBlur: 3,
+  shadowColor: 'rgba(0,0,0,0.2)',
+  shadowOffsetX: 0,
+  shadowOffsetY: 0,
+};
+
 echarts.use([SkiaRenderer, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: BloodOxygenPoint[];
   labels?: string[];
+  hideXAxis?: boolean;
 };
 
 const DEFAULT_POINTS: BloodOxygenPoint[] = [
   { hour: '01:00', value: 97 },
   { hour: '07:00', value: 98 },
   { hour: '12:00', value: 99 },
-  { hour: '18:00', value: 98 },
+  { hour: '18:00', value: 94 },
   { hour: '24:00', value: 98 },
 ];
 
-function buildOption(points: BloodOxygenPoint[], categoryLabels: string[]) {
-  const scatterData = hasTodayChartX(points)
-    ? points
-        .filter(point => point.x != null && point.value > 0)
-        .sort((a, b) => (a.x ?? 0) - (b.x ?? 0))
-        .map(point => ({
-          value: [point.x as number, point.value],
-          name: point.hour,
-        }))
-    : points
-        .map((point, index) => ({ point, index }))
-        .filter(({ point }) => point.value > 0)
-        .map(({ point, index }) => ({
-          value: [index, point.value],
-          name: point.hour,
-        }));
-  const validValues = scatterData.map(item =>
-    Array.isArray(item.value) ? Number(item.value[1]) : Number(item.value),
-  );
+function getOxygenPointColor(value: number) {
+  return value >= OXYGEN_THRESHOLD ? COLOR_ABOVE_THRESHOLD : COLOR_BELOW_THRESHOLD;
+}
+
+function getPointStyle(value: number) {
+  return {
+    color: getOxygenPointColor(value),
+    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    ...POINT_SHADOW,
+  };
+}
+
+function buildScatterData(points: BloodOxygenPoint[]) {
+  if (hasTodayChartX(points)) {
+    return points
+      .filter(point => point.x != null && point.value > 0)
+      .sort((a, b) => (a.x ?? 0) - (b.x ?? 0))
+      .map(point => ({
+        value: [point.x as number, point.value] as [number, number],
+        name: point.hour,
+        symbolSize: 6,
+        itemStyle: getPointStyle(point.value),
+      }));
+  }
+
+  return points
+    .map((point, index) => ({ point, index }))
+    .filter(({ point }) => point.value > 0)
+    .map(({ point, index }) => ({
+      value: [index, point.value] as [number, number],
+      name: point.hour,
+      symbolSize: 6,
+      itemStyle: getPointStyle(point.value),
+    }));
+}
+
+function buildOption(points: BloodOxygenPoint[], categoryLabels: string[], hideXAxis = false) {
+  const scatterData = buildScatterData(points);
+  const validValues = scatterData.map(item => Number(item.value[1]));
   let yMin = 90;
   let yMax = 100;
   if (validValues.length) {
     yMin = Math.max(80, Math.min(...validValues) - 2);
     yMax = Math.min(100, Math.max(...validValues) + 2);
   }
+
+  const xAxis = buildChartXAxis(points, categoryLabels);
 
   return {
     animation: false,
@@ -77,7 +112,9 @@ function buildOption(points: BloodOxygenPoint[], categoryLabels: string[]) {
       bottom: 0,
       left: 0,
     },
-    xAxis: buildChartXAxis(points, categoryLabels),
+    xAxis: hideXAxis
+      ? { ...xAxis, axisLabel: { show: false } }
+      : xAxis,
     yAxis: {
       type: 'value',
       min: yMin,
@@ -92,22 +129,23 @@ function buildOption(points: BloodOxygenPoint[], categoryLabels: string[]) {
       {
         type: 'scatter',
         data: scatterData,
-        symbolSize: 6,
-        itemStyle: {
-          color: '#00C950',
-        },
+        symbol: 'circle',
+        z: 10,
       },
     ],
   };
 }
 
-export default function BloodOxygenChart({ data, labels }: Props) {
+export default function BloodOxygenChart({ data, labels, hideXAxis }: Props) {
   const skiaRef = useRef<any>(null);
   const points = data ?? DEFAULT_POINTS;
   const categoryLabels =
     labels ??
     (hasTodayChartX(points) ? [] : points.map(point => point.hour ?? '').filter(Boolean));
-  const option = useMemo(() => buildOption(points, categoryLabels), [points, categoryLabels]);
+  const option = useMemo(
+    () => buildOption(points, categoryLabels, hideXAxis),
+    [points, categoryLabels, hideXAxis],
+  );
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

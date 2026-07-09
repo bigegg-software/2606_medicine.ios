@@ -31,6 +31,7 @@ const styles = StyleSheet.create({
     chartSelectionTip: { position: 'absolute', minWidth: 56, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4, backgroundColor: 'rgba(51,51,51,0.9)', zIndex: 25 },
     chartSelectionTipTitle: { fontSize: 10, color: '#FFFFFF', lineHeight: 14 },
     chartSelectionTipValue: { fontSize: 10, color: '#FFFFFF', lineHeight: 14, fontWeight: 'bold' },
+    chartSafetyLineLabel: { position: 'absolute', fontSize: 12, fontWeight: 'bold', color: '#EE9C44', lineHeight: 16, zIndex: 25 },
     chartSliderTrack: { position: 'absolute', left: 0, zIndex: 20 },
     chartSliderThumb: { position: 'absolute' },
     colTopBox: { marginTop: 36, gap: 35 },
@@ -104,8 +105,251 @@ const styles = StyleSheet.create({
     analysis2: { fontWeight: "bold", textAlign: "center", fontSize: 25, color: "#333333", marginTop: 8 },
     analysisContent: { marginTop: 15, paddingHorizontal: 18 },
     analysis3: { fontWeight: "bold", textAlign: "center", fontSize: 25, color: "#EE9C44", marginTop: 8 },
-    analysisIntro: { marginTop: 12, borderRadius: 8, backgroundColor:"#F6F8FB",paddingVertical:10 },
-    analysisIntroText: { fontWeight: 500, fontSize: 12, color: '#666666'},
+    analysisIntro: { marginTop: 12, borderRadius: 8, backgroundColor: "#F6F8FB", paddingVertical: 10 },
+    analysisIntroText: { fontWeight: 500, fontSize: 12, color: '#666666' },
+    bmiProgressWrap: { marginTop: 16, width: '100%' },
+    bmiProgressTrack: { position: 'relative', paddingTop: 34 },
+    bmiProgressBar: {
+        flexDirection: 'row',
+        height: 8,
+        borderRadius: 4,
+        overflow: 'hidden',
+    },
+    bmiProgressSegment: { flex: 1 },
+    bmiProgressMarkerWrap: {
+        position: 'absolute',
+        top: 0,
+        alignItems: 'center',
+        zIndex: 2,
+    },
+    bmiProgressMarker: {
+        width: 0,
+        height: 0,
+        marginBottom: 4,
+        borderLeftWidth: 7,
+        borderRightWidth: 7,
+        borderTopWidth: 8,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+    },
+    bmiProgressMarkerText: {
+        marginBottom: 2,
+        fontWeight: 'bold',
+        fontSize: 12,
+        lineHeight: 16,
+    },
+    bmiProgressLabels: { marginTop: 8 },
+    bmiProgressLabel: {
+        flex: 1,
+        textAlign: 'center',
+        fontWeight: 500,
+        fontSize: 12,
+        color: '#999999',
+    },
+    rightBox: {
+        height: 22,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
+        borderWidth: 1,
+        paddingHorizontal: 6,
+        borderColor: '#0951AE',
+    },
+    rightBoxIcon: {
+        width: 12,
+        height: 12
+    },
+    rightBoxText: {
+        marginLeft: 4,
+        fontWeight: "bold",
+        fontSize: 11,
+        color: "#0951AE",
+    },
+    targetBox: {
+        gap: 30
+    },
+    targetBoxText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#333333",
+    },
+    targetBoxValue: {
+        marginTop: 8,
+        fontWeight: "bold",
+        fontSize: 24,
+        color: "#333333",
+    },
+    upBox: {
+        marginTop: 14,
+        height: 34,
+        backgroundColor: "rgba(251,69,80,0.1)",
+        borderRadius: 8,
+    },
+    upIcon: {
+        width: 12,
+        height: 12,
+        marginRight: 6,
+    },
+    upText: {
+        fontWeight: "bold",
+        fontSize: 12,
+        color: "#FB4550",
+    },
+    topTextBox: {
+        marginTop: 12,
+        height: 49,
+        padding: 15,
+        backgroundColor: "#FEF8E1",
+        borderRadius: 8,
+    },
+    leftIcon: {
+        width: 10,
+        height: 10,
+        backgroundColor: "#EE9C44",
+        borderRadius: 5
+    },
+    typeTitle: {
+        fontWeight: "bold",
+        fontSize: 16,
+        marginLeft: 8,
+        color: "#333333",
+    },
+    rowValue: {
+        fontWeight: "bold",
+        fontSize: 16,
+        color: "#333333",
+    },
+    rowTitle1: {
+        marginLeft: 8,
+        flex: 1,
+        fontWeight: 500,
+        fontSize: 14,
+        color: "#333333",
+    },
+    rowImage: {
+        width: 12,
+        height: 12,
+        marginRight: 6
+    },
+    dbBox: {
+        marginTop: 8,
+        padding: 15,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: "#D9DADD"
+    },
+    dbImage: {
+        width: 60,
+        height: 20,
+        marginHorizontal: 6,
+    },
+    dbBoxItem: {
+        flex: 1,
+    },
+    dbBoxItemText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#333333",
+    },
+    dbBoxItemValue: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#999999",
+        marginLeft: 6,
+    },
+    dbCol: {
+        marginTop: 10,
+        height: 50,
+        paddingHorizontal: 15,
+        paddingVertical: 7,
+        backgroundColor: "#F6F8FB",
+        borderRadius: 8
+    },
+    dbColTitle: {
+        fontWeight: "bold",
+        fontSize: 14,
+        color: "#333333",
+    },
+    dbColTitle1: {
+        fontWeight: 500,
+        fontSize: 14,
+        color: "#333333",
+    },
+    dbColValue: {
+        fontWeight: "bold",
+        fontSize: 16,
+        color: "#999999",
+    },
+    dbColImg: {
+        width: 14,
+        height: 10,
+        marginHorizontal: 15
+    },
+    dbColValue1: {
+        fontWeight: "bold",
+        fontSize: 16,
+        color: "#333333",
+    },
+    dbRightValue: {
+        fontWeight: "bold",
+        fontSize: 16,
+        color: "#6D925E",
+    },
+    dbRightValue_1: {
+        fontWeight: "bold",
+        fontSize: 16,
+        color: "#FB4550",
+    },
+    dbColRightImg: {
+        width: 9,
+        height: 13,
+        marginLeft: 7,
+    },
+
+    dbRightValue1: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#6D925E",
+    },
+    dbRightValue1_1: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#FB4550",
+    },
+    btmText: {
+        textAlign: "center",
+        fontWeight: 500,
+        fontSize: 11,
+        color: "#8A8A8E",
+    },
+    tabBox: {
+        marginTop: 14,
+        gap: 6,
+        flexWrap: 'wrap',
+    },
+    tabItem: {
+        height: 30,
+        flex: 1,
+        minWidth: 0,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 25,
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+    },
+    tabItemActive: {
+        backgroundColor: '#6D925E',
+        borderColor: '#6D925E',
+    },
+    tabItemText: {
+        fontWeight: 500,
+        fontSize: 13,
+        color: '#333333',
+    },
+    tabItemTextActive: {
+        color: '#FFFFFF',
+    }
+
 })
 
 export default styles

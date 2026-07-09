@@ -96,6 +96,9 @@ export const getWearableDataDetailByCustomerLocalDate = (params: {
     { params },
   );
 
+export const getWearableDataLatestByType = (type: WearableDataType) =>
+  request.get<WearableDataDetailResult>('/patient/wearableData/latestByType', { params: { type } });
+
 export type WearableUploadPayload = {
   type: string;
   appType: number;

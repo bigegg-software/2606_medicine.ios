@@ -1,6 +1,6 @@
 import request from '@/utils/axios';
 
-export type MeasureDataType = '血压' | '血糖' | '体温' | '尿酸' | '血脂';
+export type MeasureDataType = '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '体重';
 export type VitalsMeasureType = MeasureDataType | '血氧' | '心率' | '步数' | '消耗';
 
 export type VitalKey =
@@ -70,6 +70,7 @@ export type MeasureDataItem = {
   dataTime?: string;
   val?: number;
   val2?: number;
+  bmi?: number;
   isHigh?: number;
   isLow?: number;
   level?: string;
@@ -87,6 +88,12 @@ export type MeasureDataDetailResult = {
   code?: number;
   msg?: string;
   data?: MeasureDataItem[];
+};
+
+export type MeasureDataLatestResult = {
+  code?: number;
+  msg?: string;
+  data?: MeasureDataItem;
 };
 
 export type MeasureDataAllRecordsParams = {
@@ -139,6 +146,9 @@ export const getMeasureDataDetailByDate = (params: {
   type: MeasureDataType;
 }) =>
   request.post<MeasureDataDetailResult>('/patient/measureData/detailByCustomerLocalDate', {}, { params });
+
+export const getMeasureDataLatestByType = (type: MeasureDataType) =>
+  request.get<MeasureDataLatestResult>('/patient/measureData/latestByType', { params: { type } });
 
 export const getMeasureDataDetailByDateRange = (params: {
   startDate: string;

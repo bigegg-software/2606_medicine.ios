@@ -1,6 +1,5 @@
 import moment from 'moment';
 import type {
-  MeasureDataAllRecordsMonthGroup,
   MeasureDataDayGroup,
   MeasureDataItem,
   MeasureDataStatisDayGroup,
@@ -12,6 +11,7 @@ import type { WearableDataItem, WearableOriginalReading } from '@/api/wearableDa
 import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
 import { TODAY_AXIS_LABELS } from '@/src/features/profile/components/chartAxis';
 import type { SleepPieSegment } from '@/src/features/profile/components/SleepPieChart';
+import { buildSleepStageTimeline } from '@/src/features/profile/components/sleepStageChartHelpers';
 import { getLevelColor } from './vitalLevelColors';
 
 export { getLevelColor, getLevelBgColor } from './vitalLevelColors';
@@ -103,6 +103,31 @@ export function getSleepFetchDateRange(range: VitalsRange) {
 }
 
 export type LabeledValue = { label: string; value: number; x?: number };
+
+export type GlucoseStatus = 'low' | 'normal' | 'high';
+
+export type BloodGlucoseChartPoint = {
+  hour: string;
+  value: number;
+  x?: number;
+  status?: GlucoseStatus;
+  isHigh?: number;
+  isLow?: number;
+};
+
+export function buildGlucoseStatus(
+  value: number,
+  item?: Pick<MeasureDataItem, 'isHigh' | 'isLow' | 'level'>,
+): GlucoseStatus {
+  if (item?.isLow === 1) return 'low';
+  if (item?.isHigh === 1) return 'high';
+  const label = getLevelLabel(item as MeasureDataItem | undefined);
+  if (/偏低|低血糖/.test(label)) return 'low';
+  if (/偏高|高血糖|糖尿病/.test(label)) return 'high';
+  if (value < 3.9) return 'low';
+  if (value > 6.1) return 'high';
+  return 'normal';
+}
 
 export function flattenMeasureItems(groups?: MeasureDataDayGroup[] | MeasureDataItem[] | null): MeasureDataItem[] {
   if (!groups?.length) return [];
@@ -211,6 +236,9 @@ function pickBucketItems(items: MeasureDataItem[], range: VitalsRange, labelInde
 }
 
 export function filterMeasureItemsInRange(items: MeasureDataItem[], range: VitalsRange) {
+  if (range === 'today') {
+    return items;
+  }
   const { startDate, endDate } = getDateRange(range);
   const start = moment(startDate, 'YYYY-MM-DD', true).startOf('day');
   const end = moment(endDate, 'YYYY-MM-DD', true).endOf('day');
@@ -235,6 +263,41 @@ export function buildSingleValueSeries(items: MeasureDataItem[], range: VitalsRa
     const bucketItems = pickBucketItems(rangedItems, range, index, labels.length);
     const latest = getLatestItem(bucketItems);
     return { label, value: parseMeasureNumber(latest?.val) ?? 0 };
+  });
+}
+
+export function buildBloodGlucoseSeriesFromItems(
+  items: MeasureDataItem[],
+  range: VitalsRange,
+): BloodGlucoseChartPoint[] {
+  const rangedItems = filterMeasureItemsInRange(items, range);
+  if (range === 'today') {
+    return rangedItems.map(item => {
+      const ts = getItemTimestamp(item);
+      const value = parseMeasureNumber(item.val) ?? 0;
+      return {
+        hour: ts.format('HH:mm'),
+        value,
+        x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+        status: buildGlucoseStatus(value, item),
+        isHigh: item.isHigh,
+        isLow: item.isLow,
+      };
+    });
+  }
+
+  const labels = getChartLabels(range);
+  return labels.map((label, index) => {
+    const bucketItems = pickBucketItems(rangedItems, range, index, labels.length);
+    const latest = getLatestItem(bucketItems);
+    const value = parseMeasureNumber(latest?.val) ?? 0;
+    return {
+      hour: label,
+      value,
+      status: buildGlucoseStatus(value, latest),
+      isHigh: latest?.isHigh,
+      isLow: latest?.isLow,
+    };
   });
 }
 
@@ -308,13 +371,19 @@ export function formatMeasureDisplay(item: MeasureDataItem | undefined, type: Vi
   } else {
     const parsed = parseMeasureNumber(item.val);
     if (parsed != null) {
-      value = type === '心率' || type === '血氧' ? String(Math.round(parsed)) : String(parsed);
+      if (type === '心率' || type === '血氧') {
+        value = String(Math.round(parsed));
+      } else if (type === '体重') {
+        value = parsed.toFixed(1);
+      } else {
+        value = String(parsed);
+      }
     }
   }
 
   return {
     value,
-    status: levelLabel ? `・${levelLabel}` : '',
+    status: levelLabel ? `${levelLabel}` : '',
     statusColor: getLevelColor(levelLabel),
   };
 }
@@ -325,7 +394,7 @@ export function formatBloodPressure(latest?: BloodPressurePoint) {
   const statusColor = getLevelColor(status);
   return {
     value: `${point.high}/${point.low}`,
-    status: `・${status}`,
+    status: `${status}`,
     statusColor,
   };
 }
@@ -340,6 +409,10 @@ export function formatSingleValueFromItems(
   range: VitalsRange = 'today',
 ) {
   return formatMeasureDisplay(getLatestItemForRange(items, range), type);
+}
+
+export function formatWeightFromItems(items: MeasureDataItem[], range: VitalsRange = 'today') {
+  return formatMeasureDisplay(getLatestItemForRange(items, range), '体重');
 }
 
 export function isFemaleGender(gender?: string | null) {
@@ -358,41 +431,6 @@ export function getUricAcidStatusLabel(value: number, gender?: string | null) {
   if (value > max) return '偏高';
   if (value < min) return '偏低';
   return '正常';
-}
-
-export function flattenAllMeasureRecords(rows?: MeasureDataAllRecordsMonthGroup[] | null): MeasureDataItem[] {
-  if (!rows?.length) return [];
-
-  const items = rows.flatMap(month =>
-    (month.list ?? []).flatMap(day =>
-      (day.childList ?? []).map(item => ({
-        ...item,
-        customerLocalDate:
-          item.customerLocalDate?.trim() || day.customerLocalDate?.trim() || item.customerLocalDate,
-      })),
-    ),
-  );
-
-  return items.sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf());
-}
-
-export function formatUricAcidCompareText(items: MeasureDataItem[]) {
-  if (items.length < 2) return null;
-
-  const latest = items[items.length - 1];
-  const previous = items[items.length - 2];
-  const latestVal = parseMeasureNumber(latest.val);
-  const prevVal = parseMeasureNumber(previous.val);
-  if (latestVal == null || prevVal == null) return null;
-
-  const diff = Math.round(latestVal - prevVal);
-  if (diff === 0) {
-    return { text: '较上次持平', color: '#999999' };
-  }
-  if (diff > 0) {
-    return { text: `较上次上升+${diff}μmol/L`, color: '#D80010' };
-  }
-  return { text: `较上次下降${Math.abs(diff)}μmol/L`, color: '#00C950' };
 }
 
 export function formatUricAcidRecordTime(item?: MeasureDataItem) {
@@ -471,10 +509,10 @@ export function formatBloodLipidsFromItems(items: MeasureDataItem[], range: Vita
 }
 
 export const SLEEP_STAGE_CONFIG = [
-  { key: 'awakeSleepTime' as const, name: '清醒', color: 'rgba(5,58,147,0.4)', stages: ['AWAKE'] },
-  { key: 'remSleepTime' as const, name: '入眠', color: 'rgba(5,58,147,0.6)', stages: ['REM'] },
-  { key: 'coreSleepTime' as const, name: '浅睡', color: 'rgba(5,58,147,0.8)', stages: ['CORE'] },
-  { key: 'deepSleepTime' as const, name: '深睡', color: '#053A93', stages: ['DEEP'] },
+  { key: 'awakeSleepTime' as const, name: '清醒', color: '#CFC9FF', stages: ['AWAKE'] },
+  { key: 'remSleepTime' as const, name: '快速眼动', color: '#c4b5fd', stages: ['REM'] },
+  { key: 'coreSleepTime' as const, name: '核心睡眠', color: '#8f85f5', stages: ['CORE', 'LIGHT', 'ASLEEP'] },
+  { key: 'deepSleepTime' as const, name: '深度睡眠', color: '#542fc8', stages: ['DEEP'] },
 ];
 
 const SLEEP_DURATION_STAGES = new Set(['ASLEEP', 'CORE', 'DEEP', 'REM']);
@@ -688,6 +726,19 @@ export function getTodayWearableItem(items: WearableDataItem[]) {
   return getLatestWearableItem(todayItems);
 }
 
+export function getTodayLatestWearableChartItems(items: WearableDataItem[]) {
+  const item = getLatestWearableItem(items);
+  return item ? [item] : [];
+}
+
+export function wrapWearableLatestItem(item?: WearableDataItem) {
+  return item ? [item] : [];
+}
+
+export function wrapMeasureLatestItem(item?: MeasureDataItem) {
+  return item ? [item] : [];
+}
+
 function pickWearableDayItems(
   items: WearableDataItem[],
   range: VitalsRange,
@@ -718,10 +769,10 @@ export function getSleepQuality(item?: WearableDataItem) {
   const score = parseMeasureNumber(item.sqsScore);
   if (score != null) {
     if (score >= 80) return { label: '优秀', color: '#00C950' };
-    if (score >= 60) return { label: '良好', color: '#00C950' };
+    if (score >= 60) return { label: '良好', color: '#6D925E' };
     return { label: '一般', color: '#FFBA1D' };
   }
-  return { label: '良好', color: '#00C950' };
+  return { label: '良好', color: '#6D925E' };
 }
 
 export function buildSleepPieSegments(item?: WearableDataItem): SleepPieSegment[] {
@@ -755,30 +806,30 @@ export function getSleepSummary(items: WearableDataItem[], range: VitalsRange) {
     })),
     pieSegments: buildSleepPieSegments(displayItem),
     barSeries: buildSleepHoursSeries(items, range),
+    stageTimeline: buildSleepStageTimeline(displayItem),
   };
 }
 
-export function getStepsDisplay(items: WearableDataItem[], goalOverride?: number) {
-  const item = getTodayWearableItem(items);
+export function getStepsDisplay(items: WearableDataItem[]) {
+  const item = getTodayWearableItem(items) ?? getLatestWearableItem(items);
   const steps = parseStepsFromItem(item);
-  const goal = parseMeasureNumber(item?.stepGoals) ?? goalOverride ?? 10000;
   if (steps <= 0) {
-    return { value: `--/${goal}`, status: '・暂无数据', statusColor: '#999999' };
+    return { value: '--', status: '・暂无数据', statusColor: '#999999' };
   }
-  if (steps >= goal) {
-    return { value: `${steps}/${goal}`, status: '・达标', statusColor: '#00C950' };
-  }
-  const remaining = Math.max(0, Math.round(goal - steps));
-  const ratio = goal > 0 ? steps / goal : 0;
   return {
-    value: `${steps}/${goal}`,
-    status: `・距目标还有${remaining}步`,
-    statusColor: ratio >= 0.6 ? '#00C950' : '#FFBA1D',
+    value: String(steps),
+    status: '',
+    statusColor: '#999999',
   };
 }
 
 function parseStepsFromItem(item?: WearableDataItem) {
   if (!item) return 0;
+
+  const stepCount = parseMeasureNumber(item.stepCount);
+  if (stepCount != null && stepCount > 0) {
+    return Math.round(stepCount);
+  }
 
   const readings = flattenWearableOriginalData(item);
   if (readings.length) {
@@ -786,7 +837,31 @@ function parseStepsFromItem(item?: WearableDataItem) {
     if (total > 0) return Math.round(total);
   }
 
-  return Math.round(parseMeasureNumber(item.stepCount) ?? 0);
+  return 0;
+}
+
+function buildStepsTodayBarSeries(items: WearableDataItem[]): LabeledValue[] {
+  const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
+  const sourceItems = todayItems.length ? todayItems : items;
+  const readings = collectWearableReadings(sourceItems, reading => parseMeasureNumber(reading.value));
+
+  if (readings.length) {
+    return readings.map(({ ts, value }) => ({
+      label: ts.format('HH:mm'),
+      value,
+    }));
+  }
+
+  const latest = getLatestWearableItem(sourceItems);
+  const steps = parseStepsFromItem(latest);
+  if (!latest || steps <= 0) {
+    return [];
+  }
+
+  return [{
+    label: getWearableTimestamp(latest).format('HH:mm'),
+    value: steps,
+  }];
 }
 
 export function buildStepsBarSeries(items: WearableDataItem[], range: VitalsRange): LabeledValue[] {
@@ -798,10 +873,12 @@ export function buildStepsBarSeries(items: WearableDataItem[], range: VitalsRang
   });
 }
 
-export function getStepsSummary(items: WearableDataItem[], range: VitalsRange, goalOverride?: number) {
-  const barSeries = range === 'today' ? [] : buildStepsBarSeries(items, range);
+export function getStepsSummary(items: WearableDataItem[], range: VitalsRange) {
+  const barSeries = range === 'today'
+    ? buildStepsTodayBarSeries(items)
+    : buildStepsBarSeries(items, range);
   if (range === 'today') {
-    return { ...getStepsDisplay(items, goalOverride), barSeries, unit: '步' as const };
+    return { ...getStepsDisplay(items), barSeries, unit: '步' as const };
   }
 
   const dailyValues = barSeries.map(item => item.value).filter(value => value > 0);
@@ -822,28 +899,174 @@ export function getStepsSummary(items: WearableDataItem[], range: VitalsRange, g
   };
 }
 
+function isIncrementalEnergyReadings(values: number[], fieldValue: number) {
+  if (!values.length) return true;
+  const sumReadings = values.reduce((sum, value) => sum + value, 0);
+  const maxReading = Math.max(...values);
+  if (fieldValue <= 0) {
+    return sumReadings > maxReading * 1.5;
+  }
+  return sumReadings >= fieldValue * 0.85 && maxReading <= fieldValue * 0.5;
+}
+
+function isIncrementalEnergyDay(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
+  const checkItems = (items: WearableDataItem[], field: 'activeEnergyBurned' | 'basalEnergyBurned') => {
+    const item = getLatestWearableItem(items);
+    if (!item) return null;
+    const fieldValue = Math.round(parseMeasureNumber(item[field]) ?? 0);
+    const values = flattenWearableOriginalData(item)
+      .map(reading => parseMeasureNumber(reading.value) ?? 0)
+      .filter(value => value > 0);
+    if (!values.length) return null;
+    return isIncrementalEnergyReadings(values, fieldValue);
+  };
+
+  const activeKind = checkItems(activeItems, 'activeEnergyBurned');
+  const basalKind = checkItems(basalItems, 'basalEnergyBurned');
+  if (activeKind == null && basalKind == null) return false;
+  if (activeKind == null) return basalKind === true;
+  if (basalKind == null) return activeKind === true;
+  return activeKind || basalKind;
+}
+
 function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEnergyBurned' | 'basalEnergyBurned') {
   if (!item) return 0;
 
+  const fieldValue = Math.round(parseMeasureNumber(item[field]) ?? 0);
   const readings = flattenWearableOriginalData(item);
-  if (readings.length) {
-    const total = readings.reduce((sum, reading) => sum + (parseMeasureNumber(reading.value) ?? 0), 0);
-    if (total > 0) return total;
+  if (!readings.length) return fieldValue;
+
+  const values = readings
+    .map(reading => parseMeasureNumber(reading.value) ?? 0)
+    .filter(value => value > 0);
+  if (!values.length) return fieldValue;
+
+  const sumReadings = Math.round(values.reduce((sum, value) => sum + value, 0));
+  if (isIncrementalEnergyReadings(values, fieldValue)) {
+    return fieldValue > 0 ? Math.max(fieldValue, sumReadings) : sumReadings;
   }
 
-  return parseMeasureNumber(item[field]) ?? 0;
+  const maxReading = Math.round(Math.max(...values));
+  const lastReading = Math.round(values[values.length - 1]);
+  return Math.max(fieldValue, maxReading, lastReading);
+}
+
+function buildIncrementalEnergyTodayBarSeries(
+  activeItems: WearableDataItem[],
+  basalItems: WearableDataItem[],
+): LabeledValue[] {
+  const bucketMap = new Map<number, LabeledValue>();
+
+  const addItems = (items: WearableDataItem[]) => {
+    collectWearableReadings(items, reading => parseMeasureNumber(reading.value)).forEach(({ ts, value }) => {
+      const hourStart = ts.clone().startOf('hour');
+      const bucketKey = hourStart.valueOf();
+      const existing = bucketMap.get(bucketKey);
+      bucketMap.set(bucketKey, {
+        label: hourStart.format('HH:mm'),
+        value: Math.round((existing?.value ?? 0) + value),
+      });
+    });
+  };
+
+  addItems(activeItems);
+  addItems(basalItems);
+
+  return Array.from(bucketMap.entries())
+    .sort(([left], [right]) => left - right)
+    .map(([, bar]) => bar)
+    .filter(bar => bar.value > 0);
+}
+
+function getDayEnergyTotalsFromItems(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
+  const active = Math.round(sumEnergyFromItem(getLatestWearableItem(activeItems), 'activeEnergyBurned'));
+  const basal = Math.round(sumEnergyFromItem(getLatestWearableItem(basalItems), 'basalEnergyBurned'));
+  return { active, basal, total: active + basal };
+}
+
+function appendEnergyBarRemainder(
+  bars: LabeledValue[],
+  previousTotal: number,
+  targetTotal: number,
+  sourceActive: WearableDataItem[],
+  sourceBasal: WearableDataItem[],
+) {
+  if (targetTotal <= previousTotal) return bars;
+
+  const remainder = targetTotal - previousTotal;
+  const latest = pickLatestEnergyReferenceItem(sourceActive, sourceBasal);
+  const label = latest ? getWearableTimestamp(latest).format('HH:mm') : '--';
+  const lastBar = bars[bars.length - 1];
+
+  if (lastBar?.label === label) {
+    return [
+      ...bars.slice(0, -1),
+      { ...lastBar, value: lastBar.value + remainder },
+    ];
+  }
+
+  return [...bars, { label, value: remainder }];
 }
 
 export function getEnergyDisplay(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
-  const active = Math.round(sumEnergyFromItem(getTodayWearableItem(activeItems), 'activeEnergyBurned'));
-  const basal = Math.round(sumEnergyFromItem(getTodayWearableItem(basalItems), 'basalEnergyBurned'));
-  const total = active + basal;
+  const { day, activeItems: dayActive, basalItems: dayBasal } = resolveEnergyDisplayDay(activeItems, basalItems);
+  const { active, basal, total } = getDayEnergyTotalsFromItems(dayActive, dayBasal);
+  const isDataToday = day.isSame(moment(), 'day');
 
   return {
     total: total > 0 ? String(total) : '--',
     active: active > 0 ? String(active) : '--',
     basal: basal > 0 ? String(basal) : '--',
+    dataDayLabel: isDataToday ? '' : day.format('M/D'),
   };
+}
+
+function resolveEnergyDisplayDay(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
+  const today = moment();
+  const todayActive = activeItems.filter(item => getWearableDate(item).isSame(today, 'day'));
+  const todayBasal = basalItems.filter(item => getWearableDate(item).isSame(today, 'day'));
+
+  if (todayActive.length > 0 || todayBasal.length > 0) {
+    return { day: today, activeItems: todayActive, basalItems: todayBasal };
+  }
+
+  const latestItem = pickLatestEnergyReferenceItem(activeItems, basalItems);
+  if (!latestItem) {
+    return { day: today, activeItems: [], basalItems: [] };
+  }
+
+  const day = getWearableDate(latestItem);
+  return {
+    day,
+    activeItems: activeItems.filter(item => getWearableDate(item).isSame(day, 'day')),
+    basalItems: basalItems.filter(item => getWearableDate(item).isSame(day, 'day')),
+  };
+}
+
+function pickLatestEnergyReferenceItem(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
+  return [getLatestWearableItem(activeItems), getLatestWearableItem(basalItems)]
+    .filter((item): item is WearableDataItem => !!item)
+    .sort((a, b) => getWearableTimestamp(b).valueOf() - getWearableTimestamp(a).valueOf())[0];
+}
+
+export function getEnergyDisplayDataTime(activeItems: WearableDataItem[], basalItems: WearableDataItem[], range: VitalsRange) {
+  if (range !== 'today') {
+    return getLatestWearableDataTime(
+      sortWearableItems([...activeItems, ...basalItems]),
+      range,
+    );
+  }
+
+  const { activeItems: dayActive, basalItems: dayBasal } = resolveEnergyDisplayDay(activeItems, basalItems);
+  const latest = pickLatestEnergyReferenceItem(dayActive, dayBasal);
+  return formatWearableDataTime(latest);
+}
+
+export function pickWearableTodayOrDataDayItems(items: WearableDataItem[], latest?: WearableDataItem) {
+  const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
+  if (todayItems.length) return todayItems;
+  if (items.length) return items;
+  return wrapWearableLatestItem(latest);
 }
 
 export function buildEnergyBarSeries(
@@ -861,14 +1084,85 @@ export function buildEnergyBarSeries(
   });
 }
 
+function buildEnergyTodayBarSeries(
+  activeItems: WearableDataItem[],
+  basalItems: WearableDataItem[],
+): LabeledValue[] {
+  const { activeItems: sourceActive, basalItems: sourceBasal } = resolveEnergyDisplayDay(activeItems, basalItems);
+
+  if (isIncrementalEnergyDay(sourceActive, sourceBasal)) {
+    const incrementalBars = buildIncrementalEnergyTodayBarSeries(sourceActive, sourceBasal);
+    if (incrementalBars.length) return incrementalBars;
+  }
+
+  const events = [
+    ...collectWearableReadings(sourceActive, reading => parseMeasureNumber(reading.value))
+      .map(item => ({ ...item, kind: 'active' as const })),
+    ...collectWearableReadings(sourceBasal, reading => parseMeasureNumber(reading.value))
+      .map(item => ({ ...item, kind: 'basal' as const })),
+  ].sort((a, b) => a.ts.valueOf() - b.ts.valueOf());
+
+  if (events.length) {
+    let latestActive = 0;
+    let latestBasal = 0;
+    let previousTotal = 0;
+    const bars: LabeledValue[] = [];
+
+    events.forEach((event, index) => {
+      if (event.kind === 'active') {
+        latestActive = Math.round(event.value);
+      } else {
+        latestBasal = Math.round(event.value);
+      }
+
+      const isLastAtSameTs =
+        index === events.length - 1 || events[index + 1].ts.valueOf() !== event.ts.valueOf();
+      if (!isLastAtSameTs) return;
+
+      const currentTotal = latestActive + latestBasal;
+      const delta = Math.max(0, currentTotal - previousTotal);
+      previousTotal = currentTotal;
+      if (delta > 0) {
+        bars.push({ label: event.ts.format('HH:mm'), value: delta });
+      }
+    });
+
+    const { total: targetTotal } = getDayEnergyTotalsFromItems(sourceActive, sourceBasal);
+    return appendEnergyBarRemainder(bars, previousTotal, targetTotal, sourceActive, sourceBasal);
+  }
+
+  const { total } = getDayEnergyTotalsFromItems(sourceActive, sourceBasal);
+  if (total <= 0) return [];
+
+  const latest = getLatestWearableItem(sourceActive) ?? getLatestWearableItem(sourceBasal);
+  const ts = latest ? getWearableTimestamp(latest) : moment();
+
+  return [{ label: ts.format('HH:mm'), value: total }];
+}
+
 export function getEnergySummary(
   activeItems: WearableDataItem[],
   basalItems: WearableDataItem[],
   range: VitalsRange,
 ) {
-  const barSeries = range === 'today' ? [] : buildEnergyBarSeries(activeItems, basalItems, range);
+  const barSeries = range === 'today'
+    ? buildEnergyTodayBarSeries(activeItems, basalItems)
+    : buildEnergyBarSeries(activeItems, basalItems, range);
+
   if (range === 'today') {
-    return { ...getEnergyDisplay(activeItems, basalItems), barSeries, showBreakdown: true as const };
+    const display = getEnergyDisplay(activeItems, basalItems);
+    const totalNum = display.total !== '--' ? Number(display.total) : 0;
+    return {
+      ...display,
+      barSeries,
+      unit: '千卡' as const,
+      status: totalNum <= 0
+        ? '・暂无数据'
+        : display.dataDayLabel
+          ? `・${display.dataDayLabel}`
+          : '',
+      statusColor: '#999999',
+    };
   }
 
   const dailyTotals = barSeries.map(item => item.value).filter(value => value > 0);
@@ -876,13 +1170,28 @@ export function getEnergySummary(
     ? Math.round(dailyTotals.reduce((sum, value) => sum + value, 0) / dailyTotals.length)
     : 0;
 
+  if (average <= 0) {
+    return {
+      total: '--',
+      active: '--',
+      basal: '--',
+      barSeries,
+      totalLabel: '日均总消耗',
+      unit: '千卡/日均' as const,
+      status: '・暂无数据',
+      statusColor: '#999999',
+    };
+  }
+
   return {
-    total: average > 0 ? String(average) : '--',
+    total: String(average),
     active: '--',
     basal: '--',
     barSeries,
-    showBreakdown: false as const,
     totalLabel: '日均总消耗',
+    unit: '千卡/日均' as const,
+    status: '・日均',
+    statusColor: '#999999',
   };
 }
 
@@ -914,9 +1223,7 @@ function buildWearableValueSeries(
 
 export function buildWearableOxygenSeries(items: WearableDataItem[], range: VitalsRange): LabeledValue[] {
   if (range === 'today') {
-    const readings = collectOxygenReadings(
-      items.filter(item => getWearableDate(item).isSame(moment(), 'day')),
-    );
+    const readings = collectOxygenReadings(items);
     if (readings.length) {
       return readings.map(({ ts, value }) => ({
         label: ts.format('HH:mm'),
@@ -931,9 +1238,7 @@ export function buildWearableOxygenSeries(items: WearableDataItem[], range: Vita
 
 export function buildWearableHeartRateSeries(items: WearableDataItem[], range: VitalsRange): LabeledValue[] {
   if (range === 'today') {
-    const readings = collectHeartRateReadings(
-      items.filter(item => getWearableDate(item).isSame(moment(), 'day')),
-    );
+    const readings = collectHeartRateReadings(items);
     if (readings.length) {
       return readings.map(({ ts, value }) => ({
         label: ts.format('HH:mm'),
@@ -989,7 +1294,7 @@ export function getBloodOxygenDisplay(items: WearableDataItem[]) {
 
   return {
     value: String(value),
-    status: `・${status}`,
+    status: `${status}`,
     statusColor,
   };
 }
@@ -1017,8 +1322,100 @@ export function getHeartRateDisplay(items: WearableDataItem[]) {
 
   return {
     value: String(value),
-    status: `・${status}`,
+    status: `${status}`,
     statusColor,
   };
 }
 
+export function formatMeasureDataTime(item?: MeasureDataItem) {
+  if (!item) return '';
+  const date = item.customerLocalDate?.trim();
+  const time = item.dataTime?.trim();
+  if (date) {
+    const parsed = moment(date, 'YYYY-MM-DD', true);
+    if (parsed.isValid()) {
+      if (parsed.isSame(moment(), 'day') && time) return time;
+      return parsed.format('M/D');
+    }
+  }
+  return time || '';
+}
+
+export function formatWearableDataTime(item?: WearableDataItem) {
+  if (!item) return '';
+  const date = getWearableDate(item);
+  if (date.isSame(moment(), 'day')) {
+    const ts = getWearableTimestamp(item);
+    return ts.format('HH:mm');
+  }
+  return date.format('M/D');
+}
+
+export function getLatestMeasureDataTime(items: MeasureDataItem[], range: VitalsRange = 'today') {
+  return formatMeasureDataTime(getLatestItemForRange(items, range));
+}
+
+function formatHeartRateStatus(item: WearableDataItem | undefined, value: number) {
+  let status = '正常';
+  let statusColor = '#6D925E';
+  if (item?.isHigh === 1 || value > 100) {
+    status = '偏高';
+    statusColor = '#FFBA1D';
+  } else if (item?.isLow === 1 || value < 60) {
+    status = '偏低';
+    statusColor = '#FFBA1D';
+  }
+  return { status: `${status}`, statusColor };
+}
+
+function formatBloodOxygenStatus(item: WearableDataItem | undefined, value: number) {
+  let status = '正常';
+  let statusColor = '#6D925E';
+  if (item?.isHigh === 1) {
+    status = '偏高';
+    statusColor = '#FFBA1D';
+  } else if (item?.isLow === 3) {
+    status = '异常偏低';
+    statusColor = '#FFBA1D';
+  } else if (item?.isLow === 2) {
+    status = '较低';
+    statusColor = '#FFBA1D';
+  } else if (item?.isLow === 1 || value < 95) {
+    status = '偏低';
+    statusColor = '#FFBA1D';
+  }
+  return { status: `${status}`, statusColor };
+}
+
+export function formatHeartRateFromItem(item?: WearableDataItem) {
+  const readings = item ? collectHeartRateReadings([item]) : [];
+  const latestReading = readings.length ? readings[readings.length - 1] : undefined;
+  const value = latestReading?.value ?? parseWearableHeartRateValue(item);
+  if (value == null) {
+    return { value: '--', status: '', statusColor: '#999999' };
+  }
+  const { status, statusColor } = formatHeartRateStatus(item, value);
+  return { value: String(value), status, statusColor };
+}
+
+export function formatBloodOxygenFromItem(item?: WearableDataItem) {
+  const readings = item ? collectOxygenReadings([item]) : [];
+  const latestReading = readings.length ? readings[readings.length - 1] : undefined;
+  const value = latestReading?.value ?? parseWearableOxygenValue(item);
+  if (value == null) {
+    return { value: '--', status: '', statusColor: '#999999' };
+  }
+  const { status, statusColor } = formatBloodOxygenStatus(item, value);
+  return { value: String(value), status, statusColor };
+}
+
+export function getLatestWearableDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
+  if (range === 'today') {
+    return formatWearableDataTime(getLatestWearableItem(items));
+  }
+  const { startDate, endDate } = getDateRange(range);
+  const rangedItems = items.filter(item =>
+    getWearableDate(item).isBetween(startDate, endDate, 'day', '[]'),
+  );
+  return formatWearableDataTime(getLatestWearableItem(rangedItems));
+}

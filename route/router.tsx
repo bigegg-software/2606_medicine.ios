@@ -92,6 +92,7 @@ import StepsPage from '@/src/features/profile/vitals/detail/steps';
 import ConsumptionPage from '@/src/features/profile/vitals/detail/consumption';
 import WeightPage from '@/src/features/profile/vitals/detail/weightPage';
 import BloodLipidPage from '@/src/features/profile/vitals/detail/blooLipid';
+import UricAcidPage from '@/src/features/profile/vitals/detail/uricAcid';
 
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
@@ -141,8 +142,8 @@ export type RootStackParamList = {
   ChronicDiseaseAddPage: { id?: number } | undefined;
   ChronicDiseaseDetailPage: { id: number } | undefined;
   VitalsPage: undefined;
-  AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂'; item?: MeasureDataItem };
-  AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' };
+  AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '体重'; item?: MeasureDataItem };
+  AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' | '体重' };
   BloodPressurePage: undefined;
   BloodSugarPage: undefined;
   HeartRatePage: undefined;
@@ -153,6 +154,7 @@ export type RootStackParamList = {
   ConsumptionPage: undefined;
   WeightPage: undefined;
   BloodLipidPage: undefined;
+  UricAcidPage: undefined;
   CalendarPage: undefined;
   ScheduleHistoryPage: undefined;
   ScheduleHistoryDetailPage: { exPatientRuleId: string };
@@ -373,6 +375,7 @@ export default function RootStack() {
       <Stack.Screen name="ConsumptionPage" component={ConsumptionPage} options={{ title: "消耗", showHeaderBackground: false }} />
       <Stack.Screen name="WeightPage" component={WeightPage} options={{ title: "体重", showHeaderBackground: false }} />
       <Stack.Screen name="BloodLipidPage" component={BloodLipidPage} options={{ title: "血脂", showHeaderBackground: false }} />
+      <Stack.Screen name="UricAcidPage" component={UricAcidPage} options={{ title: "尿酸", showHeaderBackground: false }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
       <Stack.Screen

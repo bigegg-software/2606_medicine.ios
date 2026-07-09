@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -136,13 +136,9 @@ export default function ConsumptionPage() {
         }
     }, []);
 
-    useEffect(() => {
-        loadEnergyData(selectedType);
-    }, [loadEnergyData, selectedType]);
-
     useFocusEffect(
         useCallback(() => {
-            loadEnergyData(selectedType);
+            void loadEnergyData(selectedType);
         }, [loadEnergyData, selectedType]),
     );
 

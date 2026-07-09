@@ -1,6 +1,6 @@
 export const VITAL_LEVEL_COLORS = {
   normal: { color: '#6D925E', backgroundColor: 'rgba(109,146,94,0.14)' },
-  mild: { color: '#CF9A00', backgroundColor: 'rgba(247,210,102,0.13)' },
+  mild: { color: '#EE9C44', backgroundColor: 'rgba(247,210,102,0.13)' },
   moderate: { color: '#F57132', backgroundColor: 'rgba(245,113,50,0.13)' },
   severe: { color: '#D80010', backgroundColor: 'rgba(216,0,16,0.13)' },
   low: { color: '#06B6D4', backgroundColor: 'rgba(6,182,212,0.13)' },

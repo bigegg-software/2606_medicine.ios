@@ -17,21 +17,33 @@ import BloodGlucoseChart from '../components/BloodGlucoseChart';
 import BloodOxygenChart from '../components/BloodOxygenChart';
 import BodyTemperatureChart from '../components/BodyTemperatureChart';
 import HeartRateChart from '../components/HeartRateChart';
-import SleepPieChart from '../components/SleepPieChart';
-import SleepBarChart from '../components/SleepBarChart';
+import WeightChart from '../components/WeightChart';
+import UricAcidChart from '../components/UricAcidChart';
 import {
-  getMeasureDataAllRecords,
+  formatWeightFromItemsForVitals,
+  formatWeightVitalsDisplay,
+} from './detail/helpers/weight';
+import SleepStageChart from '../components/SleepStageChart';
+import SleepBarChart from '../components/SleepBarChart';
+import StepsChart from '../components/StepsChart';
+import {
+  getMeasureDataDetailByDate,
   getMeasureDataDetailByDateRange,
-  type MeasureDataAllRecordsResult,
+  getMeasureDataLatestByType,
+  type MeasureDataDetailResult,
   type MeasureDataItem,
+  type MeasureDataLatestResult,
   type MeasureDataRangeDetailResult,
+  type MeasureDataType,
   type VitalKey,
   VITAL_KEY_API_TYPE,
 } from '@/api/measureData';
 import {
   getWearableDataDetailByDateRange,
+  getWearableDataLatestByType,
   WEARABLE_DATA_TYPES,
   type WearableDataItem,
+  type WearableDataDetailResult,
   type WearableDataRangeResult,
   type WearableDataType,
 } from '@/api/wearableData';
@@ -40,6 +52,7 @@ import { updateExtrInfo } from '@/api/user';
 import {
   VITALS_NAV_LIST,
   buildBloodPressureSeriesFromItems,
+  buildBloodGlucoseSeriesFromItems,
   buildSingleValueSeries,
   buildWearableHeartRateSeries,
   buildWearableOxygenSeries,
@@ -47,18 +60,26 @@ import {
   formatBloodPressureFromItems,
   formatSingleValueFromItems,
   formatUricAcidFromItems,
-  formatUricAcidCompareText,
-  flattenAllMeasureRecords,
   formatBloodLipidsFromItems,
+  formatBloodOxygenFromItem,
+  formatHeartRateFromItem,
+  formatMeasureDataTime,
+  formatMeasureDisplay,
+  getLatestMeasureDataTime,
+  getLatestWearableDataTime,
   normalizeMeasureRangeData,
   getBloodOxygenDisplay,
   getChartLabels,
   getDateRange,
   getEnergySummary,
+  getEnergyDisplayDataTime,
+  pickWearableTodayOrDataDayItems,
   getHeartRateDisplay,
   getSleepFetchDateRange,
   getSleepSummary,
   getStepsSummary,
+  getLatestWearableItem,
+  wrapWearableLatestItem,
   getWearableReturnOriginalDataParam,
   sortWearableItems,
   toHourPoints,
@@ -73,6 +94,8 @@ const EMPTY_MEASURE_DATA: Record<VitalKey, MeasureDataItem[]> = {
   uricAcid: [],
   bloodLipids: [],
 };
+
+type LatestMeasureData = Partial<Record<VitalKey, MeasureDataItem>>;
 
 const DEFAULT_SLEEP_TARGET_HOURS = 8;
 const DEFAULT_STEP_TARGET = 10000;
@@ -89,13 +112,15 @@ export default function VitalsPage() {
   const [activeNav, setActiveNav] = useState<VitalsRange>('today');
   const [loading, setLoading] = useState(false);
   const [measureData, setMeasureData] = useState<Record<VitalKey, MeasureDataItem[]>>(EMPTY_MEASURE_DATA);
+  const [latestMeasure, setLatestMeasure] = useState<LatestMeasureData>({});
+  const [weightData, setWeightData] = useState<MeasureDataItem[]>([]);
+  const [latestWeight, setLatestWeight] = useState<MeasureDataItem | undefined>();
   const [wearableSleep, setWearableSleep] = useState<WearableDataItem[]>([]);
   const [wearableSteps, setWearableSteps] = useState<WearableDataItem[]>([]);
   const [wearableOxygen, setWearableOxygen] = useState<WearableDataItem[]>([]);
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
   const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
-  const [uricAcidCompare, setUricAcidCompare] = useState<{ text: string; color: string } | null>(null);
   const [showSleepTargetModal, setShowSleepTargetModal] = useState(false);
   const [showStepTargetModal, setShowStepTargetModal] = useState(false);
   const [showEnergyTargetModal, setShowEnergyTargetModal] = useState(false);
@@ -145,62 +170,174 @@ export default function VitalsPage() {
       }
     };
 
+    const fetchLatestMeasure = async (type: MeasureDataType) => {
+      try {
+        const res = (await getMeasureDataLatestByType(type)) as unknown as MeasureDataLatestResult;
+        if (!isResourceApiOk(res)) return undefined;
+        return apiResourceData<MeasureDataItem>(res);
+      } catch {
+        return undefined;
+      }
+    };
+
+    const fetchLatestWearable = async (type: WearableDataType) => {
+      try {
+        const res = (await getWearableDataLatestByType(type)) as unknown as WearableDataDetailResult;
+        if (!isResourceApiOk(res)) return undefined;
+        return apiResourceData<WearableDataItem>(res);
+      } catch {
+        return undefined;
+      }
+    };
+
+    const fetchMeasureLatestAndDayItems = async (type: MeasureDataType) => {
+      const latest = await fetchLatestMeasure(type);
+      const latestDate = latest?.customerLocalDate?.trim();
+      if (!latestDate) {
+        return { latest, chartItems: latest ? [latest] : [] };
+      }
+
+      try {
+        const res = (await getMeasureDataDetailByDate({
+          customerLocalDate: latestDate,
+          type,
+        })) as unknown as MeasureDataDetailResult;
+        if (!isResourceApiOk(res)) {
+          return { latest, chartItems: latest ? [latest] : [] };
+        }
+        const items = flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
+        return { latest, chartItems: items.length ? items : latest ? [latest] : [] };
+      } catch {
+        return { latest, chartItems: latest ? [latest] : [] };
+      }
+    };
+
+    const fetchWearableLatestAndDayItems = async (type: WearableDataType) => {
+      const latest = await fetchLatestWearable(type);
+      const latestDate = latest?.customerLocalDate?.trim() || latest?.dataDate?.slice(0, 10);
+      if (!latestDate) {
+        return { latest, dayItems: latest ? [latest] : [] };
+      }
+
+      const dayItems = await fetchWearableItems(type, { startDate: latestDate, endDate: latestDate });
+      return {
+        latest,
+        dayItems: dayItems.length ? dayItems : latest ? [latest] : [],
+      };
+    };
+
     const sleepDateRange = getSleepFetchDateRange(activeNav);
 
     try {
-      const [
-        measureEntries,
-        sleepItems,
-        stepsItems,
-        oxygenItems,
-        heartRateItems,
-        activeEnergyItems,
-        basalEnergyItems,
-        uricAcidRecordsRes,
-      ] = await Promise.all([
-        Promise.all(
-          VITAL_KEYS.map(async key => {
+      if (activeNav === 'today') {
+        const [
+          measureResults,
+          weightResult,
+          latestSleep,
+          latestSteps,
+          stepsDayItems,
+          latestOxygen,
+          latestHeartRate,
+          activeEnergyResult,
+          basalEnergyResult,
+        ] = await Promise.all([
+          Promise.all(
+            VITAL_KEYS.map(async key => {
+              const result = await fetchMeasureLatestAndDayItems(VITAL_KEY_API_TYPE[key]);
+              return [key, result] as const;
+            }),
+          ),
+          fetchMeasureLatestAndDayItems('体重'),
+          fetchLatestWearable(WEARABLE_DATA_TYPES.sleep),
+          fetchLatestWearable(WEARABLE_DATA_TYPES.steps),
+          fetchWearableItems(WEARABLE_DATA_TYPES.steps),
+          fetchLatestWearable(WEARABLE_DATA_TYPES.oxygen),
+          fetchLatestWearable(WEARABLE_DATA_TYPES.heartRate),
+          fetchWearableLatestAndDayItems(WEARABLE_DATA_TYPES.activeEnergy),
+          fetchWearableLatestAndDayItems(WEARABLE_DATA_TYPES.basalEnergy),
+        ]);
+
+        setMeasureData({
+          ...EMPTY_MEASURE_DATA,
+          ...(Object.fromEntries(
+            measureResults.map(([key, result]) => [key, result.chartItems]),
+          ) as Record<VitalKey, MeasureDataItem[]>),
+        });
+        setLatestMeasure(
+          Object.fromEntries(measureResults.map(([key, result]) => [key, result.latest])) as LatestMeasureData,
+        );
+        setWeightData(weightResult.chartItems);
+        setLatestWeight(weightResult.latest);
+        setWearableSleep(wrapWearableLatestItem(latestSleep));
+        setWearableSteps(stepsDayItems.length ? stepsDayItems : wrapWearableLatestItem(latestSteps));
+        setWearableOxygen(wrapWearableLatestItem(latestOxygen));
+        setWearableHeartRate(wrapWearableLatestItem(latestHeartRate));
+        setWearableActiveEnergy(pickWearableTodayOrDataDayItems(activeEnergyResult.dayItems, activeEnergyResult.latest));
+        setWearableBasalEnergy(pickWearableTodayOrDataDayItems(basalEnergyResult.dayItems, basalEnergyResult.latest));
+      } else {
+        setLatestMeasure({});
+        setLatestWeight(undefined);
+        const [
+          measureEntries,
+          weightRangeItems,
+          sleepItems,
+          stepsItems,
+          oxygenItems,
+          heartRateItems,
+          activeEnergyItems,
+          basalEnergyItems,
+        ] = await Promise.all([
+          Promise.all(
+            VITAL_KEYS.map(async key => {
+              try {
+                const res = (await getMeasureDataDetailByDateRange({
+                  startDate,
+                  endDate,
+                  type: VITAL_KEY_API_TYPE[key],
+                })) as unknown as MeasureDataRangeDetailResult;
+                if (!isResourceApiOk(res)) {
+                  return [key, []] as const;
+                }
+                const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res));
+                return [key, flattenMeasureItems(groups)] as const;
+              } catch {
+                return [key, []] as const;
+              }
+            }),
+          ),
+          (async () => {
             try {
               const res = (await getMeasureDataDetailByDateRange({
                 startDate,
                 endDate,
-                type: VITAL_KEY_API_TYPE[key],
+                type: '体重',
               })) as unknown as MeasureDataRangeDetailResult;
-              if (!isResourceApiOk(res)) {
-                return [key, []] as const;
-              }
+              if (!isResourceApiOk(res)) return [];
               const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res));
-              return [key, flattenMeasureItems(groups)] as const;
+              return flattenMeasureItems(groups);
             } catch {
-              return [key, []] as const;
+              return [];
             }
-          }),
-        ),
-        fetchWearableItems(WEARABLE_DATA_TYPES.sleep, sleepDateRange),
-        fetchWearableItems(WEARABLE_DATA_TYPES.steps),
-        fetchWearableItems(WEARABLE_DATA_TYPES.oxygen),
-        fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
-        fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
-        fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
-        getMeasureDataAllRecords({ type: '尿酸', pageSize: 20, pageNum: 1 }).catch(() => null),
-      ]);
+          })(),
+          fetchWearableItems(WEARABLE_DATA_TYPES.sleep, sleepDateRange),
+          fetchWearableItems(WEARABLE_DATA_TYPES.steps),
+          fetchWearableItems(WEARABLE_DATA_TYPES.oxygen),
+          fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
+          fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
+          fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
+        ]);
 
-      setMeasureData({
-        ...EMPTY_MEASURE_DATA,
-        ...(Object.fromEntries(measureEntries) as Record<VitalKey, MeasureDataItem[]>),
-      });
-      setWearableSleep(sleepItems);
-      setWearableSteps(stepsItems);
-      setWearableOxygen(oxygenItems);
-      setWearableHeartRate(heartRateItems);
-      setWearableActiveEnergy(activeEnergyItems);
-      setWearableBasalEnergy(basalEnergyItems);
-
-      if (uricAcidRecordsRes && isResourceApiOk(uricAcidRecordsRes as { code?: number })) {
-        const rows = (uricAcidRecordsRes as MeasureDataAllRecordsResult).rows;
-        setUricAcidCompare(formatUricAcidCompareText(flattenAllMeasureRecords(rows)));
-      } else {
-        setUricAcidCompare(null);
+        setMeasureData({
+          ...EMPTY_MEASURE_DATA,
+          ...(Object.fromEntries(measureEntries) as Record<VitalKey, MeasureDataItem[]>),
+        });
+        setWeightData(weightRangeItems);
+        setWearableSleep(sleepItems);
+        setWearableSteps(stepsItems);
+        setWearableOxygen(oxygenItems);
+        setWearableHeartRate(heartRateItems);
+        setWearableActiveEnergy(activeEnergyItems);
+        setWearableBasalEnergy(basalEnergyItems);
       }
     } finally {
       setLoading(false);
@@ -230,32 +367,70 @@ export default function VitalsPage() {
     [measureData.bloodPressure, activeNav],
   );
   const bloodPressure = useMemo(
-    () => formatBloodPressureFromItems(measureData.bloodPressure, activeNav),
-    [measureData.bloodPressure, activeNav],
+    () =>
+      activeNav === 'today' && latestMeasure.bloodPressure
+        ? formatMeasureDisplay(latestMeasure.bloodPressure, '血压')
+        : formatBloodPressureFromItems(measureData.bloodPressure, activeNav),
+    [activeNav, latestMeasure.bloodPressure, measureData.bloodPressure],
+  );
+  const bloodPressureDataTime = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatMeasureDataTime(latestMeasure.bloodPressure)
+        : getLatestMeasureDataTime(measureData.bloodPressure, activeNav),
+    [activeNav, latestMeasure.bloodPressure, measureData.bloodPressure],
   );
 
   const glucoseSeries = useMemo(
-    () => buildSingleValueSeries(measureData.bloodGlucose, activeNav),
+    () => buildBloodGlucoseSeriesFromItems(measureData.bloodGlucose, activeNav),
     [measureData.bloodGlucose, activeNav],
   );
   const glucose = useMemo(
-    () => formatSingleValueFromItems(measureData.bloodGlucose, '血糖', activeNav),
-    [measureData.bloodGlucose, activeNav],
+    () =>
+      activeNav === 'today' && latestMeasure.bloodGlucose
+        ? formatMeasureDisplay(latestMeasure.bloodGlucose, '血糖')
+        : formatSingleValueFromItems(measureData.bloodGlucose, '血糖', activeNav),
+    [activeNav, latestMeasure.bloodGlucose, measureData.bloodGlucose],
+  );
+  const glucoseDataTime = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatMeasureDataTime(latestMeasure.bloodGlucose)
+        : getLatestMeasureDataTime(measureData.bloodGlucose, activeNav),
+    [activeNav, latestMeasure.bloodGlucose, measureData.bloodGlucose],
   );
 
   const heartRateSeries = useMemo(
     () => buildWearableHeartRateSeries(wearableHeartRate, activeNav),
     [wearableHeartRate, activeNav],
   );
-  const heartRate = useMemo(() => getHeartRateDisplay(wearableHeartRate), [wearableHeartRate]);
+  const heartRate = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatHeartRateFromItem(getLatestWearableItem(wearableHeartRate))
+        : getHeartRateDisplay(wearableHeartRate),
+    [activeNav, wearableHeartRate],
+  );
+  const heartRateDataTime = useMemo(
+    () => getLatestWearableDataTime(wearableHeartRate, activeNav),
+    [wearableHeartRate, activeNav],
+  );
 
   const sleepSummary = useMemo(
     () => getSleepSummary(wearableSleep, activeNav),
     [wearableSleep, activeNav],
   );
+  const sleepChartTimeline = useMemo(
+    () => sleepSummary.stageTimeline,
+    [sleepSummary.stageTimeline],
+  );
+  const sleepDataTime = useMemo(
+    () => getLatestWearableDataTime(wearableSleep, activeNav),
+    [wearableSleep, activeNav],
+  );
   const stepsSummary = useMemo(
-    () => getStepsSummary(wearableSteps, activeNav, stepTarget),
-    [wearableSteps, activeNav, stepTarget],
+    () => getStepsSummary(wearableSteps, activeNav),
+    [wearableSteps, activeNav],
   );
   const energySummary = useMemo(
     () => getEnergySummary(wearableActiveEnergy, wearableBasalEnergy, activeNav),
@@ -265,44 +440,122 @@ export default function VitalsPage() {
     () => stepsSummary.barSeries.map(item => ({ label: item.label, value: item.value })),
     [stepsSummary.barSeries],
   );
+  const stepsDataTime = useMemo(
+    () => getLatestWearableDataTime(wearableSteps, activeNav),
+    [wearableSteps, activeNav],
+  );
+  const stepsChart = useMemo(
+    () => <StepsChart data={stepsBarData} hideXAxis />,
+    [stepsBarData],
+  );
   const energyBarData = useMemo(
     () => energySummary.barSeries.map(item => ({ label: item.label, value: item.value })),
     [energySummary.barSeries],
   );
+  const energyDataTime = useMemo(
+    () => getEnergyDisplayDataTime(wearableActiveEnergy, wearableBasalEnergy, activeNav),
+    [wearableActiveEnergy, wearableBasalEnergy, activeNav],
+  );
+  const energyChart = useMemo(
+    () => <StepsChart data={energyBarData} hideXAxis metricLabel="消耗" valueUnit="千卡" />,
+    [energyBarData],
+  );
   const sleepBarData = useMemo(
     () => sleepSummary.barSeries.map(item => ({ label: item.label, value: item.value })),
     [sleepSummary.barSeries],
+  );
+  const sleepChart = useMemo(
+    () => (
+      activeNav === 'today'
+        ? <SleepStageChart data={sleepChartTimeline} />
+        : <SleepBarChart data={sleepBarData} />
+    ),
+    [activeNav, sleepBarData, sleepChartTimeline],
   );
 
   const bloodOxygenSeries = useMemo(
     () => buildWearableOxygenSeries(wearableOxygen, activeNav),
     [wearableOxygen, activeNav],
   );
-  const bloodOxygen = useMemo(() => getBloodOxygenDisplay(wearableOxygen), [wearableOxygen]);
+  const bloodOxygen = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatBloodOxygenFromItem(getLatestWearableItem(wearableOxygen))
+        : getBloodOxygenDisplay(wearableOxygen),
+    [activeNav, wearableOxygen],
+  );
+  const bloodOxygenDataTime = useMemo(
+    () => getLatestWearableDataTime(wearableOxygen, activeNav),
+    [wearableOxygen, activeNav],
+  );
 
   const bodyTemperatureSeries = useMemo(
     () => buildSingleValueSeries(measureData.bodyTemperature, activeNav),
     [measureData.bodyTemperature, activeNav],
   );
   const bodyTemperature = useMemo(
-    () => formatSingleValueFromItems(measureData.bodyTemperature, '体温', activeNav),
-    [measureData.bodyTemperature, activeNav],
+    () =>
+      activeNav === 'today' && latestMeasure.bodyTemperature
+        ? formatMeasureDisplay(latestMeasure.bodyTemperature, '体温')
+        : formatSingleValueFromItems(measureData.bodyTemperature, '体温', activeNav),
+    [activeNav, latestMeasure.bodyTemperature, measureData.bodyTemperature],
+  );
+  const bodyTemperatureDataTime = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatMeasureDataTime(latestMeasure.bodyTemperature)
+        : getLatestMeasureDataTime(measureData.bodyTemperature, activeNav),
+    [activeNav, latestMeasure.bodyTemperature, measureData.bodyTemperature],
   );
 
   const uricAcid = useMemo(
-    () => formatUricAcidFromItems(measureData.uricAcid, activeNav, userGender),
-    [measureData.uricAcid, activeNav, userGender],
+    () =>
+      activeNav === 'today' && latestMeasure.uricAcid
+        ? formatUricAcidFromItems([latestMeasure.uricAcid], activeNav, userGender)
+        : formatUricAcidFromItems(measureData.uricAcid, activeNav, userGender),
+    [activeNav, latestMeasure.uricAcid, measureData.uricAcid, userGender],
+  );
+  const uricAcidSeries = useMemo(
+    () => buildSingleValueSeries(measureData.uricAcid, activeNav),
+    [measureData.uricAcid, activeNav],
+  );
+  const uricAcidDataTime = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatMeasureDataTime(latestMeasure.uricAcid)
+        : getLatestMeasureDataTime(measureData.uricAcid, activeNav),
+    [activeNav, latestMeasure.uricAcid, measureData.uricAcid],
   );
 
   const bloodLipids = useMemo(
-    () => formatBloodLipidsFromItems(measureData.bloodLipids, activeNav),
-    [measureData.bloodLipids, activeNav],
+    () =>
+      activeNav === 'today' && latestMeasure.bloodLipids
+        ? formatBloodLipidsFromItems([latestMeasure.bloodLipids], activeNav)
+        : formatBloodLipidsFromItems(measureData.bloodLipids, activeNav),
+    [activeNav, latestMeasure.bloodLipids, measureData.bloodLipids],
   );
 
-  const stageIconStyles = [styles.icon1, styles.icon2, styles.icon3, styles.icon4];
+  const weightSeries = useMemo(
+    () => buildSingleValueSeries(weightData, activeNav),
+    [weightData, activeNav],
+  );
+  const weight = useMemo(
+    () =>
+      activeNav === 'today' && latestWeight
+        ? formatWeightVitalsDisplay(latestWeight)
+        : formatWeightFromItemsForVitals(weightData, activeNav),
+    [activeNav, latestWeight, weightData],
+  );
+  const weightDataTime = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatMeasureDataTime(latestWeight)
+        : getLatestMeasureDataTime(weightData, activeNav),
+    [activeNav, latestWeight, weightData],
+  );
 
-  function VitalCard({ label, icon, unit, value, status, statusColor, chart, onAdd, onAll, onPress }: {
-    label: string; icon: ImageSourcePropType; unit: string; value: string; status: string; statusColor: string; chart: React.ReactNode; onAdd?: () => void; onAll?: () => void;
+  function VitalCard({ label, icon, unit, value, status, statusColor, chart, dataTime, onAdd, onAll, onPress }: {
+    label: string; icon: ImageSourcePropType; unit: string; value: string; status: string; statusColor: string; chart: React.ReactNode; dataTime?: string; onAdd?: () => void; onAll?: () => void;
     onPress?: () => void;
   }) {
     return (
@@ -311,26 +564,26 @@ export default function VitalsPage() {
           <Flex>
             <Image source={icon} style={styles.vIcon} />
             <Text style={styles.vLabel}>{label}</Text>
+            {status ? <Flex justify='center' style={[styles.vStatusWrap, { borderColor: statusColor }]}>
+              <Text style={[styles.vStatus, { color: statusColor }]}>{status}</Text>
+            </Flex> : null}
           </Flex>
-          <Flex>
-            {onAdd ? (
-              <TouchableOpacity onPress={onAdd}>
-                <Text style={styles.vMore}>新增记录</Text>
-              </TouchableOpacity>
-            ) : null}
-            {onAll ? (
-              <TouchableOpacity onPress={onAll}>
-                <Text style={styles.vMore}>全部记录</Text>
-              </TouchableOpacity>
-            ) : null}
-          </Flex>
+          {dataTime || onPress ? (
+            <TouchableOpacity onPress={onPress} disabled={!onPress}>
+              <Flex align="center">
+                {dataTime ? <Text style={styles.rightText}>{dataTime}</Text> : null}
+                {onPress ? (
+                  <Image style={{ width: 5, height: 7 }} source={require('@/assets/images/vitals/right.png')} />
+                ) : null}
+              </Flex>
+            </TouchableOpacity>
+          ) : null}
         </Flex>
-        <TouchableOpacity onPress={onPress}>
+        <TouchableOpacity onPress={onPress} disabled={!onPress}>
           <Flex style={styles.vValueBox} justify="between" align="center">
             <View>
               <Text style={styles.vValue}>{value}</Text>
               <Text style={styles.vUnit}>{unit}</Text>
-              {status ? <Text style={[styles.vStatus, { color: statusColor }]}>{status}</Text> : null}
             </View>
             {chart}
           </Flex>
@@ -508,7 +761,7 @@ export default function VitalsPage() {
 
   return (
     <PageLayout style={styles.container}>
-      <Flex style={styles.navBox}>
+      {/* <Flex style={styles.navBox}>
         {VITALS_NAV_LIST.map(item => (
           <TouchableOpacity
             style={styles.navCol}
@@ -529,7 +782,7 @@ export default function VitalsPage() {
             </View>
           </TouchableOpacity>
         ))}
-      </Flex>
+      </Flex> */}
 
       {loading ? (
         <View style={{ paddingVertical: 16, alignItems: 'center' }}>
@@ -540,241 +793,87 @@ export default function VitalsPage() {
       <ScrollView contentContainerStyle={styles.body}>
         <VitalCard
           label="血压"
-          icon={require('@/assets/images/home/bp.png')}
+          icon={require('@/assets/images/vitals/icon_xy.png')}
           unit="mmHg"
           value={bloodPressure.value}
           status={bloodPressure.status}
           statusColor={bloodPressure.statusColor}
+          dataTime={bloodPressureDataTime}
           onAdd={() => navigation.navigate('AddDataPage', { type: '血压' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '血压' })}
           onPress={() => navigation.navigate('BloodPressurePage')}
-          chart={<BloodPressureChart data={bloodPressureSeries} labels={chartLabels} />}
+          chart={<BloodPressureChart data={bloodPressureSeries} labels={chartLabels} hideXAxis />}
         />
 
         <VitalCard
           label="血糖"
-          icon={require('@/assets/images/home/xt.png')}
+          icon={require('@/assets/images/vitals/icon_xt.png')}
           unit="mmol/L"
           value={glucose.value}
           status={glucose.status}
           statusColor={glucose.statusColor}
+          dataTime={glucoseDataTime}
           onAdd={() => navigation.navigate('AddDataPage', { type: '血糖' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '血糖' })}
           onPress={() => navigation.navigate('BloodSugarPage')}
-          chart={<BloodGlucoseChart data={toHourPoints(glucoseSeries)} labels={chartLabels} />}
+          chart={<BloodGlucoseChart data={glucoseSeries} labels={chartLabels} hideXAxis />}
         />
 
         <VitalCard
           label="心率"
-          icon={require('@/assets/images/home/xl.png')}
+          icon={require('@/assets/images/vitals/icon_xl.png')}
           unit="次/分钟"
           value={heartRate.value}
           status={heartRate.status}
           statusColor={heartRate.statusColor}
+          dataTime={heartRateDataTime}
           onAll={() => navigation.navigate('AllDataPage', { type: '心率' })}
           onPress={() => navigation.navigate('HeartRatePage')}
-          chart={<HeartRateChart data={toHourPoints(heartRateSeries)} />}
+          chart={<HeartRateChart data={toHourPoints(heartRateSeries)} hideXAxis />}
         />
 
-        <View style={styles.vCard}>
-          <Flex justify="between" align="center">
-            <Flex>
-              <Image source={require('@/assets/images/home/sleep.png')} style={styles.vIcon} />
-              <Text style={styles.vLabel}>睡眠</Text>
-            </Flex>
-            <Flex>
-              <TouchableOpacity onPress={() => setShowSleepTargetModal(true)}>
-                <Text style={styles.vMore}>目标</Text>
-              </TouchableOpacity>
-              <TouchableOpacity>
-                <Text style={styles.vMore}>全部记录</Text>
-              </TouchableOpacity>
-            </Flex>
-          </Flex>
-          <TouchableOpacity onPress={() => navigation.navigate('SleepPage')}>
-
-            <Flex
-              style={styles.vValueBox}
-              justify="between"
-              align="center">
-              <View>
-                <Text style={styles.vValue}>{sleepSummary.duration}</Text>
-                <Text style={styles.vUnit}>夜间睡眠</Text>
-                {sleepSummary.quality.label ? (
-                  <Text style={[styles.vStatus, { color: sleepSummary.quality.color }]}>
-                    {sleepSummary.quality.label}
-                  </Text>
-                ) : null}
-              </View>
-              {activeNav === 'today' ? (
-                <>
-                  <SleepPieChart data={sleepSummary.pieSegments} />
-                  <View>
-                    {sleepSummary.stages.map((stage, index) => (
-                      <Flex key={stage.name}>
-                        <View style={stageIconStyles[index]} />
-                        <Text style={styles.sleepTitle}>{stage.name}</Text>
-                        <Text style={styles.sleepText}>{stage.duration}</Text>
-                      </Flex>
-                    ))}
-                  </View>
-                </>
-              ) : (
-                <SleepBarChart data={sleepBarData} />
-              )}
-            </Flex>
-          </TouchableOpacity>
-        </View>
+        <VitalCard
+          label="睡眠"
+          icon={require('@/assets/images/vitals/icon_sleep.png')}
+          unit="小时"
+          value={sleepSummary.duration}
+          status={sleepSummary.quality.label}
+          statusColor={sleepSummary.quality.color}
+          dataTime={sleepDataTime}
+          onPress={() => navigation.navigate('SleepPage')}
+          chart={sleepChart}
+        />
 
         <VitalCard
           label="血氧"
-          icon={require('@/assets/images/home/xy.png')}
-          unit="百分比"
+          icon={require('@/assets/images/vitals/icon_o2.png')}
+          unit="%"
           value={bloodOxygen.value}
           status={bloodOxygen.status}
           statusColor={bloodOxygen.statusColor}
+          dataTime={bloodOxygenDataTime}
           onAll={() => navigation.navigate('AllDataPage', { type: '血氧' })}
           onPress={() => navigation.navigate('BloodOxygenPage')}
-          chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} />}
+          chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} hideXAxis />}
         />
 
         <VitalCard
           label="体温"
-          icon={require('@/assets/images/home/tw.png')}
+          icon={require('@/assets/images/vitals/icon_tw.png')}
           unit="℃"
           value={bodyTemperature.value}
           status={bodyTemperature.status}
           statusColor={bodyTemperature.statusColor}
+          dataTime={bodyTemperatureDataTime}
           onAdd={() => navigation.navigate('AddDataPage', { type: '体温' })}
           onAll={() => navigation.navigate('AllDataPage', { type: '体温' })}
           onPress={() => navigation.navigate('BodyTemperaturePage')}
           chart={<BodyTemperatureChart data={toHourPoints(bodyTemperatureSeries)} />}
         />
-
         <View style={styles.vCard}>
           <Flex justify="between" align="center">
             <Flex>
-              <Image source={require('@/assets/images/home/bs.png')} style={styles.vIcon} />
-              <Text style={styles.vLabel}>步数</Text>
-            </Flex>
-            <Flex>
-              <TouchableOpacity onPress={() => setShowStepTargetModal(true)}>
-                <Text style={styles.vMore}>目标</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ marginLeft: 12 }}
-                onPress={() => navigation.navigate('AllDataPage', { type: '步数' })}>
-                <Text style={styles.vMore}>全部记录</Text>
-              </TouchableOpacity>
-            </Flex>
-          </Flex>
-          <TouchableOpacity onPress={() => navigation.navigate('StepsPage')}>
-            <Flex
-              direction={activeNav === 'today' ? 'column' : 'row'}
-              style={styles.vValueBox}
-              justify={activeNav === 'today' ? 'center' : 'between'}
-              align="center">
-              <View style={activeNav === 'today' ? { alignItems: 'center' } : undefined}>
-                <Text style={styles.vValue1}>{stepsSummary.value}</Text>
-                <Text style={styles.vUnit}>{stepsSummary.unit}</Text>
-                <Text style={[styles.vText, { color: stepsSummary.statusColor }]}>
-                  {stepsSummary.status}
-                </Text>
-              </View>
-              {activeNav !== 'today' ? (
-                <SleepBarChart data={stepsBarData} metricLabel="步数" valueUnit="步" />
-              ) : null}
-            </Flex>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.vCard}>
-          <Flex justify="between" align="center">
-            <Flex>
-              <Image source={require('@/assets/images/home/rl.png')} style={styles.vIcon} />
-              <Text style={styles.vLabel}>消耗</Text>
-            </Flex>
-            <Flex>
-              <TouchableOpacity onPress={() => setShowEnergyTargetModal(true)}>
-                <Text style={styles.vMore}>目标</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={{ marginLeft: 12 }}
-                onPress={() => navigation.navigate('AllDataPage', { type: '消耗' })}>
-                <Text style={styles.vMore}>全部记录</Text>
-              </TouchableOpacity>
-            </Flex>
-          </Flex>
-          <TouchableOpacity onPress={() => navigation.navigate('ConsumptionPage')}>
-            <Flex style={styles.vValueBox} justify="between" align="center">
-              <View>
-                <Text style={styles.vUnit}>{energySummary.totalLabel ?? '总消耗'}</Text>
-                <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{energySummary.total}</Text>
-                <Text style={styles.vUnit}>千卡</Text>
-              </View>
-              {energySummary.showBreakdown ? (
-                <Flex justify="around" style={styles.vRightBox}>
-                  <View>
-                    <Text style={styles.vText1}>静息消耗</Text>
-                    <Text style={styles.vText2}>{energySummary.basal}</Text>
-                    <Text style={styles.vText1}>千卡</Text>
-                  </View>
-                  <View>
-                    <Text style={styles.vText1}>活动消耗</Text>
-                    <Text style={styles.vText2}>{energySummary.active}</Text>
-                    <Text style={styles.vText1}>千卡</Text>
-                  </View>
-                </Flex>
-              ) : (
-                <SleepBarChart data={energyBarData} metricLabel="消耗" valueUnit="千卡" />
-              )}
-            </Flex>
-          </TouchableOpacity>
-        </View>
-        <View style={styles.vCard}>
-          <Flex justify="between" align="center">
-            <Flex>
-              <Image source={require('@/assets/images/home/xy.png')} style={styles.vIcon} />
-              <Text style={styles.vLabel}>尿酸</Text>
-            </Flex>
-            <Flex>
-              <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '尿酸' })}>
-                <Text style={styles.vMore}>新增记录</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => navigation.navigate('AllDataPage', { type: '尿酸' })}>
-                <Text style={styles.vMore}>全部记录</Text>
-              </TouchableOpacity>
-            </Flex>
-          </Flex>
-          <Flex style={styles.vValueBox} justify="between" align="center">
-            <View>
-              <Text style={[styles.vValue, { fontSize: 20, lineHeight: 20 }]}>{uricAcid.value}</Text>
-              <Text style={styles.vUnit}>μmol/L</Text>
-            </View>
-            {uricAcid.statusLabel || uricAcid.recordTime ? (
-              <View style={{ alignItems: 'flex-end' }}>
-                {uricAcid.statusLabel ? (
-                  <Text style={[styles.vText, { color: uricAcid.statusColor, marginTop: 0 }]}>
-                    {uricAcid.statusLabel}
-                  </Text>
-                ) : null}
-                {uricAcid.recordTime ? (
-                  <Text style={[styles.vUnit, { marginTop: 4, textAlign: 'right' }]}>{uricAcid.recordTime}</Text>
-                ) : null}
-              </View>
-            ) : null}
-          </Flex>
-          {uricAcidCompare && uricAcid.value !== '--' ? (
-            <Flex style={styles.bjBox}>
-              <Text style={[styles.bjText, { color: uricAcidCompare.color }]}>{uricAcidCompare.text}</Text>
-            </Flex>
-          ) : null}
-        </View>
-
-        <View style={styles.vCard}>
-          <Flex justify="between" align="center">
-            <Flex>
-              <Image source={require('@/assets/images/home/xy.png')} style={styles.vIcon} />
+              <Image source={require('@/assets/images/vitals/icon_xz.png')} style={styles.vIcon} />
               <Text style={styles.vLabel}>血脂</Text>
             </Flex>
             <Flex>
@@ -813,6 +912,58 @@ export default function VitalsPage() {
             </Flex>
           </TouchableOpacity>
         </View>
+        <VitalCard
+          label="体重"
+          icon={require('@/assets/images/vitals/icon_tz.png')}
+          unit="kg"
+          value={weight.value}
+          status={weight.status}
+          statusColor={weight.statusColor}
+          dataTime={weightDataTime}
+          onAll={() => navigation.navigate('AllDataPage', { type: '体重' })}
+          onPress={() => navigation.navigate('WeightPage')}
+          chart={<WeightChart data={toHourPoints(weightSeries)} hideXAxis />}
+        />
+
+        <VitalCard
+          label="尿酸"
+          icon={require('@/assets/images/vitals/icon_ns.png')}
+          unit="(μmol/L)"
+          value={uricAcid.value}
+          status={uricAcid.statusLabel}
+          statusColor={uricAcid.statusColor}
+          dataTime={uricAcidDataTime}
+          onPress={() => navigation.navigate('UricAcidPage')}
+          chart={<UricAcidChart data={toHourPoints(uricAcidSeries)} labels={chartLabels} hideXAxis />}
+        />
+
+        <VitalCard
+          label="步数"
+          icon={require('@/assets/images/vitals/icon_bs.png')}
+          unit={stepsSummary.unit}
+          value={stepsSummary.value}
+          status={stepsSummary.status.replace(/^・/, '')}
+          statusColor={stepsSummary.statusColor}
+          dataTime={stepsDataTime}
+          onAll={() => navigation.navigate('AllDataPage', { type: '步数' })}
+          onPress={() => navigation.navigate('StepsPage')}
+          chart={stepsChart}
+        />
+
+        <VitalCard
+          label="消耗"
+          icon={require('@/assets/images/vitals/icon_xh.png')}
+          unit={energySummary.unit}
+          value={energySummary.total}
+          status={energySummary.status.replace(/^・/, '')}
+          statusColor={energySummary.statusColor}
+          dataTime={energyDataTime}
+          onAll={() => navigation.navigate('AllDataPage', { type: '消耗' })}
+          onPress={() => navigation.navigate('ConsumptionPage')}
+          chart={energyChart}
+        />
+
+
       </ScrollView>
       <TouchableOpacity
         style={[styles.addBtn, uploading && { opacity: 0.5 }]}

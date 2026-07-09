@@ -7,13 +7,45 @@ import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
 import {
   buildChartXAxis,
-  buildIsolatedLineScatterData,
+  buildLineScatterData,
   toBloodPressureSeriesData,
 } from './chartAxis';
 
 export type BloodPressurePoint = { high: number; low: number; hour?: string; x?: number };
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
+const HIGH_COLOR = '#EE9C44';
+const LOW_COLOR = '#6D925E';
+const POINT_SHADOW = {
+  shadowBlur: 3,
+  shadowColor: 'rgba(0,0,0,0.2)',
+  shadowOffsetX: 0,
+  shadowOffsetY: 0,
+};
+const HIGH_POINT_STYLE = {
+  color: HIGH_COLOR,
+  borderColor: '#FFFFFF',
+  borderWidth: 1,
+  ...POINT_SHADOW,
+};
+const LOW_POINT_STYLE = {
+  color: LOW_COLOR,
+  borderColor: '#FFFFFF',
+  borderWidth: 1,
+  ...POINT_SHADOW,
+};
+const LOW_AREA_STYLE = {
+  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: LOW_COLOR },
+    { offset: 1, color: 'rgba(109,146,94,0)' },
+  ]),
+};
+const HIGH_AREA_STYLE = {
+  color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+    { offset: 0, color: HIGH_COLOR },
+    { offset: 1, color: 'rgba(238,156,68,0)' },
+  ]),
+};
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
@@ -22,12 +54,14 @@ echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipCompon
 type Props = {
   data?: BloodPressurePoint[];
   labels?: string[];
+  hideXAxis?: boolean;
 };
 
-function buildOption(points: BloodPressurePoint[], labels: string[]) {
+function buildOption(points: BloodPressurePoint[], labels: string[], hideXAxis = false) {
   const { chartPoints, high: highData, low: lowData } = toBloodPressureSeriesData(points);
-  const highScatter = buildIsolatedLineScatterData(highData);
-  const lowScatter = buildIsolatedLineScatterData(lowData);
+  const highScatter = buildLineScatterData(highData);
+  const lowScatter = buildLineScatterData(lowData);
+  const xAxis = buildChartXAxis(points, labels, false);
 
   return {
     animation: false,
@@ -55,10 +89,12 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
     grid: {
       top: 4,
       right: 0,
-      bottom: 0,
+      bottom: 4,
       left: 0,
     },
-    xAxis: buildChartXAxis(points, labels, false),
+    xAxis: hideXAxis
+      ? { ...xAxis, axisLabel: { show: false } }
+      : xAxis,
     yAxis: {
       type: 'value',
       scale: true,
@@ -75,14 +111,9 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         connectNulls: false,
         showSymbol: false,
         data: lowData,
-        lineStyle: { color: '#06BDFF', width: 2 },
-        itemStyle: { color: '#06BDFF' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#06BDFF' },
-            { offset: 1, color: 'rgba(6,189,255,0)' },
-          ]),
-        },
+        lineStyle: { color: LOW_COLOR, width: 2 },
+        itemStyle: { color: LOW_COLOR },
+        areaStyle: LOW_AREA_STYLE,
       },
       {
         name: 'high',
@@ -91,14 +122,9 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         connectNulls: false,
         showSymbol: false,
         data: highData,
-        lineStyle: { color: '#FF8B07', width: 2 },
-        itemStyle: { color: '#FF8B07' },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: '#FF8B07' },
-            { offset: 1, color: 'rgba(255,139,7,0)' },
-          ]),
-        },
+        lineStyle: { color: HIGH_COLOR, width: 2 },
+        itemStyle: { color: HIGH_COLOR },
+        areaStyle: HIGH_AREA_STYLE,
       },
       {
         name: 'low-scatter',
@@ -106,7 +132,7 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         data: lowScatter,
         symbol: 'circle',
         symbolSize: 6,
-        itemStyle: { color: '#06BDFF' },
+        itemStyle: LOW_POINT_STYLE,
         z: 10,
       },
       {
@@ -115,14 +141,14 @@ function buildOption(points: BloodPressurePoint[], labels: string[]) {
         data: highScatter,
         symbol: 'circle',
         symbolSize: 6,
-        itemStyle: { color: '#FF8B07' },
+        itemStyle: HIGH_POINT_STYLE,
         z: 10,
       },
     ],
   };
 }
 
-export default function BloodPressureChart({ data, labels }: Props) {
+export default function BloodPressureChart({ data, labels, hideXAxis }: Props) {
   const skiaRef = useRef<any>(null);
   const points = data ?? [
     { high: 142, low: 92 },
@@ -135,7 +161,7 @@ export default function BloodPressureChart({ data, labels }: Props) {
   ];
   const xLabels = labels ?? WEEK_LABELS.slice(0, points.length);
 
-  const option = useMemo(() => buildOption(points, xLabels), [points, xLabels]);
+  const option = useMemo(() => buildOption(points, xLabels, hideXAxis), [points, xLabels, hideXAxis]);
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -235,18 +235,10 @@ export default function VitalsPage() {
         }
     }, [resetPeriodStats]);
 
-    useEffect(() => {
-        loadGoalSummary();
-    }, [loadGoalSummary]);
-
-    useEffect(() => {
-        loadMeasureData(selectedType);
-    }, [loadMeasureData, selectedType]);
-
     useFocusEffect(
         useCallback(() => {
-            loadGoalSummary();
-            loadMeasureData(selectedType);
+            void loadGoalSummary();
+            void loadMeasureData(selectedType);
         }, [loadGoalSummary, loadMeasureData, selectedType]),
     );
 
