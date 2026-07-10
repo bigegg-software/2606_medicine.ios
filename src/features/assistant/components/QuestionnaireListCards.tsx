@@ -27,26 +27,25 @@ export default function QuestionnaireListCards({ items }: Props) {
   return (
     <View style={styles.questionnaireReminderBox}>
       {items.map((item, index) => (
-        <View key={String(item.type)} style={index > 0 ? styles.questionnaireReminderRow : undefined}>
-          <Flex align="center">
-            <Image
-              source={QUESTIONNAIRE_ASSISTANT_ICONS[item.iconIndex] ?? QUESTIONNAIRE_ASSISTANT_ICONS[0]}
-              style={styles.questionnaireReminderIcon}
-            />
-            <View style={styles.questionnaireReminderTitleCol}>
-              <Text style={styles.questionnaireReminderTitle} numberOfLines={1}>
-                {item.title}
+        <Flex align="center" key={String(item.type)} style={[styles.questionnaireReminder, index > 0 && styles.questionnaireReminderRow]}>
+          <Image
+            source={QUESTIONNAIRE_ASSISTANT_ICONS[item.iconIndex] ?? QUESTIONNAIRE_ASSISTANT_ICONS[0]}
+            style={styles.questionnaireReminderIcon}
+          />
+          <View style={styles.questionnaireReminderTitleCol}>
+            <Text style={styles.questionnaireReminderTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {!item.canStart && item.nextAssessmentDate ? (
+              <Text style={styles.questionnaireNextAssessmentText}>
+                下次评估：{item.nextAssessmentDate}
               </Text>
-              {!item.canStart && item.nextAssessmentDate ? (
-                <Text style={styles.questionnaireNextAssessmentText}>
-                  下次评估：{item.nextAssessmentDate}
-                </Text>
-              ) : null}
-            </View>
-           <View>
-           <Text style={styles.questionnaireReminderDuration}>约{item.duration}</Text>
+            ) : null}
+          </View>
+          <View>
+            <Text style={styles.questionnaireReminderDuration}>约{item.duration}</Text>
             <TouchableOpacity
-              style={[styles.questionnaireStartBtn,{marginTop:6}, !item.canStart && styles.questionnaireStartBtnDisabled]}
+              style={[styles.questionnaireStartBtn, { marginTop: 6 }, !item.canStart && styles.questionnaireStartBtnDisabled]}
               disabled={!item.canStart}
               activeOpacity={0.8}
               onPress={() => navigation.navigate('QuestionnairePage', { type: item.type as QuestionnaireType })}>
@@ -58,9 +57,8 @@ export default function QuestionnaireListCards({ items }: Props) {
                 开始评估
               </Text>
             </TouchableOpacity>
-           </View>
-          </Flex>
-        </View>
+          </View>
+        </Flex>
       ))}
     </View>
   );

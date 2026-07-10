@@ -6,7 +6,9 @@ import {
   buildSleepHoursSeries,
   buildSleepPieSegments,
   formatSleepDuration,
+  getSleepDurationMinutes,
   getSleepQuality,
+  getSleepScoreQuality,
   getSleepSummary,
   type VitalsRange,
 } from '../../vitalsHelpers';
@@ -53,19 +55,7 @@ function getItemLocalDate(item: WearableDataItem) {
 }
 
 function getItemSleepMinutes(item: WearableDataItem) {
-  const stageTotal = buildSleepPieSegments(item).reduce((sum, segment) => sum + segment.value, 0);
-  if (stageTotal > 0) return stageTotal;
-
-  const asleep = Number(item.asleepTime);
-  if (Number.isFinite(asleep) && asleep > 0) return Math.round(asleep);
-
-  const sleep = Number(item.sleepTime);
-  if (Number.isFinite(sleep) && sleep > 0) return Math.round(sleep);
-
-  const inbed = Number(item.inbedSleepTime);
-  if (Number.isFinite(inbed) && inbed > 0) return Math.round(inbed);
-
-  return 0;
+  return getSleepDurationMinutes(item) ?? 0;
 }
 
 function parseClockTime(value?: string) {
@@ -395,12 +385,15 @@ export function buildSleepGoalProgress(
   const goalLabel = formatSleepGoalHoursLabel(goalHours);
 
   if (totalMinutes >= goalMinutes) {
+    const excessMinutes = totalMinutes - goalMinutes;
     return {
       met: true,
       statusLabel: '已达标',
       statusColor: '#6D925E',
       borderColor: '#6D925E',
-      message: `目标${goalLabel}，已达标`,
+      message: `目标${goalLabel}，超出${
+        excessMinutes > 0 ? formatSleepDuration(excessMinutes) : '0分钟'
+      }`,
     };
   }
 
@@ -456,10 +449,7 @@ export function parseSleepSqsScore(item?: WearableDataItem) {
 }
 
 export function getSleepScoreDescription(score?: number | null) {
-  if (score == null) return '暂无睡眠质量数据';
-  if (score >= 80) return '睡眠质量优秀';
-  if (score >= 60) return '睡眠质量良好';
-  return '睡眠质量一般';
+  return getSleepScoreQuality(score).description;
 }
 
 export function getSleepScoreMarkerPercent(score?: number | null) {
@@ -469,13 +459,13 @@ export function getSleepScoreMarkerPercent(score?: number | null) {
 
 export function buildSleepScoreSummary(item?: WearableDataItem) {
   const score = parseSleepSqsScore(item);
-  const quality = getSleepQuality(item);
+  const quality = getSleepScoreQuality(score);
 
   return {
     score,
     scoreText: score != null ? String(Math.round(score)) : '--',
     markerPercent: getSleepScoreMarkerPercent(score),
-    description: getSleepScoreDescription(score),
+    description: quality.description,
     qualityLabel: quality.label || '--',
     qualityColor: quality.color,
   };

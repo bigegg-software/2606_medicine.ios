@@ -29,12 +29,14 @@ import { getLevelBgColor, getLevelColor } from './vitalLevelColors';
 import {
   getTotalCholesterolStatusLabel,
   getUricAcidStatusLabel,
+  getSleepDurationMinutes,
   getSleepQuality,
 } from './vitalsHelpers';
 import {
   resolveEnergyTarget,
   resolveStepTarget,
 } from './detail/helpers/vitalsGoalTargets';
+import { buildAllDataSleepCardData } from './allDataSleepHelpers';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 
@@ -118,6 +120,25 @@ function getDataSourceLabel(source?: string | null) {
   return source?.trim() || '手动录入';
 }
 
+function formatWearableReadingDateTime(value?: string) {
+  if (!value?.trim()) return '--';
+  const normalized = value.trim().replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
+  const parsed = moment(normalized);
+  return parsed.isValid() ? parsed.format('YYYY-MM-DD HH:mm') : '--';
+}
+
+function formatWearableItemTimeText(value?: string, selectedDate?: string) {
+  const formatted = formatWearableReadingDateTime(value);
+  if (formatted !== '--') return formatted;
+  if (!value?.trim()) return '--';
+  const timeText = value.trim();
+  return /^\d{4}-\d{2}-\d{2}/.test(timeText)
+    ? timeText
+    : selectedDate
+      ? `${selectedDate} ${timeText}`
+      : timeText;
+}
+
 function sortRecordsDesc(items: MeasureDataItem[]) {
   return [...items].sort((a, b) => {
     const timeCompare = (b.dataTime ?? '').localeCompare(a.dataTime ?? '');
@@ -185,6 +206,8 @@ type WearableReadingRecord = {
   key: string;
   time: string;
   recordTime: string;
+  startTime: string;
+  endTime: string;
   value: number;
   level: string;
   sourceName?: string;
@@ -296,12 +319,14 @@ function buildEnergyAggregateRecord(
   useGoalLabel = false,
   sourceName?: string,
 ): WearableReadingRecord {
-  const recordTime = /^\d{4}-\d{2}-\d{2}/.test(timeText) ? timeText : `${selectedDate} ${timeText}`;
+  const recordTime = formatWearableItemTimeText(timeText, selectedDate);
   return {
     key,
     label,
     time: /^\d{2}:\d{2}/.test(timeText) ? timeText.slice(0, 5) : '--',
     recordTime,
+    startTime: recordTime,
+    endTime: recordTime,
     value,
     level: useGoalLabel ? getEnergyGoalLevelLabel(value, energyGoals) : '正常',
     sourceName,
@@ -375,19 +400,7 @@ function buildEnergyWearableRecords(
 }
 
 function getSleepMinutesFromItem(data?: WearableDataItem) {
-  if (!data) return 0;
-
-  const stageTotal = ['deepSleepTime', 'coreSleepTime', 'remSleepTime', 'awakeSleepTime']
-    .reduce((sum, key) => sum + Math.max(0, Math.round(Number(data[key as keyof WearableDataItem] ?? 0))), 0);
-  if (stageTotal > 0) return stageTotal;
-
-  const candidates = [data.asleepTime, data.sleepTime, data.inbedSleepTime];
-  for (const value of candidates) {
-    const minutes = Math.round(Number(value ?? 0));
-    if (minutes > 0) return minutes;
-  }
-
-  return 0;
+  return getSleepDurationMinutes(data) ?? 0;
 }
 
 function buildSleepWearableRecordsFromItem(
@@ -398,7 +411,9 @@ function buildSleepWearableRecordsFromItem(
   if (minutes <= 0) return [];
 
   const timeText = data?.bedTimeStr ?? data?.startTimeStr ?? data?.endTimeStr ?? '--';
-  const recordTime = /^\d{4}-\d{2}-\d{2}/.test(timeText) ? timeText : `${selectedDate} ${timeText}`;
+  const startTime = formatWearableItemTimeText(data?.startTimeStr ?? data?.bedTimeStr, selectedDate);
+  const endTime = formatWearableItemTimeText(data?.endTimeStr ?? data?.wakeUpTimeStr, selectedDate);
+  const recordTime = startTime !== '--' ? startTime : endTime;
   const quality = getSleepQuality(data);
   const sourceName = flattenWearableOriginalData(data?.originalData)[0]?.sourceName;
 
@@ -411,6 +426,8 @@ function buildSleepWearableRecordsFromItem(
         ? timeText.slice(0, 5)
         : '--',
     recordTime,
+    startTime,
+    endTime,
     value: Math.round((minutes / 60) * 10) / 10,
     level: quality.label || '正常',
     sourceName,
@@ -437,12 +454,16 @@ function buildWearableRecords(
     if (!Number.isFinite(raw)) continue;
     const value = config.parseValue(raw);
     if (value == null) continue;
+    const startTime = formatWearableReadingDateTime(reading.startDate);
+    const endTime = formatWearableReadingDateTime(reading.endDate);
     const ts = moment(reading.startDate ?? reading.endDate);
-    const recordTime = ts.isValid() ? ts.format('YYYY-MM-DD HH:mm') : '--';
+    const recordTime = startTime !== '--' ? startTime : endTime;
     records.push({
       key: reading.id ?? `${reading.startDate ?? reading.endDate ?? index}-${index}`,
       time: ts.isValid() ? ts.format('HH:mm') : '--',
       recordTime,
+      startTime,
+      endTime,
       value,
       level: config.getLevelLabel(value, reading.highLowLabel, options),
       sourceName: reading.sourceName,
@@ -467,12 +488,16 @@ function buildWearableRecordsFromItem(
   if (steps <= 0) return [];
 
   const timeText = data?.endTimeStr ?? data?.startTimeStr ?? '--';
-  const recordTime = /^\d{4}-\d{2}-\d{2}/.test(timeText) ? timeText : `${selectedDate} ${timeText}`;
+  const startTime = formatWearableItemTimeText(data?.startTimeStr, selectedDate);
+  const endTime = formatWearableItemTimeText(data?.endTimeStr, selectedDate);
+  const recordTime = startTime !== '--' ? startTime : endTime;
 
   return [{
     key: 'step-count-total',
     time: /^\d{2}:\d{2}/.test(timeText) ? timeText.slice(0, 5) : '--',
     recordTime,
+    startTime,
+    endTime,
     value: steps,
     level: config.getLevelLabel(steps, undefined, options),
     sourceName: undefined,
@@ -666,10 +691,14 @@ function WearableRecordCard({
           <Flex justify="between" style={styles.mapItem}>
             <View>
               <Text style={styles.mapLeftText}>记录时间</Text>
+              <Text style={styles.mapLeftText}>开始时间</Text>
+              <Text style={styles.mapLeftText}>结束时间</Text>
               <Text style={styles.mapLeftText}>数据来源</Text>
             </View>
             <View>
               <Text style={styles.mapRightText}>{item.recordTime}</Text>
+              <Text style={styles.mapRightText}>{item.startTime}</Text>
+              <Text style={styles.mapRightText}>{item.endTime}</Text>
               <Text style={styles.mapRightText}>{getDataSourceLabel(item.sourceName)}</Text>
             </View>
           </Flex>
@@ -679,6 +708,55 @@ function WearableRecordCard({
   );
 }
 
+
+function SleepRecordCard({ item }: { item?: WearableDataItem }) {
+  const cardData = buildAllDataSleepCardData(item);
+  if (!cardData) return null;
+
+  return (
+    <View style={styles.mapBox}>
+      <Flex justify="between" style={styles.mapItem}>
+        <Flex>
+          <Image source={require('@/assets/images/vitals/sleep.png')} style={styles.mapIcon} />
+          <Text style={styles.mapTime}>睡眠状态</Text>
+        </Flex>
+        <Text style={styles.mapTime}>{cardData.timeRange}</Text>
+      </Flex>
+      <Flex justify="between" style={styles.mapItem}>
+        <Text style={styles.mapItemLeftText}>{cardData.duration}</Text>
+        <Flex align="end">
+          <Text style={styles.mapItemLeftText}>{cardData.scoreText}</Text>
+          <Text style={styles.mapItemLeftUnit}>分</Text>
+        </Flex>
+      </Flex>
+      <Flex justify="between" style={[styles.mapItem, { marginTop: 8 }]}>
+        <Text style={styles.mapItemLeftUnit}>睡眠时长</Text>
+        <Text style={[styles.mapItemLeftUnit, { color: cardData.statusColor }]}>
+          {cardData.statusLabel}
+        </Text>
+      </Flex>
+      <View style={styles.sleepStageSection}>
+        {cardData.stages.map(stage => (
+          <Flex key={stage.key} style={styles.sleepStageRow}>
+            <Text style={styles.sleepStageLabel}>{stage.label}</Text>
+            <View style={styles.sleepStageTrack}>
+              <View
+                style={[
+                  styles.sleepStageFill,
+                  {
+                    width: `${stage.percent}%`,
+                    backgroundColor: stage.color,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.sleepStageDuration}>{stage.duration}</Text>
+          </Flex>
+        ))}
+      </View>
+    </View>
+  );
+}
 export default function AllDataPage({ route }: Props) {
   const measureType = (route.params?.type ?? '血压') as VitalsMeasureType;
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
@@ -694,6 +772,7 @@ export default function AllDataPage({ route }: Props) {
   const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
   const [records, setRecords] = useState<MeasureDataItem[]>([]);
   const [wearableRecords, setWearableRecords] = useState<WearableReadingRecord[]>([]);
+  const [sleepRecord, setSleepRecord] = useState<WearableDataItem | undefined>();
   const [loading, setLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
@@ -753,10 +832,12 @@ export default function AllDataPage({ route }: Props) {
           type: WEARABLE_DATA_TYPES.sleep,
         })) as unknown as WearableDataDetailResult;
         if (!isResourceApiOk(res)) {
+          setSleepRecord(undefined);
           setWearableRecords([]);
           return;
         }
         const data = apiResourceData<WearableDataItem>(res);
+        setSleepRecord(data);
         setWearableRecords(buildSleepWearableRecordsFromItem(data, selectedDate));
         return;
       }
@@ -798,6 +879,7 @@ export default function AllDataPage({ route }: Props) {
     } catch {
       setRecords([]);
       setWearableRecords([]);
+      setSleepRecord(undefined);
     } finally {
       setLoading(false);
     }
@@ -897,25 +979,32 @@ export default function AllDataPage({ route }: Props) {
           </View>
         ) : null}
 
-        {!loading && (isWearableType ? wearableRecords.length === 0 : records.length === 0) ? (
+        {!loading && (isSleepType
+          ? !buildAllDataSleepCardData(sleepRecord)
+          : isWearableType
+            ? wearableRecords.length === 0
+            : records.length === 0) ? (
           <View style={styles.emptyBox}>
             <Text style={styles.emptyText}>暂无记录</Text>
           </View>
         ) : null}
 
-        {isWearableType
-          ? wearableRecords.map(item => (
+        {isSleepType ? (
+          <SleepRecordCard item={sleepRecord} />
+        ) : isWearableType ? (
+          wearableRecords.map(item => (
             <WearableRecordCard
               key={item.key}
               item={item}
-              label={item.label ?? wearableConfig?.label ?? (isSleepType ? '睡眠' : ENERGY_WEARABLE_CONFIG.label)}
-              unit={isSleepType ? '小时' : wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
+              label={item.label ?? wearableConfig?.label ?? ENERGY_WEARABLE_CONFIG.label}
+              unit={wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
               showLevel={measureType !== '消耗' && measureType !== '步数'}
               expanded={expandedKey === item.key}
               onToggle={() => setExpandedKey(prev => (prev === item.key ? null : item.key))}
             />
           ))
-          : records.map((item, index) => {
+        ) : (
+          records.map((item, index) => {
             const itemKey = String(item.id ?? `${item.dataTime}-${item.val}-${index}`);
             return (
               <MeasureRecordCard
@@ -928,7 +1017,8 @@ export default function AllDataPage({ route }: Props) {
                 onPress={() => navigation.navigate('AddDataPage', { type: measureType as MeasureDataType, item })}
               />
             );
-          })}
+          })
+        )}
       </ScrollView>
     </PageLayout>
   );

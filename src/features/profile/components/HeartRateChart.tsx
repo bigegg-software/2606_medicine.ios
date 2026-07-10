@@ -9,6 +9,7 @@ import { buildChartXAxis, toChartValuePairs } from './chartAxis';
 
 export type HeartRatePoint = { hour: string; value: number; x?: number };
 
+const LINE_COLOR = '#EE9C44';
 const HOUR_LABELS = ['01:00', '07:00', '12:00', '18:00', '24:00'];
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
@@ -78,8 +79,8 @@ function buildOption(points: HeartRatePoint[], hideXAxis = false) {
         symbol: 'circle',
         symbolSize: 5,
         data: values,
-        lineStyle: { color: '#FF2056', width: 2 },
-        itemStyle: { color: '#FF2056' },
+        lineStyle: { color: LINE_COLOR, width: 2 },
+        itemStyle: { color: LINE_COLOR },
       },
     ],
   };

@@ -10,21 +10,23 @@ import moment from 'moment';
 import styles from '@/css/vitals/bloodPage';
 import { readSelectionPixelX } from './detailChartSelection';
 import type { BloodGlucosePoint } from '@/src/features/profile/components/BloodGlucoseChart';
+import {
+    BLOOD_SUGAR_STATUS_COLORS,
+    buildBloodSugarStatus,
+    mapBloodSugarLevelToChartStatus,
+    type BloodSugarStatus,
+} from '../helpers/bloodSugar';
 
-export type BloodSugarPoint = BloodGlucosePoint & {
+export type BloodSugarPoint = Omit<BloodGlucosePoint, 'status'> & {
     status?: BloodSugarStatus;
     isHigh?: number;
     isLow?: number;
+    statusLabel?: string;
+    dayIndex?: number;
 };
 
-export type BloodSugarStatus = 'low' | 'normal' | 'high';
+export type { BloodSugarStatus };
 export type BloodSugarChartRange = 'today' | 'week' | 'month';
-
-const GLUCOSE_POINT_COLORS: Record<BloodSugarStatus, string> = {
-    low: '#0951AE',
-    normal: '#6D925E',
-    high: '#EE9C44',
-};
 
 const CHART_PADDING = 54;
 const CHART_WIDTH = Dimensions.get('window').width - CHART_PADDING;
@@ -57,9 +59,12 @@ const CHART_TOUCH_HEIGHT = CHART_HEIGHT - GRID_TOP_Y;
 const HIDDEN_AXIS_LABEL = { show: false };
 const TODAY_TICK_HOURS = [0, 6, 12, 18, 24];
 const Y_AXIS_INTERVAL = 2;
+const WEEK_DAY_COUNT = 7;
+const WEEK_X_MAX = WEEK_DAY_COUNT;
 const MONTH_DAY_COUNT = 30;
-const MONTH_X_MAX = MONTH_DAY_COUNT - 1;
+const MONTH_X_MAX = MONTH_DAY_COUNT;
 const MONTH_TICK_INTERVAL = 5;
+const WEEK_LABEL_DIVISOR = WEEK_DAY_COUNT - 1;
 const SLIDER_THUMB_WIDTH = 37;
 const SLIDER_THUMB_HEIGHT = 27;
 const SLIDER_THUMB_TOP = 25;
@@ -177,15 +182,17 @@ const POINT_SHADOW = {
 };
 
 function getPointStatus(point: BloodSugarPoint): BloodSugarStatus {
+    if (point.statusLabel) {
+        const fromLevel = mapBloodSugarLevelToChartStatus(point.statusLabel);
+        if (fromLevel) return fromLevel;
+    }
     if (point.status) return point.status;
-    if (point.isLow === 1) return 'low';
-    if (point.isHigh === 1) return 'high';
-    return 'normal';
+    return buildBloodSugarStatus(point.value, point);
 }
 
 function getPointStyle(point: BloodSugarPoint) {
     return {
-        color: GLUCOSE_POINT_COLORS[getPointStatus(point)],
+        color: BLOOD_SUGAR_STATUS_COLORS[getPointStatus(point)],
         borderColor: '#FFFFFF',
         borderWidth: 2,
         ...POINT_SHADOW,
@@ -248,7 +255,7 @@ function shouldShowCategoryLabel(index: number, total: number) {
 
 function getMonthTickIndices() {
     return Array.from(
-        { length: Math.floor(MONTH_X_MAX / MONTH_TICK_INTERVAL) + 1 },
+        { length: Math.floor((MONTH_DAY_COUNT - 1) / MONTH_TICK_INTERVAL) + 1 },
         (_, index) => index * MONTH_TICK_INTERVAL,
     );
 }
@@ -294,6 +301,13 @@ function getCategoryGridExtensionPositions(range: BloodSugarChartRange, labels: 
         }));
     }
 
+    if (range === 'week') {
+        return Array.from({ length: WEEK_DAY_COUNT + 1 }, (_, index) => ({
+            left: PLOT_LEFT + (index / WEEK_DAY_COUNT) * PLOT_WIDTH,
+            dashed: index !== 0,
+        }));
+    }
+
     const count = labels.length;
     return Array.from({ length: count + 1 }, (_, index) => ({
         left: PLOT_LEFT + (index / count) * PLOT_WIDTH,
@@ -327,18 +341,8 @@ function getDefaultSelectedDataX(
     const validPoints = points.filter(point => point.value > 0);
     if (!validPoints.length) return null;
 
-    if (range === 'today') {
-        const latest = [...validPoints].sort((a, b) => parsePointX(a) - parsePointX(b)).at(-1);
-        return latest ? parsePointX(latest) : null;
-    }
-
-    let latestIndex = -1;
-    points.forEach((point, index) => {
-        if (point.value > 0) {
-            latestIndex = index;
-        }
-    });
-    return latestIndex >= 0 ? latestIndex : null;
+    const latest = [...validPoints].sort((a, b) => parsePointX(a) - parsePointX(b)).at(-1);
+    return latest ? parsePointX(latest) : null;
 }
 
 function dataXToPixelLeft(
@@ -352,6 +356,9 @@ function dataXToPixelLeft(
     if (range === 'today') {
         const clampedX = Math.max(0, Math.min(24, dataX));
         left = PLOT_LEFT + (clampedX / 24) * PLOT_WIDTH;
+    } else if (range === 'week') {
+        const clampedX = Math.max(0, Math.min(WEEK_X_MAX, dataX));
+        left = PLOT_LEFT + (clampedX / WEEK_X_MAX) * PLOT_WIDTH;
     } else if (range === 'month') {
         const clampedX = Math.max(0, Math.min(MONTH_X_MAX, dataX));
         left = PLOT_LEFT + (clampedX / MONTH_X_MAX) * PLOT_WIDTH;
@@ -370,11 +377,11 @@ function buildSelectionMarkLine(
 ) {
     if (selectedDataX == null) return undefined;
 
-    const xAxisValue = range === 'today' || range === 'month'
+    const xAxisValue = range === 'today' || range === 'week' || range === 'month'
         ? selectedDataX
         : labels[Math.round(selectedDataX)];
 
-    if (range !== 'today' && !xAxisValue) return undefined;
+    if (range !== 'today' && range !== 'week' && range !== 'month' && !xAxisValue) return undefined;
 
     return {
         silent: true,
@@ -506,54 +513,28 @@ function findNearestSelectableDataX(
     categoryCount: number,
 ): number | null {
     const validEntries = points
-        .map((point, index) => ({
-            dataX: range === 'today' ? parsePointX(point) : index,
+        .filter(point => point.value > 0)
+        .map(point => ({
+            dataX: parsePointX(point),
             point,
-        }))
-        .filter(({ point }) => point.value > 0);
+        }));
 
     if (!validEntries.length) return null;
 
     const clampedPixelX = Math.max(PLOT_LEFT, Math.min(PLOT_LEFT + PLOT_WIDTH, pixelX));
     const touchDataX = range === 'today'
         ? ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * 24
-        : range === 'month'
-            ? ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * MONTH_X_MAX
-            : ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * categoryCount - 0.5;
+        : range === 'week'
+            ? ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * WEEK_X_MAX
+            : range === 'month'
+                ? ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * MONTH_X_MAX
+                : ((clampedPixelX - PLOT_LEFT) / PLOT_WIDTH) * categoryCount - 0.5;
 
     return validEntries.reduce((nearest, entry) => {
         const currentDistance = Math.abs(entry.dataX - touchDataX);
         const nearestDistance = Math.abs(nearest.dataX - touchDataX);
         return currentDistance < nearestDistance ? entry : nearest;
     }).dataX;
-}
-
-function SelectionTooltip({
-    point,
-    lineLeft,
-}: {
-    point: BloodSugarPoint;
-    lineLeft: number;
-}) {
-    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
-
-    return (
-        <View
-            pointerEvents="none"
-            style={[
-                styles.chartSelectionTip,
-                {
-                    top: GRID_TOP_Y + 6,
-                    left: tipLeft,
-                },
-            ]}
-        >
-            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
-            {point.value > 0 ? (
-                <Text style={styles.chartSelectionTipValue}>{point.value}</Text>
-            ) : null}
-        </View>
-    );
 }
 
 function findPointAtDataX(
@@ -563,77 +544,35 @@ function findPointAtDataX(
 ) {
     if (dataX == null) return undefined;
 
-    if (range === 'today') {
-        return points.find(point => Math.abs(parsePointX(point) - dataX) < 0.001);
-    }
+    const validPoints = points.filter(point => point.value > 0);
+    if (!validPoints.length) return undefined;
 
-    const index = Math.round(dataX);
-    return points[index];
+    return validPoints.reduce((nearest, point) => {
+        const currentDistance = Math.abs(parsePointX(point) - dataX);
+        const nearestDistance = Math.abs(parsePointX(nearest) - dataX);
+        return currentDistance < nearestDistance ? point : nearest;
+    });
 }
 
 function isPointSelected(
-    range: BloodSugarChartRange,
     point: BloodSugarPoint,
-    index: number,
     selectedDataX: number | null,
 ) {
     if (selectedDataX == null) return false;
-    if (range === 'today') {
-        return Math.abs(parsePointX(point) - selectedDataX) < 0.001;
-    }
-    if (range === 'month') {
-        return index === Math.round(selectedDataX);
-    }
-    return index === Math.round(selectedDataX);
+    return Math.abs(parsePointX(point) - selectedDataX) < 0.001;
 }
 
-function buildTodayScatterData(
+function buildScatterData(
     points: BloodSugarPoint[],
-    range: BloodSugarChartRange,
     selectedDataX: number | null,
 ) {
     return points
-        .map((point, index) => {
+        .map(point => {
             if (point.value <= 0) return null;
             return {
                 value: [parsePointX(point), point.value] as [number, number],
                 name: point.hour,
-                symbolSize: isPointSelected(range, point, index, selectedDataX) ? 14 : 12,
-                itemStyle: getPointStyle(point),
-            };
-        })
-        .filter(item => item != null);
-}
-
-function buildCategoryScatterData(
-    points: BloodSugarPoint[],
-    range: BloodSugarChartRange,
-    selectedDataX: number | null,
-) {
-    return points
-        .map((point, index) => {
-            if (point.value <= 0) return null;
-            return {
-                value: [index, point.value] as [number, number],
-                name: point.hour,
-                symbolSize: isPointSelected(range, point, index, selectedDataX) ? 14 : 12,
-                itemStyle: getPointStyle(point),
-            };
-        })
-        .filter(item => item != null);
-}
-
-function buildMonthScatterData(
-    points: BloodSugarPoint[],
-    selectedDataX: number | null,
-) {
-    return points
-        .map((point, index) => {
-            if (point.value <= 0) return null;
-            return {
-                value: [index, point.value] as [number, number],
-                name: point.hour,
-                symbolSize: isPointSelected('month', point, index, selectedDataX) ? 14 : 12,
+                symbolSize: isPointSelected(point, selectedDataX) ? 14 : 12,
                 itemStyle: getPointStyle(point),
             };
         })
@@ -665,9 +604,46 @@ function buildTodayOption(
             {
                 name: 'glucose',
                 type: 'scatter',
-                data: buildTodayScatterData(points, 'today', selectedDataX),
+                clip: false,
+                data: buildScatterData(points, selectedDataX),
                 symbol: 'circle',
                 markLine: buildSelectionMarkLine('today', selectedDataX, []),
+                z: 10,
+            },
+        ],
+    };
+}
+
+function buildWeekOption(
+    points: BloodSugarPoint[],
+    labels: string[],
+    selectedDataX: number | null,
+) {
+    return {
+        animation: false,
+        tooltip: {
+            show: false,
+        },
+        grid: CHART_GRID,
+        xAxis: {
+            type: 'value',
+            min: 0,
+            max: WEEK_X_MAX,
+            interval: 1,
+            axisTick: { show: false },
+            axisLine: { show: false },
+            axisLabel: HIDDEN_AXIS_LABEL,
+            splitLine: GRID_SPLIT_LINE,
+        },
+        yAxis: buildYAxis(points),
+        series: [
+            {
+                name: 'glucose',
+                type: 'scatter',
+                clip: false,
+                data: buildScatterData(points, selectedDataX),
+                symbol: 'circle',
+                markLine: buildSelectionMarkLine('week', selectedDataX, labels),
                 z: 10,
             },
         ],
@@ -700,7 +676,8 @@ function buildMonthOption(
             {
                 name: 'glucose',
                 type: 'scatter',
-                data: buildMonthScatterData(points, selectedDataX),
+                clip: false,
+                data: buildScatterData(points, selectedDataX),
                 symbol: 'circle',
                 markLine: buildSelectionMarkLine('month', selectedDataX, labels),
                 z: 10,
@@ -709,73 +686,77 @@ function buildMonthOption(
     };
 }
 
-function buildCategoryOption(
-    points: BloodSugarPoint[],
-    labels: string[],
-    range: BloodSugarChartRange,
-    selectedDataX: number | null,
-) {
-    return {
-        animation: false,
-        tooltip: {
-            show: false,
-        },
-        grid: CHART_GRID,
-        xAxis: {
-            type: 'category',
-            data: labels,
-            boundaryGap: true,
-            axisTick: { show: false },
-            axisLine: { show: false },
-            axisLabel: HIDDEN_AXIS_LABEL,
-            splitLine: GRID_SPLIT_LINE,
-        },
-        yAxis: buildYAxis(points),
-        series: [
-            {
-                name: 'glucose',
-                type: 'scatter',
-                data: buildCategoryScatterData(points, range, selectedDataX),
-                symbol: 'circle',
-                markLine: buildSelectionMarkLine(range, selectedDataX, labels),
-                z: 10,
-            },
-        ],
-    };
+function getWeekAxisTicks(labels: string[]) {
+    return labels.map((label, index) => ({
+        index,
+        label,
+        left: PLOT_LEFT + (index / WEEK_LABEL_DIVISOR) * PLOT_WIDTH,
+        dashed: index !== 0,
+    }));
 }
 
-function buildGlucoseStatus(value: number): BloodSugarStatus {
-    if (value < 3.9) return 'low';
-    if (value > 6.1) return 'high';
-    return 'normal';
+function WeekXAxisLabels({ labels }: { labels: string[] }) {
+    return getWeekAxisTicks(labels).map(tick => (
+        <Text
+            key={`${tick.label}-${tick.index}`}
+            pointerEvents="none"
+            style={[
+                styles.chartXLabel,
+                {
+                    top: X_LABEL_TOP,
+                    left: tick.left + X_LABEL_LEFT_PADDING,
+                    textAlign: 'left',
+                },
+            ]}
+        >
+            {tick.label}
+        </Text>
+    ));
 }
 
 const TODAY_DEMO_DATA: BloodSugarPoint[] = [
-    { hour: '08:00', value: 6.8, x: 8, status: 'high' },
+    { hour: '08:00', value: 7.2, x: 8, status: 'highRisk' },
     { hour: '12:30', value: 5.2, x: 12.5, status: 'normal' },
-    { hour: '18:00', value: 7.2, x: 18, status: 'high' },
+    { hour: '18:00', value: 6.8, x: 18, status: 'high' },
     { hour: '21:00', value: 3.5, x: 21, status: 'low' },
 ];
 
-const WEEK_DEMO_DATA: BloodSugarPoint[] = getWeekLabels().map((label, index) => {
-    const value = [5.1, 6.8, 4.8, 7.2, 5.5, 3.4, 5.9][index];
-    return {
-        value,
-        hour: label,
-        status: buildGlucoseStatus(value),
-    };
+const WEEK_DEMO_DATA: BloodSugarPoint[] = getWeekLabels().flatMap((label, dayIndex) => {
+    const values = [
+        [5.1, 'normal'],
+        [6.8, 'high'],
+        [4.8, 'normal'],
+        [7.2, 'highRisk'],
+        [5.5, 'normal'],
+        [3.4, 'low'],
+        [5.9, 'normal'],
+    ][dayIndex] as [number, BloodSugarStatus];
+    return [{
+        value: values[0],
+        hour: '08:00',
+        x: dayIndex + 0.33,
+        dayIndex,
+        status: values[1],
+    }, {
+        value: Number((values[0] + 0.4).toFixed(1)),
+        hour: '18:00',
+        x: dayIndex + 0.75,
+        dayIndex,
+        status: values[1] === 'normal' ? 'high' : values[1],
+    }];
 });
 
-const MONTH_DEMO_DATA: BloodSugarPoint[] = getMonthLabels().map((label, index) => {
-    if (index % 5 === 0) {
-        return { value: 0, hour: label };
-    }
-    const value = Number((4.5 + (index % 7) * 0.4).toFixed(1));
-    return {
+const MONTH_DEMO_DATA: BloodSugarPoint[] = getMonthLabels().flatMap((label, dayIndex) => {
+    if (dayIndex % 5 === 0) return [];
+    const value = Number((4.5 + (dayIndex % 7) * 0.4).toFixed(1));
+    const status = buildBloodSugarStatus(value);
+    return [{
         value,
-        hour: label,
-        status: buildGlucoseStatus(value),
-    };
+        hour: '09:00',
+        x: dayIndex + 0.35,
+        dayIndex,
+        status,
+    }];
 });
 
 function getDefaultData(range: BloodSugarChartRange) {
@@ -868,7 +849,7 @@ export default function BloodSugarDetailChart({ range, data, onPointChange }: Pr
         if (range === 'month') {
             return buildMonthOption(points, categoryLabels, selectedDataX);
         }
-        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX);
+        return buildWeekOption(points, categoryLabels, selectedDataX);
     }, [categoryLabels, data, points, range, selectedDataX]);
 
     useEffect(() => {
@@ -924,7 +905,7 @@ export default function BloodSugarDetailChart({ range, data, onPointChange }: Pr
                 ? <TodayXAxisLabels />
                 : range === 'month'
                     ? <MonthXAxisLabels labels={categoryLabels} />
-                    : <CategoryXAxisLabels labels={categoryLabels} />}
+                    : <WeekXAxisLabels labels={categoryLabels} />}
             <ChartSelectionSlider
                 thumbCenterX={displayPixelX}
                 onSelectAtX={selectAtChartX}

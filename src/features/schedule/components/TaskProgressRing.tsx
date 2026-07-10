@@ -7,10 +7,10 @@ const RING_SIZE = 71;
 const STROKE_WIDTH = 8;
 const STROKE_INSET = STROKE_WIDTH / 2;
 const CANVAS_SIZE = RING_SIZE + STROKE_INSET * 2;
-const TRACK_COLOR = '#FFECD7';
-const PROGRESS_COLOR = '#FF8B07';
+const TRACK_COLOR = '#ECF3FF';
 const COMPLETE_COLOR = '#00B388';
-const OUTER_BG = '#F1F6FF';
+const DEFAULT_PROGRESS_COLOR = '#6D925E';
+const OUTER_BG = '#FFFFFF';
 
 const RING_RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
 const CANVAS_CENTER = CANVAS_SIZE / 2;
@@ -27,12 +27,16 @@ function getProgressDotPosition(progressPercent: number) {
 
 interface TaskProgressRingProps {
   progress: number;
+  progressColor?: string;
 }
 
-export default function TaskProgressRing({ progress }: TaskProgressRingProps) {
+export default function TaskProgressRing({
+  progress,
+  progressColor = DEFAULT_PROGRESS_COLOR,
+}: TaskProgressRingProps) {
   const value = Math.min(100, Math.max(0, Math.round(progress)));
   const isComplete = value >= 100;
-  const progressColor = isComplete ? COMPLETE_COLOR : PROGRESS_COLOR;
+  const activeColor = isComplete ? COMPLETE_COLOR : progressColor;
 
   const progressSweep = value >= 100 ? 360 : (360 * value) / 100;
 
@@ -69,7 +73,7 @@ export default function TaskProgressRing({ progress }: TaskProgressRingProps) {
           {value > 0 ? (
             <Path
               path={progressPath}
-              color={progressColor}
+              color={activeColor}
               style="stroke"
               strokeWidth={STROKE_WIDTH}
               strokeCap="round"
@@ -79,12 +83,12 @@ export default function TaskProgressRing({ progress }: TaskProgressRingProps) {
               cx={dotPosition.x}
               cy={dotPosition.y}
               r={STROKE_WIDTH / 2}
-              color={progressColor}
+              color={activeColor}
             />
           )}
           <Circle cx={dotPosition.x} cy={dotPosition.y} r={DOT_SIZE / 2} color="#FFFFFF" />
         </Canvas>
-        <Text style={[styles.percentText, isComplete && styles.percentTextComplete]}>{value}%</Text>
+        <Text style={[styles.percentText, { color: activeColor }]}>{value}%</Text>
       </View>
     </View>
   );
@@ -99,6 +103,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'visible',
+     shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 0,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+
   },
   ring: {
     width: RING_SIZE,
@@ -124,9 +136,5 @@ const styles = StyleSheet.create({
   percentText: {
     fontWeight: '600',
     fontSize: 16,
-    color: PROGRESS_COLOR,
-  },
-  percentTextComplete: {
-    color: COMPLETE_COLOR,
   },
 });

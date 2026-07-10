@@ -6,6 +6,7 @@ import {
 import { getLevelColor } from '../../vitalLevelColors';
 import {
   collectHeartRateReadings,
+  collectRestingHeartRateReadings,
   filterWearableItemsInRange,
   getLatestWearableItem,
   getWearableDate,
@@ -13,6 +14,7 @@ import {
   mapDetailChartRangeToVitalsRange,
   parseMeasureNumber,
   parseWearableHeartRateValue,
+  parseWearableRestingHeartRateValue,
 } from './shared';
 
 export type HeartRateDetailChartRange = 'today' | 'week' | 'month';
@@ -170,14 +172,71 @@ export function formatHeartRateDetailPointDisplay(
   };
 }
 
-export function calcHeartRateDetailStats(items: WearableDataItem[], range: HeartRateDetailChartRange) {
+function getRestingHeartRateDayValues(dayItems: WearableDataItem[]) {
+  const readings = collectRestingHeartRateReadings(dayItems);
+  if (readings.length) {
+    return readings.map(reading => reading.value);
+  }
+
+  const values: number[] = [];
+  dayItems.forEach(item => {
+    const value = parseWearableRestingHeartRateValue(item);
+    if (value != null && value > 0) values.push(value);
+  });
+  return values;
+}
+
+function getRestingHeartRateDayMinMax(dayItems: WearableDataItem[]) {
+  const values = getRestingHeartRateDayValues(dayItems);
+  if (!values.length) return null;
+  return {
+    min: Math.min(...values),
+    max: Math.max(...values),
+  };
+}
+
+export function resolveRestingHeartRateDisplay(
+  items: WearableDataItem[],
+  range: HeartRateDetailChartRange = 'today',
+) {
+  if (!items.length) return '--';
+
   const vitalsRange = mapDetailChartRangeToVitalsRange(range);
   const rangedItems = filterWearableItemsInRange(items, vitalsRange);
 
-  const latestItem = range === 'today'
-    ? getTodayWearableItem(rangedItems) ?? getLatestWearableItem(rangedItems)
-    : getLatestWearableItem(rangedItems);
-  const restingHeartRate = parseMeasureNumber(latestItem?.restingHeartRate);
+  if (range === 'week' || range === 'month') {
+    const dayCount = range === 'week' ? 7 : 30;
+    const dayMinMaxList: Array<{ min: number; max: number }> = [];
+
+    for (let index = 0; index < dayCount; index += 1) {
+      const day = moment().subtract(dayCount - 1 - index, 'days');
+      const dayItems = rangedItems.filter(item => getWearableDate(item).isSame(day, 'day'));
+      const minMax = getRestingHeartRateDayMinMax(dayItems);
+      if (minMax) dayMinMaxList.push(minMax);
+    }
+
+    if (!dayMinMaxList.length) return '--';
+
+    const values = dayMinMaxList.flatMap(day => [day.min, day.max]);
+    const minValue = Math.min(...values);
+    const maxValue = Math.max(...values);
+    return minValue === maxValue ? String(minValue) : `${minValue}-${maxValue}`;
+  }
+
+  const latestItem = getTodayWearableItem(rangedItems) ?? getLatestWearableItem(rangedItems);
+  const readings = collectRestingHeartRateReadings(rangedItems);
+  const value = readings.at(-1)?.value ?? parseWearableRestingHeartRateValue(latestItem);
+  return value != null ? String(value) : '--';
+}
+
+export function calcHeartRateDetailStats(
+  items: WearableDataItem[],
+  restingItems: WearableDataItem[],
+  range: HeartRateDetailChartRange,
+) {
+  const vitalsRange = mapDetailChartRangeToVitalsRange(range);
+  const rangedItems = filterWearableItemsInRange(items, vitalsRange);
+  const restingHeartRate = resolveRestingHeartRateDisplay(restingItems, range);
 
   if (range === 'week' || range === 'month') {
     const dayCount = range === 'week' ? 7 : 30;
@@ -190,7 +249,7 @@ export function calcHeartRateDetailStats(items: WearableDataItem[], range: Heart
       if (minMax) dayMinMaxList.push(minMax);
     }
 
-    if (!dayMinMaxList.length && restingHeartRate == null) {
+    if (!dayMinMaxList.length && restingHeartRate === '--') {
       return null;
     }
 
@@ -200,9 +259,7 @@ export function calcHeartRateDetailStats(items: WearableDataItem[], range: Heart
 
     return {
       rangeText: minValue != null && maxValue != null ? `${minValue}-${maxValue}` : '--',
-      restingHeartRate: restingHeartRate != null ? String(Math.round(restingHeartRate)) : '--',
-      highCount: dayMinMaxList.filter(day => day.max > 100).length,
-      lowCount: dayMinMaxList.filter(day => day.min < 60).length,
+      restingHeartRate,
       periodLabel: getHeartRateStatsPeriodLabel(range),
     };
   }
@@ -217,7 +274,7 @@ export function calcHeartRateDetailStats(items: WearableDataItem[], range: Heart
     if (max != null && max > 0) values.push(Math.round(max));
   });
 
-  if (!values.length && restingHeartRate == null) {
+  if (!values.length && restingHeartRate === '--') {
     return null;
   }
 
@@ -226,9 +283,7 @@ export function calcHeartRateDetailStats(items: WearableDataItem[], range: Heart
 
   return {
     rangeText: minValue != null && maxValue != null ? `${minValue}-${maxValue}` : '--',
-    restingHeartRate: restingHeartRate != null ? String(Math.round(restingHeartRate)) : '--',
-    highCount: readings.filter(reading => reading.value > 100).length,
-    lowCount: readings.filter(reading => reading.value < 60).length,
+    restingHeartRate,
     periodLabel: getHeartRateStatsPeriodLabel(range),
   };
 }

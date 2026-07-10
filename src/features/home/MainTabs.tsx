@@ -50,6 +50,18 @@ export default function MainTabs() {
     () => ({ fontSize: scaleSize(14), fontWeight: '600' as const }),
     [scaleSize],
   );
+  const tabBarStyle = useMemo(
+    () => ({
+      backgroundColor: '#FFFFFF',
+      borderTopWidth: 0,
+      elevation: 3,
+      shadowColor: '#000000',
+      shadowOffset: { width: 0, height: -3 },
+      shadowOpacity: 0.04,
+      shadowRadius: 3,
+    }),
+    [],
+  );
 
   const syncMainTabTitle = (routeName: string) => {
     const title = routeName === 'Home' ? '' : getMainTabTitle(routeName);
@@ -96,6 +108,7 @@ export default function MainTabs() {
         tabBarActiveTintColor: AppTheme.primaryColor,
         tabBarInactiveTintColor: AppTheme.textSecondary,
         tabBarLabelStyle,
+        tabBarStyle,
       }}>
       <Tab.Screen
         name="Home"

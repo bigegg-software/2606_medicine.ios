@@ -9,8 +9,10 @@ import PageHeader from './components/pageHeader';
 import HeartRateDetailChart, { type HeartRateChartRange, type HeartRatePoint } from './components/HeartRateDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
+    getHeartRateAbnormalCount,
     getWearableDataDetailByDateRange,
     WEARABLE_DATA_TYPES,
+    type HeartRateAbnormalCount,
     type WearableDataItem,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -65,12 +67,27 @@ export default function VitalsPage() {
     const loadHeartRateData = useCallback(async (range: HeartRateChartRange) => {
         try {
             const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
-            const res = (await getWearableDataDetailByDateRange({
-                startDate,
-                endDate,
-                type: WEARABLE_DATA_TYPES.heartRate,
-                ...getWearableReturnOriginalDataParam(range),
-            })) as unknown as { code?: number; data?: WearableDataItem[] };
+            const originalDataParam = getWearableReturnOriginalDataParam(range);
+            const [heartRateRes, restingHeartRateRes, abnormalCountRes] = await Promise.all([
+                getWearableDataDetailByDateRange({
+                    startDate,
+                    endDate,
+                    type: WEARABLE_DATA_TYPES.heartRate,
+                    ...originalDataParam,
+                }),
+                getWearableDataDetailByDateRange({
+                    startDate,
+                    endDate,
+                    type: WEARABLE_DATA_TYPES.restingHeartRate,
+                    ...originalDataParam,
+                }),
+                getHeartRateAbnormalCount({
+                    startDate,
+                    endDate,
+                    ...originalDataParam,
+                }),
+            ]);
+            const res = heartRateRes as unknown as { code?: number; data?: WearableDataItem[] };
 
             if (!isResourceApiOk(res)) {
                 setChartData([]);
@@ -84,7 +101,14 @@ export default function VitalsPage() {
             }
 
             const items = sortWearableItems(apiResourceData<WearableDataItem[]>(res) ?? []);
-            const periodStats = calcHeartRateDetailStats(items, range);
+            const restingRes = restingHeartRateRes as unknown as { code?: number; data?: WearableDataItem[] };
+            const restingItems = isResourceApiOk(restingRes)
+                ? sortWearableItems(apiResourceData<WearableDataItem[]>(restingRes) ?? [])
+                : [];
+            const periodStats = calcHeartRateDetailStats(items, restingItems, range);
+            const abnormalCount = isResourceApiOk(abnormalCountRes as { code?: number })
+                ? apiResourceData<HeartRateAbnormalCount>(abnormalCountRes as { code?: number; data?: HeartRateAbnormalCount })
+                : null;
 
             if (range === 'today') {
                 setChartData(buildHeartRateDetailTodaySeries(items));
@@ -96,13 +120,15 @@ export default function VitalsPage() {
                 setStats({
                     rangeText: periodStats.rangeText,
                     restingHeartRate: periodStats.restingHeartRate,
-                    highCount: periodStats.highCount,
-                    lowCount: periodStats.lowCount,
+                    highCount: abnormalCount?.highCount ?? null,
+                    lowCount: abnormalCount?.lowCount ?? null,
                     periodLabel: periodStats.periodLabel,
                 });
             } else {
                 setStats({
                     ...EMPTY_STATS,
+                    highCount: abnormalCount?.highCount ?? null,
+                    lowCount: abnormalCount?.lowCount ?? null,
                     periodLabel: range === 'week' ? '近7天' : range === 'month' ? '近30天' : '今日区间',
                 });
             }
@@ -140,17 +166,17 @@ export default function VitalsPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 24 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>
-                                {selectedType === 'today' ? '心率（次/分）' : '平均心率（次/分）'}
-                            </Text>
+                            <Text style={styles.rowTitle}>心率（次/分）</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}

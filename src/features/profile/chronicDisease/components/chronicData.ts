@@ -1,6 +1,6 @@
 import moment from 'moment';
 import { getMeasureDataDetailByDateRange, type MeasureDataDayGroup, type MeasureDataItem, type MeasureDataType } from '@/api/measureData';
-import { getWearableDataDetailByDateRange, type WearableDataItem, type WearableDataType } from '@/api/wearableData';
+import { getWearableDataDetailByDateRange, WEARABLE_DATA_TYPES, type WearableDataItem, type WearableDataType } from '@/api/wearableData';
 import { getIndexMedicationPlanGroupByTime, type IndexMedicationPlanGroupItem } from '@/api/medicationPlan';
 import { getChronicDiseaseInfo, type ChronicDiseaseRecord } from '@/api/chronicDisease';
 import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
@@ -19,6 +19,7 @@ import type { BloodPressurePoint } from '../../components/BloodPressureChart';
 import type { BloodGlucosePoint } from '../../components/BloodGlucoseChart';
 import type { BloodOxygenPoint } from '../../components/BloodOxygenChart';
 import type { HeartRatePoint } from '../../components/HeartRateChart';
+import { collectRestingHeartRateReadings } from '@/src/features/profile/vitals/detail/helpers/shared';
 import {
     loadMedicationDictMaps,
     loadMedicationPlanGroups,
@@ -254,6 +255,7 @@ function computeStats(
     measureItems: MeasureDataItem[],
     secondaryMeasureItems: MeasureDataItem[],
     wearableItems: WearableDataItem[],
+    restingWearableItems: WearableDataItem[] = [],
 ): TrendStats {
     const stats: TrendStats = {};
 
@@ -302,11 +304,12 @@ function computeStats(
     if (config.chartKind === 'heartRate') {
         const heartSeries = buildWearableHeartRateSeries(wearableItems, '30Days');
         const heartValues = heartSeries.map(item => item.value).filter(v => v > 0);
+        const restingValues = collectRestingHeartRateReadings(restingWearableItems).map(item => item.value);
         const bpReadings = secondaryMeasureItems
             .map(item => ({ high: parseMeasureNumber(item.val), low: parseMeasureNumber(item.val2) }))
             .filter((item): item is { high: number; low: number } => item.high != null && item.low != null && item.high > 0 && item.low > 0);
-        stats.avgRestingHeartRate = heartValues.length
-            ? String(Math.round(heartValues.reduce((sum, v) => sum + v, 0) / heartValues.length))
+        stats.avgRestingHeartRate = restingValues.length
+            ? String(Math.round(restingValues.reduce((sum, v) => sum + v, 0) / restingValues.length))
             : '--';
         stats.heartRateComplianceRate = heartValues.length
             ? formatPercent(heartValues.filter(v => v >= 60 && v <= 100).length, heartValues.length)
@@ -538,6 +541,7 @@ export async function loadChronicIndexIndicators(
         const config = resolveDiseaseTrendConfig(record.diseaseType, labelMap);
         if (config.measureType) measureTypes.add(config.measureType);
         if (config.wearableType) wearableTypes.add(config.wearableType);
+        if (config.chartKind === 'heartRate') wearableTypes.add(WEARABLE_DATA_TYPES.restingHeartRate);
     });
 
     const [planGroups, todayMealList, measureTodayEntries, wearableTodayEntries, measureWeekEntries, wearableWeekEntries] =
@@ -609,10 +613,13 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
             : null;
     const config = resolveDiseaseTrendConfig(record?.diseaseType, labelMap);
 
-    const [measureItems, secondaryMeasureItems, wearableItems] = await Promise.all([
+    const [measureItems, secondaryMeasureItems, wearableItems, restingWearableItems] = await Promise.all([
         config.measureType ? loadMeasureItems(config.measureType) : Promise.resolve([]),
         config.secondaryMeasureType ? loadMeasureItems(config.secondaryMeasureType) : Promise.resolve([]),
         config.wearableType ? loadWearableItems(config.wearableType) : Promise.resolve([]),
+        config.chartKind === 'heartRate'
+            ? loadWearableItems(WEARABLE_DATA_TYPES.restingHeartRate)
+            : Promise.resolve([]),
     ]);
 
     const chartLabels = getMonthChartLabels();
@@ -660,7 +667,7 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
         bloodPressureSeries,
         singleValueSeries,
         ldlSeries,
-        stats: computeStats(config, measureItems, secondaryMeasureItems, wearableItems),
+        stats: computeStats(config, measureItems, secondaryMeasureItems, wearableItems, restingWearableItems),
         todayOverview,
         associatedMedications: buildAssociatedMedicationRows(record, todayGroups),
         controlStatus: resolveChronicDiseaseControlStatusFromData(config, measureItems, wearableItems),

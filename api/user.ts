@@ -60,6 +60,9 @@ export type UserExtr = {
   isSendSysMsg?: number;
   autoSyncData?: number;
   synWdataDays?: number;
+  authStatus?: number;
+  wearableDeviceBound?: number;
+  healthIndexShowList?: string[];
 };
 
 export type UserInfoData = {
@@ -99,6 +102,7 @@ export type UpdateExtrInfoPayload = {
   autoSyncData?: number;
   synWdataDays?: number;
   countryCode?: string;
+  healthIndexShowList?: string[];
 };
 
 export const updateExtrInfo = (data: UpdateExtrInfoPayload) =>

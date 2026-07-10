@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, ImageBackground } from 'react-native';
 import { GlassView } from 'expo-glass-effect';
 import { Flex } from '@ant-design/react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
@@ -51,6 +51,9 @@ const EMPTY_WEEK_STATS: ScheduleWeekStats = {
   trainingCount: '--',
   completionRate: '--',
   totalDuration: '--',
+  trainingDone: '--',
+  trainingTotal: '',
+  durationMinutes: '--',
 };
 
 function ScheduleWeekDayCell({
@@ -63,10 +66,11 @@ function ScheduleWeekDayCell({
   const isToday = item.date.isSame(moment(), 'day');
   const isFuture = item.date.isAfter(moment(), 'day');
   const label = WEEK_LABELS[item.date.day()];
+  const dayLabel = isToday ? '今' : String(item.date.date());
 
   const renderPlainDate = () => (
     <Flex justify='center' style={styles.dayTimeBox}>
-      <Text style={[styles.dayTime, styles.dayTimeColor]}>{item.date.date()}</Text>
+      <Text style={[styles.dayTime, styles.dayTimeColor]}>{dayLabel}</Text>
     </Flex>
   );
 
@@ -78,7 +82,7 @@ function ScheduleWeekDayCell({
     if (isToday) {
       return (
         <Flex justify='center' style={[styles.dayTimeBox, styles.dayTimeToday]}>
-          <Text style={[styles.dayTime, styles.dayTimeBadgeText]}>{item.date.date()}</Text>
+          <Text style={[styles.dayTime, styles.dayTimeBadgeText]}>今</Text>
         </Flex>
       );
     }
@@ -89,9 +93,7 @@ function ScheduleWeekDayCell({
 
     if (item.completed) {
       return (
-        <Flex justify='center' align='center' style={[styles.dayTimeBox, styles.dayTimeCompleted]}>
-          <Text style={styles.dayTimeBadgeText}>✓</Text>
-        </Flex>
+        <Image source={require('@/assets/images/schedule/wc.png')} style={styles.dayTimeBox} />
       );
     }
 
@@ -110,7 +112,7 @@ function ScheduleWeekDayCell({
     <Flex
       direction="column"
       justify="center"
-      style={[styles.dayCol, isToday && styles.dayColAcitve]}>
+      style={styles.dayCol}>
       <Text style={styles.dayText}>{label}</Text>
       {renderDayContent()}
     </Flex>
@@ -276,8 +278,7 @@ export default function SchedulePage() {
     <TabPageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.glassCardWrap}>
-          <GlassView style={styles.glassCard} glassEffectStyle="regular" tintColor="#F8FAFF">
-            <View style={styles.glassCardHighlight} pointerEvents="none" />
+          <View style={styles.glassCard}>
             <Flex justify="between" align="center">
               <Text style={styles.glassCardTitle} numberOfLines={1}>
                 {prescription?.prescriptionName?.trim() || '暂无运动处方'}
@@ -286,31 +287,38 @@ export default function SchedulePage() {
                 <Text style={styles.statusText}>{getInUseStatusText(prescription)}</Text>
               </Flex>
             </Flex>
-            <Flex justify="between" style={{ marginTop: 20 }}>
-              <View>
-                <Flex style={styles.colBox}>
-                  <Image style={styles.iconImg} source={require('@/assets/images/schedule/icon1.png')} />
-                  <Text style={styles.colTitle}>周期：</Text>
-                  <Text style={styles.colText}>
-                    {formatPrescriptionCycleDays(prescription?.startDate, prescription?.endDate)}
-                  </Text>
+            <Flex direction="column" justify='center' style={{ marginTop: 20, width: "100%" }}>
+              <MilestoneRings />
+
+              <Flex justify="between" style={styles.colRow}>
+                <Flex align="start" style={styles.colBox}>
+                  <View style={styles.colIcon} />
+                  <View>
+                    <Text style={styles.colTitle}>周期(天)</Text>
+                    <Text style={styles.colText}>
+                      {formatPrescriptionCycleDays(prescription?.startDate, prescription?.endDate)}
+                    </Text>
+                  </View>
                 </Flex>
-                <Flex style={styles.colBox}>
-                  <Image style={styles.iconImg} source={require('@/assets/images/schedule/icon2.png')} />
-                  <Text style={styles.colTitle}>目标：</Text>
-                  <Text style={styles.colText} numberOfLines={1}>
-                    {prescription?.diagnosis?.trim() || '--'}
-                  </Text>
+                <Flex align="start" style={styles.colBox}>
+                  <View style={styles.colIcon} />
+                  <View>
+                    <Text style={styles.colTitle}>目标</Text>
+                    <Text style={styles.colText} numberOfLines={1}>
+                      {prescription?.diagnosis?.trim() || '--'}
+                    </Text>
+                  </View>
                 </Flex>
-                <Flex style={styles.colBox}>
-                  <Image style={styles.iconImg} source={require('@/assets/images/schedule/icon3.png')} />
-                  <Text style={styles.colTitle}>完成：</Text>
-                  <Text style={styles.colText}>{prescriptionProgress}%</Text>
+                <Flex align="start" style={styles.colBox}>
+                  <View style={styles.colIcon} />
+                  <View>
+                    <Text style={styles.colTitle}>整体进度</Text>
+                    <Text style={styles.colText}>{prescriptionProgress}%</Text>
+                  </View>
                 </Flex>
-              </View>
-              <MilestoneRings progress={ringProgress} />
+              </Flex>
             </Flex>
-          </GlassView>
+          </View>
 
           {prescriptionLoading ? (
             <View style={{ marginTop: 16, alignItems: 'center' }}>
@@ -324,11 +332,13 @@ export default function SchedulePage() {
             </View>
           ) : null}
 
+
+
           {goalItems.length > 0 ? (
-            <>
-              <Flex style={styles.titleBox}>
-                <View style={styles.borderBox}></View>
-                <Text style={styles.titleText}>目标分解</Text>
+
+            <View style={styles.rowBox}>
+              <Flex justify="between" align="center">
+                <Text style={styles.glassCardTitle}>目标分解</Text>
               </Flex>
 
               <ScrollView horizontal={true} showsHorizontalScrollIndicator={false} style={styles.scrollBox}>
@@ -352,7 +362,7 @@ export default function SchedulePage() {
                       item.assessmentType === 'health_indicator_type' &&
                       item.assessmentValue === 'xueZhi'
                     ) {
-                      navigation.navigate('VitalsPage');
+                      navigation.navigate('BloodLipidPage');
                     } else if (
                       item.assessmentType === 'health_indicator_type' &&
                       item.assessmentValue === 'tiZhong'
@@ -373,145 +383,162 @@ export default function SchedulePage() {
                   </TouchableOpacity>
                 ))}
               </ScrollView>
-            </>
-          ) : null}
+            </View>
 
-          {todayTasks.length > 0 ? (
-            <>
-              <Flex style={styles.titleBox}>
-                <View style={styles.borderBox}></View>
-                <Text style={styles.titleText}>今日任务</Text>
-              </Flex>
-              <Flex wrap="wrap" justify='between' style={styles.tasksBox}>
-                {todayTasks.map((task, index) => (
-                  <TouchableOpacity
-                    style={styles.tasksCol}
-                    key={task.key}
-                    onPress={() => {
-                      const rule = prescription?.ruleRatioList?.[index];
-                      navigation.navigate('PlayerPage', {
-                        exerciseType: rule?.exerciseType,
-                        exerciseChildType: rule?.exerciseChildType,
-                        strengthLevel: rule?.strengthLevel,
-                        taskIndex: index,
-                      });
-                    }}>
-                    <Flex>
-                      <Image style={styles.exerciseImg} source={task.icon} />
-                      <Text style={styles.tasksTitle}>{task.title}</Text>
-                    </Flex>
-                    <Text style={styles.tasksIntro}>{task.intro}</Text>
-
-                    <View style={styles.taskProgressWrap}>
-                      <TaskProgressRing progress={task.progress} />
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </Flex>
-            </>
           ) : null}
 
 
+          {todayTasks.length > 0 ? (<View style={styles.rowBox}>
+            <Text style={styles.glassCardTitle}>今日任务</Text>
 
-          <Flex justify='between' style={styles.titleBox}>
-            <Flex>
-              <View style={styles.borderBox}></View>
-              <Text style={styles.titleText}>本周训练统计</Text>
+            <View style={styles.tasksBox}>
+              {todayTasks.map((task, index) => (
+                <TouchableOpacity
+                  style={styles.tasksCol}
+                  key={task.key}
+                  onPress={() => {
+                    const rule = prescription?.ruleRatioList?.[index];
+                    navigation.navigate('PlayerPage', {
+                      exerciseType: rule?.exerciseType,
+                      exerciseChildType: rule?.exerciseChildType,
+                      strengthLevel: rule?.strengthLevel,
+                      taskIndex: index,
+                    });
+                  }}>
+                  <Flex>
+                    <Image style={styles.exerciseImg} source={task.icon} />
+                    <Text style={styles.tasksTitle}>{task.title}</Text>
+                  </Flex>
+                  <Text style={styles.tasksIntro}>{task.intro}</Text>
+
+                  <View style={styles.taskProgressWrap}>
+                    <TaskProgressRing progress={task.progress} progressColor={task.progressColor} />
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          ) : null}
+
+
+          <View style={styles.rowBox}>
+            <Flex justify="between" align="center">
+              <Text style={styles.glassCardTitle}>本周训练统计</Text>
+              {prescription ? (
+                <TouchableOpacity
+                  onPress={() => {
+                    const ruleId = prescription.exPatientRuleId;
+                    if (ruleId == null || ruleId === '') return;
+                    navigation.navigate('TrainingStatsPage', {
+                      exPatientRuleId: String(ruleId),
+                      startDate: prescription.startDate,
+                      endDate: prescription.endDate,
+                    });
+                  }}>
+                  <Flex>
+                    <Text style={styles.allBtn}>全部训练统计</Text>
+                    <Image style={{ width: 5, height: 9 }} source={require('@/assets/images/schedule/right.png')} />
+                  </Flex>
+                </TouchableOpacity>
+              ) : null}
+
             </Flex>
 
-            {prescription ? (
+            <Flex justify="between" style={styles.dayBox}>
+              {weekDays.map(item => (
+                <ScheduleWeekDayCell
+                  key={item.date.format('YYYY-MM-DD')}
+                  item={item}
+                  inPrescriptionRange={isDateInPrescriptionRange(
+                    item.date,
+                    prescription?.startDate,
+                    prescription?.endDate,
+                  )}
+                />
+              ))}
+            </Flex>
+
+            <Flex style={styles.statRow} justify='between'>
+              <Flex direction='column' style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {weekStats.trainingDone}
+                  {weekStats.trainingTotal ? (
+                    <Text style={styles.statValue_1}>/{weekStats.trainingTotal}</Text>
+                  ) : null}
+                </Text>
+                <Text style={styles.statTitle}>训练次数</Text>
+              </Flex>
+              <Flex direction='column' style={styles.statBox}>
+                <Text style={styles.statValue}>{weekStats.completionRate}</Text>
+                <Text style={styles.statTitle}>完成率</Text>
+              </Flex>
+              <Flex direction='column' style={styles.statBox}>
+                <Text style={styles.statValue}>
+                  {weekStats.durationMinutes}
+                  {weekStats.durationMinutes !== '--' ? (
+                    <Text style={[styles.statValue_1, { fontSize: 14 }]}>(分钟)</Text>
+                  ) : null}
+                </Text>
+                <Text style={styles.statTitle}>累计时长</Text>
+              </Flex>
+            </Flex>
+          </View>
+
+          <View style={styles.rowBox}>
+            <Flex justify="between" align="center">
+              <Text style={styles.glassCardTitle}>历史计划</Text>
+              {historyTotal > 0 ? (
+                <TouchableOpacity onPress={() => navigation.navigate('ScheduleHistoryPage')}>
+                  <Flex>
+                    <Text style={styles.allBtn}>全部计划</Text>
+                    <Image style={{ width: 5, height: 9 }} source={require('@/assets/images/schedule/right.png')} />
+                  </Flex>
+                </TouchableOpacity>
+              ) : null}
+            </Flex>
+            {historyLoading ? (
+              <View style={[styles.medicalBox, { alignItems: 'center' }]}>
+                <ActivityIndicator color={AppTheme.primaryColor} />
+              </View>
+            ) : null}
+
+            {!historyLoading && historyItems.length === 0 ? (
+              <View style={styles.medicalBox}>
+                <Text style={[styles.leftText, { marginTop: 0 }]}>暂无历史计划</Text>
+              </View>
+            ) : null}
+
+            {historyItems.map(item => (
               <TouchableOpacity
+                key={String(item.id)}
+                activeOpacity={0.7}
                 onPress={() => {
-                  const ruleId = prescription.exPatientRuleId;
-                  if (ruleId == null || ruleId === '') return;
-                  navigation.navigate('TrainingStatsPage', {
-                    exPatientRuleId: String(ruleId),
-                    startDate: prescription.startDate,
-                    endDate: prescription.endDate,
+                  navigation.navigate('ScheduleHistoryDetailPage', {
+                    exPatientRuleId: String(item.id),
                   });
                 }}>
-                <Text style={styles.allBtn}>全部</Text>
+                <ImageBackground
+                  source={require('@/assets/images/schedule/back.png')}
+                  style={styles.medicalBox}
+                  imageStyle={styles.medicalBackImg}>
+                  <Flex justify='between' align='center'>
+                    <View style={{ flex: 1, paddingRight: 12 }}>
+                      <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
+                      <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
+                      {item.status === 1 && item.stopReason ? (
+                        <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
+                      ) : null}
+                    </View>
+                    <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
+                      <Text style={item.status === 2 ? styles.yjsText : styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
+                    </Flex>
+                  </Flex>
+                </ImageBackground>
               </TouchableOpacity>
-            ) : null}
-          </Flex>
-
-          <Flex justify="between" style={styles.dayBox}>
-            {weekDays.map(item => (
-              <ScheduleWeekDayCell
-                key={item.date.format('YYYY-MM-DD')}
-                item={item}
-                inPrescriptionRange={isDateInPrescriptionRange(
-                  item.date,
-                  prescription?.startDate,
-                  prescription?.endDate,
-                )}
-              />
             ))}
-          </Flex>
 
-          <Flex style={styles.statRow}>
-            <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
-              <Text style={styles.statValue}>{weekStats.trainingCount}</Text>
-              <Text style={styles.statTitle}>训练次数</Text>
-            </Flex>
-            <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
-              <Text style={styles.statValue}>{weekStats.completionRate}</Text>
-              <Text style={styles.statTitle}>完成率</Text>
-            </Flex>
-            <Flex direction='column' style={[styles.medicalBox, styles.statBox]}>
-              <Text style={styles.statValue}>{weekStats.totalDuration}</Text>
-              <Text style={styles.statTitle}>累计时长</Text>
-            </Flex>
-          </Flex>
-
-          <Flex justify='between' style={styles.titleBox}>
-            <Flex>
-              <View style={styles.borderBox}></View>
-              <Text style={styles.titleText}>历史计划</Text>
-            </Flex>
-            {/* navigation.navigate('ExercisePage') */}
-            {historyTotal > 0 ? (
-              <TouchableOpacity onPress={() => navigation.navigate('ScheduleHistoryPage')}>
-                <Text style={styles.allBtn}>全部</Text>
-              </TouchableOpacity>
-            ) : null}
-          </Flex>
-
-          {historyLoading ? (
-            <View style={[styles.medicalBox, { alignItems: 'center' }]}>
-              <ActivityIndicator color={AppTheme.primaryColor} />
-            </View>
-          ) : null}
-
-          {!historyLoading && historyItems.length === 0 ? (
-            <View style={styles.medicalBox}>
-              <Text style={[styles.leftText, { marginTop: 0 }]}>暂无历史计划</Text>
-            </View>
-          ) : null}
-
-          {historyItems.map(item => (
-            <TouchableOpacity
-              key={String(item.id)}
-              activeOpacity={0.7}
-              onPress={() => {
-                navigation.navigate('ScheduleHistoryDetailPage', {
-                  exPatientRuleId: String(item.id),
-                });
-              }}>
-              <Flex justify='between' style={styles.medicalBox}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
-                  <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
-                  {item.status === 1 && item.stopReason ? (
-                    <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
-                  ) : null}
-                </View>
-                <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
-                  <Text style={styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
-                </Flex>
-              </Flex>
-            </TouchableOpacity>
-          ))}
+          </View>
 
         </View>
       </ScrollView>

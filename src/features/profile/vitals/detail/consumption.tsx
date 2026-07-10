@@ -170,15 +170,17 @@ export default function ConsumptionPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>(千卡)</Text>
+                            <Text style={styles.rowTitle}>消耗（千卡）</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}

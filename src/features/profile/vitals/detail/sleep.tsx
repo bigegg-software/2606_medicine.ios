@@ -188,19 +188,22 @@ export default function SleepPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         {isTodayView ? (
                             <>
                                 <Text style={styles.rowTitle}>夜间睡眠</Text>
                                 <Text style={styles.rowLeftValue}>{displayDuration}</Text>
                                 <Flex justify='between'>
-                                    <Text style={styles.rowTitle}>{suggestionLabel}</Text>
+                                    <Text style={styles.rowTitle}>建议时长：7-9小时</Text>
                                     <Flex style={styles.dayBox}>
                                         <Text style={styles.dayText}>{currentLabel}</Text>
                                     </Flex>
@@ -242,28 +245,32 @@ export default function SleepPage() {
                         )}
                     </View>
 
-                    <Flex style={[styles.colRow, { marginTop: 30 }]}>
-                        <View style={styles.colBox}>
-                            <Text style={styles.rowTitle}>总睡眠时长</Text>
-                            <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.totalSleep}</Text>
-                        </View>
-                        <View style={styles.colBox}>
-                            <Text style={styles.rowTitle}>日均睡眠时长</Text>
-                            <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.dailyAverage}</Text>
-                        </View>
-                    </Flex>
+                    {!isTodayView ? (
+                        <>
+                            <Flex style={[styles.colRow, { marginTop: 30 }]}>
+                                <View style={styles.colBox}>
+                                    <Text style={styles.rowTitle}>总睡眠时长</Text>
+                                    <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.totalSleep}</Text>
+                                </View>
+                                <View style={styles.colBox}>
+                                    <Text style={styles.rowTitle}>日均睡眠时长</Text>
+                                    <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.dailyAverage}</Text>
+                                </View>
+                            </Flex>
 
-                    <Flex style={[styles.colRow, { marginTop: 10 }]}>
-                        <View style={styles.colBox}>
-                            <Text style={styles.rowTitle}>平均起床时间</Text>
-                            <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.avgWakeTime}</Text>
-                        </View>
-                        <View style={styles.colBox}>
-                            <Text style={styles.rowTitle}>平均就寝时间</Text>
-                            <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.avgBedTime}</Text>
-                        </View>
-                    </Flex>
-                    <View style={[styles.rowBox, { marginTop: 30 }]}>
+                            <Flex style={[styles.colRow, { marginTop: 10 }]}>
+                                <View style={styles.colBox}>
+                                    <Text style={styles.rowTitle}>平均起床时间</Text>
+                                    <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.avgWakeTime}</Text>
+                                </View>
+                                <View style={styles.colBox}>
+                                    <Text style={styles.rowTitle}>平均就寝时间</Text>
+                                    <Text style={[styles.rValue, { fontSize: 20 }]}>{stats.avgBedTime}</Text>
+                                </View>
+                            </Flex>
+                        </>
+                    ) : null}
+                       {isTodayView ? ( <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between' align='center'>
                             <Text style={styles.analysisTitle}>睡眠分析</Text>
                             <Flex style={[styles.statusBox, { borderColor: sleepScoreSummary.qualityColor }]}>
@@ -271,7 +278,6 @@ export default function SleepPage() {
                                     {sleepScoreSummary.qualityLabel}
                                 </Text>
                             </Flex>
-
                         </Flex>
                         <Flex style={{ marginTop: 15 }} align='start'>
                             <Flex align='end'>
@@ -283,7 +289,9 @@ export default function SleepPage() {
                                 <SleepScoreBar score={sleepScoreSummary.score} />
                             </View>
                         </Flex>
-
+                    </View>) : null}
+                    <View style={[styles.rowBox, { marginTop: 10 }]}>
+                        <Text style={styles.analysisTitle}>睡眠分析</Text>
                         <Flex style={[styles.sleepAnalysisBody, { marginTop: 20 }]}>
                             <View style={styles.sleepPieColumn}>
                                 <View style={styles.sleepPieWrap}>

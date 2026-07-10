@@ -3,7 +3,6 @@ import type { WearableDataItem } from '@/api/wearableData';
 import {
   getTodayWearableItem,
 } from '../../vitalsHelpers';
-import { getLevelColor } from '../../vitalLevelColors';
 import {
   collectOxygenReadings,
   filterWearableItemsInRange,
@@ -26,17 +25,67 @@ export type BloodOxygenDetailPoint = {
   customerLocalDate?: string;
 };
 
+export const BLOOD_OXYGEN_LEVEL_COLORS = {
+  normal: '#6D925E',
+  slightlyLow: '#0951AE',
+  low: '#EE9C44',
+  severeLow: '#FB4550',
+} as const;
+
+export type BloodOxygenLevelKey = keyof typeof BLOOD_OXYGEN_LEVEL_COLORS;
+
+const BLOOD_OXYGEN_RANGE_BANDS = [
+  { min: 0, max: 90, color: BLOOD_OXYGEN_LEVEL_COLORS.severeLow },
+  { min: 90, max: 93, color: BLOOD_OXYGEN_LEVEL_COLORS.low },
+  { min: 93, max: 95, color: BLOOD_OXYGEN_LEVEL_COLORS.slightlyLow },
+  { min: 95, max: 101, color: BLOOD_OXYGEN_LEVEL_COLORS.normal },
+] as const;
+
+export const BLOOD_OXYGEN_NORMAL_THRESHOLD = 95;
+
 const OXYGEN_ABNORMAL_THRESHOLD = 90;
 const OXYGEN_LOW_THRESHOLD = 95;
+
+export function getBloodOxygenLevel(value: number): BloodOxygenLevelKey {
+  if (value >= 95) return 'normal';
+  if (value >= 93) return 'slightlyLow';
+  if (value >= 90) return 'low';
+  return 'severeLow';
+}
+
+export function getBloodOxygenLevelLabel(value: number) {
+  switch (getBloodOxygenLevel(value)) {
+    case 'normal':
+      return '正常';
+    case 'slightlyLow':
+      return '偏低';
+    case 'low':
+      return '较低';
+    case 'severeLow':
+      return '异常偏低';
+  }
+}
+
+export function getBloodOxygenPointColor(value: number) {
+  return BLOOD_OXYGEN_LEVEL_COLORS[getBloodOxygenLevel(value)];
+}
+
+export function getBloodOxygenBandHeights(min: number, max: number) {
+  return BLOOD_OXYGEN_RANGE_BANDS.map(band =>
+    Math.max(0, Math.min(max, band.max) - Math.max(min, band.min)),
+  );
+}
+
+export function getBloodOxygenRangeBands() {
+  return BLOOD_OXYGEN_RANGE_BANDS;
+}
 
 function isValidBloodOxygenDetailPoint(point?: BloodOxygenDetailPoint) {
   return !!point && point.min > 0 && point.max > 0 && point.max >= point.min;
 }
 
 function getBloodOxygenDetailStatus(point: BloodOxygenDetailPoint) {
-  if (point.min < OXYGEN_ABNORMAL_THRESHOLD) return '异常';
-  if (point.min < OXYGEN_LOW_THRESHOLD) return '偏低';
-  return '正常';
+  return getBloodOxygenLevelLabel(point.min);
 }
 
 function getBloodOxygenDayMinMax(dayItems: WearableDataItem[]) {
@@ -157,7 +206,7 @@ export function formatBloodOxygenDetailPointDisplay(
   return {
     value,
     status: statusLabel,
-    statusColor: getLevelColor(statusLabel),
+    statusColor: getBloodOxygenPointColor(point!.min),
     currentLabel: formatBloodOxygenCurrentLabel(range, point),
   };
 }

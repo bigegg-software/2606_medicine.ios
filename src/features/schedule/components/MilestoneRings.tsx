@@ -3,8 +3,9 @@ import { View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
 import styles from '@/css/schedule/schedule';
 
-const CANVAS_SIZE = 99;
+const CANVAS_SIZE = 120;
 const CENTER = CANVAS_SIZE / 2;
+const RING_STROKE_WIDTH = 10;
 
 type RingConfig = {
   size: number;
@@ -17,34 +18,34 @@ type RingConfig = {
 
 const RING_CONFIGS: RingConfig[] = [
   {
-    size: 99,
-    strokeWidth: 8,
-    trackColor: '#34B69F',
-    gradientColors: ['#34B69F', '#40D7BC'],
+    size: 120,
+    strokeWidth: RING_STROKE_WIDTH,
+    trackColor: '#6D925E',
+    gradientColors: ['#6D925E', '#6D925E'],
     gradientAngle: 90,
     gradientId: 'milestoneRing0',
   },
   {
-    size: 76,
-    strokeWidth: 8,
-    trackColor: '#4F86EE',
-    gradientColors: ['#4F86EE', '#83AEFF'],
+    size: 91,
+    strokeWidth: RING_STROKE_WIDTH,
+    trackColor: '#72A1C5',
+    gradientColors: ['#72A1C5', '#72A1C5'],
     gradientAngle: 90,
     gradientId: 'milestoneRing1',
   },
   {
-    size: 51,
-    strokeWidth: 8,
-    trackColor: '#F33F3E',
-    gradientColors: ['#F33F3E', '#FF7473'],
+    size: 62,
+    strokeWidth: RING_STROKE_WIDTH,
+    trackColor: '#FB4550',
+    gradientColors: ['#FB4550', '#FB4550'],
     gradientAngle: 157,
     gradientId: 'milestoneRing2',
   },
   {
-    size: 26,
-    strokeWidth: 8,
-    trackColor: '#FFB867',
-    gradientColors: ['#FFB867', '#FF8B07'],
+    size: 32,
+    strokeWidth: RING_STROKE_WIDTH,
+    trackColor: '#EE9C44',
+    gradientColors: ['#EE9C44', '#EE9C44'],
     gradientAngle: 305,
     gradientId: 'milestoneRing3',
   },

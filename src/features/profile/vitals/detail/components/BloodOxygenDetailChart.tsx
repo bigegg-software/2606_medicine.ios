@@ -8,6 +8,10 @@ import { GridComponent, TooltipComponent, MarkLineComponent } from 'echarts/comp
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import moment from 'moment';
 import styles from '@/css/vitals/bloodPage';
+import {
+    BLOOD_OXYGEN_NORMAL_THRESHOLD,
+    getBloodOxygenPointColor,
+} from '../helpers/bloodOxygen';
 import { readSelectionPixelX } from './detailChartSelection';
 export type BloodOxygenPoint = {
     hour: string;
@@ -18,7 +22,7 @@ export type BloodOxygenPoint = {
 
 export type BloodOxygenChartRange = 'today' | 'week' | 'month';
 
-const OXYGEN_THRESHOLD = 95;
+const OXYGEN_THRESHOLD = BLOOD_OXYGEN_NORMAL_THRESHOLD;
 const COLOR_ABOVE_THRESHOLD = '#6D925E';
 const COLOR_BELOW_THRESHOLD = '#EE9C44';
 const BAR_WIDTH = 10;
@@ -180,10 +184,6 @@ function getOxygenChartValue(point: BloodOxygenPoint) {
     return point.min === point.max
         ? point.min
         : Math.round((point.min + point.max) / 2);
-}
-
-function getOxygenPointColor(value: number) {
-    return value >= OXYGEN_THRESHOLD ? COLOR_ABOVE_THRESHOLD : COLOR_BELOW_THRESHOLD;
 }
 
 function isTodayPointSelected(point: BloodOxygenPoint, selectedDataX: number | null) {
@@ -639,34 +639,6 @@ function findNearestSelectableDataX(
     }).dataX;
 }
 
-function SelectionTooltip({
-    point,
-    lineLeft,
-}: {
-    point: BloodOxygenPoint;
-    lineLeft: number;
-}) {
-    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
-
-    return (
-        <View
-            pointerEvents="none"
-            style={[
-                styles.chartSelectionTip,
-                {
-                    top: GRID_TOP_Y + 6,
-                    left: tipLeft,
-                },
-            ]}
-        >
-            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
-            {isValidPoint(point) ? (
-                <Text style={styles.chartSelectionTipValue}>{point.min}-{point.max}</Text>
-            ) : null}
-        </View>
-    );
-}
-
 function findPointAtDataX(
     range: BloodOxygenChartRange,
     points: BloodOxygenPoint[],
@@ -694,7 +666,7 @@ function buildTodayScatterData(
                 value: [parsePointX(point), value] as [number, number],
                 name: point.hour,
                 symbolSize: isTodayPointSelected(point, selectedDataX) ? 10 : 8,
-                itemStyle: { color: getOxygenPointColor(value) },
+                itemStyle: { color: getBloodOxygenPointColor(value) },
             };
         })
         .filter(item => item != null);
@@ -1018,9 +990,6 @@ export default function BloodOxygenDetailChart({ range, data, onPointChange }: P
                     }}
                 />
             </GestureDetector>
-            {selectedPoint && displayPixelX != null ? (
-                <SelectionTooltip point={selectedPoint} lineLeft={displayPixelX} />
-            ) : null}
             <ChartGridExtensionLines positions={gridExtensionPositions} />
             {range === 'today'
                 ? <TodayXAxisLabels />

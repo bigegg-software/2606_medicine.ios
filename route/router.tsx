@@ -93,6 +93,8 @@ import ConsumptionPage from '@/src/features/profile/vitals/detail/consumption';
 import WeightPage from '@/src/features/profile/vitals/detail/weightPage';
 import BloodLipidPage from '@/src/features/profile/vitals/detail/blooLipid';
 import UricAcidPage from '@/src/features/profile/vitals/detail/uricAcid';
+import SortPage from '@/src/features/profile/vitals/sort';
+
 
 // 社区模块
 import ActivityDetailPage from '@/src/features/community/ActivityDetailPage';
@@ -155,6 +157,7 @@ export type RootStackParamList = {
   WeightPage: undefined;
   BloodLipidPage: undefined;
   UricAcidPage: undefined;
+  SortPage: { items: Array<{ key: string; status: string; statusColor: string }> };
   CalendarPage: undefined;
   ScheduleHistoryPage: undefined;
   ScheduleHistoryDetailPage: { exPatientRuleId: string };
@@ -376,6 +379,7 @@ export default function RootStack() {
       <Stack.Screen name="WeightPage" component={WeightPage} options={{ title: "体重", showHeaderBackground: false }} />
       <Stack.Screen name="BloodLipidPage" component={BloodLipidPage} options={{ title: "血脂", showHeaderBackground: false }} />
       <Stack.Screen name="UricAcidPage" component={UricAcidPage} options={{ title: "尿酸", showHeaderBackground: false }} />
+      <Stack.Screen name="SortPage" component={SortPage} options={{ title: "体征监测", showHeaderBackground: false }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
       <Stack.Screen

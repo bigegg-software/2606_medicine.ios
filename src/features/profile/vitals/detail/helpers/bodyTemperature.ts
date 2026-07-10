@@ -1,17 +1,16 @@
 import moment from 'moment';
-import type {
-  MeasureDataItem,
-  MeasureDataStatisDayGroup,
-} from '@/api/measureData';
+import type { MeasureDataItem } from '@/api/measureData';
 import {
   filterMeasureItemsInRange,
+  getDateRange,
   getLevelLabel,
 } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
 import {
   getItemTimestamp,
-  getStatisLevelLabel,
+  mapDetailChartRangeToVitalsRange,
   parseMeasureNumber,
+  type DetailChartRange,
 } from './shared';
 
 export type BodyTemperatureDetailChartRange = 'today' | 'week' | 'month';
@@ -28,6 +27,15 @@ export type BodyTemperatureDetailPoint = {
 
 const BODY_TEMPERATURE_LOW_THRESHOLD = 35.7;
 const BODY_TEMPERATURE_HIGH_THRESHOLD = 37.2;
+const BODY_TEMPERATURE_POINT_COLOR_NORMAL = '#6D925E';
+const BODY_TEMPERATURE_POINT_COLOR_ABNORMAL = '#FB4550';
+
+export function getBodyTemperaturePointColor(value: number) {
+  if (value >= BODY_TEMPERATURE_LOW_THRESHOLD && value <= BODY_TEMPERATURE_HIGH_THRESHOLD) {
+    return BODY_TEMPERATURE_POINT_COLOR_NORMAL;
+  }
+  return BODY_TEMPERATURE_POINT_COLOR_ABNORMAL;
+}
 
 function normalizeBodyTemperatureLevelLabel(label?: string) {
   const trimmed = label?.split(',')[0]?.trim();
@@ -53,15 +61,6 @@ function getBodyTemperatureItemLevelLabel(item: MeasureDataItem) {
     if (fromValue !== '正常') return fromValue;
   }
   return normalizeBodyTemperatureLevelLabel(getLevelLabel(item)) || '正常';
-}
-
-function getBodyTemperatureStatisLevelLabel(group?: MeasureDataStatisDayGroup) {
-  const minMax = getTemperatureValuesFromGroup(group);
-  if (minMax) {
-    const fromValue = getBodyTemperatureLevelFromValue(minMax.min, minMax.max);
-    if (fromValue !== '正常') return fromValue;
-  }
-  return normalizeBodyTemperatureLevelLabel(getStatisLevelLabel(group?.statisLevelResult)) || '正常';
 }
 
 function isValidBodyTemperatureDetailPoint(point?: BodyTemperatureDetailPoint) {
@@ -106,40 +105,25 @@ function getTemperatureDayMinMax(dayItems: MeasureDataItem[]) {
   };
 }
 
-function getTemperatureValuesFromGroup(group?: MeasureDataStatisDayGroup) {
-  if (group?.childList?.length) {
-    return getTemperatureDayMinMax(group.childList);
-  }
+function getBodyTemperatureDayLevelLabel(dayItems: MeasureDataItem[]) {
+  const minMax = getTemperatureDayMinMax(dayItems);
+  if (!minMax) return '正常';
 
-  const avg = parseMeasureNumber(group?.avgVal);
-  if (avg != null && avg > 0) {
-    const value = Number(avg.toFixed(1));
-    return { min: value, max: value };
-  }
+  const fromValue = getBodyTemperatureLevelFromValue(minMax.min, minMax.max);
+  if (fromValue !== '正常') return fromValue;
 
-  return null;
+  const abnormalLabel = dayItems
+    .map(getBodyTemperatureItemLevelLabel)
+    .find(label => label !== '正常');
+  return abnormalLabel || '正常';
 }
 
-function flattenTemperatureStatisItems(groups: MeasureDataStatisDayGroup[]) {
-  return groups.flatMap(group => {
-    if (group.childList?.length) {
-      return group.childList.map(item => ({
-        ...item,
-        customerLocalDate: item.customerLocalDate || group.customerLocalDate,
-      }));
-    }
-
-    const avg = parseMeasureNumber(group.avgVal);
-    if (avg == null || avg <= 0) return [];
-
-    return [{
-      val: avg,
-      customerLocalDate: group.customerLocalDate,
-      level: group.statisLevelResult?.level,
-      isHigh: group.statisLevelResult?.isHigh ? 1 : 0,
-      isLow: group.statisLevelResult?.isLow ? 1 : 0,
-    } as MeasureDataItem];
-  });
+export function getBodyTemperatureDetailQueryRange(range: DetailChartRange) {
+  if (range === 'today') {
+    const today = moment().format('YYYY-MM-DD');
+    return { startDate: today, endDate: today };
+  }
+  return getDateRange(mapDetailChartRangeToVitalsRange(range));
 }
 
 export function buildBodyTemperatureDetailTodaySeries(items: MeasureDataItem[]): BodyTemperatureDetailPoint[] {
@@ -161,28 +145,34 @@ export function buildBodyTemperatureDetailTodaySeries(items: MeasureDataItem[]):
   });
 }
 
-export function buildBodyTemperatureChartFromStatisGroups(
-  groups: MeasureDataStatisDayGroup[],
+export function buildBodyTemperatureDetailPeriodSeries(
+  items: MeasureDataItem[],
   range: 'week' | 'month',
 ): BodyTemperatureDetailPoint[] {
   const dayCount = range === 'week' ? 7 : 30;
-  const groupByDate = new Map(
-    groups
-      .filter(group => group.customerLocalDate)
-      .map(group => [moment(group.customerLocalDate).format('YYYY-MM-DD'), group]),
-  );
+  const vitalsRange = mapDetailChartRangeToVitalsRange(range);
+  const rangedItems = filterMeasureItemsInRange(items, vitalsRange);
+
+  const itemsByDate = new Map<string, MeasureDataItem[]>();
+  rangedItems.forEach(item => {
+    const dateKey = moment(item.customerLocalDate).format('YYYY-MM-DD');
+    const dayItems = itemsByDate.get(dateKey) ?? [];
+    dayItems.push(item);
+    itemsByDate.set(dateKey, dayItems);
+  });
 
   return Array.from({ length: dayCount }, (_, index) => {
     const day = moment().subtract(dayCount - 1 - index, 'days');
-    const group = groupByDate.get(day.format('YYYY-MM-DD'));
-    const minMax = getTemperatureValuesFromGroup(group);
+    const dateKey = day.format('YYYY-MM-DD');
+    const dayItems = itemsByDate.get(dateKey) ?? [];
+    const minMax = getTemperatureDayMinMax(dayItems);
 
     return {
       hour: day.format('M/D'),
       min: minMax?.min ?? 0,
       max: minMax?.max ?? 0,
-      customerLocalDate: day.format('YYYY-MM-DD'),
-      statusLabel: getBodyTemperatureStatisLevelLabel(group),
+      customerLocalDate: dateKey,
+      statusLabel: dayItems.length ? getBodyTemperatureDayLevelLabel(dayItems) : '正常',
     };
   });
 }
@@ -230,11 +220,10 @@ export function formatBodyTemperatureDetailPointDisplay(
 export function calcBodyTemperatureDetailStats(
   items: MeasureDataItem[],
   range: BodyTemperatureDetailChartRange,
-  groups: MeasureDataStatisDayGroup[] = [],
 ) {
-  const rangedItems = range === 'today'
-    ? filterMeasureItemsInRange(items, 'today')
-    : flattenTemperatureStatisItems(groups).filter(item => (parseMeasureNumber(item.val) ?? 0) > 0);
+  const vitalsRange = range === 'today' ? 'today' : mapDetailChartRangeToVitalsRange(range);
+  const rangedItems = filterMeasureItemsInRange(items, vitalsRange)
+    .filter(item => (parseMeasureNumber(item.val) ?? 0) > 0);
 
   if (!rangedItems.length) return null;
 

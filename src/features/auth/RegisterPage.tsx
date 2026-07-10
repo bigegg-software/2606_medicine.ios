@@ -189,7 +189,7 @@ export default function RegisterPage() {
           showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1 }}>
             <LinearGradient
-              colors={['#B4D0FF', '#F5F8FF']}
+              colors={['#C5D9BF', AppTheme.backgroundColor]}
               style={styles.headerGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}

@@ -17,33 +17,44 @@ const PODIUM_FRAMES = [
 ] as const;
 const PODIUM_ORDER = [1, 0, 2] as const;
 
-const PODIUM_GRADIENT_END = '#F5F8FF';
-
-type PodiumGradient = {
-    colors: [string, string, string, string];
-    locations: [number, number, number, number];
-};
-
-const PODIUM_GRADIENTS: Record<number, PodiumGradient> = {
-    0: {
-        colors: ['#C9DBFF', '#DCE8FF', '#EDF2FA', PODIUM_GRADIENT_END],
-        locations: [0, 0.32, 0.68, 1],
-    },
-    1: {
-        colors: ['#FFE8B5', '#FFF0D4', '#F3F0EB', PODIUM_GRADIENT_END],
-        locations: [0, 0.32, 0.68, 1],
-    },
-    2: {
-        colors: ['#FFCFCF', '#FFE4E4', '#F3ECEC', PODIUM_GRADIENT_END],
-        locations: [0, 0.32, 0.68, 1],
-    },
-};
-
 const PODIUM_SCORE_COLORS: Record<number, string> = {
-    0: '#4F86EE',
-    1: '#FFBD07',
-    2: '#FF8989',
+    0: '#FEAB27',
+    1: '#9BAAD8',
+    2: '#EC8E63',
 };
+
+const RANK_NUM_ICONS: Record<number, ImageSourcePropType> = {
+    1: require('@/assets/images/community/num1.png'),
+    2: require('@/assets/images/community/num2.png'),
+    3: require('@/assets/images/community/num3.png'),
+    4: require('@/assets/images/community/num4.png'),
+    5: require('@/assets/images/community/num5.png'),
+    6: require('@/assets/images/community/num6.png'),
+    7: require('@/assets/images/community/num7.png'),
+    8: require('@/assets/images/community/num8.png'),
+    9: require('@/assets/images/community/num9.png'),
+    10: require('@/assets/images/community/num10.png'),
+};
+
+function parseRankNumber(rank: number | string) {
+    const num = typeof rank === 'number' ? rank : Number.parseInt(rank, 10);
+    return Number.isFinite(num) ? num : null;
+}
+
+function RankBadge({ rank, labelStyle }: { rank: number | string; labelStyle?: object }) {
+    const rankNum = parseRankNumber(rank);
+    const icon = rankNum != null ? RANK_NUM_ICONS[rankNum] : undefined;
+
+    if (icon) {
+        return (
+            <View style={styles.rankNumWrap}>
+                <Image source={icon} style={styles.rankNumIcon} />
+            </View>
+        );
+    }
+
+    return <Text style={[styles.numBox, labelStyle]}>{rank}</Text>;
+}
 
 type RankingRowProps = {
     rankLabel: string;
@@ -93,14 +104,14 @@ function RankingRow({
 }: RankingRowProps) {
     return (
         <Flex style={styles.rankingItemBox}>
-            <Text style={[styles.numBox, rankLabelStyle]}>{rankLabel}</Text>
+            <RankBadge rank={rankLabel} labelStyle={rankLabelStyle} />
             <Image source={avatarSource} style={styles.listImg} />
             <View style={styles.rankingListInfo}>
                 <Text style={styles.rankingItemText}>{name}</Text>
                 <Text style={styles.rankingItemText2}>{streak}</Text>
             </View>
             <Flex>
-                <Image style={styles.avatarIcon} tintColor="#053A93" source={require('@/assets/images/community/jf.png')} />
+                <Image style={styles.avatarIcon} tintColor="#6D925E" source={require('@/assets/images/community/jf.png')} />
                 <Text style={[styles.avatarValue, { color: scoreColor }]}>{formatScore(score)}</Text>
             </Flex>
         </Flex>
@@ -118,7 +129,6 @@ function PodiumItem({
 }) {
     const name = item?.nickName?.trim() || '暂无';
     const score = item?.tokens ?? 0;
-    const gradient: PodiumGradient = PODIUM_GRADIENTS[rankIndex] ?? PODIUM_GRADIENTS[2];
     const scoreColor = PODIUM_SCORE_COLORS[rankIndex] ?? PODIUM_SCORE_COLORS[2];
 
     return (
@@ -126,38 +136,40 @@ function PodiumItem({
             styles.podiumWrap,
             rankIndex === 0 && styles.podiumWrapFirst,
         ]}>
-            <LinearGradient
-                colors={gradient.colors}
-                locations={gradient.locations}
-                start={{ x: 0.5, y: 0 }}
-                end={{ x: 0.5, y: 1 }}
-                style={styles.podiumBg}
-            />
             <Flex
                 direction="column"
                 align="center"
                 style={styles.podiumInner}>
                 <Image
-                    style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}
-                    source={frameSource}
-                />
-                <Image
                     source={resolveAvatarSource(item?.avatar)}
-                    style={styles.headImg}
+                    style={[styles.headImg, rankIndex === 0 && styles.headImgFirst]}
                 />
-                <Text
-                    style={[styles.rankingItemText, rankIndex === 0 && styles.rankingItemTextFirst]}
-                    numberOfLines={1}>
-                    {name}
-                </Text>
-                <Flex style={styles.rankingScoreRow}>
+                <View style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}>
                     <Image
-                        style={styles.avatarIcon}
-                        tintColor={scoreColor}
-                        source={require('@/assets/images/community/jf.png')}
+                        style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}
+                        source={frameSource}
                     />
-                    <Text style={[styles.avatarValue, { color: scoreColor }]}>{formatScore(score)}</Text>
-                </Flex>
+                    <View style={styles.headBgContent}>
+                        <Text
+                            style={[styles.rankingItemText, { textAlign: "center" }, rankIndex === 0 && styles.rankingItemTextFirst,
+                                , rankIndex === 1 && {
+                                    color: '#6B738C'
+                                }, rankIndex === 2 && {
+                                    color: '#A56125'
+                                }]}
+                            numberOfLines={1}>
+                            {name}
+                        </Text>
+                        <Flex justify='center' style={styles.rankingScoreRow}>
+                            <Image
+                                style={styles.avatarIcon}
+                                tintColor={scoreColor}
+                                source={require('@/assets/images/community/jf.png')}
+                            />
+                            <Text style={[styles.avatarValue]}>{formatScore(score)}</Text>
+                        </Flex>
+                    </View>
+                </View>
             </Flex>
         </View>
     );
@@ -229,7 +241,7 @@ export default function RankingPage() {
                 style={styles.rankingScroll}
                 contentContainerStyle={styles.rankingScrollContent}
                 showsVerticalScrollIndicator={false}>
-                <Flex justify="between" style={styles.rankingBpx}>
+                <Flex justify="center" style={styles.rankingBpx}>
                     {PODIUM_ORDER.map((rankIndex, displayIndex) => (
                         <PodiumItem
                             key={rankIndex}
@@ -263,7 +275,7 @@ export default function RankingPage() {
 
             <View style={styles.rankingMeBar}>
                 <Flex style={styles.rankingMeItemBox}>
-                    <Text style={styles.numBox}>{myRankLabel}</Text>
+                    <RankBadge rank={myRankLabel} />
                     <Image source={myAvatarSource} style={styles.listImg} />
                     <View style={styles.rankingListInfo}>
                         <Text style={styles.rankingItemText}>{myName}</Text>
@@ -272,7 +284,7 @@ export default function RankingPage() {
                     <Flex>
                         <Image
                             style={styles.avatarIcon}
-                            tintColor="#053A93"
+                            tintColor="#6D925E"
                             source={require('@/assets/images/community/jf.png')} />
                         <Text style={[styles.avatarValue, { color: '#333', fontSize: 18 }]}>{formatScore(myScore)}</Text>
                     </Flex>

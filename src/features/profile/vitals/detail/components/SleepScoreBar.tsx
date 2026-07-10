@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Image } from 'react-native';
 import styles from '@/css/vitals/bloodPage';
 
-const SCORE_DIVIDER_RATIOS = [0.25, 0.5, 0.75];
+const SCORE_DIVIDER_RATIOS = [0.55, 0.65, 0.75, 0.85];
 const TRACK_HEIGHT = 12;
 const MARKER_SIZE = 34;
 const MARKER_OFFSET = MARKER_SIZE / 2;

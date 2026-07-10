@@ -10,32 +10,28 @@ import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
 import VitalsProgressRing from './components/VitalsProgressRing';
-import BloodSugarDetailChart, { type BloodSugarChartRange } from './components/BloodSugarDetailChart';
+import BloodSugarDetailChart, {
+    type BloodSugarChartRange,
+    type BloodSugarPoint,
+} from './components/BloodSugarDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import {
-    getMeasureDataDetailByDate,
+    getMeasureDataDetailByDateRange,
     getMeasureDataNormalDayCount,
-    getMeasureDataStatisByDateRange,
     type MeasureDataItem,
-    type MeasureDataStatisDayGroup,
 } from '@/api/measureData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDateRange } from '../vitalsHelpers';
+import { flattenMeasureItems } from '../vitalsHelpers';
 import {
-    buildBloodSugarChartFromStatisGroups,
+    buildBloodSugarDetailPeriodSeries,
     buildBloodSugarDetailTodaySeries,
-    calcBloodSugarPeriodStats,
-    flattenStatisChildItems,
+    buildBloodSugarStatsFromItems,
     formatBloodSugarDetailPointDisplay,
+    getBloodSugarDetailQueryRange,
     type BloodSugarDetailPoint,
 } from './helpers/bloodSugar';
-import {
-    mapDetailChartRangeToVitalsRange,
-    normalizeStatisRangeData,
-} from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
-import type { BloodSugarPoint } from './components/BloodSugarDetailChart';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -77,6 +73,57 @@ function formatStatusText(status?: string) {
 
 function resetHeaderDisplay(range: BloodSugarChartRange) {
     return formatBloodSugarDetailPointDisplay(range);
+}
+
+function applyEmptyBloodSugarState(
+    range: BloodSugarChartRange,
+    setters: {
+        setChartData: (data: BloodSugarPoint[]) => void;
+        setDisplayValue: (value: string) => void;
+        setDisplayStatus: (status: string) => void;
+        setDisplayStatusColor: (color: string) => void;
+        setCurrentLabel: (label: string) => void;
+        resetPeriodStats: () => void;
+    },
+) {
+    const emptyDisplay = resetHeaderDisplay(range);
+    setters.setChartData([]);
+    setters.setDisplayValue(emptyDisplay.value);
+    setters.setDisplayStatus(formatStatusText(emptyDisplay.status));
+    setters.setDisplayStatusColor(emptyDisplay.statusColor);
+    setters.setCurrentLabel(emptyDisplay.currentLabel);
+    setters.resetPeriodStats();
+}
+
+function applyBloodSugarStats(
+    items: MeasureDataItem[],
+    setters: {
+        setMaxValue: (value: string) => void;
+        setMinValue: (value: string) => void;
+        setMeasureCount: (count: number | null) => void;
+        resetPeriodStats: () => void;
+    },
+) {
+    const stats = buildBloodSugarStatsFromItems(items);
+    if (stats) {
+        setters.setMaxValue(String(stats.max));
+        setters.setMinValue(String(stats.min));
+        setters.setMeasureCount(stats.count);
+        return;
+    }
+    setters.resetPeriodStats();
+}
+
+async function loadBloodSugarDetailItems(range: BloodSugarChartRange) {
+    const { startDate, endDate } = getBloodSugarDetailQueryRange(range);
+    const res = (await getMeasureDataDetailByDateRange({
+        startDate,
+        endDate,
+        type: '血糖',
+    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+
+    if (!isResourceApiOk(res)) return null;
+    return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
 }
 
 export default function VitalsPage() {
@@ -163,76 +210,36 @@ export default function VitalsPage() {
     }, []);
 
     const loadMeasureData = useCallback(async (range: BloodSugarChartRange) => {
+        const emptySetters = {
+            setChartData,
+            setDisplayValue,
+            setDisplayStatus,
+            setDisplayStatusColor,
+            setCurrentLabel,
+            resetPeriodStats,
+        };
+        const statsSetters = {
+            setMaxValue,
+            setMinValue,
+            setMeasureCount,
+            resetPeriodStats,
+        };
+
         try {
-            if (range === 'today') {
-                const res = (await getMeasureDataDetailByDate({
-                    customerLocalDate: moment().format('YYYY-MM-DD'),
-                    type: '血糖',
-                })) as unknown as { code?: number; data?: MeasureDataItem[] };
-
-                if (!isResourceApiOk(res)) {
-                    setChartData([]);
-                    const emptyDisplay = resetHeaderDisplay(range);
-                    setDisplayValue(emptyDisplay.value);
-                    setDisplayStatus(formatStatusText(emptyDisplay.status));
-                    setDisplayStatusColor(emptyDisplay.statusColor);
-                    setCurrentLabel(emptyDisplay.currentLabel);
-                    resetPeriodStats();
-                    return;
-                }
-
-                const items = apiResourceData<MeasureDataItem[]>(res) ?? [];
-                const stats = calcBloodSugarPeriodStats(items);
-
-                setChartData(buildBloodSugarDetailTodaySeries(items));
-                if (stats) {
-                    setMaxValue(String(stats.max));
-                    setMinValue(String(stats.min));
-                    setMeasureCount(stats.count);
-                } else {
-                    resetPeriodStats();
-                }
+            const detailItems = await loadBloodSugarDetailItems(range);
+            if (detailItems == null) {
+                applyEmptyBloodSugarState(range, emptySetters);
                 return;
             }
 
-            const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
-            const res = (await getMeasureDataStatisByDateRange({
-                startDate,
-                endDate,
-                type: '血糖',
-            })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
-
-            if (!isResourceApiOk(res)) {
-                setChartData([]);
-                const emptyDisplay = resetHeaderDisplay(range);
-                setDisplayValue(emptyDisplay.value);
-                setDisplayStatus(formatStatusText(emptyDisplay.status));
-                setDisplayStatusColor(emptyDisplay.statusColor);
-                setCurrentLabel(emptyDisplay.currentLabel);
-                resetPeriodStats();
-                return;
-            }
-
-            const groups = normalizeStatisRangeData(apiResourceData<unknown>(res));
-            const periodItems = flattenStatisChildItems(groups);
-            const stats = calcBloodSugarPeriodStats(periodItems);
-
-            setChartData(buildBloodSugarChartFromStatisGroups(groups, range));
-            if (stats) {
-                setMaxValue(String(stats.max));
-                setMinValue(String(stats.min));
-                setMeasureCount(stats.count);
-            } else {
-                resetPeriodStats();
-            }
+            setChartData(
+                range === 'today'
+                    ? buildBloodSugarDetailTodaySeries(detailItems)
+                    : buildBloodSugarDetailPeriodSeries(detailItems, range),
+            );
+            applyBloodSugarStats(detailItems, statsSetters);
         } catch {
-            setChartData([]);
-            const emptyDisplay = resetHeaderDisplay(range);
-            setDisplayValue(emptyDisplay.value);
-            setDisplayStatus(formatStatusText(emptyDisplay.status));
-            setDisplayStatusColor(emptyDisplay.statusColor);
-            setCurrentLabel(emptyDisplay.currentLabel);
-            resetPeriodStats();
+            applyEmptyBloodSugarState(range, emptySetters);
         }
     }, [resetPeriodStats]);
 
@@ -257,12 +264,14 @@ export default function VitalsPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     {showGoalSummary ? (
                         <Flex justify='between' style={styles.rowBox}>
                             <View>
@@ -280,9 +289,7 @@ export default function VitalsPage() {
                     ) : null}
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>
-                                {selectedType === 'today' ? '今日血糖' : '平均血糖'}(mmol/L)
-                            </Text>
+                            <Text style={styles.rowTitle}>血糖(mmol/L)</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}
@@ -316,6 +323,10 @@ export default function VitalsPage() {
                         <Flex>
                             <Flex style={styles.colHBor}></Flex>
                             <Text style={styles.colHText}>偏高</Text>
+                        </Flex>
+                        <Flex>
+                            <Flex style={styles.colHxBor}></Flex>
+                            <Text style={styles.colHxText}>高风险</Text>
                         </Flex>
                     </Flex>
                     <Flex style={styles.colRow}>

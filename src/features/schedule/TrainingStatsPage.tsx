@@ -39,21 +39,21 @@ type TrainingStatsRoute = RouteProp<RootStackParamList, 'TrainingStatsPage'>;
 
 function TrainingWeekDayCell({
   item,
-  selected,
   inPrescriptionRange,
   onPress,
 }: {
   item: ScheduleWeekDayItem;
-  selected: boolean;
   inPrescriptionRange: boolean;
   onPress: () => void;
 }) {
   const isToday = item.date.isSame(moment(), 'day');
+  const isFuture = item.date.isAfter(moment(), 'day');
   const label = WEEK_LABELS[item.date.day()];
+  const dayLabel = isToday ? '今' : String(item.date.date());
 
   const renderPlainDate = () => (
     <Flex justify="center" style={scheduleStyles.dayTimeBox}>
-      <Text style={[scheduleStyles.dayTime, scheduleStyles.dayTimeColor]}>{item.date.date()}</Text>
+      <Text style={[scheduleStyles.dayTime, scheduleStyles.dayTimeColor]}>{dayLabel}</Text>
     </Flex>
   );
 
@@ -62,23 +62,21 @@ function TrainingWeekDayCell({
       return renderPlainDate();
     }
 
-    if (isToday && !selected) {
+    if (isToday) {
       return (
         <Flex justify="center" style={[scheduleStyles.dayTimeBox, scheduleStyles.dayTimeToday]}>
-          <Text style={[scheduleStyles.dayTime, scheduleStyles.dayTimeBadgeText]}>{item.date.date()}</Text>
+          <Text style={[scheduleStyles.dayTime, scheduleStyles.dayTimeBadgeText]}>今</Text>
         </Flex>
       );
     }
 
-    if (item.date.isAfter(moment(), 'day')) {
+    if (isFuture) {
       return renderPlainDate();
     }
 
     if (item.completed) {
       return (
-        <Flex justify="center" align="center" style={[scheduleStyles.dayTimeBox, scheduleStyles.dayTimeCompleted]}>
-          <Text style={scheduleStyles.dayTimeBadgeText}>✓</Text>
-        </Flex>
+        <Image source={require('@/assets/images/schedule/wc.png')} style={scheduleStyles.dayTimeBox} />
       );
     }
 
@@ -95,10 +93,7 @@ function TrainingWeekDayCell({
 
   return (
     <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
-      <Flex
-        direction="column"
-        justify="center"
-        style={[scheduleStyles.dayCol, selected && scheduleStyles.dayColAcitve]}>
+      <Flex direction="column" justify="center" style={scheduleStyles.dayCol}>
         <Text style={scheduleStyles.dayText}>{label}</Text>
         {renderDayContent()}
       </Flex>
@@ -110,6 +105,9 @@ const EMPTY_WEEK_STATS: ScheduleWeekStats = {
   trainingCount: '--',
   completionRate: '--',
   totalDuration: '--',
+  trainingDone: '--',
+  trainingTotal: '',
+  durationMinutes: '--',
 };
 
 export default function TrainingStatsPage() {
@@ -315,7 +313,6 @@ export default function TrainingStatsPage() {
                 <TrainingWeekDayCell
                   key={dateKey}
                   item={item}
-                  selected={selectedDate === dateKey}
                   inPrescriptionRange={isDateInPrescriptionRange(
                     item.date,
                     prescriptionStartDate,
@@ -357,17 +354,27 @@ export default function TrainingStatsPage() {
             <ActivityIndicator color={AppTheme.primaryColor} />
           </View>
         ) : (
-          <Flex style={scheduleStyles.statRow}>
-            <Flex direction="column" style={[scheduleStyles.medicalBox, scheduleStyles.statBox]}>
-              <Text style={scheduleStyles.statValue}>{weekStats.trainingCount}</Text>
+          <Flex style={scheduleStyles.statRow} justify="between">
+            <Flex direction="column" style={scheduleStyles.statBox}>
+              <Text style={scheduleStyles.statValue}>
+                {weekStats.trainingDone}
+                {weekStats.trainingTotal ? (
+                  <Text style={scheduleStyles.statValue_1}>/{weekStats.trainingTotal}</Text>
+                ) : null}
+              </Text>
               <Text style={scheduleStyles.statTitle}>训练次数</Text>
             </Flex>
-            <Flex direction="column" style={[scheduleStyles.medicalBox, scheduleStyles.statBox]}>
+            <Flex direction="column" style={scheduleStyles.statBox}>
               <Text style={scheduleStyles.statValue}>{weekStats.completionRate}</Text>
               <Text style={scheduleStyles.statTitle}>完成率</Text>
             </Flex>
-            <Flex direction="column" style={[scheduleStyles.medicalBox, scheduleStyles.statBox]}>
-              <Text style={scheduleStyles.statValue}>{weekStats.totalDuration}</Text>
+            <Flex direction="column" style={scheduleStyles.statBox}>
+              <Text style={scheduleStyles.statValue}>
+                {weekStats.durationMinutes}
+                {weekStats.durationMinutes !== '--' ? (
+                  <Text style={[scheduleStyles.statValue_1, { fontSize: 14 }]}>(分钟)</Text>
+                ) : null}
+              </Text>
               <Text style={scheduleStyles.statTitle}>累计时长</Text>
             </Flex>
           </Flex>

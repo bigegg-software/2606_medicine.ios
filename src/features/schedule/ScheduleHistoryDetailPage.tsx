@@ -112,6 +112,9 @@ const EMPTY_STATS: ScheduleWeekStats = {
   trainingCount: '--',
   completionRate: '--',
   totalDuration: '--',
+  trainingDone: '--',
+  trainingTotal: '',
+  durationMinutes: '--',
 };
 
 export default function ScheduleHistoryDetailPage() {

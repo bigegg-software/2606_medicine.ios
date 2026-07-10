@@ -237,17 +237,25 @@ const styles = StyleSheet.create({
   questionnaireReminderBox: {
     alignSelf: 'flex-start',
     width: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: "#F0F0F0",
     borderRadius: 18,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
     shadowColor: AppTheme.primaryColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
-  questionnaireReminderRow: { marginTop: 14 },
+  questionnaireReminder: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding:15
+  },
+  questionnaireReminderRow: {
+    marginTop: 8,
+  },
   questionnaireReminderIcon: { width: 34, height: 34, borderRadius: 18 },
   questionnaireReminderTitleCol: {
     flex: 1,
@@ -255,12 +263,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   questionnaireReminderTitle: {
-    fontWeight: '400',
+    fontWeight: 'bold',
     fontSize: 14,
     color: AppTheme.textPrimary,
   },
   questionnaireNextAssessmentText: {
-    marginTop: 6,
+    marginTop: 8,
     fontSize: 11,
     color: AppTheme.textSecondary,
   },

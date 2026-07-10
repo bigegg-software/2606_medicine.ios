@@ -4,7 +4,8 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F7F7F9" },
     pageContent: { flex: 1, position: 'relative' },
-    body: { paddingHorizontal: 12, paddingTop: 18, paddingBottom: 14, borderTopWidth: 1, borderColor: '#E9E9E9' },
+    body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 14 },
+    pageHeader:{paddingHorizontal: 18, paddingTop: 18, paddingBottom: 6, borderTopWidth: 1, borderColor: '#E9E9E9'},
     typeListFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 66, borderRadius: 0, zIndex: -1 },
     typeListBox: { height: 30, backgroundColor: '#EDEEEF', borderRadius: 25, padding: 2, zIndex: 2 },
     typeItem: { flex: 1 },
@@ -95,6 +96,8 @@ const styles = StyleSheet.create({
     LValue: { marginTop: 8, fontWeight: "bold", fontSize: 25, color: "#0951AE" },
     colLBor: { width: 9, height: 9, backgroundColor: '#6D925E', borderRadius: 5 },
     colLText: { fontWeight: "bold", fontSize: 12, color: "#6D925E", marginLeft: 3 },
+    colHxBor: { width: 9, height: 9, backgroundColor: '#FB4550', borderRadius: 5 },
+    colHxText: { fontWeight: "bold", fontSize: 12, color: "#FB4550", marginLeft: 3 },
     colHBor: { width: 9, height: 9, backgroundColor: '#EE9C44', borderRadius: 5 },
     colHText: { fontWeight: "bold", fontSize: 12, color: "#EE9C44", marginLeft: 3 },
     rowIntro: { fontWeight: 500, fontSize: 11, color: '#999999', marginTop: 8 },

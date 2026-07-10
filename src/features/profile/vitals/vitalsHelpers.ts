@@ -116,16 +116,17 @@ export type BloodGlucoseChartPoint = {
 };
 
 export function buildGlucoseStatus(
-  value: number,
+  _value: number,
   item?: Pick<MeasureDataItem, 'isHigh' | 'isLow' | 'level'>,
 ): GlucoseStatus {
+  const level = item?.level?.split(',')[0]?.trim();
+  if (level) {
+    if (/偏低|低血糖/.test(level)) return 'low';
+    if (/正常|理想/.test(level)) return 'normal';
+    return 'high';
+  }
   if (item?.isLow === 1) return 'low';
   if (item?.isHigh === 1) return 'high';
-  const label = getLevelLabel(item as MeasureDataItem | undefined);
-  if (/偏低|低血糖/.test(label)) return 'low';
-  if (/偏高|高血糖|糖尿病/.test(label)) return 'high';
-  if (value < 3.9) return 'low';
-  if (value > 6.1) return 'high';
   return 'normal';
 }
 
@@ -597,6 +598,10 @@ function parseSleepDurationMinutes(item?: WearableDataItem) {
   return sumSleepMinutesFromOriginalData(flattenWearableOriginalData(item));
 }
 
+export function getSleepDurationMinutes(item?: WearableDataItem) {
+  return parseSleepDurationMinutes(item);
+}
+
 function getDisplaySleepItem(items: WearableDataItem[], range: VitalsRange) {
   if (range === 'today') {
     const sorted = [...items].sort((a, b) => getWearableDate(b).valueOf() - getWearableDate(a).valueOf());
@@ -762,15 +767,38 @@ export function formatSleepDuration(minutes?: number | null) {
   return `${hours}小时${mins}分钟`;
 }
 
+export const SLEEP_SCORE_QUALITY_TIERS = [
+  { min: 85, label: '极佳', color: '#6D925E', description: '睡眠质量 极佳' },
+  { min: 75, label: '良好', color: '#4F87EE', description: '睡眠质量 良好' },
+  { min: 65, label: '一般', color: '#FFBA1D', description: '睡眠质量 一般' },
+  { min: 55, label: '较差', color: '#EE9C44', description: '睡眠质量 较差' },
+  { min: 0, label: '差', color: '#FB4550', description: '睡眠质量 差' },
+] as const;
+
+export function getSleepScoreQuality(score?: number | null) {
+  if (score == null || !Number.isFinite(score)) {
+    return { label: '', color: '#999999', description: '暂无睡眠质量数据' };
+  }
+
+  const normalized = Math.max(0, Math.min(100, score));
+  const tier = SLEEP_SCORE_QUALITY_TIERS.find(entry => normalized >= entry.min)
+    ?? SLEEP_SCORE_QUALITY_TIERS[SLEEP_SCORE_QUALITY_TIERS.length - 1];
+
+  return {
+    label: tier.label,
+    color: tier.color,
+    description: tier.description,
+  };
+}
+
 export function getSleepQuality(item?: WearableDataItem) {
   if (!item) return { label: '', color: '#999999' };
   if (item.isHigh === 1) return { label: '偏高', color: '#FFBA1D' };
   if (item.isLow === 1) return { label: '偏低', color: '#FFBA1D' };
   const score = parseMeasureNumber(item.sqsScore);
   if (score != null) {
-    if (score >= 80) return { label: '优秀', color: '#00C950' };
-    if (score >= 60) return { label: '良好', color: '#6D925E' };
-    return { label: '一般', color: '#FFBA1D' };
+    const quality = getSleepScoreQuality(score);
+    return { label: quality.label, color: quality.color };
   }
   return { label: '良好', color: '#6D925E' };
 }
@@ -873,12 +901,25 @@ export function buildStepsBarSeries(items: WearableDataItem[], range: VitalsRang
   });
 }
 
-export function getStepsSummary(items: WearableDataItem[], range: VitalsRange) {
+function getStepsCardStatus(steps: number, goal: number) {
+  if (steps <= 0) {
+    return { status: '暂无数据', statusColor: '#999999' };
+  }
+  if (goal > 0 && steps >= goal) {
+    return { status: '达标', statusColor: '#00C950' };
+  }
+  return { status: '未达标', statusColor: '#EE9C44' };
+}
+
+export function getStepsSummary(items: WearableDataItem[], range: VitalsRange, stepGoal = 10000) {
   const barSeries = range === 'today'
     ? buildStepsTodayBarSeries(items)
     : buildStepsBarSeries(items, range);
   if (range === 'today') {
-    return { ...getStepsDisplay(items), barSeries, unit: '步' as const };
+    const display = getStepsDisplay(items);
+    const stepsNum = display.value !== '--' ? Number(display.value) : 0;
+    const { status, statusColor } = getStepsCardStatus(stepsNum, stepGoal);
+    return { ...display, status, statusColor, barSeries, unit: '步' as const };
   }
 
   const dailyValues = barSeries.map(item => item.value).filter(value => value > 0);
@@ -1065,7 +1106,7 @@ export function getEnergyDisplayDataTime(activeItems: WearableDataItem[], basalI
 
   if (events.length) {
     const ts = events[events.length - 1].ts;
-    return ts.isSame(moment(), 'day') ? ts.format('HH:mm') : ts.format('M/D');
+    return formatVitalsCardTimeOrDate(ts);
   }
 
   const bars = buildEnergyTodayBarSeries(activeItems, basalItems);
@@ -1156,10 +1197,21 @@ function buildEnergyTodayBarSeries(
   return [{ label: ts.format('HH:mm'), value: total }];
 }
 
+function getEnergyCardStatus(total: number, goal: number) {
+  if (total <= 0) {
+    return { status: '暂无数据', statusColor: '#999999' };
+  }
+  if (goal > 0 && total >= goal) {
+    return { status: '达标', statusColor: '#00C950' };
+  }
+  return { status: '未达标', statusColor: '#EE9C44' };
+}
+
 export function getEnergySummary(
   activeItems: WearableDataItem[],
   basalItems: WearableDataItem[],
   range: VitalsRange,
+  energyGoal = 2000,
 ) {
   const barSeries = range === 'today'
     ? buildEnergyTodayBarSeries(activeItems, basalItems)
@@ -1168,16 +1220,13 @@ export function getEnergySummary(
   if (range === 'today') {
     const display = getEnergyDisplay(activeItems, basalItems);
     const totalNum = display.total !== '--' ? Number(display.total) : 0;
+    const { status, statusColor } = getEnergyCardStatus(totalNum, energyGoal);
     return {
       ...display,
       barSeries,
       unit: '千卡' as const,
-      status: totalNum <= 0
-        ? '・暂无数据'
-        : display.dataDayLabel
-          ? `・${display.dataDayLabel}`
-          : '',
-      statusColor: '#999999',
+      status,
+      statusColor,
     };
   }
 
@@ -1343,6 +1392,8 @@ export function getHeartRateDisplay(items: WearableDataItem[]) {
   };
 }
 
+const VITALS_CARD_DATE_FORMAT = 'YYYY/M/D';
+
 export function formatMeasureDataTime(item?: MeasureDataItem) {
   if (!item) return '';
   const date = item.customerLocalDate?.trim();
@@ -1351,7 +1402,7 @@ export function formatMeasureDataTime(item?: MeasureDataItem) {
     const parsed = moment(date, 'YYYY-MM-DD', true);
     if (parsed.isValid()) {
       if (parsed.isSame(moment(), 'day') && time) return time;
-      return parsed.format('M/D');
+      return parsed.format(VITALS_CARD_DATE_FORMAT);
     }
   }
   return time || '';
@@ -1364,7 +1415,11 @@ export function formatWearableDataTime(item?: WearableDataItem) {
     const ts = getWearableTimestamp(item);
     return ts.format('HH:mm');
   }
-  return date.format('M/D');
+  return date.format(VITALS_CARD_DATE_FORMAT);
+}
+
+function formatVitalsCardTimeOrDate(ts: moment.Moment) {
+  return ts.isSame(moment(), 'day') ? ts.format('HH:mm') : ts.format(VITALS_CARD_DATE_FORMAT);
 }
 
 function formatTodayLatestReadingTime(
@@ -1381,14 +1436,7 @@ function formatTodayLatestReadingTime(
       return latest ? getWearableTimestamp(latest) : null;
     })();
   if (!ts) return '';
-  return ts.isSame(moment(), 'day') ? ts.format('HH:mm') : ts.format('M/D');
-}
-
-function parseWearableClockTime(value?: string) {
-  if (!value?.trim()) return null;
-  const normalized = value.trim().replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
-  const parsed = moment(normalized);
-  return parsed.isValid() ? parsed : null;
+  return formatVitalsCardTimeOrDate(ts);
 }
 
 export function getHeartRateDisplayDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
@@ -1411,11 +1459,11 @@ export function getStepsDisplayDataTime(items: WearableDataItem[], range: Vitals
 export function getSleepDisplayDataTime(items: WearableDataItem[], range: VitalsRange = 'today') {
   const item = getDisplaySleepItem(items, range);
   if (!item) return '';
-  const wakeMoment = parseWearableClockTime(item.wakeUpTimeStr ?? item.endTimeStr);
-  if (wakeMoment) return wakeMoment.format('M/D');
-  const bedMoment = parseWearableClockTime(item.bedTimeStr ?? item.startTimeStr);
-  if (bedMoment) return bedMoment.format('M/D');
-  return getWearableDate(item).format('M/D');
+  const date = getWearableDate(item);
+  if (date.isSame(moment(), 'day')) {
+    return date.format('M/D');
+  }
+  return date.format(VITALS_CARD_DATE_FORMAT);
 }
 
 export function getLatestMeasureDataTime(items: MeasureDataItem[], range: VitalsRange = 'today') {

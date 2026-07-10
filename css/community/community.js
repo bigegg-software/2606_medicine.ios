@@ -39,6 +39,10 @@ const styles = StyleSheet.create({
     sectionTitle: { marginTop: 16, fontWeight: 500, fontSize: 18, marginLeft: 14, color: AppTheme.textPrimary, },
     mapIcon: { width: 14, height: 14, },
     mapText: { marginLeft: 2, marginRight: 7, height: 19, fontWeight: 400, fontSize: 14, color: "rgba(43,18,13,0.75)", lineHeight: 19, },
+    mapMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
+    mapMetaItem: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
+    mapMetaLocation: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0, marginHorizontal: 6 },
+    mapMetaLocationText: { flex: 1, minWidth: 0, marginLeft: 2, marginRight: 0 },
     newDynamicBox: {
         marginTop: 14, backgroundColor: "#FFF", borderRadius: 8, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08, shadowRadius: 12,
@@ -94,16 +98,16 @@ const styles = StyleSheet.create({
     rankingBpx: {
         paddingTop: 10,
         alignItems: 'flex-end',
+        marginBottom: -10
     },
     podiumWrap: {
-        width: "32%",
+        width: 106,
         position: 'relative',
         overflow: 'hidden',
-        borderTopLeftRadius: 95,
-        borderTopRightRadius: 95,
     },
     podiumWrapFirst: {
-        marginBottom: 18,
+        width: 111,
+        marginBottom: 4,
     },
     podiumBg: {
         position: "absolute",
@@ -111,18 +115,16 @@ const styles = StyleSheet.create({
         height: 138,
         ...StyleSheet.absoluteFillObject,
     },
-    podiumInner: {
-        paddingBottom: 16,
-        paddingHorizontal: 8,
-        alignItems: 'center',
-    },
-    headImg: { width: 54, height: 54, borderRadius: 27, marginTop: 4 },
-    headBg: { width: "85%", height: 36, marginTop: 20 },
-    headBgFirst: { width: "85%", height: 50, marginTop: 16 },
-    rankingItemText: { marginTop: 7, fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary },
-    rankingItemTextFirst: { fontSize: 17, fontWeight: '600', maxWidth: 108 },
+    podiumInner: {},
+    headImg: { width: 48, height: 48, borderRadius: 24, marginTop: 4, zIndex: 1 },
+    headImgFirst: { width: 59, height: 59, borderRadius: 30, marginTop: 4 },
+    headBg: { width: "100%", height: 123, marginTop: -2, position: "relative" },
+    headBgContent: { position: "absolute", top: 52, width: "100%" },
+    headBgFirst: { width: "100%", height: 152, marginTop: -4 },
+    rankingItemText: { fontWeight: 500, width: "100%", fontSize: 16, color: AppTheme.textPrimary, zIndex: 1 },
+    rankingItemTextFirst: { fontSize: 17, fontWeight: '600', maxWidth: 108, color: "#AE761B" },
     avatarIcon: { width: 18, height: 18 },
-    avatarValue: { marginLeft: 5, fontWeight: 400, fontSize: 14 },
+    avatarValue: { marginLeft: 5, fontWeight: "bold", fontSize: 16, color: "#333333" },
     rankingItemBox: {
         marginTop: 12,
         height: 70,
@@ -139,6 +141,14 @@ const styles = StyleSheet.create({
         fontWeight: 400,
         fontSize: 20,
         color: "#A4A4A4",
+    },
+    rankNumWrap: {
+        width: 40,
+        justifyContent: 'center',
+    },
+    rankNumIcon: {
+        width: 25,
+        height: 25,
     },
     rankingItemText2: {
         fontWeight: 400,

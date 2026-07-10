@@ -44,10 +44,10 @@ import {
   getDateRange,
   getEnergySummary,
   getHeartRateDisplay,
-  getTodayWearableItem,
   normalizeMeasureRangeData,
   sortWearableItems,
 } from '@/src/features/profile/vitals/vitalsHelpers';
+import { resolveRestingHeartRateDisplay } from '@/src/features/profile/vitals/detail/helpers/heartRate';
 import {
   calcNutritionProgress,
   getDietRuleSummary,
@@ -88,13 +88,6 @@ function toSparklineValues(series: { value: number }[]) {
   if (values.length >= 2) return values;
   if (values.length === 1) return [values[0], values[0]];
   return [];
-}
-
-function getRestingHeartRateText(items: WearableDataItem[]) {
-  const item = getTodayWearableItem(items);
-  const min = item?.minHeartRate != null ? Number(item.minHeartRate) : Number.NaN;
-  if (!Number.isFinite(min) || min <= 0) return '--';
-  return String(Math.round(min));
 }
 
 type HomeMealKey = 'breakfast' | 'lunch' | 'dinner';
@@ -236,6 +229,7 @@ export default function HomeTab() {
   const [todayMealList, setTodayMealList] = useState<MealDetailItem[]>([]);
   const [bloodGlucose, setBloodGlucose] = useState<MeasureDataItem[]>([]);
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
+  const [wearableRestingHeartRate, setWearableRestingHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
   const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
   const [exercisePrescription, setExercisePrescription] = useState<InUseExPatientRule | null>(null);
@@ -293,8 +287,8 @@ export default function HomeTab() {
     [wearableHeartRate],
   );
   const restingHeartRate = useMemo(
-    () => getRestingHeartRateText(wearableHeartRate),
-    [wearableHeartRate],
+    () => resolveRestingHeartRateDisplay(wearableRestingHeartRate, 'today'),
+    [wearableRestingHeartRate],
   );
 
   const glucose = useMemo(
@@ -370,13 +364,14 @@ export default function HomeTab() {
     };
 
     try {
-      const [glucoseRes, heartRateItems, activeEnergyItems, basalEnergyItems] = await Promise.all([
+      const [glucoseRes, heartRateItems, restingHeartRateItems, activeEnergyItems, basalEnergyItems] = await Promise.all([
         getMeasureDataDetailByDateRange({
           startDate,
           endDate,
           type: '血糖',
         }),
         fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
+        fetchWearableItems(WEARABLE_DATA_TYPES.restingHeartRate),
         fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
         fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
       ]);
@@ -391,11 +386,13 @@ export default function HomeTab() {
       }
 
       setWearableHeartRate(heartRateItems);
+      setWearableRestingHeartRate(restingHeartRateItems);
       setWearableActiveEnergy(activeEnergyItems);
       setWearableBasalEnergy(basalEnergyItems);
     } catch {
       setBloodGlucose([]);
       setWearableHeartRate([]);
+      setWearableRestingHeartRate([]);
       setWearableActiveEnergy([]);
       setWearableBasalEnergy([]);
     }

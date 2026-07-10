@@ -600,36 +600,6 @@ function findNearestSelectableDataX(
     }).dataX;
 }
 
-function SelectionTooltip({
-    point,
-    lineLeft,
-}: {
-    point: WeightDetailPoint;
-    lineLeft: number;
-}) {
-    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
-
-    return (
-        <View
-            pointerEvents="none"
-            style={[
-                styles.chartSelectionTip,
-                {
-                    top: GRID_TOP_Y + 6,
-                    left: tipLeft,
-                },
-            ]}
-        >
-            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
-            {isValidPoint(point) ? (
-                <Text style={styles.chartSelectionTipValue}>
-                    {formatWeightChartLabel(point)}
-                </Text>
-            ) : null}
-        </View>
-    );
-}
-
 function findPointAtDataX(
     range: WeightChartRange,
     points: WeightDetailPoint[],

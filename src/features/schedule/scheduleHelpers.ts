@@ -189,12 +189,18 @@ export type ScheduleWeekStats = {
   trainingCount: string;
   completionRate: string;
   totalDuration: string;
+  trainingDone: string;
+  trainingTotal: string;
+  durationMinutes: string;
 };
 
 const EMPTY_WEEK_STATS: ScheduleWeekStats = {
   trainingCount: '--',
   completionRate: '--',
   totalDuration: '--',
+  trainingDone: '--',
+  trainingTotal: '',
+  durationMinutes: '--',
 };
 
 export function buildWeekStatsFromStatis(data?: ExRecordDayStatisData | null): ScheduleWeekStats {
@@ -206,9 +212,15 @@ export function buildWeekStatsFromStatis(data?: ExRecordDayStatisData | null): S
 
   return {
     trainingCount: total <= 0 ? String(done) : `${done}/${total}`,
+    trainingDone: String(done),
+    trainingTotal: total > 0 ? String(total) : '',
     completionRate:
       ratio != null && Number.isFinite(Number(ratio)) ? `${normalizeProgress(ratio)}%` : '--',
     totalDuration: formatTotalDuration(data.sumExerciseDuration),
+    durationMinutes:
+      data.sumExerciseDuration != null && Number.isFinite(Number(data.sumExerciseDuration))
+        ? String(Math.max(0, Math.round(Number(data.sumExerciseDuration))))
+        : '--',
   };
 }
 
@@ -725,6 +737,29 @@ export function sortHealthGoalDisplayItems(items: HealthGoalDisplayItem[]) {
   return [...items].sort((left, right) => getHealthGoalSortIndex(left) - getHealthGoalSortIndex(right));
 }
 
+function getFirstExerciseChildTypeLabel(
+  rule: ExPatientRuleRatio,
+  dictMaps?: ScheduleDictMaps,
+) {
+  const typeKey = rule.exerciseType?.trim() ?? '';
+  const firstChild = (rule.exerciseChildType ?? '')
+    .split(',')
+    .map(item => item.trim())
+    .find(Boolean);
+  if (!firstChild) return '';
+  return getExerciseChildTypeLabel(firstChild, typeKey, dictMaps) || firstChild;
+}
+
+function formatTodayTaskIntro(rule: ExPatientRuleRatio, dictMaps?: ScheduleDictMaps) {
+  const label = getFirstExerciseChildTypeLabel(rule, dictMaps);
+  const duration = Number(rule.duration);
+  if (!label) return '--';
+  if (Number.isFinite(duration) && duration > 0) {
+    return `${label}${Math.round(duration)}分钟`;
+  }
+  return label;
+}
+
 export function toTodayTaskItem(
   rule: ExPatientRuleRatio,
   index: number,
@@ -740,9 +775,10 @@ export function toTodayTaskItem(
   return {
     key: `${typeKey}-${index}`,
     title: typeLabel,
-    intro: rule.duration != null ? `${typeLabel}${rule.duration}分钟` : '--',
+    intro: formatTodayTaskIntro(rule, dictMaps),
     progress,
     icon: EXERCISE_TYPE_IMAGES[typeKey] ?? EXERCISE_TYPE_IMAGES.cardio,
+    progressColor: EXERCISE_TYPE_COLORS[typeKey] ?? EXERCISE_TYPE_COLORS.cardio,
   };
 }
 
@@ -751,7 +787,7 @@ export function formatPrescriptionCycleDays(startDate?: string, endDate?: string
   const start = moment(startDate);
   const end = moment(endDate);
   if (!start.isValid() || !end.isValid()) return '--';
-  return `${end.diff(start, 'days') + 1}天`;
+  return `${end.diff(start, 'days') + 1}`;
 }
 
 export function getPrescriptionProgressStatusText(progress?: number) {

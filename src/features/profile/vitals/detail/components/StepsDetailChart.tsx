@@ -553,43 +553,6 @@ function findNearestSelectableDataX(
     }).dataX;
 }
 
-function formatStepsValue(value: number) {
-    return value.toLocaleString('en-US');
-}
-
-function SelectionTooltip({
-    point,
-    lineLeft,
-    valueUnit = '步',
-}: {
-    point: StepsPoint;
-    lineLeft: number;
-    valueUnit?: string;
-}) {
-    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
-    const valueText = valueUnit
-        ? `${formatStepsValue(point.value)}${valueUnit}`
-        : formatStepsValue(point.value);
-
-    return (
-        <View
-            pointerEvents="none"
-            style={[
-                styles.chartSelectionTip,
-                {
-                    top: GRID_TOP_Y + 6,
-                    left: tipLeft,
-                },
-            ]}
-        >
-            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
-            {isValidPoint(point) ? (
-                <Text style={styles.chartSelectionTipValue}>{valueText}</Text>
-            ) : null}
-        </View>
-    );
-}
-
 function findPointAtDataX(
     range: StepsChartRange,
     points: StepsPoint[],
@@ -965,9 +928,6 @@ export default function StepsDetailChart({
                     }}
                 />
             </GestureDetector>
-            {selectedPoint && displayPixelX != null ? (
-                <SelectionTooltip point={selectedPoint} lineLeft={displayPixelX} valueUnit={valueUnit} />
-            ) : null}
             <ChartGridExtensionLines positions={gridExtensionPositions} />
             {range === 'today'
                 ? <TodayXAxisLabels />

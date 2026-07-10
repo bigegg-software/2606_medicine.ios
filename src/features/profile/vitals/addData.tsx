@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Image, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, DatePicker, Picker } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
+import { useHeaderHeight } from '@react-navigation/elements';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import moment from 'moment';
 import styles from '@/css/vitals/add';
@@ -11,6 +12,16 @@ import { addMeasureData, removeMeasureDataById, updateMeasureData, type AddMeasu
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import {
+  BLOOD_SUGAR_MEASURE_STATUS_LIST,
+  BLOOD_PRESSURE_INPUT_MAX_LENGTH,
+  formatBloodPressureEditValue,
+  getBloodPressureReferenceLines,
+  getBloodSugarReferenceLines,
+  sanitizeBloodPressureInput,
+  toBloodSugarMeasureStatusLabel,
+  toBloodSugarMeasureStatusValue,
+} from './addDataHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AddDataPage'>;
@@ -41,7 +52,7 @@ const MEASURE_CONFIG: Record<
     showStatus: true,
     statusList: ['静息', '运动后', '情绪紧张', '睡前'],
     defaultStatus: '静息',
-    referenceLines: ['正常:<120/80 mmHg', '偏高:120-139/80-89 mmHg', '高血压:>=140/90 mmHg'],
+    referenceLines: [],
     keyboardType: 'number-pad',
   },
   血糖: {
@@ -50,13 +61,9 @@ const MEASURE_CONFIG: Record<
     showSecondary: false,
     showSite: false,
     showStatus: true,
-    statusList: ['空腹', '餐前', '餐后', '睡前', '凌晨'],
+    statusList: [...BLOOD_SUGAR_MEASURE_STATUS_LIST],
     defaultStatus: '餐前',
-    referenceLines: [
-      '正常（空腹）：3.9-6.1 mmol/L',
-      '偏高（空腹）：6.1-7.0 mmol/L',
-      '糖尿病：>=7.0 mmol/L',
-    ],
+    referenceLines: [],
     keyboardType: 'decimal-pad',
   },
   体温: {
@@ -181,6 +188,8 @@ export default function BloodAddPage({ route }: Props) {
   const isEdit = editItem?.id != null;
   const config = MEASURE_CONFIG[measureType];
   const navigation = useNavigation<Nav>();
+  const headerHeight = useHeaderHeight();
+  const scrollRef = useRef<ScrollView>(null);
   const allowDecimal = config.keyboardType === 'decimal-pad';
   const pageTitle = isEdit ? config.title.replace('新增', '编辑') : config.title;
 
@@ -197,18 +206,32 @@ export default function BloodAddPage({ route }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
+  const scrollToRemarkInput = useCallback(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        scrollRef.current?.scrollToEnd({ animated: true });
+      }, 120);
+    });
+  }, []);
+
   useEffect(() => {
     if (!editItem) return;
     if (editItem.customerLocalDate) setMeasureDate(editItem.customerLocalDate);
     if (editItem.dataTime) setMeasureTime(editItem.dataTime);
     if (editItem.val != null) {
-      setPrimaryValue(formatEditMeasureValue(
-        measureType === '血脂' ? (editItem.xuezhiTc ?? editItem.val) : editItem.val,
-        measureType,
-      ));
+      if (measureType === '血压') {
+        setPrimaryValue(formatBloodPressureEditValue(editItem.val));
+      } else {
+        const rawVal = measureType === '血脂' ? (editItem.xuezhiTc ?? editItem.val) : editItem.val;
+        setPrimaryValue(formatEditMeasureValue(rawVal, measureType));
+      }
     }
     if (editItem.val2 != null) {
-      setSecondaryValue(formatEditMeasureValue(editItem.val2, measureType));
+      setSecondaryValue(
+        measureType === '血压'
+          ? formatBloodPressureEditValue(editItem.val2)
+          : formatEditMeasureValue(editItem.val2, measureType),
+      );
     }
     if (measureType === '血脂') {
       if (editItem.xuezhiTg != null) setLipidTg(formatEditMeasureValue(editItem.xuezhiTg, measureType));
@@ -216,7 +239,11 @@ export default function BloodAddPage({ route }: Props) {
       if (editItem.xuezhiLdlC != null) setLipidLdl(formatEditMeasureValue(editItem.xuezhiLdlC, measureType));
     }
     if (editItem.measuringSite) setMeasureSite(editItem.measuringSite);
-    setMeasureStatus(editItem.measurementStatus || config.defaultStatus);
+    setMeasureStatus(
+      measureType === '血糖'
+        ? toBloodSugarMeasureStatusLabel(editItem.measurementStatus || config.defaultStatus)
+        : (editItem.measurementStatus || config.defaultStatus),
+    );
     setRemark(editItem.remark ?? '');
   }, [config.defaultStatus, editItem, measureType]);
 
@@ -266,7 +293,15 @@ export default function BloodAddPage({ route }: Props) {
     });
   }, [deleting, isEdit, navigation, pageTitle, remove, submitting]);
 
-  const referenceLines = useMemo(() => config.referenceLines, [config.referenceLines]);
+  const referenceLines = useMemo(() => {
+    if (measureType === '血糖') {
+      return getBloodSugarReferenceLines(measureStatus);
+    }
+    if (measureType === '血压') {
+      return getBloodPressureReferenceLines();
+    }
+    return config.referenceLines;
+  }, [config.referenceLines, measureStatus, measureType]);
 
   const submit = async () => {
     if (!primaryValue.trim()) {
@@ -315,7 +350,9 @@ export default function BloodAddPage({ route }: Props) {
         dataTime: measureTime,
         val,
         val2,
-        measurementStatus: config.showStatus ? measureStatus : '',
+        measurementStatus: config.showStatus
+          ? (measureType === '血糖' ? toBloodSugarMeasureStatusValue(measureStatus) : measureStatus)
+          : '',
         measuringSite: config.showSite ? measureSite : '',
         remark: remark.trim(),
         ...(measureType === '血脂'
@@ -343,182 +380,205 @@ export default function BloodAddPage({ route }: Props) {
   };
 
   return (
-    <PageLayout style={styles.container}>
-      <KeyboardDoneAccessory />
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <View style={styles.rowBox}>
-          <Text style={styles.sectionTitle}>测量时间</Text>
+    <PageLayout
+      style={styles.container}
+      keyboardAccessory={<KeyboardDoneAccessory />}>
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
+        <ScrollView
+          ref={scrollRef}
+          style={styles.scroll}
+          contentContainerStyle={styles.body}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}>
+          <View style={styles.rowBox}>
+            <Text style={styles.sectionTitle}>测量时间</Text>
 
-          <DatePicker
-            precision="day"
-            value={moment(measureDate, 'YYYY-MM-DD').toDate()}
-            onOk={date => setMeasureDate(moment(date).format('YYYY-MM-DD'))}>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Flex justify="between" align="center">
-                <Text style={styles.rowTitle}>日期</Text>
-                <Flex align="center" style={styles.rowTitle}>
-                  <Text style={styles.dateValue}>
-                    {moment(measureDate).format('YYYY年M月D日')}
-                  </Text>
-                  <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
+            <DatePicker
+              precision="day"
+              value={moment(measureDate, 'YYYY-MM-DD').toDate()}
+              onOk={date => setMeasureDate(moment(date).format('YYYY-MM-DD'))}>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Flex justify="between" align="center">
+                  <Text style={styles.rowTitle}>日期</Text>
+                  <Flex align="center" style={styles.rowTitle}>
+                    <Text style={styles.dateValue}>
+                      {moment(measureDate).format('YYYY年M月D日')}
+                    </Text>
+                    <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
+                  </Flex>
                 </Flex>
-              </Flex>
-            </TouchableOpacity>
-          </DatePicker>
-          <View style={styles.rowLineInHeader} />
-          <Picker
-            data={TIME_PICKER_DATA}
-            cols={2}
-            cascade={false}
-            value={parseTimeValue(measureTime)}
-            onOk={values => {
-              const hour = String(Number(values[0])).padStart(2, '0');
-              const minute = String(Number(values[1])).padStart(2, '0');
-              setMeasureTime(`${hour}:${minute}`);
-            }}>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Flex justify="between" align="center">
-                <Text style={styles.rowTitle}>时间</Text>
-                <Flex align="center" style={styles.rowTitle}>
-                  <Text style={styles.dateValue}>{measureTime}</Text>
-                  <Image source={require('@/assets/images/user/nl.png')} style={styles.calendarIcon} />
+              </TouchableOpacity>
+            </DatePicker>
+            <View style={styles.rowLineInHeader} />
+            <Picker
+              data={TIME_PICKER_DATA}
+              cols={2}
+              cascade={false}
+              value={parseTimeValue(measureTime)}
+              onOk={values => {
+                const hour = String(Number(values[0])).padStart(2, '0');
+                const minute = String(Number(values[1])).padStart(2, '0');
+                setMeasureTime(`${hour}:${minute}`);
+              }}>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Flex justify="between" align="center">
+                  <Text style={styles.rowTitle}>时间</Text>
+                  <Flex align="center" style={styles.rowTitle}>
+                    <Text style={styles.dateValue}>{measureTime}</Text>
+                    <Image source={require('@/assets/images/user/nl.png')} style={styles.calendarIcon} />
+                  </Flex>
                 </Flex>
-              </Flex>
-            </TouchableOpacity>
-          </Picker>
-        </View>
+              </TouchableOpacity>
+            </Picker>
+          </View>
 
-        <View style={styles.rowBox}>
-          <Text style={styles.sectionTitle}>{config.primaryLabel}</Text>
-          <TextInput
-            style={styles.inputBox}
-            placeholder="--"
-            placeholderTextColor={AppTheme.textSecondary}
-            value={primaryValue}
-            onChangeText={text => setPrimaryValue(sanitizeNumberInput(text, allowDecimal))}
-            keyboardType={config.keyboardType}
-            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-          />
+          <View style={styles.rowBox}>
+            <Text style={styles.sectionTitle}>{config.primaryLabel}</Text>
+            <TextInput
+              style={styles.inputBox}
+              placeholder="--"
+              placeholderTextColor={AppTheme.textSecondary}
+              value={primaryValue}
+              onChangeText={text => setPrimaryValue(
+                measureType === '血压'
+                  ? sanitizeBloodPressureInput(text)
+                  : sanitizeNumberInput(text, allowDecimal),
+              )}
+              keyboardType={measureType === '血压' ? 'decimal-pad' : config.keyboardType}
+              maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+            />
 
-          {config.showSecondary ? (
-            <>
-              <Text style={styles.sectionTitle}>{config.secondaryLabel}</Text>
-              <TextInput
-                style={styles.inputBox}
-                placeholder="--"
-                placeholderTextColor={AppTheme.textSecondary}
-                value={secondaryValue}
-                onChangeText={text => setSecondaryValue(sanitizeNumberInput(text, false))}
-                keyboardType="number-pad"
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              />
-            </>
-          ) : null}
+            {config.showSecondary ? (
+              <>
+                <Text style={styles.sectionTitle}>{config.secondaryLabel}</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="--"
+                  placeholderTextColor={AppTheme.textSecondary}
+                  value={secondaryValue}
+                  onChangeText={text => setSecondaryValue(
+                    measureType === '血压'
+                      ? sanitizeBloodPressureInput(text)
+                      : sanitizeNumberInput(text, false),
+                  )}
+                  keyboardType={measureType === '血压' ? 'decimal-pad' : 'number-pad'}
+                  maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                />
+              </>
+            ) : null}
 
-          {measureType === '血脂' ? (
-            <>
-              <Text style={styles.sectionTitle}>甘油三酯（TG）mmol/L</Text>
-              <TextInput
-                style={styles.inputBox}
-                placeholder="--"
-                placeholderTextColor={AppTheme.textSecondary}
-                value={lipidTg}
-                onChangeText={text => setLipidTg(sanitizeNumberInput(text, true))}
-                keyboardType="decimal-pad"
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              />
-              <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
-              <TextInput
-                style={styles.inputBox}
-                placeholder="--"
-                placeholderTextColor={AppTheme.textSecondary}
-                value={lipidHdl}
-                onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
-                keyboardType="decimal-pad"
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              />
-              <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
-              <TextInput
-                style={styles.inputBox}
-                placeholder="--"
-                placeholderTextColor={AppTheme.textSecondary}
-                value={lipidLdl}
-                onChangeText={text => setLipidLdl(sanitizeNumberInput(text, true))}
-                keyboardType="decimal-pad"
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              />
-            </>
-          ) : null}
+            {measureType === '血脂' ? (
+              <>
+                <Text style={styles.sectionTitle}>甘油三酯（TG）mmol/L</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="--"
+                  placeholderTextColor={AppTheme.textSecondary}
+                  value={lipidTg}
+                  onChangeText={text => setLipidTg(sanitizeNumberInput(text, true))}
+                  keyboardType="decimal-pad"
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                />
+                <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="--"
+                  placeholderTextColor={AppTheme.textSecondary}
+                  value={lipidHdl}
+                  onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
+                  keyboardType="decimal-pad"
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                />
+                <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="--"
+                  placeholderTextColor={AppTheme.textSecondary}
+                  value={lipidLdl}
+                  onChangeText={text => setLipidLdl(sanitizeNumberInput(text, true))}
+                  keyboardType="decimal-pad"
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                />
+              </>
+            ) : null}
 
-          {config.showSite ? (
-            <>
-              <Text style={styles.sectionTitle}>测量部位</Text>
-              <View style={styles.siteRow}>
-                {MEASURE_SITE_LIST.map(item => {
-                  const active = measureSite === item;
-                  return (
-                    <TouchableOpacity
+            {config.showSite ? (
+              <>
+                <Text style={styles.sectionTitle}>测量部位</Text>
+                <View style={styles.siteRow}>
+                  {MEASURE_SITE_LIST.map(item => {
+                    const active = measureSite === item;
+                    return (
+                      <TouchableOpacity
+                        key={item}
+                        style={[styles.siteItem, active && styles.siteItemActive]}
+                        onPress={() => setMeasureSite(item)}>
+                        <Text style={[styles.siteItemText, active && styles.siteItemTextActive]}>{item}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            ) : null}
+
+            {config.showStatus ? (
+              <>
+                <Text style={styles.sectionTitle}>测量状态</Text>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.statusRow}>
+                  {config.statusList.map(item => (
+                    <OptionChip
                       key={item}
-                      style={[styles.siteItem, active && styles.siteItemActive]}
-                      onPress={() => setMeasureSite(item)}>
-                      <Text style={[styles.siteItemText, active && styles.siteItemTextActive]}>{item}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </>
-          ) : null}
+                      label={item}
+                      active={measureStatus === item}
+                      onPress={() => setMeasureStatus(item)}
+                    />
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
 
-          {config.showStatus ? (
-            <>
-              <Text style={styles.sectionTitle}>测量状态</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.statusRow}>
-                {config.statusList.map(item => (
-                  <OptionChip
-                    key={item}
-                    label={item}
-                    active={measureStatus === item}
-                    onPress={() => setMeasureStatus(item)}
-                  />
-                ))}
-              </ScrollView>
-            </>
-          ) : null}
+            <Text style={styles.sectionTitle}>备注（选填）</Text>
+            <TextInput
+              style={styles.textareaBox}
+              placeholder="选填"
+              placeholderTextColor={AppTheme.textSecondary}
+              value={remark}
+              onChangeText={setRemark}
+              multiline
+              textAlignVertical="top"
+              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              onFocus={scrollToRemarkInput}
+            />
+          </View>
 
-          <Text style={styles.sectionTitle}>备注（选填）</Text>
-          <TextInput
-            style={styles.textareaBox}
-            placeholder="选填"
-            placeholderTextColor={AppTheme.textSecondary}
-            value={remark}
-            onChangeText={setRemark}
-            multiline
-            textAlignVertical="top"
-            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-          />
-        </View>
-
-        <View>
-          <Text style={styles.btmTitle}>参考标准:</Text>
-          {referenceLines.map(line => (
-            <Text key={line} style={styles.btmText}>
-              {line}
-            </Text>
-          ))}
-        </View>
-      </ScrollView>
-      <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting || deleting}>
-        <Flex justify="center" align="center" style={{ flex: 1 }}>
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.addText}>{isEdit ? '保存' : '添加记录'}</Text>
-          )}
-        </Flex>
-      </TouchableOpacity>
+          <View>
+            <Text style={styles.btmTitle}>参考标准:</Text>
+            {referenceLines.map(line => (
+              <Text key={line} style={styles.btmText}>
+                {line}
+              </Text>
+            ))}
+          </View>
+        </ScrollView>
+        <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting || deleting}>
+          <Flex justify="center" align="center" style={{ flex: 1 }}>
+            {submitting ? (
+              <ActivityIndicator color="#FFFFFF" />
+            ) : (
+              <Text style={styles.addText}>{isEdit ? '保存' : '添加记录'}</Text>
+            )}
+          </Flex>
+        </TouchableOpacity>
+      </KeyboardAvoidingView>
     </PageLayout>
   );
 }

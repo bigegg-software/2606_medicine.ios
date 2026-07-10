@@ -3,7 +3,6 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/vitals/bloodPage';
@@ -15,24 +14,19 @@ import BodyTemperatureDetailChart, {
 } from './components/BodyTemperatureDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-    getMeasureDataDetailByDate,
-    getMeasureDataStatisByDateRange,
+    getMeasureDataDetailByDateRange,
     type MeasureDataItem,
-    type MeasureDataStatisDayGroup,
 } from '@/api/measureData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDateRange } from '../vitalsHelpers';
+import { flattenMeasureItems } from '../vitalsHelpers';
 import {
-    buildBodyTemperatureChartFromStatisGroups,
+    buildBodyTemperatureDetailPeriodSeries,
     buildBodyTemperatureDetailTodaySeries,
     calcBodyTemperatureDetailStats,
     formatBodyTemperatureDetailPointDisplay,
+    getBodyTemperatureDetailQueryRange,
     type BodyTemperatureDetailPoint,
 } from './helpers/bodyTemperature';
-import {
-    mapDetailChartRangeToVitalsRange,
-    normalizeStatisRangeData,
-} from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -51,6 +45,38 @@ function formatStatusText(status?: string) {
 
 function resetHeaderDisplay(range: BodyTemperatureChartRange) {
     return formatBodyTemperatureDetailPointDisplay(range);
+}
+
+function applyEmptyBodyTemperatureState(
+    range: BodyTemperatureChartRange,
+    setters: {
+        setChartData: (data: BodyTemperatureRangePoint[]) => void;
+        setDisplayValue: (value: string) => void;
+        setDisplayStatus: (status: string) => void;
+        setDisplayStatusColor: (color: string) => void;
+        setCurrentLabel: (label: string) => void;
+        setStats: (stats: typeof EMPTY_STATS) => void;
+    },
+) {
+    const emptyDisplay = resetHeaderDisplay(range);
+    setters.setChartData([]);
+    setters.setDisplayValue(emptyDisplay.value);
+    setters.setDisplayStatus(formatStatusText(emptyDisplay.status));
+    setters.setDisplayStatusColor(emptyDisplay.statusColor);
+    setters.setCurrentLabel(emptyDisplay.currentLabel);
+    setters.setStats(EMPTY_STATS);
+}
+
+async function loadBodyTemperatureDetailItems(range: BodyTemperatureChartRange) {
+    const { startDate, endDate } = getBodyTemperatureDetailQueryRange(range);
+    const res = (await getMeasureDataDetailByDateRange({
+        startDate,
+        endDate,
+        type: '体温',
+    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+
+    if (!isResourceApiOk(res)) return null;
+    return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
 }
 
 export default function VitalsPage() {
@@ -80,58 +106,29 @@ export default function VitalsPage() {
     }, [selectedType]);
 
     const loadMeasureData = useCallback(async (range: BodyTemperatureChartRange) => {
+        const emptySetters = {
+            setChartData,
+            setDisplayValue,
+            setDisplayStatus,
+            setDisplayStatusColor,
+            setCurrentLabel,
+            setStats,
+        };
+
         try {
-            if (range === 'today') {
-                const res = (await getMeasureDataDetailByDate({
-                    customerLocalDate: moment().format('YYYY-MM-DD'),
-                    type: '体温',
-                })) as unknown as { code?: number; data?: MeasureDataItem[] };
-
-                if (!isResourceApiOk(res)) {
-                    setChartData([]);
-                    const emptyDisplay = resetHeaderDisplay(range);
-                    setDisplayValue(emptyDisplay.value);
-                    setDisplayStatus(formatStatusText(emptyDisplay.status));
-                    setDisplayStatusColor(emptyDisplay.statusColor);
-                    setCurrentLabel(emptyDisplay.currentLabel);
-                    setStats(EMPTY_STATS);
-                    return;
-                }
-
-                const items = apiResourceData<MeasureDataItem[]>(res) ?? [];
-                setChartData(buildBodyTemperatureDetailTodaySeries(items));
-                const periodStats = calcBodyTemperatureDetailStats(items, range);
-                setStats(periodStats ? {
-                    statusText: periodStats.statusText,
-                    rangeText: periodStats.rangeText,
-                    recordCount: periodStats.recordCount,
-                    abnormalDays: periodStats.abnormalDays,
-                    abnormalCount: periodStats.abnormalCount,
-                } : EMPTY_STATS);
+            const detailItems = await loadBodyTemperatureDetailItems(range);
+            if (detailItems == null) {
+                applyEmptyBodyTemperatureState(range, emptySetters);
                 return;
             }
 
-            const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
-            const res = (await getMeasureDataStatisByDateRange({
-                startDate,
-                endDate,
-                type: '体温',
-            })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
+            setChartData(
+                range === 'today'
+                    ? buildBodyTemperatureDetailTodaySeries(detailItems)
+                    : buildBodyTemperatureDetailPeriodSeries(detailItems, range),
+            );
 
-            if (!isResourceApiOk(res)) {
-                setChartData([]);
-                const emptyDisplay = resetHeaderDisplay(range);
-                setDisplayValue(emptyDisplay.value);
-                setDisplayStatus(formatStatusText(emptyDisplay.status));
-                setDisplayStatusColor(emptyDisplay.statusColor);
-                setCurrentLabel(emptyDisplay.currentLabel);
-                setStats(EMPTY_STATS);
-                return;
-            }
-
-            const groups = normalizeStatisRangeData(apiResourceData<unknown>(res));
-            setChartData(buildBodyTemperatureChartFromStatisGroups(groups, range));
-            const periodStats = calcBodyTemperatureDetailStats([], range, groups);
+            const periodStats = calcBodyTemperatureDetailStats(detailItems, range);
             setStats(periodStats ? {
                 statusText: periodStats.statusText,
                 rangeText: periodStats.rangeText,
@@ -140,13 +137,7 @@ export default function VitalsPage() {
                 abnormalCount: periodStats.abnormalCount,
             } : EMPTY_STATS);
         } catch {
-            setChartData([]);
-            const emptyDisplay = resetHeaderDisplay(range);
-            setDisplayValue(emptyDisplay.value);
-            setDisplayStatus(formatStatusText(emptyDisplay.status));
-            setDisplayStatusColor(emptyDisplay.statusColor);
-            setCurrentLabel(emptyDisplay.currentLabel);
-            setStats(EMPTY_STATS);
+            applyEmptyBodyTemperatureState(range, emptySetters);
         }
     }, []);
 
@@ -170,12 +161,14 @@ export default function VitalsPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom:  insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
                             <Text style={styles.rowTitle}>
@@ -189,7 +182,7 @@ export default function VitalsPage() {
                         </Flex>
                         <Text style={styles.rowLeftValue}>{displayValue}</Text>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>正常范围：36.0-37.0</Text>
+                            <Text style={styles.rowTitle}>正常范围：36.0°C – 37.2°C</Text>
                             <Flex style={styles.dayBox}>
                                 <Text style={styles.dayText}>{currentLabel}</Text>
                             </Flex>
@@ -200,6 +193,24 @@ export default function VitalsPage() {
                             data={chartData}
                             onPointChange={handleChartPointChange}
                         />
+                          <Flex justify='center' style={styles.colTopBox}>
+                        <Flex>
+                            <Flex style={styles.colRightBor}></Flex>
+                            <Text style={styles.colRightText}>偏低</Text>
+                        </Flex>
+                        <Flex>
+                            <Flex style={styles.colLBor}></Flex>
+                            <Text style={styles.colLText}>正常</Text>
+                        </Flex>
+                        <Flex>
+                            <Flex style={styles.colHBor}></Flex>
+                            <Text style={styles.colHText}>偏高</Text>
+                        </Flex>
+                        <Flex>
+                            <Flex style={styles.colHxBor}></Flex>
+                            <Text style={styles.colHxText}>高风险</Text>
+                        </Flex>
+                    </Flex>
                     </View>
 
                     <Flex style={[styles.colRow, { marginTop: 30 }]}>

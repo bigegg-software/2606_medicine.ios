@@ -3,6 +3,7 @@ import request from '@/utils/axios';
 export type WearableDataType =
   | 'sleepAnalysis'
   | 'heartRate'
+  | 'restingHeartRate'
   | 'stepCount'
   | 'oxygenSaturation'
   | 'activeEnergyBurned'
@@ -11,6 +12,7 @@ export type WearableDataType =
 export const WEARABLE_DATA_TYPES = {
   sleep: 'sleepAnalysis',
   heartRate: 'heartRate',
+  restingHeartRate: 'restingHeartRate',
   steps: 'stepCount',
   oxygen: 'oxygenSaturation',
   activeEnergy: 'activeEnergyBurned',
@@ -129,3 +131,25 @@ export type LatestUploadTimeResult = {
 
 export const getLatestWearableUploadTime = () =>
   request.get<LatestUploadTimeResult>('/patient/wearableData/latestUploadTime');
+
+export type HeartRateAbnormalCount = {
+  highCount?: number;
+  lowCount?: number;
+};
+
+export type HeartRateAbnormalCountResult = {
+  code?: number;
+  msg?: string;
+  data?: HeartRateAbnormalCount;
+};
+
+export const getHeartRateAbnormalCount = (params: {
+  startDate: string;
+  endDate: string;
+  returnOriginalData?: boolean;
+}) =>
+  request.post<HeartRateAbnormalCountResult>(
+    '/patient/wearableData/heartRateAbnormalCount',
+    {},
+    { params },
+  );

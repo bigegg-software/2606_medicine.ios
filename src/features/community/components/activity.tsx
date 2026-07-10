@@ -278,24 +278,29 @@ export default function ActivityPage() {
                         </Text>
                     </View>
                 </Flex>
-                <Flex justify='between' style={{ marginTop: 12 }}>
-                    <Flex>
+                <View style={styles.mapMetaRow}>
+                    <View style={styles.mapMetaItem}>
                         <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
                         <Text style={styles.mapText}>{formatActivityStartTime(item.activityStartTime)}</Text>
-                    </Flex>
+                    </View>
                     {item.activityLocation?.trim() ? (
-                        <Flex>
+                        <View style={styles.mapMetaLocation}>
                             <Image style={styles.mapIcon} source={require('@/assets/images/home/dw.png')} />
-                            <Text style={styles.mapText} numberOfLines={1}>
+                            <Text
+                                style={[styles.mapText, styles.mapMetaLocationText]}
+                                numberOfLines={1}
+                                ellipsizeMode="tail">
                                 {item.activityLocation.trim()}
                             </Text>
-                        </Flex>
-                    ) : null}
-                    <Flex>
+                        </View>
+                    ) : (
+                        <View style={{ flex: 1, minWidth: 0 }} />
+                    )}
+                    <View style={styles.mapMetaItem}>
                         <Image style={styles.mapIcon} source={require('@/assets/images/community/user.png')} />
                         <Text style={styles.mapText}>{formatActivitySignupCount(item.signupCount)}</Text>
-                    </Flex>
-                </Flex>
+                    </View>
+                </View>
             </TouchableOpacity>
         );
     };
@@ -306,7 +311,6 @@ export default function ActivityPage() {
                 const selected = activeTab === item.value;
                 return (
                     <TouchableOpacity
-                        style={styles.navCol}
                         key={item.value || 'all'}
                         onPress={() => handleTabChange(item.value)}>
                         <View style={styles.navItemWrap}>

@@ -318,12 +318,15 @@ export default function WeightPage() {
           end={{ x: 0, y: 1 }}
           style={styles.typeListFade}
         />
+
+        <View style={styles.pageHeader}>
+          <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+        </View>
+
         <ScrollView
           style={styles.body}
-          contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+          contentContainerStyle={{ paddingBottom: insets.bottom }}
         >
-          <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
           {showWeightGoal && weightGoalDisplay ? (
             <Flex style={[styles.colRow, { marginTop: 10 }]}>
               <View style={styles.colBox}>
@@ -360,9 +363,7 @@ export default function WeightPage() {
 
           <View style={[styles.rowBox, { marginTop: 10 }]}>
             <Flex justify='between'>
-              <Text style={styles.rowTitle}>
-                {selectedType === 'today' ? '体重(kg)' : '平均体重(kg)'}
-              </Text>
+              <Text style={styles.rowTitle}>体重(kg)</Text>
               <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                   {displayStatus}

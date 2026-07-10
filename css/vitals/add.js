@@ -3,6 +3,8 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
+    keyboardAvoid: { flex: 1 },
+    scroll: { flex: 1 },
     body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
     sectionTitle: { marginTop: 18, fontWeight: 500, fontSize: 18, marginBottom: 18, color: AppTheme.textPrimary },
     rowBox: {
@@ -62,7 +64,7 @@ const styles = StyleSheet.create({
     calendarIcon: { width: 19, height: 19, marginLeft: 8 },
     addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: '#053A93', borderRadius: 8 },
     addText: { fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
-    btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, textAlign: 'center' },
+    btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, textAlign: 'center',marginBottom:10 },
     btmText: { fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, textAlign: 'center' },
 });
 

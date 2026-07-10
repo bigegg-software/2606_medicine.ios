@@ -128,9 +128,18 @@ function ChartSelectionSlider({
     );
 }
 
-function buildYAxis(points: BloodPressurePoint[]) {
+function buildYAxis(
+    points: BloodPressurePoint[],
+    referenceHighY?: number,
+    referenceLowY?: number,
+) {
     const values = points.flatMap(point => [point.high, point.low]).filter(value => value > 0);
-    const peak = values.length ? Math.max(...values) : 140;
+    const referenceValues = [referenceHighY, referenceLowY].filter(
+        (value): value is number => value != null && value > 0,
+    );
+    const peak = values.length || referenceValues.length
+        ? Math.max(...values, ...referenceValues)
+        : referenceHighY ?? 140;
     const max = Math.max(
         Y_AXIS_INTERVAL * 3,
         Math.ceil((peak + 20) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL,
@@ -158,6 +167,9 @@ const Y_AXIS = {
     splitLine: GRID_SPLIT_LINE,
 };
 
+const LOW_COLOR = '#0951AE';
+const HIGH_COLOR = '#EE9C44';
+
 const POINT_SHADOW = {
     shadowBlur: 3,
     shadowColor: 'rgba(0,0,0,0.2)',
@@ -165,24 +177,24 @@ const POINT_SHADOW = {
     shadowOffsetY: 0,
 };
 const HIGH_POINT_STYLE = {
-    color: '#EE9C44',
+    color: HIGH_COLOR,
     borderColor: '#FFFFFF',
     borderWidth: 1,
     ...POINT_SHADOW,
 };
 const LOW_POINT_STYLE = {
-    color: '#6D925E',
+    color: LOW_COLOR,
     borderColor: '#FFFFFF',
     borderWidth: 1,
     ...POINT_SHADOW,
 };
 
 const LOW_LINE_STYLE = {
-    color: '#6D925E',
+    color: LOW_COLOR,
     width: 2,
 };
 const HIGH_LINE_STYLE = {
-    color: '#EE9C44',
+    color: HIGH_COLOR,
     width: 2,
 };
 
@@ -193,6 +205,8 @@ export type BloodPressureChartRange = 'today' | 'week' | 'month';
 type Props = {
     range: BloodPressureChartRange;
     data?: BloodPressurePoint[];
+    referenceHighY?: number;
+    referenceLowY?: number;
     onPointChange?: (point: BloodPressurePoint | undefined) => void;
 };
 
@@ -359,28 +373,64 @@ function dataXToPixelLeft(
     return Math.max(PLOT_LEFT, Math.min(plotRight, left));
 }
 
-function buildSelectionMarkLine(
+function buildCombinedMarkLine(
     range: BloodPressureChartRange,
     selectedDataX: number | null,
     labels: string[],
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
-    if (selectedDataX == null) return undefined;
+    const data: Array<Record<string, unknown>> = [];
 
-    const xAxisValue = range === 'today' || range === 'month'
-        ? selectedDataX
-        : labels[Math.round(selectedDataX)];
+    if (selectedDataX != null) {
+        const xAxisValue = range === 'today' || range === 'month'
+            ? selectedDataX
+            : labels[Math.round(selectedDataX)];
 
-    if (range !== 'today' && !xAxisValue) return undefined;
+        if (range === 'today' || xAxisValue) {
+            data.push({
+                xAxis: xAxisValue,
+                lineStyle: {
+                    color: SELECT_LINE_COLOR,
+                    width: 1,
+                },
+                label: { show: false },
+            });
+        }
+    }
+
+    if (referenceHighY != null && referenceHighY > 0) {
+        data.push({
+            yAxis: referenceHighY,
+            lineStyle: {
+                color: HIGH_COLOR,
+                opacity: 0.6,
+                width: 3,
+                type: 'dashed',
+            },
+            label: { show: false },
+        });
+    }
+
+    if (referenceLowY != null && referenceLowY > 0) {
+        data.push({
+            yAxis: referenceLowY,
+            lineStyle: {
+                color: LOW_COLOR,
+                opacity: 0.6,
+                width: 3,
+                type: 'dashed',
+            },
+            label: { show: false },
+        });
+    }
+
+    if (!data.length) return undefined;
 
     return {
         silent: true,
         symbol: ['none', 'none'],
-        lineStyle: {
-            color: SELECT_LINE_COLOR,
-            width: 1,
-        },
-        label: { show: false },
-        data: [{ xAxis: xAxisValue }],
+        data,
         z: 1,
     };
 }
@@ -628,7 +678,6 @@ function buildMonthScatterData(
 function buildBloodPressureLineSeries(
     key: 'high' | 'low',
     lineData: LineChartSeriesItem[],
-    markLine?: ReturnType<typeof buildSelectionMarkLine>,
 ) {
     const isHigh = key === 'high';
     return {
@@ -640,7 +689,6 @@ function buildBloodPressureLineSeries(
         data: lineData,
         lineStyle: isHigh ? HIGH_LINE_STYLE : LOW_LINE_STYLE,
         itemStyle: { color: isHigh ? HIGH_POINT_STYLE.color : LOW_POINT_STYLE.color },
-        markLine,
         z: isHigh ? 6 : 7,
     };
 }
@@ -648,7 +696,7 @@ function buildBloodPressureLineSeries(
 function buildBloodPressureScatterSeries(
     key: 'high' | 'low',
     scatterData: Array<{ value: [number, number] | [string, number]; name?: string; symbolSize: number } | null>,
-    markLine?: ReturnType<typeof buildSelectionMarkLine>,
+    markLine?: ReturnType<typeof buildCombinedMarkLine>,
 ) {
     const isHigh = key === 'high';
     return {
@@ -665,7 +713,11 @@ function buildBloodPressureScatterSeries(
 function buildTodayOption(
     points: BloodPressurePoint[],
     selectedDataX: number | null,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
+    const markLine = buildCombinedMarkLine('today', selectedDataX, [], referenceHighY, referenceLowY);
+
     return {
         animation: false,
         tooltip: {
@@ -682,14 +734,14 @@ function buildTodayOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: buildYAxis(points, referenceHighY, referenceLowY),
         series: [
             buildBloodPressureLineSeries('high', buildTodayLineData(points, 'high')),
             buildBloodPressureLineSeries('low', buildTodayLineData(points, 'low')),
             buildBloodPressureScatterSeries(
                 'high',
                 buildTodayScatterData(points, 'high', 'today', selectedDataX),
-                buildSelectionMarkLine('today', selectedDataX, []),
+                markLine,
             ),
             buildBloodPressureScatterSeries(
                 'low',
@@ -703,7 +755,11 @@ function buildMonthOption(
     points: BloodPressurePoint[],
     labels: string[],
     selectedDataX: number | null,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
+    const markLine = buildCombinedMarkLine('month', selectedDataX, labels, referenceHighY, referenceLowY);
+
     return {
         animation: false,
         tooltip: {
@@ -720,14 +776,14 @@ function buildMonthOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: buildYAxis(points, referenceHighY, referenceLowY),
         series: [
             buildBloodPressureLineSeries('high', buildMonthLineData(points, 'high')),
             buildBloodPressureLineSeries('low', buildMonthLineData(points, 'low')),
             buildBloodPressureScatterSeries(
                 'high',
                 buildMonthScatterData(points, 'high', selectedDataX),
-                buildSelectionMarkLine('month', selectedDataX, labels),
+                markLine,
             ),
             buildBloodPressureScatterSeries(
                 'low',
@@ -742,7 +798,11 @@ function buildCategoryOption(
     labels: string[],
     range: BloodPressureChartRange,
     selectedDataX: number | null,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
+    const markLine = buildCombinedMarkLine(range, selectedDataX, labels, referenceHighY, referenceLowY);
+
     return {
         animation: false,
         tooltip: {
@@ -758,14 +818,14 @@ function buildCategoryOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: buildYAxis(points, referenceHighY, referenceLowY),
         series: [
             buildBloodPressureLineSeries('high', buildCategoryLineData(points, 'high')),
             buildBloodPressureLineSeries('low', buildCategoryLineData(points, 'low')),
             buildBloodPressureScatterSeries(
                 'high',
                 buildCategoryScatterData(points, 'high', range, selectedDataX),
-                buildSelectionMarkLine(range, selectedDataX, labels),
+                markLine,
             ),
             buildBloodPressureScatterSeries(
                 'low',
@@ -804,7 +864,13 @@ function getDefaultData(range: BloodPressureChartRange) {
     }
 }
 
-export default function BloodPressureDetailChart({ range, data, onPointChange }: Props) {
+export default function BloodPressureDetailChart({
+    range,
+    data,
+    referenceHighY,
+    referenceLowY,
+    onPointChange,
+}: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
     const points = data ?? getDefaultData(range);
@@ -878,13 +944,13 @@ export default function BloodPressureDetailChart({ range, data, onPointChange }:
 
     const option = useMemo(() => {
         if (range === 'today') {
-            return buildTodayOption(points, selectedDataX);
+            return buildTodayOption(points, selectedDataX, referenceHighY, referenceLowY);
         }
         if (range === 'month') {
-            return buildMonthOption(points, categoryLabels, selectedDataX);
+            return buildMonthOption(points, categoryLabels, selectedDataX, referenceHighY, referenceLowY);
         }
-        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX);
-    }, [categoryLabels, data, points, range, selectedDataX]);
+        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX, referenceHighY, referenceLowY);
+    }, [categoryLabels, data, points, range, referenceHighY, referenceLowY, selectedDataX]);
 
     useEffect(() => {
         let chart: ReturnType<typeof echarts.init> | undefined;

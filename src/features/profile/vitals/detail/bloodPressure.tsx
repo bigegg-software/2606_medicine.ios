@@ -3,9 +3,11 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
@@ -14,23 +16,23 @@ import BloodPressureDetailChart, { type BloodPressureChartRange } from './compon
 import { LinearGradient } from 'expo-linear-gradient';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import {
-    getMeasureDataDetailByDate,
+    getMeasureDataDetailByDateRange,
     getMeasureDataNormalDayCount,
     getMeasureDataStatisByDateRange,
     type MeasureDataItem,
     type MeasureDataStatisDayGroup,
 } from '@/api/measureData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDateRange } from '../vitalsHelpers';
+import { flattenMeasureItems, getDateRange } from '../vitalsHelpers';
 import {
     buildBloodPressureAnalysisData,
     buildBloodPressureChartFromStatisGroups,
     buildBloodPressureDetailTodaySeries,
-    calcBloodPressurePeriodAverage,
-    calcTodayBloodPressureAverage,
-    countBloodPressureHypertensionItems,
-    flattenStatisChildItems,
+    buildBloodPressureStatsFromItems,
     formatBloodPressureDetailPointDisplay,
+    formatBloodPressureNormalRangeText,
+    getBloodPressureDetailQueryRange,
+    getBloodPressureReferenceLineY,
     type BloodPressureAnalysisItem,
     type BloodPressureDetailPoint,
 } from './helpers/bloodPressure';
@@ -88,9 +90,60 @@ function resetHeaderDisplay(range: BloodPressureChartRange) {
     return formatBloodPressureDetailPointDisplay(range);
 }
 
+function applyEmptyBloodPressureState(
+    range: BloodPressureChartRange,
+    setters: {
+        setChartData: (data: BloodPressurePoint[]) => void;
+        setDisplayValue: (value: string) => void;
+        setDisplayStatus: (status: string) => void;
+        setDisplayStatusColor: (color: string) => void;
+        setCurrentLabel: (label: string) => void;
+        setAverageValue: (value: string) => void;
+        setAbnormalCount: (count: number | null) => void;
+        setAnalysisData: (data: BloodPressureAnalysisItem[]) => void;
+    },
+) {
+    const emptyDisplay = resetHeaderDisplay(range);
+    setters.setChartData([]);
+    setters.setDisplayValue(emptyDisplay.value);
+    setters.setDisplayStatus(formatStatusText(emptyDisplay.status));
+    setters.setDisplayStatusColor(emptyDisplay.statusColor);
+    setters.setCurrentLabel(emptyDisplay.currentLabel);
+    setters.setAverageValue('--');
+    setters.setAbnormalCount(null);
+    setters.setAnalysisData(buildBloodPressureAnalysisData([]));
+}
+
+function applyBloodPressureStats(
+    items: MeasureDataItem[],
+    setters: {
+        setAverageValue: (value: string) => void;
+        setAbnormalCount: (count: number | null) => void;
+        setAnalysisData: (data: BloodPressureAnalysisItem[]) => void;
+    },
+) {
+    const stats = buildBloodPressureStatsFromItems(items);
+    setters.setAverageValue(formatBloodPressureValue(stats.average?.high, stats.average?.low));
+    setters.setAbnormalCount(stats.abnormalCount);
+    setters.setAnalysisData(stats.analysisData);
+}
+
+async function loadBloodPressureDetailItems(range: BloodPressureChartRange) {
+    const { startDate, endDate } = getBloodPressureDetailQueryRange(range);
+    const res = (await getMeasureDataDetailByDateRange({
+        startDate,
+        endDate,
+        type: '血压',
+    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+
+    if (!isResourceApiOk(res)) return null;
+    return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
+}
+
 export default function VitalsPage() {
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
+    const userGender = useSelector((state: RootState) => state.user.info?.gender);
     const [selectedType, setSelectedType] = useState<BloodPressureChartRange>('today');
     const [goalCycleDays, setGoalCycleDays] = useState<number | null>(null);
     const [goalCompliantDays, setGoalCompliantDays] = useState<number | null>(null);
@@ -109,6 +162,16 @@ export default function VitalsPage() {
     const goalProgressPercent = useMemo(
         () => calcGoalProgressPercent(goalCompliantDays, goalCycleDays),
         [goalCompliantDays, goalCycleDays],
+    );
+
+    const referenceLines = useMemo(
+        () => getBloodPressureReferenceLineY(userGender),
+        [userGender],
+    );
+
+    const normalRangeText = useMemo(
+        () => formatBloodPressureNormalRangeText(userGender),
+        [userGender],
     );
 
     const navigateToAddData = useCallback(() => {
@@ -172,74 +235,56 @@ export default function VitalsPage() {
     }, []);
 
     const loadMeasureData = useCallback(async (range: BloodPressureChartRange) => {
+        const emptySetters = {
+            setChartData,
+            setDisplayValue,
+            setDisplayStatus,
+            setDisplayStatusColor,
+            setCurrentLabel,
+            setAverageValue,
+            setAbnormalCount,
+            setAnalysisData,
+        };
+        const statsSetters = {
+            setAverageValue,
+            setAbnormalCount,
+            setAnalysisData,
+        };
+
         try {
             if (range === 'today') {
-                const res = (await getMeasureDataDetailByDate({
-                    customerLocalDate: moment().format('YYYY-MM-DD'),
-                    type: '血压',
-                })) as unknown as { code?: number; data?: MeasureDataItem[] };
-
-                if (!isResourceApiOk(res)) {
-                    setChartData([]);
-                    const emptyDisplay = resetHeaderDisplay(range);
-                    setDisplayValue(emptyDisplay.value);
-                    setDisplayStatus(formatStatusText(emptyDisplay.status));
-                    setDisplayStatusColor(emptyDisplay.statusColor);
-                    setCurrentLabel(emptyDisplay.currentLabel);
-                    setAverageValue('--');
-                    setAbnormalCount(null);
-                    setAnalysisData(buildBloodPressureAnalysisData([]));
+                const detailItems = await loadBloodPressureDetailItems(range);
+                if (detailItems == null) {
+                    applyEmptyBloodPressureState(range, emptySetters);
                     return;
                 }
 
-                const items = apiResourceData<MeasureDataItem[]>(res) ?? [];
-                const todayAverage = calcTodayBloodPressureAverage(items);
-
-                setChartData(buildBloodPressureDetailTodaySeries(items));
-                setAverageValue(formatBloodPressureValue(todayAverage?.high, todayAverage?.low));
-                setAbnormalCount(countBloodPressureHypertensionItems(items));
-                setAnalysisData(buildBloodPressureAnalysisData(items));
+                setChartData(buildBloodPressureDetailTodaySeries(detailItems));
+                applyBloodPressureStats(detailItems, statsSetters);
                 return;
             }
 
             const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
-            const res = (await getMeasureDataStatisByDateRange({
-                startDate,
-                endDate,
-                type: '血压',
-            })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
+            const [statisRes, detailItems] = await Promise.all([
+                getMeasureDataStatisByDateRange({
+                    startDate,
+                    endDate,
+                    type: '血压',
+                }),
+                loadBloodPressureDetailItems(range),
+            ]);
+            const statisPayload = statisRes as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
 
-            if (!isResourceApiOk(res)) {
-                setChartData([]);
-                const emptyDisplay = resetHeaderDisplay(range);
-                setDisplayValue(emptyDisplay.value);
-                setDisplayStatus(formatStatusText(emptyDisplay.status));
-                setDisplayStatusColor(emptyDisplay.statusColor);
-                setCurrentLabel(emptyDisplay.currentLabel);
-                setAverageValue('--');
-                setAbnormalCount(null);
-                setAnalysisData(buildBloodPressureAnalysisData([]));
+            if (!isResourceApiOk(statisPayload) || detailItems == null) {
+                applyEmptyBloodPressureState(range, emptySetters);
                 return;
             }
 
-            const groups = normalizeStatisRangeData(apiResourceData<unknown>(res));
-            const periodAverage = calcBloodPressurePeriodAverage(groups);
-            const periodItems = flattenStatisChildItems(groups);
-
+            const groups = normalizeStatisRangeData(apiResourceData<unknown>(statisPayload));
             setChartData(buildBloodPressureChartFromStatisGroups(groups, range));
-            setAverageValue(formatBloodPressureValue(periodAverage?.high, periodAverage?.low));
-            setAbnormalCount(countBloodPressureHypertensionItems(periodItems));
-            setAnalysisData(buildBloodPressureAnalysisData(periodItems));
+            applyBloodPressureStats(detailItems, statsSetters);
         } catch {
-            setChartData([]);
-            const emptyDisplay = resetHeaderDisplay(range);
-            setDisplayValue(emptyDisplay.value);
-            setDisplayStatus(formatStatusText(emptyDisplay.status));
-            setDisplayStatusColor(emptyDisplay.statusColor);
-            setCurrentLabel(emptyDisplay.currentLabel);
-            setAverageValue('--');
-            setAbnormalCount(null);
-            setAnalysisData(buildBloodPressureAnalysisData([]));
+            applyEmptyBloodPressureState(range, emptySetters);
         }
     }, []);
 
@@ -260,12 +305,14 @@ export default function VitalsPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     {showGoalSummary ? (
                         <Flex justify='between' style={styles.rowBox}>
                             <View>
@@ -283,7 +330,7 @@ export default function VitalsPage() {
                     ) : null}
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>{selectedType === 'today' ? '今日血压' : '平均血压'}(mmHg)</Text>
+                            <Text style={styles.rowTitle}>{selectedType === 'today' ? '血压' : '平均血压'}(mmHg)</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}
@@ -292,7 +339,7 @@ export default function VitalsPage() {
                         </Flex>
                         <Text style={styles.rowLeftValue}>{displayValue}</Text>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>正常范围:90-140/60-90</Text>
+                            <Text style={styles.rowTitle}>正常范围:{normalRangeText}</Text>
                             <Flex style={styles.dayBox}>
                                 <Text style={styles.dayText}>{currentLabel}</Text>
                             </Flex>
@@ -301,6 +348,8 @@ export default function VitalsPage() {
                         <BloodPressureDetailChart
                             range={selectedType}
                             data={chartData}
+                            referenceHighY={referenceLines.high}
+                            referenceLowY={referenceLines.low}
                             onPointChange={handleChartPointChange}
                         />
                     </View>

@@ -5,22 +5,34 @@ import type {
 } from '@/api/measureData';
 import {
   filterMeasureItemsInRange,
-  getLevelLabel,
+  getDateRange,
 } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
 import {
   getItemTimestamp,
   getStatisLevelLabel,
+  mapDetailChartRangeToVitalsRange,
   parseMeasureNumber,
+  type DetailChartRange,
 } from './shared';
 
 export { flattenStatisChildItems } from './bloodPressure';
+
+export type BloodSugarStatus = 'low' | 'normal' | 'high' | 'highRisk';
+
+export const BLOOD_SUGAR_STATUS_COLORS: Record<BloodSugarStatus, string> = {
+  low: '#0951AE',
+  normal: '#6D925E',
+  high: '#EE9C44',
+  highRisk: '#FB4550',
+};
 
 export type BloodSugarDetailPoint = {
   hour: string;
   value: number;
   x?: number;
-  status?: 'low' | 'normal' | 'high';
+  dayIndex?: number;
+  status?: BloodSugarStatus;
   isHigh?: number;
   isLow?: number;
   statusLabel?: string;
@@ -29,20 +41,43 @@ export type BloodSugarDetailPoint = {
   measurementStatus?: string;
 };
 
-function buildBloodSugarStatus(value: number, item?: Pick<MeasureDataItem, 'isHigh' | 'isLow' | 'level'>) {
+export function getBloodSugarLevelLabel(
+  item?: Pick<MeasureDataItem, 'level' | 'isHigh' | 'isLow'>,
+) {
+  const level = item?.level?.split(',')[0]?.trim();
+  if (level) return level;
+  if (item?.isLow === 1) return '偏低';
+  if (item?.isHigh === 1) return '偏高';
+  return '';
+}
+
+export function mapBloodSugarLevelToChartStatus(label: string): BloodSugarStatus | null {
+  const trimmed = label.trim();
+  if (!trimmed) return null;
+  if (/偏低|低血糖/.test(trimmed)) return 'low';
+  if (/高风险|糖尿病|重度/.test(trimmed)) return 'highRisk';
+  if (/偏高|高血糖|正常高值/.test(trimmed)) return 'high';
+  if (/正常|理想/.test(trimmed)) return 'normal';
+  return null;
+}
+
+export function buildBloodSugarStatus(
+  _value: number,
+  item?: Pick<MeasureDataItem, 'isHigh' | 'isLow' | 'level'>,
+): BloodSugarStatus {
+  const levelLabel = getBloodSugarLevelLabel(item);
+  const fromLevel = mapBloodSugarLevelToChartStatus(levelLabel);
+  if (fromLevel) return fromLevel;
+
   if (item?.isLow === 1) return 'low';
   if (item?.isHigh === 1) return 'high';
-  const label = getLevelLabel(item as MeasureDataItem | undefined);
-  if (/偏低|低血糖/.test(label)) return 'low';
-  if (/偏高|高血糖|糖尿病/.test(label)) return 'high';
-  if (value < 3.9) return 'low';
-  if (value > 6.1) return 'high';
   return 'normal';
 }
 
 function getBloodSugarStatusColor(label: string) {
-  if (/偏低|低血糖/.test(label)) return '#0951AE';
-  if (/偏高|高血糖|糖尿病|正常高值/.test(label)) return '#EE9C44';
+  if (/偏低|低血糖/.test(label)) return BLOOD_SUGAR_STATUS_COLORS.low;
+  if (/高风险|糖尿病|重度/.test(label)) return BLOOD_SUGAR_STATUS_COLORS.highRisk;
+  if (/偏高|高血糖|正常高值/.test(label)) return BLOOD_SUGAR_STATUS_COLORS.high;
   return getLevelColor(label);
 }
 
@@ -54,6 +89,14 @@ function parseStatisBloodSugarValue(group?: MeasureDataStatisDayGroup) {
 }
 
 export type BloodSugarDetailChartRange = 'today' | 'week' | 'month';
+
+export function getBloodSugarDetailQueryRange(range: DetailChartRange) {
+  if (range === 'today') {
+    const today = moment().format('YYYY-MM-DD');
+    return { startDate: today, endDate: today };
+  }
+  return getDateRange(mapDetailChartRangeToVitalsRange(range));
+}
 
 export function buildBloodSugarDetailTodaySeries(items: MeasureDataItem[]): BloodSugarDetailPoint[] {
   const rangedItems = filterMeasureItemsInRange(items, 'today');
@@ -67,11 +110,49 @@ export function buildBloodSugarDetailTodaySeries(items: MeasureDataItem[]): Bloo
       status: buildBloodSugarStatus(value, item),
       isHigh: item.isHigh,
       isLow: item.isLow,
-      statusLabel: getLevelLabel(item) || '正常',
+      statusLabel: getBloodSugarLevelLabel(item) || '正常',
       dataTime: item.dataTime,
       measurementStatus: item.measurementStatus,
     };
   });
+}
+
+export function buildBloodSugarDetailPeriodSeries(
+  items: MeasureDataItem[],
+  range: 'week' | 'month',
+): BloodSugarDetailPoint[] {
+  const dayCount = range === 'week' ? 7 : 30;
+  const rangeStart = moment().subtract(dayCount - 1, 'days').startOf('day');
+
+  return items
+    .map(item => {
+      const ts = getItemTimestamp(item);
+      const value = parseMeasureNumber(item.val) ?? 0;
+      if (value <= 0) return null;
+
+      const dayIndex = ts.clone().startOf('day').diff(rangeStart, 'days');
+      if (dayIndex < 0 || dayIndex >= dayCount) return null;
+
+      const day = rangeStart.clone().add(dayIndex, 'days');
+      const dayFraction = (ts.hour() * 60 + ts.minute()) / (24 * 60);
+
+      const point: BloodSugarDetailPoint = {
+        value: Number(value.toFixed(1)),
+        hour: ts.format('HH:mm'),
+        x: dayIndex + dayFraction,
+        dayIndex,
+        status: buildBloodSugarStatus(value, item),
+        isHigh: item.isHigh,
+        isLow: item.isLow,
+        statusLabel: getBloodSugarLevelLabel(item) || '正常',
+        dataTime: item.dataTime,
+        customerLocalDate: day.format('YYYY-MM-DD'),
+        measurementStatus: item.measurementStatus,
+      };
+      return point;
+    })
+    .filter((point): point is BloodSugarDetailPoint => point != null)
+    .sort((a, b) => (a.x ?? 0) - (b.x ?? 0));
 }
 
 export function buildBloodSugarChartFromStatisGroups(
@@ -111,20 +192,22 @@ export function buildBloodSugarChartFromStatisGroups(
 export function formatBloodSugarCurrentLabel(
   range: BloodSugarDetailChartRange,
   latestItem?: Pick<MeasureDataItem, 'dataTime' | 'customerLocalDate' | 'measurementStatus'>,
-  latestGroup?: MeasureDataStatisDayGroup,
 ) {
+  const time = latestItem?.dataTime?.trim();
+  const status = latestItem?.measurementStatus?.trim();
+  const suffix = status ? ` (${status})` : '';
+
   if (range === 'today') {
-    const time = latestItem?.dataTime?.trim();
-    const status = latestItem?.measurementStatus?.trim();
     if (!time && !status) return '当前：今天';
-    const suffix = status ? ` (${status})` : '';
     return time ? `当前：今天 ${time}${suffix}` : `当前：今天${suffix}`;
   }
 
-  const date = latestGroup?.customerLocalDate ?? latestItem?.customerLocalDate;
+  const date = latestItem?.customerLocalDate;
   if (!date) return '当前：--';
 
-  return `当前：${moment(date).format('M/D')}`;
+  const dateText = moment(date).format('M/D');
+  if (time) return `当前：${dateText} ${time}${suffix}`;
+  return `当前：${dateText}${suffix}`;
 }
 
 export function formatBloodSugarDetailPointDisplay(
@@ -145,13 +228,11 @@ export function formatBloodSugarDetailPointDisplay(
     value: Number(point.value.toFixed(1)).toString(),
     status: statusLabel,
     statusColor: getBloodSugarStatusColor(statusLabel),
-    currentLabel: formatBloodSugarCurrentLabel(
-      range,
-      point.dataTime || point.measurementStatus
-        ? { dataTime: point.dataTime, measurementStatus: point.measurementStatus }
-        : undefined,
-      point.customerLocalDate ? { customerLocalDate: point.customerLocalDate } : undefined,
-    ),
+    currentLabel: formatBloodSugarCurrentLabel(range, {
+      dataTime: point.dataTime || point.hour,
+      customerLocalDate: point.customerLocalDate,
+      measurementStatus: point.measurementStatus,
+    }),
   };
 }
 
@@ -170,4 +251,8 @@ export function calcBloodSugarPeriodStats(items: MeasureDataItem[]) {
     min: Number(Math.min(...values).toFixed(1)),
     count: validItems.length,
   };
+}
+
+export function buildBloodSugarStatsFromItems(items: MeasureDataItem[]) {
+  return calcBloodSugarPeriodStats(items);
 }

@@ -130,17 +130,18 @@ export default function VitalsPage() {
                     end={{ x: 0, y: 1 }}
                     style={styles.typeListFade}
                 />
+
+                <View style={styles.pageHeader}>
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                </View>
+
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
-
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>
-                                {selectedType === 'today' ? '血氧(%)' : '平均血氧(%)'}
-                            </Text>
+                            <Text style={styles.rowTitle}>血氧(%)</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}

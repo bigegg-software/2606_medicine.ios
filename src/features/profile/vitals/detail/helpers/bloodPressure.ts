@@ -6,13 +6,17 @@ import type {
 import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
 import {
   filterMeasureItemsInRange,
+  getDateRange,
   getLevelLabel,
+  isFemaleGender,
 } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
 import {
   getItemTimestamp,
   getStatisLevelLabel,
+  mapDetailChartRangeToVitalsRange,
   parseMeasureNumber,
+  type DetailChartRange,
 } from './shared';
 
 function parseStatisBloodPressureValues(group?: MeasureDataStatisDayGroup) {
@@ -21,6 +25,47 @@ function parseStatisBloodPressureValues(group?: MeasureDataStatisDayGroup) {
   const low = parseMeasureNumber(group.avgVal2);
   if (high == null || low == null) return null;
   return { high, low };
+}
+
+export type BloodPressureNormalRange = {
+  highMin: number;
+  highMax: number;
+  lowMin: number;
+  lowMax: number;
+};
+
+export function getBloodPressureNormalRange(gender?: string | null): BloodPressureNormalRange {
+  if (isFemaleGender(gender)) {
+    return { highMin: 90, highMax: 130, lowMin: 60, lowMax: 85 };
+  }
+  return { highMin: 90, highMax: 140, lowMin: 60, lowMax: 90 };
+}
+
+export function getBloodPressureReferenceLineY(gender?: string | null) {
+  const range = getBloodPressureNormalRange(gender);
+  return { high: range.highMax, low: range.lowMax };
+}
+
+export function formatBloodPressureNormalRangeText(gender?: string | null) {
+  const range = getBloodPressureNormalRange(gender);
+  return `${range.highMin}-${range.highMax}/${range.lowMin}-${range.lowMax}`;
+}
+
+export function getBloodPressureDetailQueryRange(range: DetailChartRange) {
+  if (range === 'today') {
+    const today = moment().format('YYYY-MM-DD');
+    return { startDate: today, endDate: today };
+  }
+  return getDateRange(mapDetailChartRangeToVitalsRange(range));
+}
+
+export function buildBloodPressureStatsFromItems(items: MeasureDataItem[]) {
+  const average = calcTodayBloodPressureAverage(items);
+  return {
+    average,
+    abnormalCount: countBloodPressureHypertensionItems(items),
+    analysisData: buildBloodPressureAnalysisData(items),
+  };
 }
 
 export function buildBloodPressureDetailTodaySeries(items: MeasureDataItem[]): BloodPressureDetailPoint[] {
@@ -180,7 +225,7 @@ export const BLOOD_PRESSURE_ANALYSIS_CATEGORIES = [
   { title: '正常', color: '#6D925E' },
   { title: '中度高血压', color: '#FA7355' },
   { title: '正常高值', color: '#FFB900' },
-  { title: '高度高血压', color: '#FB4550' },
+  { title: '重度高血压', color: '#FB4550' },
   { title: '轻度高血压', color: '#EE9C44' },
   { title: '低血压', color: '#37B8F2' },
 ] as const;
@@ -202,7 +247,7 @@ function normalizeBloodPressureAnalysisCategory(
     return '正常';
   }
   if (/低血压|偏低/.test(trimmed)) return '低血压';
-  if (/高度|重度/.test(trimmed)) return '高度高血压';
+  if (/高度|重度/.test(trimmed)) return '重度高血压';
   if (/中度/.test(trimmed)) return '中度高血压';
   if (/轻度/.test(trimmed)) return '轻度高血压';
   if (/正常高值|边缘升高|偏高/.test(trimmed)) return '正常高值';
@@ -211,7 +256,7 @@ function normalizeBloodPressureAnalysisCategory(
   return '正常';
 }
 
-const BLOOD_PRESSURE_HYPERTENSION_CATEGORIES = new Set(['轻度高血压', '中度高血压', '高度高血压']);
+const BLOOD_PRESSURE_HYPERTENSION_CATEGORIES = new Set(['轻度高血压', '中度高血压', '重度高血压']);
 
 function isHypertensionBloodPressureItem(item: Pick<MeasureDataItem, 'level' | 'isHigh' | 'isLow'>) {
   const category = normalizeBloodPressureAnalysisCategory(getLevelLabel(item), item);

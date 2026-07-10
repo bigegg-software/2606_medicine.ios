@@ -15,7 +15,7 @@ export type BloodPressurePoint = { high: number; low: number; hour?: string; x?:
 
 const WEEK_LABELS = ['一', '二', '三', '四', '五', '六', '日'];
 const HIGH_COLOR = '#EE9C44';
-const LOW_COLOR = '#6D925E';
+const LOW_COLOR = '#0951AE';
 const POINT_SHADOW = {
   shadowBlur: 3,
   shadowColor: 'rgba(0,0,0,0.2)',
@@ -37,7 +37,7 @@ const LOW_POINT_STYLE = {
 const LOW_AREA_STYLE = {
   color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
     { offset: 0, color: LOW_COLOR },
-    { offset: 1, color: 'rgba(109,146,94,0)' },
+    { offset: 1, color: 'rgba(9,81,174,0)' },
   ]),
 };
 const HIGH_AREA_STYLE = {

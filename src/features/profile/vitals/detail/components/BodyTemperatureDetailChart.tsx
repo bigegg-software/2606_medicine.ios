@@ -28,6 +28,13 @@ const THRESHOLD_LINE_OPACITY = 0.6;
 const BAR_WIDTH = 10;
 const BAR_STACK = 'bodyTemperatureRange';
 
+const POINT_SHADOW = {
+    shadowBlur: 3,
+    shadowColor: 'rgba(0,0,0,0.2)',
+    shadowOffsetX: 0,
+    shadowOffsetY: 0,
+};
+
 const INVISIBLE_BAR_STYLE = {
     color: 'rgba(0,0,0,0)',
     borderColor: 'rgba(0,0,0,0)',
@@ -180,6 +187,21 @@ function isValidPoint(point: BodyTemperatureRangePoint) {
 
 function isWithinThresholdLines(min: number, max: number) {
     return min >= LOW_THRESHOLD && max <= HIGH_THRESHOLD;
+}
+
+function getScatterPointStyle(min: number, max: number) {
+    const color = getBarColor(min, max);
+    return {
+        color,
+        borderColor: '#FFFFFF',
+        borderWidth: 1,
+        ...POINT_SHADOW,
+    };
+}
+
+function isTodayPointSelected(point: BodyTemperatureRangePoint, selectedDataX: number | null) {
+    if (selectedDataX == null) return false;
+    return Math.abs(parsePointX(point) - selectedDataX) < 0.001;
 }
 
 function getBarColor(min: number, max: number) {
@@ -631,34 +653,6 @@ function findNearestSelectableDataX(
     }).dataX;
 }
 
-function SelectionTooltip({
-    point,
-    lineLeft,
-}: {
-    point: BodyTemperatureRangePoint;
-    lineLeft: number;
-}) {
-    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
-
-    return (
-        <View
-            pointerEvents="none"
-            style={[
-                styles.chartSelectionTip,
-                {
-                    top: GRID_TOP_Y + 6,
-                    left: tipLeft,
-                },
-            ]}
-        >
-            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
-            {isValidPoint(point) ? (
-                <Text style={styles.chartSelectionTipValue}>{point.min}-{point.max}℃</Text>
-            ) : null}
-        </View>
-    );
-}
-
 function findPointAtDataX(
     range: BodyTemperatureChartRange,
     points: BodyTemperatureRangePoint[],
@@ -680,37 +674,55 @@ function getBodyTemperatureChartValue(point: BodyTemperatureRangePoint) {
         : Number(((point.min + point.max) / 2).toFixed(1));
 }
 
-function buildTodayLineSeries(
-    lineData: Array<{ value: [number, number]; name?: string } | null>,
-    markLine?: ReturnType<typeof buildCombinedMarkLine>,
+function buildTodayScatterData(
+    points: BodyTemperatureRangePoint[],
+    selectedDataX: number | null,
 ) {
-    const validCount = lineData.filter(item => item != null).length;
-    const singlePoint = validCount === 1;
-
-    return {
-        name: 'bodyTemperature-line',
-        type: 'line' as const,
-        smooth: true,
-        connectNulls: true,
-        showSymbol: singlePoint,
-        symbol: 'circle',
-        symbolSize: singlePoint ? 8 : 4,
-        data: lineData,
-        lineStyle: { color: BAR_COLOR_NORMAL, width: 2 },
-        itemStyle: { color: BAR_COLOR_NORMAL },
-        markLine,
-        z: 5,
-    };
+    return points
+        .map(point => {
+            if (!isValidPoint(point)) return null;
+            return {
+                value: [parsePointX(point), getBodyTemperatureChartValue(point)] as [number, number],
+                name: point.hour,
+                symbolSize: isTodayPointSelected(point, selectedDataX) ? 10 : 8,
+                itemStyle: getScatterPointStyle(point.min, point.max),
+            };
+        })
+        .filter(item => item != null);
 }
 
-function buildTodayLineData(points: BodyTemperatureRangePoint[]) {
-    return points
-        .filter(isValidPoint)
-        .sort((a, b) => parsePointX(a) - parsePointX(b))
-        .map(point => ({
-            value: [parsePointX(point), getBodyTemperatureChartValue(point)] as [number, number],
-            name: point.hour,
-        }));
+function buildTodayOption(
+    points: BodyTemperatureRangePoint[],
+    selectedDataX: number | null,
+) {
+    return {
+        animation: false,
+        tooltip: {
+            show: false,
+        },
+        grid: CHART_GRID,
+        xAxis: {
+            type: 'value',
+            min: 0,
+            max: 24,
+            interval: 6,
+            axisTick: { show: false },
+            axisLine: { show: false },
+            axisLabel: HIDDEN_AXIS_LABEL,
+            splitLine: GRID_SPLIT_LINE,
+        },
+        yAxis: buildYAxis(),
+        series: [
+            {
+                name: 'bodyTemperature-scatter',
+                type: 'scatter',
+                data: buildTodayScatterData(points, selectedDataX),
+                symbol: 'circle',
+                markLine: buildCombinedMarkLine('today', selectedDataX, []),
+                z: 10,
+            },
+        ],
+    };
 }
 
 function buildCategoryBarSeries(
@@ -760,36 +772,6 @@ function buildMonthBarSeries(
         buildIntervalCapSeries(points, (_, index) => index),
         buildCombinedMarkLine('month', selectedDataX, labels),
     );
-}
-
-function buildTodayOption(
-    points: BodyTemperatureRangePoint[],
-    selectedDataX: number | null,
-) {
-    return {
-        animation: false,
-        tooltip: {
-            show: false,
-        },
-        grid: CHART_GRID,
-        xAxis: {
-            type: 'value',
-            min: 0,
-            max: 24,
-            interval: 6,
-            axisTick: { show: false },
-            axisLine: { show: false },
-            axisLabel: HIDDEN_AXIS_LABEL,
-            splitLine: GRID_SPLIT_LINE,
-        },
-        yAxis: buildYAxis(),
-        series: [
-            buildTodayLineSeries(
-                buildTodayLineData(points),
-                buildCombinedMarkLine('today', selectedDataX, []),
-            ),
-        ],
-    };
 }
 
 function buildMonthOption(
@@ -1014,9 +996,6 @@ export default function BodyTemperatureDetailChart({ range, data, onPointChange 
                     }}
                 />
             </GestureDetector>
-            {selectedPoint && displayPixelX != null ? (
-                <SelectionTooltip point={selectedPoint} lineLeft={displayPixelX} />
-            ) : null}
             <ChartGridExtensionLines positions={gridExtensionPositions} />
             {range === 'today'
                 ? <TodayXAxisLabels />

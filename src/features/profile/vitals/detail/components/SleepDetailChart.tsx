@@ -383,34 +383,6 @@ function MonthXAxisLabels({ labels }: { labels: string[] }) {
     ));
 }
 
-function SelectionTooltip({
-    point,
-    lineLeft,
-}: {
-    point: SleepDetailPoint;
-    lineLeft: number;
-}) {
-    const tipLeft = Math.max(PLOT_LEFT, Math.min(lineLeft - 28, PLOT_LEFT + PLOT_WIDTH - 56));
-
-    return (
-        <View
-            pointerEvents="none"
-            style={[
-                styles.chartSelectionTip,
-                {
-                    top: GRID_TOP_Y + 6,
-                    left: tipLeft,
-                },
-            ]}
-        >
-            {point.hour ? <Text style={styles.chartSelectionTipTitle}>{point.hour}</Text> : null}
-            {isValidPoint(point) ? (
-                <Text style={styles.chartSelectionTipValue}>{point.value}小时</Text>
-            ) : null}
-        </View>
-    );
-}
-
 function ChartSelectionSlider({
     thumbCenterX,
     onSelectAtX,
@@ -667,9 +639,6 @@ export default function SleepDetailChart({
                     }}
                 />
             </GestureDetector>
-            {selectedPoint && displayPixelX != null ? (
-                <SelectionTooltip point={selectedPoint} lineLeft={displayPixelX} />
-            ) : null}
             <ChartGridExtensionLines positions={gridExtensionPositions} />
             {range === 'month'
                 ? <MonthXAxisLabels labels={categoryLabels} />

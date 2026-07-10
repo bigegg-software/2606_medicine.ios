@@ -186,7 +186,7 @@ export default function ScheduleHistoryPage() {
                   ) : null}
                 </View>
                 <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
-                  <Text style={styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
+                  <Text style={item.status === 2 ? styles.yjsText : styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
                 </Flex>
               </Flex>
             </TouchableOpacity>

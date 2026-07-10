@@ -15,6 +15,7 @@ import { fetchUserSession } from '@/store/actions/user';
 import type { AppDispatch } from '@/store/store';
 import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { AppTheme } from '@/common/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -171,7 +172,7 @@ export default function LoginPage() {
           showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1 }}>
             <LinearGradient
-              colors={['#B4D0FF', '#F5F8FF']}
+              colors={['#C5D9BF', AppTheme.backgroundColor]}
               style={styles.headerGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 0, y: 1 }}

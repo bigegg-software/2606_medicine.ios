@@ -136,6 +136,20 @@ export function parseWearableHeartRateValue(item?: WearableDataItem) {
   return value != null ? Math.round(value) : null;
 }
 
+export function parseWearableRestingHeartRateValue(item?: WearableDataItem) {
+  if (!item) return null;
+  const value =
+    parseMeasureNumber(item.restingHeartRate) ??
+    parseMeasureNumber(item.heartRate) ??
+    parseMeasureNumber(item.newHeartRate) ??
+    parseMeasureNumber(item.minHeartRate);
+  return value != null ? Math.round(value) : null;
+}
+
+export function collectRestingHeartRateReadings(items: WearableDataItem[]) {
+  return collectWearableReadings(items, reading => parseMeasureNumber(reading.value));
+}
+
 export function getLatestWearableItem(items: WearableDataItem[]) {
   return items.length ? items[items.length - 1] : undefined;
 }
