@@ -51,13 +51,25 @@ function getWeightStatusColor(label: string) {
   return getLevelColor(label);
 }
 
-function getWeightItemLevelLabel(item: MeasureDataItem) {
-  const fromBmi = getWeightStatusFromBmi(parseMeasureNumber(item.bmi));
+function getWeightItemLevelLabel(item: MeasureDataItem, heightCm?: number | null) {
+  const weight = parseMeasureNumber(item.val);
+  const fromBmi = getWeightStatusFromBmi(calcBmiFromWeight(weight, heightCm));
   if (fromBmi) return fromBmi;
   return normalizeWeightLevelLabel(getLevelLabel(item)) || '正常';
 }
 
-export function formatWeightVitalsDisplay(item?: MeasureDataItem) {
+export function calcBmiFromWeight(weightKg?: number | null, heightCm?: number | null) {
+  const weight = weightKg != null && weightKg > 0 ? weightKg : null;
+  const height = heightCm != null && heightCm > 0 ? heightCm : null;
+  if (weight == null || height == null) return null;
+
+  const heightM = height / 100;
+  const bmi = weight / (heightM * heightM);
+  if (!Number.isFinite(bmi) || bmi <= 0) return null;
+  return Number(bmi.toFixed(1));
+}
+
+export function formatWeightVitalsDisplay(item?: MeasureDataItem, heightCm?: number | null) {
   if (!item) {
     return { value: '--', status: '', statusColor: '#999999' };
   }
@@ -66,7 +78,7 @@ export function formatWeightVitalsDisplay(item?: MeasureDataItem) {
   const value = parsed != null && parsed > 0
     ? formatGoalWeightValue(parsed)
     : '--';
-  const statusLabel = getWeightItemLevelLabel(item);
+  const statusLabel = getWeightItemLevelLabel(item, heightCm);
 
   return {
     value,
@@ -86,8 +98,8 @@ export function formatWeightFromItemsForVitals(items: MeasureDataItem[], range: 
   return formatWeightVitalsDisplay(latest);
 }
 
-function getWeightStatisLevelLabel(group?: MeasureDataStatisDayGroup) {
-  const fromBmi = getWeightStatusFromBmi(getBmiFromGroup(group));
+function getWeightStatisLevelLabel(group?: MeasureDataStatisDayGroup, heightCm?: number | null) {
+  const fromBmi = getWeightStatusFromBmi(getBmiFromGroup(group, heightCm));
   if (fromBmi) return fromBmi;
   return normalizeWeightLevelLabel(getStatisLevelLabel(group?.statisLevelResult)) || '正常';
 }
@@ -95,6 +107,7 @@ function getWeightStatisLevelLabel(group?: MeasureDataStatisDayGroup) {
 function getWeightDetailStatusLabel(
   point?: WeightDetailPoint,
   latestItem?: MeasureDataItem,
+  heightCm?: number | null,
 ) {
   const activePoint = isValidWeightDetailPoint(point) ? point : undefined;
   const fromPointBmi = getWeightStatusFromBmi(activePoint?.bmi);
@@ -106,13 +119,13 @@ function getWeightDetailStatusLabel(
   }
 
   if (latestItem && Object.keys(latestItem).length) {
-    return getWeightItemLevelLabel(latestItem);
+    return getWeightItemLevelLabel(latestItem, heightCm);
   }
 
   return '--';
 }
 
-function isValidWeightDetailPoint(point?: WeightDetailPoint) {
+function isValidWeightDetailPoint(point?: WeightDetailPoint): point is WeightDetailPoint {
   return !!point && point.min > 0 && point.max > 0 && point.max >= point.min;
 }
 
@@ -172,19 +185,21 @@ export function getBmiMarkerPercent(bmi: number) {
 export function resolveWeightDetailBmi(
   point?: WeightDetailPoint,
   latestItem?: MeasureDataItem,
+  heightCm?: number | null,
 ) {
-  const fromPoint = parseMeasureNumber(point?.bmi);
-  if (fromPoint != null && fromPoint > 0) return fromPoint;
+  if (isValidWeightDetailPoint(point)) {
+    const weight = getPointWeightValue(point);
+    const fromPoint = calcBmiFromWeight(weight, heightCm);
+    if (fromPoint != null) return fromPoint;
+  }
 
-  const fromLatest = parseMeasureNumber(latestItem?.bmi);
-  if (fromLatest != null && fromLatest > 0) return fromLatest;
-
-  return null;
+  const latestWeight = parseMeasureNumber(latestItem?.val);
+  return calcBmiFromWeight(latestWeight, heightCm);
 }
 
-function getBmiFromGroup(group?: MeasureDataStatisDayGroup) {
+function getBmiFromGroup(group?: MeasureDataStatisDayGroup, heightCm?: number | null) {
   const bmiValues = (group?.childList ?? [])
-    .map(item => parseMeasureNumber(item.bmi))
+    .map(item => calcBmiFromWeight(parseMeasureNumber(item.val), heightCm))
     .filter((value): value is number => value != null && value > 0);
 
   if (!bmiValues.length) return undefined;
@@ -207,7 +222,10 @@ function getWeightValuesFromGroup(group?: MeasureDataStatisDayGroup) {
   return null;
 }
 
-export function buildWeightDetailTodaySeries(items: MeasureDataItem[]): WeightDetailPoint[] {
+export function buildWeightDetailTodaySeries(
+  items: MeasureDataItem[],
+  heightCm?: number | null,
+): WeightDetailPoint[] {
   const rangedItems = filterMeasureItemsInRange(items, 'today');
 
   return rangedItems.map(item => {
@@ -221,8 +239,8 @@ export function buildWeightDetailTodaySeries(items: MeasureDataItem[]): WeightDe
       x: ts.hour() + ts.minute() / 60,
       dataTime: item.dataTime,
       customerLocalDate: item.customerLocalDate,
-      statusLabel: getWeightItemLevelLabel(item),
-      bmi: parseMeasureNumber(item.bmi) ?? undefined,
+      statusLabel: getWeightItemLevelLabel(item, heightCm),
+      bmi: calcBmiFromWeight(value, heightCm) ?? undefined,
     };
   });
 }
@@ -230,6 +248,7 @@ export function buildWeightDetailTodaySeries(items: MeasureDataItem[]): WeightDe
 export function buildWeightChartFromStatisGroups(
   groups: MeasureDataStatisDayGroup[],
   range: 'week' | 'month',
+  heightCm?: number | null,
 ): WeightDetailPoint[] {
   const dayCount = range === 'week' ? 7 : 30;
   const groupByDate = new Map(
@@ -247,9 +266,9 @@ export function buildWeightChartFromStatisGroups(
       hour: day.format('M/D'),
       min: minMax?.min ?? 0,
       max: minMax?.max ?? 0,
-      statusLabel: getWeightStatisLevelLabel(group),
+      statusLabel: getWeightStatisLevelLabel(group, heightCm),
       customerLocalDate: day.format('YYYY-MM-DD'),
-      bmi: getBmiFromGroup(group),
+      bmi: getBmiFromGroup(group, heightCm),
     };
   });
 }
@@ -258,6 +277,7 @@ export function formatWeightDetailPointDisplay(
   range: WeightDetailChartRange,
   point?: WeightDetailPoint,
   latestItem?: MeasureDataItem,
+  heightCm?: number | null,
 ) {
   const activePoint = isValidWeightDetailPoint(point) ? point : undefined;
   const latestValue = parseMeasureNumber(latestItem?.val);
@@ -267,7 +287,7 @@ export function formatWeightDetailPointDisplay(
       ? latestValue.toFixed(1)
       : '--';
 
-  const statusLabel = getWeightDetailStatusLabel(activePoint, latestItem);
+  const statusLabel = getWeightDetailStatusLabel(activePoint, latestItem, heightCm);
   const statusColor = statusLabel === '--'
     ? '#999999'
     : getWeightStatusColor(statusLabel);
@@ -536,6 +556,7 @@ export function calcWeightDetailStats(
   items: MeasureDataItem[],
   range: WeightDetailChartRange,
   groups: MeasureDataStatisDayGroup[] = [],
+  heightCm?: number | null,
 ) {
   const sourceItems = range === 'today'
     ? filterMeasureItemsInRange(items, 'today')
@@ -550,7 +571,7 @@ export function calcWeightDetailStats(
   const min = Math.min(...values);
   const max = Math.max(...values);
   const bmiValues = sourceItems
-    .map(item => parseMeasureNumber(item.bmi))
+    .map(item => calcBmiFromWeight(parseMeasureNumber(item.val), heightCm))
     .filter((value): value is number => value != null && value > 0);
 
   return {

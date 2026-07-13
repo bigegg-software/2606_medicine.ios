@@ -4,6 +4,7 @@ import {
   getTodayWearableItem,
 } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
+import { getHeartRateStatusFromMinMax } from '../../vitalsStatusDisplay';
 import {
   collectHeartRateReadings,
   collectRestingHeartRateReadings,
@@ -33,9 +34,7 @@ function isValidHeartRateDetailPoint(point?: HeartRateDetailPoint) {
 }
 
 function getHeartRateDetailStatus(point: HeartRateDetailPoint) {
-  if (point.max > 100) return '偏高';
-  if (point.min < 60) return '偏低';
-  return '正常';
+  return getHeartRateStatusFromMinMax(point.min, point.max);
 }
 
 function getHeartRateStatsPeriodLabel(range: HeartRateDetailChartRange) {

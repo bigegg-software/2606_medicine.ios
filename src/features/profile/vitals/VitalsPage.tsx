@@ -71,6 +71,7 @@ import {
   formatUricAcidFromItems,
   formatBloodLipidsFromItems,
   formatBloodOxygenFromItem,
+  formatBodyTemperatureDisplay,
   formatHeartRateFromItem,
   formatMeasureDataTime,
   formatMeasureDisplay,
@@ -515,7 +516,7 @@ export default function VitalsPage() {
   const bodyTemperature = useMemo(
     () =>
       activeNav === 'today' && latestMeasure.bodyTemperature
-        ? formatMeasureDisplay(latestMeasure.bodyTemperature, '体温')
+        ? formatBodyTemperatureDisplay(latestMeasure.bodyTemperature)
         : formatSingleValueFromItems(measureData.bodyTemperature, '体温', activeNav),
     [activeNav, latestMeasure.bodyTemperature, measureData.bodyTemperature],
   );

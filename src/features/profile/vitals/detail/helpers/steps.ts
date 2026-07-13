@@ -1,14 +1,12 @@
 import moment from 'moment';
 import type { WearableDataItem } from '@/api/wearableData';
 import {
-  collectWearableReadings,
   getLatestWearableItem,
   getWearableDate,
-  getWearableTimestamp,
   parseMeasureNumber,
   parseStepsFromItem,
 } from './shared';
-import { getTodayWearableItem } from '../../vitalsHelpers';
+import { getTodayWearableItem, buildStepsTodayBarSeries } from '../../vitalsHelpers';
 
 export type StepsDetailChartRange = 'today' | 'week' | 'month';
 
@@ -21,8 +19,56 @@ export type StepsDetailPoint = {
   stepGoals?: number;
 };
 
-function collectStepsReadings(items: WearableDataItem[]) {
-  return collectWearableReadings(items, reading => parseMeasureNumber(reading.value));
+function mapStepsBarLabelToPoint(
+  label: string,
+  value: number,
+  goal: number,
+): StepsDetailPoint {
+  const parsed = moment(label, 'HH:mm', true);
+  const x = parsed.isValid() ? parsed.hour() + parsed.minute() / 60 : 0;
+
+  return {
+    hour: label,
+    value,
+    x,
+    dataTime: label,
+    customerLocalDate: moment().format('YYYY-MM-DD'),
+    stepGoals: goal,
+  };
+}
+
+function resolveStepsYAxisInterval(peak: number, range: StepsDetailChartRange) {
+  const candidates = range === 'today'
+    ? [500, 1000, 2000, 3000, 5000]
+    : [2000, 5000, 10000, 15000, 20000];
+
+  for (const interval of candidates) {
+    if (peak <= interval * 5) return interval;
+  }
+
+  return candidates[candidates.length - 1];
+}
+
+export function buildStepsDetailYAxis(
+  points: StepsDetailPoint[],
+  range: StepsDetailChartRange,
+) {
+  const values = points.map(point => point.value).filter(value => value > 0);
+  const peak = values.length ? Math.max(...values) : range === 'today' ? 1000 : 10000;
+  const interval = resolveStepsYAxisInterval(peak, range);
+  const tickCount = range === 'today' ? 4 : 5;
+
+  return {
+    min: 0,
+    max: Math.max(interval * tickCount, Math.ceil(peak / interval) * interval),
+    interval,
+  };
+}
+
+export function getStepsDetailDayTotal(items: WearableDataItem[]) {
+  const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
+  const sourceItems = todayItems.length ? todayItems : items;
+  return parseStepsFromItem(getLatestWearableItem(sourceItems));
 }
 
 export function getStepsDetailGoal(items: WearableDataItem[], goalOverride?: number) {
@@ -62,37 +108,13 @@ export function buildStepsDetailTodaySeries(
 ): StepsDetailPoint[] {
   const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
   const goal = getStepsDetailGoal(todayItems.length ? todayItems : items, goalOverride);
-  const readings = collectStepsReadings(todayItems);
+  const bars = buildStepsTodayBarSeries(items);
 
-  if (readings.length) {
-    let cumulative = 0;
-    return readings.map(({ ts, value }) => {
-      cumulative += value;
-      return {
-        hour: ts.format('HH:mm'),
-        value: cumulative,
-        x: ts.hour() + ts.minute() / 60,
-        dataTime: ts.format('HH:mm'),
-        customerLocalDate: ts.format('YYYY-MM-DD'),
-        stepGoals: goal,
-      };
-    });
+  if (bars.length) {
+    return bars.map(bar => mapStepsBarLabelToPoint(bar.label, bar.value, goal));
   }
 
-  const latest = getLatestWearableItem(todayItems);
-  const steps = parseStepsFromItem(latest);
-  const ts = latest ? getWearableTimestamp(latest) : moment();
-
-  if (steps <= 0) return [];
-
-  return [{
-    hour: ts.format('HH:mm'),
-    value: steps,
-    x: ts.hour() + ts.minute() / 60,
-    dataTime: ts.format('HH:mm'),
-    customerLocalDate: ts.format('YYYY-MM-DD'),
-    stepGoals: parseMeasureNumber(latest?.stepGoals) ?? goal,
-  }];
+  return [];
 }
 
 export function buildStepsDetailPeriodSeries(

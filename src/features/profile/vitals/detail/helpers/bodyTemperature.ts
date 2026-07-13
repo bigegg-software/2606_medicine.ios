@@ -3,9 +3,15 @@ import type { MeasureDataItem } from '@/api/measureData';
 import {
   filterMeasureItemsInRange,
   getDateRange,
-  getLevelLabel,
 } from '../../vitalsHelpers';
-import { getLevelColor } from '../../vitalLevelColors';
+import {
+  BODY_TEMPERATURE_HIGH_THRESHOLD,
+  BODY_TEMPERATURE_LOW_THRESHOLD,
+  getBodyTemperatureItemStatusLabel,
+  getBodyTemperatureLevelFromValue,
+  getBodyTemperaturePointColor,
+  getBodyTemperatureStatusColor,
+} from '../../vitalsStatusDisplay';
 import {
   getItemTimestamp,
   mapDetailChartRangeToVitalsRange,
@@ -25,48 +31,6 @@ export type BodyTemperatureDetailPoint = {
   statusLabel?: string;
 };
 
-const BODY_TEMPERATURE_LOW_THRESHOLD = 35.7;
-const BODY_TEMPERATURE_HIGH_THRESHOLD = 37.2;
-const BODY_TEMPERATURE_POINT_COLOR_NORMAL = '#6D925E';
-const BODY_TEMPERATURE_POINT_COLOR_ABNORMAL = '#FB4550';
-
-export function getBodyTemperaturePointColor(value: number) {
-  if (value >= BODY_TEMPERATURE_LOW_THRESHOLD && value <= BODY_TEMPERATURE_HIGH_THRESHOLD) {
-    return BODY_TEMPERATURE_POINT_COLOR_NORMAL;
-  }
-  return BODY_TEMPERATURE_POINT_COLOR_ABNORMAL;
-}
-
-function normalizeBodyTemperatureLevelLabel(label?: string) {
-  const trimmed = label?.split(',')[0]?.trim();
-  if (!trimmed) return '';
-  if (/低体温|偏低/.test(trimmed)) return '偏低';
-  if (/发热|偏高/.test(trimmed)) return '偏高';
-  if (/正常/.test(trimmed)) return '正常';
-  // 后端 level 可能混入血压/血糖等其它指标文案，体温页忽略
-  if (/低血压|高血压|高血糖|低血糖|正常高值/.test(trimmed)) return '';
-  return trimmed;
-}
-
-function getBodyTemperatureLevelFromValue(min: number, max: number) {
-  if (min < BODY_TEMPERATURE_LOW_THRESHOLD) return '偏低';
-  if (max > BODY_TEMPERATURE_HIGH_THRESHOLD) return '偏高';
-  return '正常';
-}
-
-function getBodyTemperatureItemLevelLabel(item: MeasureDataItem) {
-  const value = parseMeasureNumber(item.val);
-  if (value != null && value > 0) {
-    const fromValue = getBodyTemperatureLevelFromValue(value, value);
-    if (fromValue !== '正常') return fromValue;
-  }
-  return normalizeBodyTemperatureLevelLabel(getLevelLabel(item)) || '正常';
-}
-
-function isValidBodyTemperatureDetailPoint(point?: BodyTemperatureDetailPoint) {
-  return !!point && point.min > 0 && point.max > 0 && point.max >= point.min;
-}
-
 function formatBodyTemperatureValue(min: number, max: number) {
   if (min === max) return min.toFixed(1);
   return `${min.toFixed(1)}-${max.toFixed(1)}`;
@@ -75,20 +39,18 @@ function formatBodyTemperatureValue(min: number, max: number) {
 function getBodyTemperatureDetailStatus(point: BodyTemperatureDetailPoint) {
   const fromValue = getBodyTemperatureLevelFromValue(point.min, point.max);
   if (fromValue !== '正常') return fromValue;
-  return normalizeBodyTemperatureLevelLabel(point.statusLabel) || '正常';
+  return point.statusLabel || '正常';
 }
 
-function getBodyTemperatureStatusColor(label: string) {
-  if (/偏低|低体温/.test(label)) return '#0951AE';
-  if (/偏高|发热/.test(label)) return '#FB4550';
-  return getLevelColor(label);
+function isValidBodyTemperatureDetailPoint(point?: BodyTemperatureDetailPoint) {
+  return !!point && point.min > 0 && point.max > 0 && point.max >= point.min;
 }
 
 function isAbnormalBodyTemperatureItem(item: MeasureDataItem) {
   const value = parseMeasureNumber(item.val);
   if (value == null || value <= 0) return false;
   if (value < BODY_TEMPERATURE_LOW_THRESHOLD || value > BODY_TEMPERATURE_HIGH_THRESHOLD) return true;
-  const label = normalizeBodyTemperatureLevelLabel(getLevelLabel(item));
+  const label = getBodyTemperatureItemStatusLabel(item);
   return /偏高|偏低|发热|低体温/.test(label);
 }
 
@@ -113,7 +75,7 @@ function getBodyTemperatureDayLevelLabel(dayItems: MeasureDataItem[]) {
   if (fromValue !== '正常') return fromValue;
 
   const abnormalLabel = dayItems
-    .map(getBodyTemperatureItemLevelLabel)
+    .map(getBodyTemperatureItemStatusLabel)
     .find(label => label !== '正常');
   return abnormalLabel || '正常';
 }
@@ -140,7 +102,7 @@ export function buildBodyTemperatureDetailTodaySeries(items: MeasureDataItem[]):
       x: ts.hour() + ts.minute() / 60,
       dataTime: item.dataTime,
       customerLocalDate: item.customerLocalDate,
-      statusLabel: getBodyTemperatureItemLevelLabel(item),
+      statusLabel: getBodyTemperatureItemStatusLabel(item),
     };
   });
 }
@@ -255,3 +217,5 @@ export function calcBodyTemperatureDetailStats(
     abnormalCount: abnormalItems.length,
   };
 }
+
+export { getBodyTemperaturePointColor } from '../../vitalsStatusDisplay';

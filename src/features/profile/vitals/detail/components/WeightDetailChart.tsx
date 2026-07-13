@@ -225,6 +225,10 @@ type Props = {
     yAxisBuilder?: YAxisBuilder;
     safetyLineY?: number;
     safetyLineLabel?: string;
+    referenceHighY?: number;
+    referenceLowY?: number;
+    referenceHighLabel?: string;
+    referenceLowLabel?: string;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
@@ -395,6 +399,8 @@ function buildCombinedMarkLine(
     selectedDataX: number | null,
     labels: string[],
     safetyLineY?: number,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
     const data: Array<Record<string, unknown>> = [];
 
@@ -413,9 +419,19 @@ function buildCombinedMarkLine(
         });
     }
 
-    if (safetyLineY != null) {
+    const referenceLines = [
+        referenceLowY,
+        referenceHighY,
+        safetyLineY,
+    ].filter((value, index, list): value is number =>
+        value != null
+        && value > 0
+        && list.indexOf(value) === index,
+    );
+
+    referenceLines.forEach(yAxis => {
         data.push({
-            yAxis: safetyLineY,
+            yAxis,
             lineStyle: {
                 color: SAFETY_LINE_COLOR,
                 width: 3,
@@ -423,7 +439,7 @@ function buildCombinedMarkLine(
             },
             label: { show: false },
         });
-    }
+    });
 
     if (!data.length) return undefined;
 
@@ -721,8 +737,10 @@ function buildTodayOption(
     selectedDataX: number | null,
     yAxisBuilder?: YAxisBuilder,
     safetyLineY?: number,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
-    const markLine = buildCombinedMarkLine('today', selectedDataX, [], safetyLineY);
+    const markLine = buildCombinedMarkLine('today', selectedDataX, [], safetyLineY, referenceHighY, referenceLowY);
     return {
         animation: false,
         tooltip: {
@@ -763,8 +781,10 @@ function buildMonthOption(
     selectedDataX: number | null,
     yAxisBuilder?: YAxisBuilder,
     safetyLineY?: number,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
-    const markLine = buildCombinedMarkLine('month', selectedDataX, labels, safetyLineY);
+    const markLine = buildCombinedMarkLine('month', selectedDataX, labels, safetyLineY, referenceHighY, referenceLowY);
     return {
         animation: false,
         tooltip: {
@@ -806,8 +826,10 @@ function buildCategoryOption(
     selectedDataX: number | null,
     yAxisBuilder?: YAxisBuilder,
     safetyLineY?: number,
+    referenceHighY?: number,
+    referenceLowY?: number,
 ) {
-    const markLine = buildCombinedMarkLine(range, selectedDataX, labels, safetyLineY);
+    const markLine = buildCombinedMarkLine(range, selectedDataX, labels, safetyLineY, referenceHighY, referenceLowY);
     return {
         animation: false,
         tooltip: {
@@ -841,7 +863,19 @@ function buildCategoryOption(
     };
 }
 
-export default function WeightDetailChart({ range, data, onPointChange, categoryLabels: categoryLabelsProp, yAxisBuilder, safetyLineY, safetyLineLabel }: Props) {
+export default function WeightDetailChart({
+    range,
+    data,
+    onPointChange,
+    categoryLabels: categoryLabelsProp,
+    yAxisBuilder,
+    safetyLineY,
+    safetyLineLabel,
+    referenceHighY,
+    referenceLowY,
+    referenceHighLabel,
+    referenceLowLabel,
+}: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
     const points = data ?? [];
@@ -923,15 +957,59 @@ export default function WeightDetailChart({ range, data, onPointChange, category
         return getSafetyLineLabelTop(yAxisConfig.min, yAxisConfig.max, safetyLineY);
     }, [safetyLineY, yAxisConfig.max, yAxisConfig.min]);
 
+    const referenceHighLabelTop = useMemo(() => {
+        if (referenceHighY == null) return null;
+        return getSafetyLineLabelTop(yAxisConfig.min, yAxisConfig.max, referenceHighY);
+    }, [referenceHighY, yAxisConfig.max, yAxisConfig.min]);
+
+    const referenceLowLabelTop = useMemo(() => {
+        if (referenceLowY == null) return null;
+        return getSafetyLineLabelTop(yAxisConfig.min, yAxisConfig.max, referenceLowY);
+    }, [referenceLowY, yAxisConfig.max, yAxisConfig.min]);
+
     const option = useMemo(() => {
         if (range === 'today') {
-            return buildTodayOption(points, selectedDataX, yAxisBuilder, safetyLineY);
+            return buildTodayOption(
+                points,
+                selectedDataX,
+                yAxisBuilder,
+                safetyLineY,
+                referenceHighY,
+                referenceLowY,
+            );
         }
         if (range === 'month') {
-            return buildMonthOption(points, categoryLabels, selectedDataX, yAxisBuilder, safetyLineY);
+            return buildMonthOption(
+                points,
+                categoryLabels,
+                selectedDataX,
+                yAxisBuilder,
+                safetyLineY,
+                referenceHighY,
+                referenceLowY,
+            );
         }
-        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX, yAxisBuilder, safetyLineY);
-    }, [categoryLabels, data, points, range, selectedDataX, safetyLineY, yAxisBuilder]);
+        return buildCategoryOption(
+            points,
+            categoryLabels,
+            'week',
+            selectedDataX,
+            yAxisBuilder,
+            safetyLineY,
+            referenceHighY,
+            referenceLowY,
+        );
+    }, [
+        categoryLabels,
+        data,
+        points,
+        range,
+        referenceHighY,
+        referenceLowY,
+        safetyLineY,
+        selectedDataX,
+        yAxisBuilder,
+    ]);
 
     useEffect(() => {
         let chart: ReturnType<typeof echarts.init> | undefined;
@@ -1005,6 +1083,38 @@ export default function WeightDetailChart({ range, data, onPointChange, category
                     ]}
                 >
                     {safetyLineLabel}
+                </Text>
+            ) : null}
+            {referenceLowY != null && referenceLowLabel && referenceLowLabelTop != null ? (
+                <Text
+                    pointerEvents="none"
+                    style={[
+                        styles.chartSafetyLineLabel,
+                        {
+                            top: referenceLowLabelTop,
+                            left: PLOT_LEFT,
+                            width: PLOT_WIDTH,
+                            textAlign: 'right',
+                        },
+                    ]}
+                >
+                    {referenceLowLabel}
+                </Text>
+            ) : null}
+            {referenceHighY != null && referenceHighLabel && referenceHighLabelTop != null ? (
+                <Text
+                    pointerEvents="none"
+                    style={[
+                        styles.chartSafetyLineLabel,
+                        {
+                            top: referenceHighLabelTop,
+                            left: PLOT_LEFT,
+                            width: PLOT_WIDTH,
+                            textAlign: 'right',
+                        },
+                    ]}
+                >
+                    {referenceHighLabel}
                 </Text>
             ) : null}
         </View>

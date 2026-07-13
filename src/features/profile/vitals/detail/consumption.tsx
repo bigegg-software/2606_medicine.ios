@@ -8,7 +8,11 @@ import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
-import StepsDetailChart, { type StepsChartRange, type StepsPoint } from './components/StepsDetailChart';
+import StepsDetailChart, {
+    type StepsChartRange,
+    type StepsPoint,
+    type StepsYAxisBuilder,
+} from './components/StepsDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     getWearableDataDetailByDateRange,
@@ -20,6 +24,7 @@ import { getDateRange, sortWearableItems, getWearableReturnOriginalDataParam } f
 import {
     buildEnergyDetailPeriodSeries,
     buildEnergyDetailTodaySeries,
+    buildEnergyDetailYAxis,
     calcEnergyDetailOverview,
     formatEnergyDetailPointDisplay,
     getEnergyDetailGoal,
@@ -60,18 +65,47 @@ export default function ConsumptionPage() {
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
     const [energyGoal, setEnergyGoal] = useState(defaultEnergyGoal);
 
+    const todayTotal = useMemo(
+        () => chartData.reduce((sum, point) => sum + (point.value > 0 ? point.value : 0), 0),
+        [chartData],
+    );
+
     const handleChartPointChange = useCallback((point: StepsPoint | undefined) => {
-        const display = formatEnergyDetailPointDisplay(
+        const pointDisplay = formatEnergyDetailPointDisplay(
             selectedType,
             point as EnergyDetailPoint | undefined,
             energyGoal,
         );
-        setDisplayValue(display.value);
-        setDisplayStatus(display.status);
-        setDisplayStatusColor(display.statusColor);
-        setCurrentLabel(display.currentLabel);
-        setSuggestionLabel(display.suggestionLabel);
-    }, [selectedType, energyGoal]);
+
+        if (selectedType === 'today') {
+            setDisplayValue(pointDisplay.value);
+            const dayStatusDisplay = formatEnergyDetailPointDisplay(
+                'today',
+                todayTotal > 0
+                    ? {
+                        hour: '',
+                        value: todayTotal,
+                        energyGoals: energyGoal,
+                    }
+                    : undefined,
+                energyGoal,
+            );
+            setDisplayStatus(dayStatusDisplay.status);
+            setDisplayStatusColor(dayStatusDisplay.statusColor);
+            return;
+        }
+
+        setDisplayValue(pointDisplay.value);
+        setDisplayStatus(pointDisplay.status);
+        setDisplayStatusColor(pointDisplay.statusColor);
+        setCurrentLabel(pointDisplay.currentLabel);
+        setSuggestionLabel(pointDisplay.suggestionLabel);
+    }, [selectedType, energyGoal, todayTotal]);
+
+    const energyYAxisBuilder = useCallback<StepsYAxisBuilder>(
+        points => buildEnergyDetailYAxis(points as EnergyDetailPoint[], selectedType),
+        [selectedType],
+    );
 
     const loadEnergyData = useCallback(async (range: StepsChartRange, goalOverride?: number) => {
         const fallbackGoal = goalOverride ?? defaultEnergyGoal;
@@ -116,6 +150,10 @@ export default function ConsumptionPage() {
 
             const goal = getEnergyDetailGoal(activeItems, basalItems, fallbackGoal);
             setEnergyGoal(goal);
+            setSuggestionLabel(`目标：${Math.round(goal).toLocaleString('en-US')}`);
+            if (range === 'today') {
+                setCurrentLabel('当前：今天');
+            }
 
             if (range === 'today') {
                 setChartData(buildEnergyDetailTodaySeries(activeItems, basalItems, goal));
@@ -200,7 +238,7 @@ export default function ConsumptionPage() {
                             data={chartData}
                             onPointChange={handleChartPointChange}
                             valueUnit="千卡"
-                            todayLineChart
+                            yAxisBuilder={energyYAxisBuilder}
                         />
                     </View>
 

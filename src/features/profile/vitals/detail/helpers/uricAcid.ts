@@ -6,6 +6,7 @@ import type {
 import {
   filterMeasureItemsInRange,
   getLevelLabel,
+  getUricAcidReferenceLines,
   getUricAcidRange,
   getUricAcidStatusLabel,
   type VitalsRange,
@@ -14,6 +15,7 @@ import { getLevelColor } from '../../vitalLevelColors';
 import {
   getItemTimestamp,
   parseMeasureNumber,
+  pickLatestMeasureItems,
 } from './shared';
 
 export const URIC_ACID_RECENT_PAGE_SIZE = 10;
@@ -120,9 +122,9 @@ export function buildUricAcidDetailYAxis(
   const values = points
     .flatMap(point => [point.min, point.max])
     .filter(value => value > 0);
-  const normalRange = getUricAcidRange(gender);
-  const peak = values.length ? Math.max(...values, normalRange.max) : normalRange.max;
-  const floor = values.length ? Math.min(...values, normalRange.min) : normalRange.min;
+  const { normalMin, elevatedMax } = getUricAcidReferenceLines(gender);
+  const peak = values.length ? Math.max(...values, elevatedMax) : elevatedMax;
+  const floor = values.length ? Math.min(...values, normalMin) : normalMin;
   const padding = 50;
   const span = peak - floor + padding * 2;
   const interval = span > 350 ? 100 : 50;
@@ -135,12 +137,21 @@ export function buildUricAcidDetailYAxis(
   return { min, max, interval };
 }
 
-export function getUricAcidSafetyLineY(gender?: string | null) {
-  return getUricAcidRange(gender).max;
+export function getUricAcidChartReferenceLines(gender?: string | null) {
+  const { normalMax } = getUricAcidReferenceLines(gender);
+  return {
+    safetyLineY: normalMax,
+    safetyLineLabel: `上线${normalMax}`,
+  };
 }
 
-export function formatUricAcidSafetyLineLabel(gender?: string | null) {
-  return `上线${getUricAcidSafetyLineY(gender)}`;
+export function getUricAcidAddDataReferenceLines(gender?: string | null) {
+  const { normalMin, normalMax, elevatedMax } = getUricAcidReferenceLines(gender);
+  return [
+    `正常：${normalMin}-${normalMax} μmol/L`,
+    `偏高：${normalMax + 1}-${elevatedMax} μmol/L`,
+    `异常偏高：＞${elevatedMax} μmol/L`,
+  ];
 }
 
 export function buildUricAcidDetailSeriesFromItems(
@@ -153,13 +164,15 @@ export function buildUricAcidDetailSeriesFromItems(
     .map(item => buildUricAcidRecordPoint(item, gender));
 }
 
+export function getUricAcidRecentItems(items: MeasureDataItem[]) {
+  return pickLatestMeasureItems(items, URIC_ACID_RECENT_PAGE_SIZE);
+}
+
 export function buildUricAcidDetailSeries(
   items: MeasureDataItem[],
   gender?: string | null,
 ): UricAcidDetailPoint[] {
-  return items
-    .filter(item => (parseMeasureNumber(item.val) ?? 0) > 0)
-    .map(item => buildUricAcidRecordPoint(item, gender));
+  return getUricAcidRecentItems(items).map(item => buildUricAcidRecordPoint(item, gender));
 }
 
 export function formatUricAcidCurrentLabel(point?: UricAcidDetailPoint) {
@@ -191,9 +204,7 @@ export function formatUricAcidDetailPointDisplay(
 }
 
 export function calcUricAcidCompareToPrevious(items: MeasureDataItem[]) {
-  const sorted = [...items]
-    .filter(item => (parseMeasureNumber(item.val) ?? 0) > 0)
-    .sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf());
+  const sorted = getUricAcidRecentItems(items);
 
   if (sorted.length < 2) return null;
 

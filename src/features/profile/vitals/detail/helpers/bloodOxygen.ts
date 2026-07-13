@@ -4,6 +4,12 @@ import {
   getTodayWearableItem,
 } from '../../vitalsHelpers';
 import {
+  BLOOD_OXYGEN_LEVEL_COLORS,
+  getBloodOxygenLevel,
+  getBloodOxygenLevelLabel,
+  getBloodOxygenPointColor,
+} from '../../vitalsStatusDisplay';
+import {
   collectOxygenReadings,
   filterWearableItemsInRange,
   getLatestWearableItem,
@@ -25,14 +31,13 @@ export type BloodOxygenDetailPoint = {
   customerLocalDate?: string;
 };
 
-export const BLOOD_OXYGEN_LEVEL_COLORS = {
-  normal: '#6D925E',
-  slightlyLow: '#0951AE',
-  low: '#EE9C44',
-  severeLow: '#FB4550',
-} as const;
-
-export type BloodOxygenLevelKey = keyof typeof BLOOD_OXYGEN_LEVEL_COLORS;
+export {
+  BLOOD_OXYGEN_LEVEL_COLORS,
+  getBloodOxygenLevel,
+  getBloodOxygenLevelLabel,
+  getBloodOxygenPointColor,
+};
+export type { BloodOxygenLevelKey } from '../../vitalsStatusDisplay';
 
 const BLOOD_OXYGEN_RANGE_BANDS = [
   { min: 0, max: 90, color: BLOOD_OXYGEN_LEVEL_COLORS.severeLow },
@@ -44,31 +49,6 @@ const BLOOD_OXYGEN_RANGE_BANDS = [
 export const BLOOD_OXYGEN_NORMAL_THRESHOLD = 95;
 
 const OXYGEN_ABNORMAL_THRESHOLD = 90;
-const OXYGEN_LOW_THRESHOLD = 95;
-
-export function getBloodOxygenLevel(value: number): BloodOxygenLevelKey {
-  if (value >= 95) return 'normal';
-  if (value >= 93) return 'slightlyLow';
-  if (value >= 90) return 'low';
-  return 'severeLow';
-}
-
-export function getBloodOxygenLevelLabel(value: number) {
-  switch (getBloodOxygenLevel(value)) {
-    case 'normal':
-      return '正常';
-    case 'slightlyLow':
-      return '偏低';
-    case 'low':
-      return '较低';
-    case 'severeLow':
-      return '异常偏低';
-  }
-}
-
-export function getBloodOxygenPointColor(value: number) {
-  return BLOOD_OXYGEN_LEVEL_COLORS[getBloodOxygenLevel(value)];
-}
 
 export function getBloodOxygenBandHeights(min: number, max: number) {
   return BLOOD_OXYGEN_RANGE_BANDS.map(band =>

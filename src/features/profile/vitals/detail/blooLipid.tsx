@@ -25,6 +25,8 @@ import {
     flattenBloodLipidAllRecords,
     formatBloodLipidDetailPointDisplay,
     formatBloodLipidTcGoalProgressStatus,
+    getBloodLipidChartReferenceLines,
+    getBloodLipidRecentItems,
     loadBloodLipidPrescriptionGoalSummary,
     getBloodLipidMetricTabs,
     getBloodLipidMetricTitle,
@@ -128,11 +130,12 @@ export default function BloodLipidPage() {
             })) as unknown as MeasureDataAllRecordsResult;
 
             if (!isResourceApiOk(res)) {
-                applyEmptyDisplay(setters, 'TC');
+                applyEmptyDisplay(setters, selectedLipidType);
                 return;
             }
 
             const items = flattenBloodLipidAllRecords(res.rows);
+            const recentItems = getBloodLipidRecentItems(items);
             setAllItems(items);
 
             const prescriptionSummary = await loadPrescriptionGoal(items);
@@ -149,15 +152,15 @@ export default function BloodLipidPage() {
 
             if (compareFromPrescription) {
                 setCompareSummary(compareFromPrescription);
-            } else if (items.length >= 2) {
-                setCompareSummary(buildBloodLipidCompareSummary(items));
+            } else if (recentItems.length >= 2) {
+                setCompareSummary(buildBloodLipidCompareSummary(recentItems));
             } else {
                 setCompareSummary(null);
             }
         } catch {
-            applyEmptyDisplay(setters, 'TC');
+            applyEmptyDisplay(setters, selectedLipidType);
         }
-    }, [loadPrescriptionGoal]);
+    }, [loadPrescriptionGoal, selectedLipidType]);
 
     useFocusEffect(
         useCallback(() => {
@@ -178,6 +181,7 @@ export default function BloodLipidPage() {
         () => getBloodLipidNormalRangeText(selectedLipidType),
         [selectedLipidType],
     );
+
     const chartCategoryLabels = useMemo(
         () => chartData.map(point => point.hour),
         [chartData],
@@ -193,8 +197,12 @@ export default function BloodLipidPage() {
 
     const lipidYAxisBuilder = useCallback(
         (points: WeightDetailPoint[]) =>
-            buildBloodLipidDetailYAxis(points as BloodLipidDetailPoint[]),
-        [],
+            buildBloodLipidDetailYAxis(points as BloodLipidDetailPoint[], selectedLipidType),
+        [selectedLipidType],
+    );
+    const chartReferenceLines = useMemo(
+        () => getBloodLipidChartReferenceLines(selectedLipidType),
+        [selectedLipidType],
     );
 
     return (
@@ -353,6 +361,8 @@ export default function BloodLipidPage() {
                             categoryLabels={chartCategoryLabels}
                             onPointChange={handleChartPointChange}
                             yAxisBuilder={lipidYAxisBuilder}
+                            safetyLineY={chartReferenceLines.safetyLineY}
+                            safetyLineLabel={chartReferenceLines.safetyLineLabel}
                         />
                         <Text style={styles.btmText}>最近10次测量</Text>
                     </View>

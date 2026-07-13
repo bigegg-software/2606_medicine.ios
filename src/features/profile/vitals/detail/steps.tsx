@@ -8,7 +8,11 @@ import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
-import StepsDetailChart, { type StepsChartRange, type StepsPoint } from './components/StepsDetailChart';
+import StepsDetailChart, {
+    type StepsChartRange,
+    type StepsPoint,
+    type StepsYAxisBuilder,
+} from './components/StepsDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
     getWearableDataDetailByDateRange,
@@ -20,9 +24,11 @@ import { getDateRange, sortWearableItems, getWearableReturnOriginalDataParam } f
 import {
     buildStepsDetailPeriodSeries,
     buildStepsDetailTodaySeries,
+    buildStepsDetailYAxis,
     calcStepsDetailOverview,
     formatStepsDetailPointDisplay,
     formatStepsGoalLabel,
+    getStepsDetailDayTotal,
     getStepsDetailGoal,
     type StepsDetailPoint,
 } from './helpers/steps';
@@ -68,19 +74,44 @@ export default function StepsPage() {
     const [suggestionLabel, setSuggestionLabel] = useState(() => formatStepsGoalLabel(defaultStepGoal));
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
     const [stepGoal, setStepGoal] = useState(defaultStepGoal);
+    const [todayDaySteps, setTodayDaySteps] = useState(0);
 
     const handleChartPointChange = useCallback((point: StepsPoint | undefined) => {
-        const display = formatStepsDetailPointDisplay(
+        const pointDisplay = formatStepsDetailPointDisplay(
             selectedType,
             point as StepsDetailPoint | undefined,
             stepGoal,
         );
-        setDisplayValue(display.value);
-        setDisplayStatus(display.status);
-        setDisplayStatusColor(display.statusColor);
-        setCurrentLabel(display.currentLabel);
-        setSuggestionLabel(display.suggestionLabel);
-    }, [selectedType, stepGoal]);
+
+        if (selectedType === 'today') {
+            setDisplayValue(pointDisplay.value);
+            const dayStatusDisplay = formatStepsDetailPointDisplay(
+                'today',
+                todayDaySteps > 0
+                    ? {
+                        hour: '',
+                        value: todayDaySteps,
+                        stepGoals: stepGoal,
+                    }
+                    : undefined,
+                stepGoal,
+            );
+            setDisplayStatus(dayStatusDisplay.status);
+            setDisplayStatusColor(dayStatusDisplay.statusColor);
+            return;
+        }
+
+        setDisplayValue(pointDisplay.value);
+        setDisplayStatus(pointDisplay.status);
+        setDisplayStatusColor(pointDisplay.statusColor);
+        setCurrentLabel(pointDisplay.currentLabel);
+        setSuggestionLabel(pointDisplay.suggestionLabel);
+    }, [selectedType, stepGoal, todayDaySteps]);
+
+    const stepsYAxisBuilder = useCallback<StepsYAxisBuilder>(
+        points => buildStepsDetailYAxis(points as StepsDetailPoint[], selectedType),
+        [selectedType],
+    );
 
     const loadStepsData = useCallback(async (range: StepsChartRange, goalOverride?: number) => {
         const fallbackGoal = goalOverride ?? defaultStepGoal;
@@ -103,12 +134,20 @@ export default function StepsPage() {
                 setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setOverview(EMPTY_OVERVIEW);
                 setStepGoal(fallbackGoal);
+                setTodayDaySteps(0);
                 return;
             }
 
             const items = sortWearableItems(apiResourceData<WearableDataItem[]>(res) ?? []);
             const goal = getStepsDetailGoal(items, fallbackGoal);
             setStepGoal(goal);
+            setSuggestionLabel(formatStepsGoalLabel(goal));
+            if (range === 'today') {
+                setCurrentLabel('当前：今天');
+                setTodayDaySteps(getStepsDetailDayTotal(items));
+            } else {
+                setTodayDaySteps(0);
+            }
 
             if (range === 'today') {
                 setChartData(buildStepsDetailTodaySeries(items, goal));
@@ -136,6 +175,7 @@ export default function StepsPage() {
             setSuggestionLabel(emptyDisplay.suggestionLabel);
             setOverview(EMPTY_OVERVIEW);
             setStepGoal(fallbackGoal);
+            setTodayDaySteps(0);
         }
     }, [defaultStepGoal]);
 
@@ -192,6 +232,7 @@ export default function StepsPage() {
                             range={selectedType}
                             data={chartData}
                             onPointChange={handleChartPointChange}
+                            yAxisBuilder={stepsYAxisBuilder}
                         />
                     </View>
 

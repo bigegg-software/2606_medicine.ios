@@ -9,7 +9,7 @@ import { getInUseExPatientRuleInfo, type InUseExPatientRule, type ProgressInfo }
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { flattenMeasureItems } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
-import { getItemTimestamp, parseMeasureNumber } from './shared';
+import { getItemTimestamp, parseMeasureNumber, pickLatestMeasureRecords } from './shared';
 import { enrichHealthGoalTargets, toHealthGoalDisplayItem } from '@/src/features/schedule/scheduleHelpers';
 
 export const BLOOD_LIPID_RECENT_PAGE_SIZE = 10;
@@ -172,6 +172,25 @@ function getHdlStatusLabel(value: number) {
   return '偏低';
 }
 
+const BLOOD_LIPID_REFERENCE: Record<
+  BloodLipidMetricKey,
+  { value: number; labelPrefix: '上线' | '下限' }
+> = {
+  TC: { value: 5.2, labelPrefix: '上线' },
+  TG: { value: 1.7, labelPrefix: '上线' },
+  'LDL-C': { value: 3.4, labelPrefix: '上线' },
+  'HDL-C': { value: 1.0, labelPrefix: '下限' },
+};
+
+export function getBloodLipidChartReferenceLines(metricKey: BloodLipidMetricKey) {
+  const { value, labelPrefix } = BLOOD_LIPID_REFERENCE[metricKey];
+  const formatted = formatLipidDecimal(value);
+  return {
+    safetyLineY: value,
+    safetyLineLabel: `${labelPrefix}${formatted}`,
+  };
+}
+
 export function getBloodLipidStatusLabel(key: BloodLipidMetricKey, value: number) {
   switch (key) {
     case 'TC':
@@ -248,21 +267,31 @@ function buildRecordPoint(
   };
 }
 
+export function getBloodLipidRecentItems(items: MeasureDataItem[]) {
+  return pickLatestMeasureRecords(items, BLOOD_LIPID_RECENT_PAGE_SIZE);
+}
+
 export function buildBloodLipidDetailSeries(
   items: MeasureDataItem[],
   metricKey: BloodLipidMetricKey,
 ) {
-  return items
+  return [...items]
+    .sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf())
     .map(item => buildRecordPoint(item, metricKey))
-    .filter((point): point is BloodLipidDetailPoint => point != null);
+    .filter((point): point is BloodLipidDetailPoint => point != null)
+    .slice(-BLOOD_LIPID_RECENT_PAGE_SIZE);
 }
 
-export function buildBloodLipidDetailYAxis(points: BloodLipidDetailPoint[]) {
+export function buildBloodLipidDetailYAxis(
+  points: BloodLipidDetailPoint[],
+  metricKey: BloodLipidMetricKey = 'TC',
+) {
   const values = points
     .flatMap(point => [point.min, point.max])
     .filter(value => value > 0);
-  const peak = values.length ? Math.max(...values) : 6;
-  const floor = values.length ? Math.min(...values) : 0;
+  const { safetyLineY } = getBloodLipidChartReferenceLines(metricKey);
+  const peak = values.length ? Math.max(...values, safetyLineY) : safetyLineY;
+  const floor = values.length ? Math.min(...values, safetyLineY) : 0;
   const padding = 0.5;
   const span = peak - floor + padding * 2;
   const interval = span > 3 ? 1 : 0.5;
@@ -605,7 +634,10 @@ export function buildBloodLipidCompareSummary(
   startDate?: string,
   endDate?: string,
 ): BloodLipidCompareSummary | null {
-  const rangedItems = filterItemsInDateRange(items, startDate, endDate);
+  const sourceItems = startDate?.trim() && endDate?.trim()
+    ? items
+    : getBloodLipidRecentItems(items);
+  const rangedItems = filterItemsInDateRange(sourceItems, startDate, endDate);
   if (!rangedItems.length) return null;
 
   const rows = LIPID_METRICS

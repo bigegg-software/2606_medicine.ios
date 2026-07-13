@@ -6,11 +6,13 @@ import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import moment from 'moment';
+import { useSelector } from 'react-redux';
 import styles from '@/css/vitals/add';
 import { AppTheme } from '@/common/theme';
 import { addMeasureData, removeMeasureDataById, updateMeasureData, type AddMeasureDataResult, type MeasureDataType, } from '@/api/measureData';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import {
   BLOOD_SUGAR_MEASURE_STATUS_LIST,
@@ -22,6 +24,7 @@ import {
   toBloodSugarMeasureStatusLabel,
   toBloodSugarMeasureStatusValue,
 } from './addDataHelpers';
+import { getUricAcidAddDataReferenceLines } from './detail/helpers/uricAcid';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AddDataPage'>;
@@ -90,11 +93,7 @@ const MEASURE_CONFIG: Record<
     showStatus: true,
     statusList: ['空腹', '餐后', '其他'],
     defaultStatus: '空腹',
-    referenceLines: [
-      '正常（男）：208-428 μmol/L',
-      '正常（女）：155-357 μmol/L',
-      '偏高：高于上述范围',
-    ],
+    referenceLines: [],
     keyboardType: 'number-pad',
   },
   血脂: {
@@ -189,6 +188,7 @@ export default function BloodAddPage({ route }: Props) {
   const config = MEASURE_CONFIG[measureType];
   const navigation = useNavigation<Nav>();
   const headerHeight = useHeaderHeight();
+  const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const scrollRef = useRef<ScrollView>(null);
   const allowDecimal = config.keyboardType === 'decimal-pad';
   const pageTitle = isEdit ? config.title.replace('新增', '编辑') : config.title;
@@ -300,8 +300,11 @@ export default function BloodAddPage({ route }: Props) {
     if (measureType === '血压') {
       return getBloodPressureReferenceLines();
     }
+    if (measureType === '尿酸') {
+      return getUricAcidAddDataReferenceLines(userGender);
+    }
     return config.referenceLines;
-  }, [config.referenceLines, measureStatus, measureType]);
+  }, [config.referenceLines, measureStatus, measureType, userGender]);
 
   const submit = async () => {
     if (!primaryValue.trim()) {
@@ -383,17 +386,18 @@ export default function BloodAddPage({ route }: Props) {
     <PageLayout
       style={styles.container}
       keyboardAccessory={<KeyboardDoneAccessory />}>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoid}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
-        <ScrollView
-          ref={scrollRef}
-          style={styles.scroll}
-          contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          showsVerticalScrollIndicator={false}>
+      <View style={styles.keyboardAvoid}>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 0}>
+          <ScrollView
+            ref={scrollRef}
+            style={styles.scroll}
+            contentContainerStyle={styles.body}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            showsVerticalScrollIndicator={false}>
           <View style={styles.rowBox}>
             <Text style={styles.sectionTitle}>测量时间</Text>
 
@@ -485,16 +489,6 @@ export default function BloodAddPage({ route }: Props) {
                   keyboardType="decimal-pad"
                   inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 />
-                <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  placeholder="--"
-                  placeholderTextColor={AppTheme.textSecondary}
-                  value={lipidHdl}
-                  onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
-                  keyboardType="decimal-pad"
-                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                />
                 <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
                 <TextInput
                   style={styles.inputBox}
@@ -505,6 +499,17 @@ export default function BloodAddPage({ route }: Props) {
                   keyboardType="decimal-pad"
                   inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                 />
+                <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
+                <TextInput
+                  style={styles.inputBox}
+                  placeholder="--"
+                  placeholderTextColor={AppTheme.textSecondary}
+                  value={lipidHdl}
+                  onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
+                  keyboardType="decimal-pad"
+                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                />
+             
               </>
             ) : null}
 
@@ -569,6 +574,7 @@ export default function BloodAddPage({ route }: Props) {
             ))}
           </View>
         </ScrollView>
+        </KeyboardAvoidingView>
         <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting || deleting}>
           <Flex justify="center" align="center" style={{ flex: 1 }}>
             {submitting ? (
@@ -578,7 +584,7 @@ export default function BloodAddPage({ route }: Props) {
             )}
           </Flex>
         </TouchableOpacity>
-      </KeyboardAvoidingView>
+      </View>
     </PageLayout>
   );
 }

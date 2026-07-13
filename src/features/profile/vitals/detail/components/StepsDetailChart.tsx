@@ -153,6 +153,22 @@ function buildYAxis(points: StepsPoint[]) {
     };
 }
 
+export type StepsYAxisBuilder = (points: StepsPoint[]) => {
+    min?: number;
+    max?: number;
+    interval?: number;
+};
+
+function resolveYAxis(points: StepsPoint[], yAxisBuilder?: StepsYAxisBuilder) {
+    if (yAxisBuilder) {
+        return {
+            ...Y_AXIS,
+            ...yAxisBuilder(points),
+        };
+    }
+    return buildYAxis(points);
+}
+
 const Y_AXIS = {
     type: 'value' as const,
     position: 'right' as const,
@@ -223,6 +239,7 @@ type Props = {
     valueUnit?: string;
     /** 今日视图使用折线图（消耗页） */
     todayLineChart?: boolean;
+    yAxisBuilder?: StepsYAxisBuilder;
 };
 
 function mapTimeToTodayHourX(hour: number, minute = 0) {
@@ -686,6 +703,7 @@ function buildTodayOption(
     points: StepsPoint[],
     selectedDataX: number | null,
     todayLineChart = false,
+    yAxisBuilder?: StepsYAxisBuilder,
 ) {
     return {
         animation: false,
@@ -703,7 +721,7 @@ function buildTodayOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: resolveYAxis(points, yAxisBuilder),
         series: todayLineChart
             ? buildTodayLineSeriesList(points, selectedDataX, todayLineChart)
             : buildTodayBarSeries(points, selectedDataX),
@@ -714,6 +732,7 @@ function buildMonthOption(
     points: StepsPoint[],
     labels: string[],
     selectedDataX: number | null,
+    yAxisBuilder?: StepsYAxisBuilder,
 ) {
     return {
         animation: false,
@@ -731,7 +750,7 @@ function buildMonthOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: resolveYAxis(points, yAxisBuilder),
         series: buildMonthBarSeries(points, labels, selectedDataX),
     };
 }
@@ -741,6 +760,7 @@ function buildCategoryOption(
     labels: string[],
     range: StepsChartRange,
     selectedDataX: number | null,
+    yAxisBuilder?: StepsYAxisBuilder,
 ) {
     return {
         animation: false,
@@ -757,7 +777,7 @@ function buildCategoryOption(
             axisLabel: HIDDEN_AXIS_LABEL,
             splitLine: GRID_SPLIT_LINE,
         },
-        yAxis: buildYAxis(points),
+        yAxis: resolveYAxis(points, yAxisBuilder),
         series: buildCategoryBarSeries(points, range, labels, selectedDataX),
     };
 }
@@ -798,6 +818,7 @@ export default function StepsDetailChart({
     onPointChange,
     valueUnit = '步',
     todayLineChart = false,
+    yAxisBuilder,
 }: Props) {
     const skiaRef = useRef<any>(null);
     const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
@@ -872,13 +893,13 @@ export default function StepsDetailChart({
 
     const option = useMemo(() => {
         if (range === 'today') {
-            return buildTodayOption(points, selectedDataX, todayLineChart);
+            return buildTodayOption(points, selectedDataX, todayLineChart, yAxisBuilder);
         }
         if (range === 'month') {
-            return buildMonthOption(points, categoryLabels, selectedDataX);
+            return buildMonthOption(points, categoryLabels, selectedDataX, yAxisBuilder);
         }
-        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX);
-    }, [categoryLabels, data, points, range, selectedDataX, todayLineChart]);
+        return buildCategoryOption(points, categoryLabels, 'week', selectedDataX, yAxisBuilder);
+    }, [categoryLabels, data, points, range, selectedDataX, todayLineChart, yAxisBuilder]);
 
     useEffect(() => {
         let chart: ReturnType<typeof echarts.init> | undefined;

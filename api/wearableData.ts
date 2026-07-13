@@ -153,3 +153,13 @@ export const getHeartRateAbnormalCount = (params: {
     {},
     { params },
   );
+
+export type WearableRemoveResult = {
+  code?: number;
+  msg?: string;
+};
+
+export const removeWearableOriginalDataById = (wearableDataId: string, id: string) =>
+  request.delete<WearableRemoveResult>('/patient/wearableData/removeOriginalDataById', {
+    params: { wearableDataId, id },
+  });

@@ -13,8 +13,16 @@ import { TODAY_AXIS_LABELS } from '@/src/features/profile/components/chartAxis';
 import type { SleepPieSegment } from '@/src/features/profile/components/SleepPieChart';
 import { buildSleepStageTimeline } from '@/src/features/profile/components/sleepStageChartHelpers';
 import { getLevelColor } from './vitalLevelColors';
+import {
+  formatBloodOxygenValueStatus,
+  formatBodyTemperatureMeasureDisplay,
+  formatHeartRateValueStatus,
+} from './vitalsStatusDisplay';
 
 export { getLevelColor, getLevelBgColor } from './vitalLevelColors';
+export {
+  formatBodyTemperatureMeasureDisplay as formatBodyTemperatureDisplay,
+} from './vitalsStatusDisplay';
 
 export { TODAY_AXIS_LABELS as TODAY_HOUR_LABELS };
 
@@ -409,7 +417,11 @@ export function formatSingleValueFromItems(
   type: VitalsMeasureType,
   range: VitalsRange = 'today',
 ) {
-  return formatMeasureDisplay(getLatestItemForRange(items, range), type);
+  const latest = getLatestItemForRange(items, range);
+  if (type === '体温') {
+    return formatBodyTemperatureMeasureDisplay(latest);
+  }
+  return formatMeasureDisplay(latest, type);
 }
 
 export function formatWeightFromItems(items: MeasureDataItem[], range: VitalsRange = 'today') {
@@ -420,17 +432,23 @@ export function isFemaleGender(gender?: string | null) {
   return gender === '女' || gender === '1';
 }
 
-export function getUricAcidRange(gender?: string | null) {
+export function getUricAcidReferenceLines(gender?: string | null) {
   if (isFemaleGender(gender)) {
-    return { min: 155, max: 357 };
+    return { normalMin: 155, normalMax: 360, elevatedMax: 420 };
   }
-  return { min: 208, max: 428 };
+  return { normalMin: 208, normalMax: 420, elevatedMax: 480 };
+}
+
+export function getUricAcidRange(gender?: string | null) {
+  const { normalMin, normalMax } = getUricAcidReferenceLines(gender);
+  return { min: normalMin, max: normalMax };
 }
 
 export function getUricAcidStatusLabel(value: number, gender?: string | null) {
-  const { min, max } = getUricAcidRange(gender);
-  if (value > max) return '偏高';
-  if (value < min) return '偏低';
+  const { normalMin, normalMax, elevatedMax } = getUricAcidReferenceLines(gender);
+  if (value > elevatedMax) return '异常偏高';
+  if (value > normalMax) return '偏高';
+  if (value < normalMin) return '偏低';
   return '正常';
 }
 
@@ -868,7 +886,7 @@ function parseStepsFromItem(item?: WearableDataItem) {
   return 0;
 }
 
-function buildStepsTodayBarSeries(items: WearableDataItem[]): LabeledValue[] {
+export function buildStepsTodayBarSeries(items: WearableDataItem[]): LabeledValue[] {
   const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
   const sourceItems = todayItems.length ? todayItems : items;
   const readings = collectWearableReadings(sourceItems, reading => parseMeasureNumber(reading.value));
@@ -1141,7 +1159,7 @@ export function buildEnergyBarSeries(
   });
 }
 
-function buildEnergyTodayBarSeries(
+export function buildEnergyTodayBarSeries(
   activeItems: WearableDataItem[],
   basalItems: WearableDataItem[],
 ): LabeledValue[] {
@@ -1345,16 +1363,11 @@ export function getBloodOxygenDisplay(items: WearableDataItem[]) {
   let statusColor = '#6D925E';
   if (item?.isHigh === 1) {
     status = '偏高';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 3) {
-    status = '异常偏低';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 2) {
-    status = '较低';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 1 || value < 95) {
-    status = '偏低';
-    statusColor = '#FFBA1D';
+    statusColor = getLevelColor(status);
+  } else {
+    const oxygenStatus = formatBloodOxygenValueStatus(value);
+    status = oxygenStatus.status;
+    statusColor = oxygenStatus.statusColor;
   }
 
   return {
@@ -1375,15 +1388,7 @@ export function getHeartRateDisplay(items: WearableDataItem[]) {
     return { value: '--', status: '', statusColor: '#999999' };
   }
 
-  let status = '正常';
-  let statusColor = '#6D925E';
-  if (item?.isHigh === 1 || value > 100) {
-    status = '偏高';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 1 || value < 60) {
-    status = '偏低';
-    statusColor = '#FFBA1D';
-  }
+  const { status, statusColor } = formatHeartRateValueStatus(value);
 
   return {
     value: String(value),
@@ -1471,34 +1476,15 @@ export function getLatestMeasureDataTime(items: MeasureDataItem[], range: Vitals
 }
 
 function formatHeartRateStatus(item: WearableDataItem | undefined, value: number) {
-  let status = '正常';
-  let statusColor = '#6D925E';
-  if (item?.isHigh === 1 || value > 100) {
-    status = '偏高';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 1 || value < 60) {
-    status = '偏低';
-    statusColor = '#FFBA1D';
-  }
+  const { status, statusColor } = formatHeartRateValueStatus(value);
   return { status: `${status}`, statusColor };
 }
 
 function formatBloodOxygenStatus(item: WearableDataItem | undefined, value: number) {
-  let status = '正常';
-  let statusColor = '#6D925E';
   if (item?.isHigh === 1) {
-    status = '偏高';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 3) {
-    status = '异常偏低';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 2) {
-    status = '较低';
-    statusColor = '#FFBA1D';
-  } else if (item?.isLow === 1 || value < 95) {
-    status = '偏低';
-    statusColor = '#FFBA1D';
+    return { status: '偏高', statusColor: getLevelColor('偏高') };
   }
+  const { status, statusColor } = formatBloodOxygenValueStatus(value);
   return { status: `${status}`, statusColor };
 }
 

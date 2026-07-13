@@ -1,14 +1,12 @@
 import moment from 'moment';
-import type { WearableDataItem, WearableOriginalReading } from '@/api/wearableData';
+import type { WearableDataItem } from '@/api/wearableData';
 import {
-  collectWearableReadings,
   getLatestWearableItem,
   getWearableDate,
-  getWearableTimestamp,
   parseMeasureNumber,
   sumEnergyFromItem,
 } from './shared';
-import { getTodayWearableItem } from '../../vitalsHelpers';
+import { getTodayWearableItem, buildEnergyTodayBarSeries } from '../../vitalsHelpers';
 
 export type EnergyDetailChartRange = 'today' | 'week' | 'month';
 
@@ -21,18 +19,22 @@ export type EnergyDetailPoint = {
   energyGoals?: number;
 };
 
-function collectEnergyReadings(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
-  const parseValue = (reading: WearableOriginalReading) => parseMeasureNumber(reading.value);
-  const readings = [
-    ...collectWearableReadings(activeItems, parseValue),
-    ...collectWearableReadings(basalItems, parseValue),
-  ].sort((a, b) => a.ts.valueOf() - b.ts.valueOf());
+function mapEnergyBarLabelToPoint(
+  label: string,
+  value: number,
+  goal: number,
+): EnergyDetailPoint {
+  const parsed = moment(label, 'HH:mm', true);
+  const x = parsed.isValid() ? parsed.hour() + parsed.minute() / 60 : 0;
 
-  let cumulative = 0;
-  return readings.map(({ ts, value }) => {
-    cumulative += value;
-    return { ts, value: Math.round(cumulative) };
-  });
+  return {
+    hour: label,
+    value,
+    x,
+    dataTime: label,
+    customerLocalDate: moment().format('YYYY-MM-DD'),
+    energyGoals: goal,
+  };
 }
 
 function getDayEnergyTotals(
@@ -89,44 +91,14 @@ export function buildEnergyDetailTodaySeries(
   basalItems: WearableDataItem[],
   goalOverride?: number,
 ): EnergyDetailPoint[] {
-  const todayActiveItems = activeItems.filter(item => getWearableDate(item).isSame(moment(), 'day'));
-  const todayBasalItems = basalItems.filter(item => getWearableDate(item).isSame(moment(), 'day'));
-  const goal = getEnergyDetailGoal(
-    todayActiveItems.length ? todayActiveItems : activeItems,
-    todayBasalItems.length ? todayBasalItems : basalItems,
-    goalOverride,
-  );
-  const readings = collectEnergyReadings(todayActiveItems, todayBasalItems);
+  const goal = getEnergyDetailGoal(activeItems, basalItems, goalOverride);
+  const bars = buildEnergyTodayBarSeries(activeItems, basalItems);
 
-  if (readings.length) {
-    return readings.map(({ ts, value }) => ({
-      hour: ts.format('HH:mm'),
-      value,
-      x: ts.hour() + ts.minute() / 60,
-      dataTime: ts.format('HH:mm'),
-      customerLocalDate: ts.format('YYYY-MM-DD'),
-      energyGoals: goal,
-    }));
+  if (bars.length) {
+    return bars.map(bar => mapEnergyBarLabelToPoint(bar.label, bar.value, goal));
   }
 
-  const totals = getDayEnergyTotals(activeItems, basalItems, moment());
-  if (totals.total <= 0) return [];
-
-  const latest =
-    getLatestWearableItem(todayActiveItems) ??
-    getLatestWearableItem(todayBasalItems) ??
-    getLatestWearableItem(activeItems) ??
-    getLatestWearableItem(basalItems);
-  const ts = latest ? getWearableTimestamp(latest) : moment();
-
-  return [{
-    hour: ts.format('HH:mm'),
-    value: totals.total,
-    x: ts.hour() + ts.minute() / 60,
-    dataTime: ts.format('HH:mm'),
-    customerLocalDate: ts.format('YYYY-MM-DD'),
-    energyGoals: goal,
-  }];
+  return [];
 }
 
 export function buildEnergyDetailPeriodSeries(
@@ -153,6 +125,34 @@ export function buildEnergyDetailPeriodSeries(
       energyGoals: goal,
     };
   });
+}
+
+function resolveEnergyYAxisInterval(peak: number, range: EnergyDetailChartRange) {
+  const candidates = range === 'today'
+    ? [20, 50, 100, 200, 500]
+    : [200, 500, 1000, 2000, 3000];
+
+  for (const interval of candidates) {
+    if (peak <= interval * 5) return interval;
+  }
+
+  return candidates[candidates.length - 1];
+}
+
+export function buildEnergyDetailYAxis(
+  points: EnergyDetailPoint[],
+  range: EnergyDetailChartRange,
+) {
+  const values = points.map(point => point.value).filter(value => value > 0);
+  const peak = values.length ? Math.max(...values) : range === 'today' ? 100 : 2000;
+  const interval = resolveEnergyYAxisInterval(peak, range);
+  const tickCount = range === 'today' ? 4 : 5;
+
+  return {
+    min: 0,
+    max: Math.max(interval * tickCount, Math.ceil(peak / interval) * interval),
+    interval,
+  };
 }
 
 function formatEnergyCurrentLabel(range: EnergyDetailChartRange, point?: EnergyDetailPoint) {

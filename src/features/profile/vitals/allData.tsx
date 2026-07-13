@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
+import SwipeDeleteRow, { closeActiveSwipeRow } from '@/src/features/profile/healthRecord/components/SwipeDeleteRow';
 import { Flex, Picker } from '@ant-design/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -17,6 +18,7 @@ import {
 } from '@/api/measureData';
 import {
   getWearableDataDetailByCustomerLocalDate,
+  removeWearableOriginalDataById,
   WEARABLE_DATA_TYPES,
   type WearableDataDetailResult,
   type WearableDataItem,
@@ -69,6 +71,14 @@ const MEASURE_UNITS: Record<MeasureDataType, string> = {
   尿酸: 'μmol/L',
   血脂: 'mmol/L',
   体重: 'kg',
+};
+
+const SWIPE_STYLE_OVERRIDES = {
+  swipeRow: styles.swipeRow,
+  swipeAction: styles.swipeAction,
+  swipeForeground: styles.swipeForeground,
+  swipeDeleteBtn: styles.swipeDeleteBtn,
+  editIcon: styles.swipeDeleteIcon,
 };
 
 const MONTH_PICKER_DATA = [
@@ -212,6 +222,8 @@ type WearableReadingRecord = {
   level: string;
   sourceName?: string;
   label?: string;
+  wearableDataId?: string;
+  originalDataId?: string;
 };
 
 type WearableDetailOptions = {
@@ -446,8 +458,12 @@ function buildWearableRecords(
   originalData: WearableOriginalReading[] | WearableOriginalReading[][] | undefined,
   config: WearableDetailConfig,
   options?: WearableDetailOptions,
+  parentWearableDataId?: string | number,
 ): WearableReadingRecord[] {
   const records: WearableReadingRecord[] = [];
+  const parentId = parentWearableDataId != null && String(parentWearableDataId).trim()
+    ? String(parentWearableDataId)
+    : undefined;
 
   for (const [index, reading] of flattenWearableOriginalData(originalData).entries()) {
     const raw = Number(reading.value);
@@ -458,8 +474,11 @@ function buildWearableRecords(
     const endTime = formatWearableReadingDateTime(reading.endDate);
     const ts = moment(reading.startDate ?? reading.endDate);
     const recordTime = startTime !== '--' ? startTime : endTime;
+    const originalDataId = reading.id != null && String(reading.id).trim()
+      ? String(reading.id)
+      : undefined;
     records.push({
-      key: reading.id ?? `${reading.startDate ?? reading.endDate ?? index}-${index}`,
+      key: originalDataId ?? `${reading.startDate ?? reading.endDate ?? index}-${index}`,
       time: ts.isValid() ? ts.format('HH:mm') : '--',
       recordTime,
       startTime,
@@ -467,6 +486,8 @@ function buildWearableRecords(
       value,
       level: config.getLevelLabel(value, reading.highLowLabel, options),
       sourceName: reading.sourceName,
+      wearableDataId: parentId,
+      originalDataId,
     });
   }
 
@@ -479,7 +500,7 @@ function buildWearableRecordsFromItem(
   selectedDate: string,
   options?: WearableDetailOptions,
 ): WearableReadingRecord[] {
-  const records = buildWearableRecords(data?.originalData, config, options);
+  const records = buildWearableRecords(data?.originalData, config, options, data?.wearableDataId);
   if (records.length > 0 || config.apiType !== WEARABLE_DATA_TYPES.steps) {
     return records;
   }
@@ -635,6 +656,7 @@ function WearableRecordCard({
   expanded,
   onToggle,
   showLevel = true,
+  inSwipe = false,
 }: {
   item: WearableReadingRecord;
   label: string;
@@ -642,11 +664,12 @@ function WearableRecordCard({
   expanded: boolean;
   onToggle: () => void;
   showLevel?: boolean;
+  inSwipe?: boolean;
 }) {
   const levelColor = getLevelColor(item.level);
 
   return (
-    <View style={styles.mapBox}>
+    <View style={[styles.mapBox, inSwipe && styles.mapBoxInSwipe]}>
       <Flex justify="between" style={styles.mapItem}>
         <Flex>
           <Image
@@ -765,6 +788,7 @@ export default function AllDataPage({ route }: Props) {
   const storeEnergyGoal = userExtr?.energyGoals;
   const isEnergyType = measureType === '消耗';
   const isSleepType = measureType === '睡眠';
+  const canDeleteWearableRecord = measureType === '心率' || measureType === '血氧';
   const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率' | '步数'];
   const isWearableType = Boolean(wearableConfig) || isEnergyType || isSleepType;
   const navigation = useNavigation<Nav>();
@@ -903,9 +927,51 @@ export default function AllDataPage({ route }: Props) {
     loadRecords();
   }, [loadRecords]);
 
+  const handleDeleteWearableRecord = useCallback((record: WearableReadingRecord) => {
+    if (!record.wearableDataId || !record.originalDataId) return;
+
+    Alert.alert(
+      '删除记录',
+      `确定要删除这条${measureType}记录吗？删除后无法恢复`,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '删除',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const res = (await removeWearableOriginalDataById(
+                record.wearableDataId!,
+                record.originalDataId!,
+              )) as unknown as {
+                code?: number;
+                msg?: string;
+              };
+              if (!isResourceApiOk(res)) {
+                Alert.alert('删除失败', res?.msg || '请稍后重试');
+                return;
+              }
+              setWearableRecords(prev => prev.filter(item => item.key !== record.key));
+              setExpandedKey(prev => (prev === record.key ? null : prev));
+            } catch {
+              Alert.alert('错误', '删除失败');
+            }
+          },
+        },
+      ],
+    );
+  }, [measureType]);
+
+  const handleScrollBegin = useCallback((_event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    closeActiveSwipeRow();
+  }, []);
+
   return (
     <PageLayout style={styles.container}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={handleScrollBegin}>
         <View style={styles.rowBox}>
           <Flex justify="between" align="center">
             <TouchableOpacity activeOpacity={0.7} onPress={() => setCurrentMonth(m => moment(m).subtract(1, 'month'))}>
@@ -992,17 +1058,32 @@ export default function AllDataPage({ route }: Props) {
         {isSleepType ? (
           <SleepRecordCard item={sleepRecord} />
         ) : isWearableType ? (
-          wearableRecords.map(item => (
-            <WearableRecordCard
-              key={item.key}
-              item={item}
-              label={item.label ?? wearableConfig?.label ?? ENERGY_WEARABLE_CONFIG.label}
-              unit={wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
-              showLevel={measureType !== '消耗' && measureType !== '步数'}
-              expanded={expandedKey === item.key}
-              onToggle={() => setExpandedKey(prev => (prev === item.key ? null : item.key))}
-            />
-          ))
+          wearableRecords.map(item => {
+            const card = (
+              <WearableRecordCard
+                item={item}
+                label={item.label ?? wearableConfig?.label ?? ENERGY_WEARABLE_CONFIG.label}
+                unit={wearableConfig?.unit ?? ENERGY_WEARABLE_CONFIG.unit}
+                showLevel={measureType !== '消耗' && measureType !== '步数'}
+                expanded={expandedKey === item.key}
+                onToggle={() => setExpandedKey(prev => (prev === item.key ? null : item.key))}
+                inSwipe={canDeleteWearableRecord && Boolean(item.wearableDataId && item.originalDataId)}
+              />
+            );
+
+            if (canDeleteWearableRecord && item.wearableDataId && item.originalDataId) {
+              return (
+                <SwipeDeleteRow
+                  key={item.key}
+                  onDelete={() => handleDeleteWearableRecord(item)}
+                  styleOverrides={SWIPE_STYLE_OVERRIDES}>
+                  {card}
+                </SwipeDeleteRow>
+              );
+            }
+
+            return <View key={item.key}>{card}</View>;
+          })
         ) : (
           records.map((item, index) => {
             const itemKey = String(item.id ?? `${item.dataTime}-${item.val}-${index}`);

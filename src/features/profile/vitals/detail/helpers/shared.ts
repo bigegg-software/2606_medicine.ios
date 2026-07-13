@@ -15,6 +15,23 @@ export function parseMeasureNumber(value?: number | string | null) {
   return Number.isFinite(num) ? num : null;
 }
 
+export function pickLatestMeasureRecords(items: MeasureDataItem[], limit: number) {
+  if (limit <= 0) return [];
+
+  return [...items]
+    .sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf())
+    .slice(-limit);
+}
+
+export function pickLatestMeasureItems(items: MeasureDataItem[], limit: number) {
+  if (limit <= 0) return [];
+
+  return pickLatestMeasureRecords(
+    items.filter(item => (parseMeasureNumber(item.val) ?? 0) > 0),
+    limit,
+  );
+}
+
 export function parseMeasureDate(raw?: string | null) {
   if (!raw?.trim()) return null;
   const value = raw.trim();

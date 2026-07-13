@@ -24,8 +24,7 @@ import {
     flattenUricAcidAllRecords,
     formatUricAcidDetailPointDisplay,
     formatUricAcidNormalRangeText,
-    formatUricAcidSafetyLineLabel,
-    getUricAcidSafetyLineY,
+    getUricAcidChartReferenceLines,
     URIC_ACID_RECENT_PAGE_SIZE,
     type UricAcidDetailPoint,
 } from './helpers/uricAcid';
@@ -136,8 +135,10 @@ export default function UricAcidPage() {
             buildUricAcidDetailYAxis(points as UricAcidDetailPoint[], userGender),
         [userGender],
     );
-    const safetyLineY = useMemo(() => getUricAcidSafetyLineY(userGender), [userGender]);
-    const safetyLineLabel = useMemo(() => formatUricAcidSafetyLineLabel(userGender), [userGender]);
+    const chartReferenceLines = useMemo(
+        () => getUricAcidChartReferenceLines(userGender),
+        [userGender],
+    );
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '尿酸',
@@ -194,8 +195,8 @@ export default function UricAcidPage() {
                             categoryLabels={chartCategoryLabels}
                             onPointChange={handleChartPointChange}
                             yAxisBuilder={uricAcidYAxisBuilder}
-                            safetyLineY={safetyLineY}
-                            safetyLineLabel={safetyLineLabel}
+                            safetyLineY={chartReferenceLines.safetyLineY}
+                            safetyLineLabel={chartReferenceLines.safetyLineLabel}
                         />
                         <Text style={styles.btmText}>最近10次测量</Text>
                     </View>

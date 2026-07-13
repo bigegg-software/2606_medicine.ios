@@ -1,10 +1,12 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
@@ -57,12 +59,94 @@ const EMPTY_STATS = {
   bmiText: '--',
 };
 
+type WeightRangeSnapshot = {
+  chartData: WeightDetailPoint[];
+  latestItem?: MeasureDataItem;
+  displayBmi: number | null;
+  stats: typeof EMPTY_STATS;
+};
+
+const WEIGHT_CHART_RANGES: WeightChartRange[] = ['today', 'week', 'month'];
+
 function formatStatusText(status?: string) {
   return status?.replace(/^・/, '') || '--';
 }
 
-function resetHeaderDisplay(range: WeightChartRange) {
-  return formatWeightDetailPointDisplay(range);
+function resetHeaderDisplay(range: WeightChartRange, heightCm?: number | null) {
+  return formatWeightDetailPointDisplay(range, undefined, undefined, heightCm);
+}
+
+function buildEmptyWeightRangeSnapshot(): WeightRangeSnapshot {
+  return {
+    chartData: [],
+    latestItem: undefined,
+    displayBmi: null,
+    stats: EMPTY_STATS,
+  };
+}
+
+async function fetchWeightRangeSnapshot(
+  range: WeightChartRange,
+  heightCm?: number | null,
+): Promise<WeightRangeSnapshot | null> {
+  if (range === 'today') {
+    const latestRes = (await getMeasureDataLatestByType('体重')) as unknown as {
+      code?: number;
+      data?: MeasureDataItem;
+    };
+
+    if (!isResourceApiOk(latestRes)) return null;
+
+    const latest = apiResourceData<MeasureDataItem>(latestRes);
+    const latestDate = latest?.customerLocalDate?.trim();
+    let items: MeasureDataItem[] = latest ? [latest] : [];
+
+    if (latestDate) {
+      const detailRes = (await getMeasureDataDetailByDate({
+        customerLocalDate: latestDate,
+        type: '体重',
+      })) as unknown as { code?: number; data?: MeasureDataItem[] };
+
+      if (isResourceApiOk(detailRes)) {
+        const dayItems = flattenMeasureItems(apiResourceData<MeasureDataItem[]>(detailRes));
+        items = dayItems.length ? dayItems : items;
+      }
+    }
+
+    const periodStats = calcWeightDetailStats(items, range, [], heightCm);
+    return {
+      chartData: buildWeightDetailTodaySeries(items, heightCm),
+      latestItem: latest,
+      displayBmi: resolveWeightDetailBmi(undefined, latest, heightCm),
+      stats: periodStats ? {
+        rangeText: periodStats.rangeText,
+        recordCount: periodStats.recordCount,
+        bmiText: periodStats.bmiText,
+      } : EMPTY_STATS,
+    };
+  }
+
+  const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
+  const res = (await getMeasureDataStatisByDateRange({
+    startDate,
+    endDate,
+    type: '体重',
+  })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
+
+  if (!isResourceApiOk(res)) return null;
+
+  const groups = normalizeStatisRangeData(apiResourceData<unknown>(res));
+  const periodStats = calcWeightDetailStats([], range, groups, heightCm);
+  return {
+    chartData: buildWeightChartFromStatisGroups(groups, range, heightCm),
+    latestItem: undefined,
+    displayBmi: null,
+    stats: periodStats ? {
+      rangeText: periodStats.rangeText,
+      recordCount: periodStats.recordCount,
+      bmiText: periodStats.bmiText,
+    } : EMPTY_STATS,
+  };
 }
 
 function WeightTrendCard({
@@ -94,7 +178,9 @@ function WeightTrendCard({
 export default function WeightPage() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
+  const userHeight = useSelector((state: RootState) => state.user.info?.height);
   const [selectedType, setSelectedType] = useState<WeightChartRange>('today');
+  const [loadedRange, setLoadedRange] = useState<WeightChartRange>('today');
   const [chartData, setChartData] = useState<WeightDetailPoint[]>([]);
   const [latestItem, setLatestItem] = useState<MeasureDataItem | undefined>();
   const [displayValue, setDisplayValue] = useState('--');
@@ -106,6 +192,13 @@ export default function WeightPage() {
   const [showWeightGoal, setShowWeightGoal] = useState(false);
   const [weightGoalSummary, setWeightGoalSummary] = useState<WeightGoalSummary | null>(null);
   const [initialWeightKg, setInitialWeightKg] = useState<number | null>(null);
+  const rangeCacheRef = useRef<Partial<Record<WeightChartRange, WeightRangeSnapshot>>>({});
+  const loadRequestRef = useRef(0);
+  const selectedTypeRef = useRef(selectedType);
+  const userHeightRef = useRef(userHeight);
+  const prevUserHeightRef = useRef(userHeight);
+  selectedTypeRef.current = selectedType;
+  userHeightRef.current = userHeight;
 
   const currentWeightText = useMemo(
     () => formatWeightCurrentValue(displayValue, latestItem),
@@ -128,16 +221,36 @@ export default function WeightPage() {
 
   const handleChartPointChange = useCallback((point: WeightDetailPoint | undefined) => {
     const display = formatWeightDetailPointDisplay(
-      selectedType,
+      loadedRange,
       point,
       latestItem,
+      userHeight,
     );
     setDisplayValue(display.value);
     setDisplayStatus(formatStatusText(display.status));
     setDisplayStatusColor(display.statusColor);
     setCurrentLabel(display.currentLabel);
-    setDisplayBmi(resolveWeightDetailBmi(point, latestItem));
-  }, [latestItem, selectedType]);
+    setDisplayBmi(resolveWeightDetailBmi(point, latestItem, userHeight));
+  }, [latestItem, loadedRange, userHeight]);
+
+  const applyRangeSnapshot = useCallback((range: WeightChartRange, snapshot: WeightRangeSnapshot) => {
+    setLoadedRange(range);
+    setChartData(snapshot.chartData);
+    setLatestItem(snapshot.latestItem);
+    setDisplayBmi(snapshot.displayBmi);
+    setStats(snapshot.stats);
+  }, []);
+
+  const applyEmptyRangeState = useCallback((range: WeightChartRange) => {
+    const emptySnapshot = buildEmptyWeightRangeSnapshot();
+    rangeCacheRef.current[range] = emptySnapshot;
+    applyRangeSnapshot(range, emptySnapshot);
+    const emptyDisplay = resetHeaderDisplay(range, userHeight);
+    setDisplayValue(emptyDisplay.value);
+    setDisplayStatus(formatStatusText(emptyDisplay.status));
+    setDisplayStatusColor(emptyDisplay.statusColor);
+    setCurrentLabel(emptyDisplay.currentLabel);
+  }, [applyRangeSnapshot, userHeight]);
 
   const loadWeightGoal = useCallback(async () => {
     try {
@@ -197,102 +310,77 @@ export default function WeightPage() {
     }
   }, []);
 
-  const loadMeasureData = useCallback(async (range: WeightChartRange) => {
-    try {
-      if (range === 'today') {
-        const latestRes = (await getMeasureDataLatestByType('体重')) as unknown as {
-          code?: number;
-          data?: MeasureDataItem;
-        };
-
-        if (!isResourceApiOk(latestRes)) {
-          setLatestItem(undefined);
-          setChartData([]);
-          const emptyDisplay = resetHeaderDisplay(range);
-          setDisplayValue(emptyDisplay.value);
-          setDisplayStatus(formatStatusText(emptyDisplay.status));
-          setDisplayStatusColor(emptyDisplay.statusColor);
-          setCurrentLabel(emptyDisplay.currentLabel);
-          setDisplayBmi(null);
-          setStats(EMPTY_STATS);
-          return;
-        }
-
-        const latest = apiResourceData<MeasureDataItem>(latestRes);
-        setLatestItem(latest);
-        const latestDate = latest?.customerLocalDate?.trim();
-        let items: MeasureDataItem[] = latest ? [latest] : [];
-
-        if (latestDate) {
-          const detailRes = (await getMeasureDataDetailByDate({
-            customerLocalDate: latestDate,
-            type: '体重',
-          })) as unknown as { code?: number; data?: MeasureDataItem[] };
-
-          if (isResourceApiOk(detailRes)) {
-            const dayItems = flattenMeasureItems(apiResourceData<MeasureDataItem[]>(detailRes));
-            items = dayItems.length ? dayItems : items;
-          }
-        }
-
-        setChartData(buildWeightDetailTodaySeries(items));
-        const periodStats = calcWeightDetailStats(items, range);
-        setDisplayBmi(resolveWeightDetailBmi(undefined, latest));
-        setStats(periodStats ? {
-          rangeText: periodStats.rangeText,
-          recordCount: periodStats.recordCount,
-          bmiText: periodStats.bmiText,
-        } : EMPTY_STATS);
-        return;
-      }
-
-      const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
-      const res = (await getMeasureDataStatisByDateRange({
-        startDate,
-        endDate,
-        type: '体重',
-      })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
-
-      if (!isResourceApiOk(res)) {
-        setLatestItem(undefined);
-        setChartData([]);
-        const emptyDisplay = resetHeaderDisplay(range);
-        setDisplayValue(emptyDisplay.value);
-        setDisplayStatus(formatStatusText(emptyDisplay.status));
-        setDisplayStatusColor(emptyDisplay.statusColor);
-        setCurrentLabel(emptyDisplay.currentLabel);
-        setDisplayBmi(null);
-        setStats(EMPTY_STATS);
-        return;
-      }
-
-      const groups = normalizeStatisRangeData(apiResourceData<unknown>(res));
-      setLatestItem(undefined);
-      setChartData(buildWeightChartFromStatisGroups(groups, range));
-      const periodStats = calcWeightDetailStats([], range, groups);
-      setStats(periodStats ? {
-        rangeText: periodStats.rangeText,
-        recordCount: periodStats.recordCount,
-        bmiText: periodStats.bmiText,
-      } : EMPTY_STATS);
-    } catch {
-      setLatestItem(undefined);
-      setChartData([]);
-      const emptyDisplay = resetHeaderDisplay(range);
-      setDisplayValue(emptyDisplay.value);
-      setDisplayStatus(formatStatusText(emptyDisplay.status));
-      setDisplayStatusColor(emptyDisplay.statusColor);
-      setCurrentLabel(emptyDisplay.currentLabel);
-      setDisplayBmi(null);
-      setStats(EMPTY_STATS);
+  const loadMeasureData = useCallback(async (
+    range: WeightChartRange,
+    options?: { background?: boolean },
+  ) => {
+    const background = options?.background ?? false;
+    let requestId = 0;
+    if (!background) {
+      requestId = ++loadRequestRef.current;
     }
-  }, []);
+
+    try {
+      const snapshot = await fetchWeightRangeSnapshot(range, userHeightRef.current);
+      if (snapshot == null) {
+        if (background) return;
+        if (requestId !== loadRequestRef.current) return;
+        applyEmptyRangeState(range);
+        return;
+      }
+
+      rangeCacheRef.current[range] = snapshot;
+      if (background) return;
+      if (requestId !== loadRequestRef.current) return;
+      applyRangeSnapshot(range, snapshot);
+    } catch {
+      if (background) return;
+      if (requestId !== loadRequestRef.current) return;
+      applyEmptyRangeState(range);
+    }
+  }, [applyEmptyRangeState, applyRangeSnapshot]);
+
+  const prefetchOtherRanges = useCallback((currentRange: WeightChartRange) => {
+    WEIGHT_CHART_RANGES
+      .filter(range => range !== currentRange)
+      .forEach(range => {
+        void loadMeasureData(range, { background: true });
+      });
+  }, [loadMeasureData]);
+
+  useEffect(() => {
+    if (prevUserHeightRef.current === userHeight) return;
+    prevUserHeightRef.current = userHeight;
+    rangeCacheRef.current = {};
+    void loadMeasureData(selectedTypeRef.current);
+    prefetchOtherRanges(selectedTypeRef.current);
+  }, [loadMeasureData, prefetchOtherRanges, userHeight]);
+
+  const handleSelectedTypeChange = useCallback((range: WeightChartRange) => {
+    setSelectedType(range);
+    loadRequestRef.current += 1;
+
+    const cached = rangeCacheRef.current[range];
+    if (cached) {
+      applyRangeSnapshot(range, cached);
+      void loadMeasureData(range, { background: true });
+      return;
+    }
+
+    void loadMeasureData(range);
+  }, [applyRangeSnapshot, loadMeasureData]);
 
   useFocusEffect(
     useCallback(() => {
       void loadWeightGoal();
-      void loadMeasureData(selectedType);
-    }, [loadWeightGoal, loadMeasureData, selectedType]),
+      const range = selectedTypeRef.current;
+      const cached = rangeCacheRef.current[range];
+      if (cached) {
+        applyRangeSnapshot(range, cached);
+      }
+      void loadMeasureData(range);
+      prefetchOtherRanges(range);
+    }, [applyRangeSnapshot, loadMeasureData, loadWeightGoal, prefetchOtherRanges]),
   );
 
   const { menuModals } = useVitalsDetailMoreMenu({
@@ -320,7 +408,7 @@ export default function WeightPage() {
         />
 
         <View style={styles.pageHeader}>
-          <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+          <PageHeader selectedType={selectedType} onSelectedTypeChange={handleSelectedTypeChange} />
         </View>
 
         <ScrollView
@@ -376,7 +464,7 @@ export default function WeightPage() {
             </Flex>
 
             <WeightDetailChart
-              range={selectedType}
+              range={loadedRange}
               data={chartData}
               onPointChange={handleChartPointChange}
             />
