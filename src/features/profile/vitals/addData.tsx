@@ -398,182 +398,182 @@ export default function BloodAddPage({ route }: Props) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}>
-          <View style={styles.rowBox}>
-            <Text style={styles.sectionTitle}>测量时间</Text>
+            <View style={styles.rowBox}>
+              <Text style={styles.sectionTitle}>测量时间</Text>
 
-            <DatePicker
-              precision="day"
-              value={moment(measureDate, 'YYYY-MM-DD').toDate()}
-              onOk={date => setMeasureDate(moment(date).format('YYYY-MM-DD'))}>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Flex justify="between" align="center">
-                  <Text style={styles.rowTitle}>日期</Text>
-                  <Flex align="center" style={styles.rowTitle}>
-                    <Text style={styles.dateValue}>
-                      {moment(measureDate).format('YYYY年M月D日')}
-                    </Text>
-                    <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
+              <DatePicker
+                precision="day"
+                value={moment(measureDate, 'YYYY-MM-DD').toDate()}
+                onOk={date => setMeasureDate(moment(date).format('YYYY-MM-DD'))}>
+                <TouchableOpacity activeOpacity={0.7}>
+                  <Flex justify="between" align="center">
+                    <Text style={styles.rowTitle}>日期</Text>
+                    <Flex align="center" style={styles.rowTitle}>
+                      <Text style={styles.dateValue}>
+                        {moment(measureDate).format('YYYY年M月D日')}
+                      </Text>
+                      <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
+                    </Flex>
                   </Flex>
-                </Flex>
-              </TouchableOpacity>
-            </DatePicker>
-            <View style={styles.rowLineInHeader} />
-            <Picker
-              data={TIME_PICKER_DATA}
-              cols={2}
-              cascade={false}
-              value={parseTimeValue(measureTime)}
-              onOk={values => {
-                const hour = String(Number(values[0])).padStart(2, '0');
-                const minute = String(Number(values[1])).padStart(2, '0');
-                setMeasureTime(`${hour}:${minute}`);
-              }}>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Flex justify="between" align="center">
-                  <Text style={styles.rowTitle}>时间</Text>
-                  <Flex align="center" style={styles.rowTitle}>
-                    <Text style={styles.dateValue}>{measureTime}</Text>
-                    <Image source={require('@/assets/images/user/nl.png')} style={styles.calendarIcon} />
+                </TouchableOpacity>
+              </DatePicker>
+              <View style={styles.rowLineInHeader} />
+              <Picker
+                data={TIME_PICKER_DATA}
+                cols={2}
+                cascade={false}
+                value={parseTimeValue(measureTime)}
+                onOk={values => {
+                  const hour = String(Number(values[0])).padStart(2, '0');
+                  const minute = String(Number(values[1])).padStart(2, '0');
+                  setMeasureTime(`${hour}:${minute}`);
+                }}>
+                <TouchableOpacity activeOpacity={0.7}>
+                  <Flex justify="between" align="center">
+                    <Text style={styles.rowTitle}>时间</Text>
+                    <Flex align="center" style={styles.rowTitle}>
+                      <Text style={styles.dateValue}>{measureTime}</Text>
+                      <Image source={require('@/assets/images/user/nl.png')} style={styles.calendarIcon} />
+                    </Flex>
                   </Flex>
-                </Flex>
-              </TouchableOpacity>
-            </Picker>
-          </View>
+                </TouchableOpacity>
+              </Picker>
+            </View>
 
-          <View style={styles.rowBox}>
-            <Text style={styles.sectionTitle}>{config.primaryLabel}</Text>
-            <TextInput
-              style={styles.inputBox}
-              placeholder="--"
-              placeholderTextColor={AppTheme.textSecondary}
-              value={primaryValue}
-              onChangeText={text => setPrimaryValue(
-                measureType === '血压'
-                  ? sanitizeBloodPressureInput(text)
-                  : sanitizeNumberInput(text, allowDecimal),
-              )}
-              keyboardType={measureType === '血压' ? 'decimal-pad' : config.keyboardType}
-              maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
-              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-            />
+            <View style={styles.rowBox}>
+              <Text style={styles.sectionTitle}>{config.primaryLabel}</Text>
+              <TextInput
+                style={styles.inputBox}
+                placeholder="--"
+                placeholderTextColor={AppTheme.textSecondary}
+                value={primaryValue}
+                onChangeText={text => setPrimaryValue(
+                  measureType === '血压'
+                    ? sanitizeBloodPressureInput(text)
+                    : sanitizeNumberInput(text, allowDecimal),
+                )}
+                keyboardType={measureType === '血压' ? 'decimal-pad' : config.keyboardType}
+                maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+              />
 
-            {config.showSecondary ? (
-              <>
-                <Text style={styles.sectionTitle}>{config.secondaryLabel}</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  placeholder="--"
-                  placeholderTextColor={AppTheme.textSecondary}
-                  value={secondaryValue}
-                  onChangeText={text => setSecondaryValue(
-                    measureType === '血压'
-                      ? sanitizeBloodPressureInput(text)
-                      : sanitizeNumberInput(text, false),
-                  )}
-                  keyboardType={measureType === '血压' ? 'decimal-pad' : 'number-pad'}
-                  maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
-                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                />
-              </>
-            ) : null}
+              {config.showSecondary ? (
+                <>
+                  <Text style={styles.sectionTitle}>{config.secondaryLabel}</Text>
+                  <TextInput
+                    style={styles.inputBox}
+                    placeholder="--"
+                    placeholderTextColor={AppTheme.textSecondary}
+                    value={secondaryValue}
+                    onChangeText={text => setSecondaryValue(
+                      measureType === '血压'
+                        ? sanitizeBloodPressureInput(text)
+                        : sanitizeNumberInput(text, false),
+                    )}
+                    keyboardType={measureType === '血压' ? 'decimal-pad' : 'number-pad'}
+                    maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
+                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                  />
+                </>
+              ) : null}
 
-            {measureType === '血脂' ? (
-              <>
-                <Text style={styles.sectionTitle}>甘油三酯（TG）mmol/L</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  placeholder="--"
-                  placeholderTextColor={AppTheme.textSecondary}
-                  value={lipidTg}
-                  onChangeText={text => setLipidTg(sanitizeNumberInput(text, true))}
-                  keyboardType="decimal-pad"
-                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                />
-                <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  placeholder="--"
-                  placeholderTextColor={AppTheme.textSecondary}
-                  value={lipidLdl}
-                  onChangeText={text => setLipidLdl(sanitizeNumberInput(text, true))}
-                  keyboardType="decimal-pad"
-                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                />
-                <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
-                <TextInput
-                  style={styles.inputBox}
-                  placeholder="--"
-                  placeholderTextColor={AppTheme.textSecondary}
-                  value={lipidHdl}
-                  onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
-                  keyboardType="decimal-pad"
-                  inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                />
-             
-              </>
-            ) : null}
+              {measureType === '血脂' ? (
+                <>
+                  <Text style={styles.sectionTitle}>甘油三酯（TG）mmol/L</Text>
+                  <TextInput
+                    style={styles.inputBox}
+                    placeholder="--"
+                    placeholderTextColor={AppTheme.textSecondary}
+                    value={lipidTg}
+                    onChangeText={text => setLipidTg(sanitizeNumberInput(text, true))}
+                    keyboardType="decimal-pad"
+                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                  />
+                  <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
+                  <TextInput
+                    style={styles.inputBox}
+                    placeholder="--"
+                    placeholderTextColor={AppTheme.textSecondary}
+                    value={lipidLdl}
+                    onChangeText={text => setLipidLdl(sanitizeNumberInput(text, true))}
+                    keyboardType="decimal-pad"
+                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                  />
+                  <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
+                  <TextInput
+                    style={styles.inputBox}
+                    placeholder="--"
+                    placeholderTextColor={AppTheme.textSecondary}
+                    value={lipidHdl}
+                    onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
+                    keyboardType="decimal-pad"
+                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                  />
 
-            {config.showSite ? (
-              <>
-                <Text style={styles.sectionTitle}>测量部位</Text>
-                <View style={styles.siteRow}>
-                  {MEASURE_SITE_LIST.map(item => {
-                    const active = measureSite === item;
-                    return (
-                      <TouchableOpacity
+                </>
+              ) : null}
+
+              {config.showSite ? (
+                <>
+                  <Text style={styles.sectionTitle}>测量部位</Text>
+                  <View style={styles.siteRow}>
+                    {MEASURE_SITE_LIST.map(item => {
+                      const active = measureSite === item;
+                      return (
+                        <TouchableOpacity
+                          key={item}
+                          style={[styles.siteItem, active && styles.siteItemActive]}
+                          onPress={() => setMeasureSite(item)}>
+                          <Text style={[styles.siteItemText, active && styles.siteItemTextActive]}>{item}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+
+              {config.showStatus ? (
+                <>
+                  <Text style={styles.sectionTitle}>测量状态</Text>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.statusRow}>
+                    {config.statusList.map(item => (
+                      <OptionChip
                         key={item}
-                        style={[styles.siteItem, active && styles.siteItemActive]}
-                        onPress={() => setMeasureSite(item)}>
-                        <Text style={[styles.siteItemText, active && styles.siteItemTextActive]}>{item}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </>
-            ) : null}
+                        label={item}
+                        active={measureStatus === item}
+                        onPress={() => setMeasureStatus(item)}
+                      />
+                    ))}
+                  </ScrollView>
+                </>
+              ) : null}
 
-            {config.showStatus ? (
-              <>
-                <Text style={styles.sectionTitle}>测量状态</Text>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.statusRow}>
-                  {config.statusList.map(item => (
-                    <OptionChip
-                      key={item}
-                      label={item}
-                      active={measureStatus === item}
-                      onPress={() => setMeasureStatus(item)}
-                    />
-                  ))}
-                </ScrollView>
-              </>
-            ) : null}
+              <Text style={styles.sectionTitle}>备注（选填）</Text>
+              <TextInput
+                style={styles.textareaBox}
+                placeholder="选填"
+                placeholderTextColor={AppTheme.textSecondary}
+                value={remark}
+                onChangeText={setRemark}
+                multiline
+                textAlignVertical="top"
+                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                onFocus={scrollToRemarkInput}
+              />
+            </View>
 
-            <Text style={styles.sectionTitle}>备注（选填）</Text>
-            <TextInput
-              style={styles.textareaBox}
-              placeholder="选填"
-              placeholderTextColor={AppTheme.textSecondary}
-              value={remark}
-              onChangeText={setRemark}
-              multiline
-              textAlignVertical="top"
-              inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              onFocus={scrollToRemarkInput}
-            />
-          </View>
-
-          <View>
-            <Text style={styles.btmTitle}>参考标准:</Text>
-            {referenceLines.map(line => (
-              <Text key={line} style={styles.btmText}>
-                {line}
-              </Text>
-            ))}
-          </View>
-        </ScrollView>
+            <View>
+              <Text style={styles.btmTitle}>参考标准:</Text>
+              {referenceLines.map(line => (
+                <Text key={line} style={styles.btmText}>
+                  {line}
+                </Text>
+              ))}
+            </View>
+          </ScrollView>
         </KeyboardAvoidingView>
         <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting || deleting}>
           <Flex justify="center" align="center" style={{ flex: 1 }}>
