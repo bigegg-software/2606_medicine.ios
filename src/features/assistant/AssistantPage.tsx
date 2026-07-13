@@ -212,7 +212,7 @@ function MessageRow({
     return (
       <Flex align="start" style={styles.aiMessageBoxFollowUp}>
         <View style={styles.aiMedicationCardWrap}>
-          <HealthStatusCards cards={item.cards} />
+          <HealthStatusCards slides={item.slides} />
         </View>
       </Flex>
     );

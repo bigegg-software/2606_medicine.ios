@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getAllergyInfo, updateAllergy, type AllergyItem } from '@/api/allergy';
 import { AppTheme } from '@/common/theme';
-import styles from '@/css/profile/allergies';
+import styles from '@/css/profile/healthRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
@@ -122,7 +122,7 @@ export default function AllergiesAddPage({ route }: Props) {
     if (initializing) {
         return (
             <PageLayout style={styles.container}>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={styles.center}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
             </PageLayout>
@@ -132,53 +132,65 @@ export default function AllergiesAddPage({ route }: Props) {
     return (
         <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
-            <ScrollView contentContainerStyle={styles.body}>
-                <View style={styles.rowBox}>
-                    <View>
-                        <Text style={styles.rowTitle}>过敏原名称</Text>
-                        <TextInput
-                            style={styles.inputBox}
-                            placeholder={getAllergenPlaceholder(type)}
-                            placeholderTextColor={AppTheme.textSecondary}
-                            value={allergenName}
-                            onChangeText={value => setAllergenName(limitText(value, ALLERGEN_NAME_MAX_LENGTH))}
-                            maxLength={ALLERGEN_NAME_MAX_LENGTH}
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
-                    </View>
-                    <View style={styles.rowLine} />
-
-                    <View>
-                        <Text style={styles.rowTitle}>严重程度</Text>
-                        <Flex justify="between">
-                            {SEVERITY_OPTIONS.map(item => (
-                                <TouchableOpacity
-                                    key={item}
-                                    style={[styles.yzBox, severity === item && styles.yzBoxActive]}
-                                    onPress={() => setSeverity(item)}>
-                                    <Flex style={{ flex: 1 }}>
-                                        <Text style={[styles.yzText, severity === item && styles.yzTextActive]}>{item}</Text>
-                                    </Flex>
-                                </TouchableOpacity>
-                            ))}
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <ScrollView
+                    contentContainerStyle={styles.body}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag">
+                    <View style={styles.userBox}>
+                        <Flex justify="between" align="center" style={styles.infoItem}>
+                            <Text style={styles.infoItemLabel}>过敏原名称</Text>
+                            <TextInput
+                                style={styles.infoInput}
+                                placeholder={getAllergenPlaceholder(type)}
+                                placeholderTextColor={AppTheme.textSecondary}
+                                value={allergenName}
+                                onChangeText={value => setAllergenName(limitText(value, ALLERGEN_NAME_MAX_LENGTH))}
+                                maxLength={ALLERGEN_NAME_MAX_LENGTH}
+                                returnKeyType="done"
+                                blurOnSubmit
+                                onSubmitEditing={Keyboard.dismiss}
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            />
                         </Flex>
-                    </View>
 
-                    <View>
-                        <Text style={styles.rowTitle}>过敏症状</Text>
-                        <TextInput
-                            style={styles.inputBox}
-                            placeholder="如：皮疹、呼吸困难、皮肤瘙痒"
-                            placeholderTextColor={AppTheme.textSecondary}
-                            value={allergicSymptoms}
-                            onChangeText={setAllergicSymptoms}
-                            multiline
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.infoItemLabel}>严重程度</Text>
+                            <View style={styles.chipGrid}>
+                                {SEVERITY_OPTIONS.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={item}
+                                        style={[
+                                            styles.choiceChip,
+                                            styles.chipItem,
+                                            index % 3 === 2 && styles.chipItemLastInRow,
+                                            severity === item && styles.choiceChipActive,
+                                        ]}
+                                        onPress={() => setSeverity(item)}>
+                                        <Text style={[styles.choiceChipText, severity === item && styles.choiceChipTextActive]}>
+                                            {item}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
+
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.infoItemLabel}>过敏症状</Text>
+                            <TextInput
+                                style={styles.fieldMultilineInput}
+                                placeholder="如：皮疹、呼吸困难、皮肤瘙痒"
+                                placeholderTextColor={AppTheme.textSecondary}
+                                value={allergicSymptoms}
+                                onChangeText={setAllergicSymptoms}
+                                multiline
+                                textAlignVertical="top"
+                                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                            />
+                        </View>
                     </View>
-                    <View style={styles.rowLine} />
-                </View>
-            </ScrollView>
+                </ScrollView>
+            </TouchableWithoutFeedback>
 
             <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
                 <Flex justify="center" align="center" style={{ flex: 1 }}>

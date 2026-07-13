@@ -1,7 +1,7 @@
 import type { MedicationPlanGroupView } from '@/src/features/profile/medication/medicationHelpers';
 import type { AssistantQuestionnaireItem } from './questionnaireQuickAction';
-import type { HealthStatusCardItem } from './healthStatusAction';
 import type { TodaySchedulePayload } from './todayScheduleAction';
+import type { HealthStatusVitalSlide } from './healthStatusSnapshot';
 
 export type ChatGuideState = {
   userChatGuideId: number | null;
@@ -39,7 +39,7 @@ export type AssistantMessage = {
   medicationAdvice?: string;
   questionnaireItems?: AssistantQuestionnaireItem[];
   questionnaireSuggestion?: string;
-  healthStatusCards?: HealthStatusCardItem[];
+  healthStatusSlides?: HealthStatusVitalSlide[];
   todaySchedule?: TodaySchedulePayload;
 };
 
@@ -62,7 +62,7 @@ export type DisplayItem =
   | {
       type: 'health_status_cards';
       key: string;
-      cards: HealthStatusCardItem[];
+      slides: HealthStatusVitalSlide[];
     }
   | {
       type: 'today_schedule_cards';

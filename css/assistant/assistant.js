@@ -71,21 +71,25 @@ const styles = StyleSheet.create({
     color: '#FF8B07',
   },
   healthStatusBox: {
-    alignSelf: 'flex-start',
-    width: '100%',
-    backgroundColor: '#FFFFFF',
+    minHeight: 196,
+    backgroundColor: '#F0F0F0',
     borderRadius: 18,
-    paddingHorizontal: 10,
-    paddingVertical: 14,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+    width: '100%',
+    padding: 12,
     shadowColor: AppTheme.primaryColor,
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
+    shadowRadius: 18,
     elevation: 2,
   },
   healthStatusRow: {
-    flexDirection: 'row',
-    alignItems: 'stretch',
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
   },
   healthStatusCol: {
     flex: 1,
@@ -119,11 +123,82 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  healthStatusTitle: {
+    fontWeight: 'bold',
+    fontSize: 15,
+    color: AppTheme.textPrimary,
+  },
   healthStatusTime: {
     marginTop: 4,
     fontSize: 11,
     color: AppTheme.textSecondary,
     textAlign: 'center',
+  },
+  healthValue: {
+    fontWeight: "bold",
+    fontSize: 25,
+    color: AppTheme.textPrimary,
+  },
+  healthValueUnit: {
+    fontWeight: "bold",
+    fontSize: 12,
+    color: "#999999",
+  },
+  healthStatusValueWrap: {
+    marginTop: 8,
+  },
+  healthStatusValueTitle: {
+    fontWeight: "bold",
+    fontSize: 14,
+    color: "#999999",
+  },
+  healthStatusContent: {
+    marginTop: 12,
+  },
+  healthStatusSwiperWrap: {
+    marginTop: 4,
+  },
+  healthStatusSlide: {
+    paddingTop: 4,
+  },
+  healthStatusInfo: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 8,
+  },
+  healthStatusChart: {
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  healthStatusDots: {
+    marginTop: 10,
+    gap: 6,
+  },
+  healthStatusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(109,146,94,0.25)',
+  },
+  healthStatusDotActive: {
+    width: 16,
+    backgroundColor: AppTheme.primaryColor,
+  },
+  healthStatusLoading: {
+    minHeight: 120,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  healthStatusLipidSummary: {
+    width: 172,
+    minHeight: 60,
+    justifyContent: 'center',
+    gap: 4,
+  },
+  healthStatusLipidText: {
+    fontSize: 12,
+    color: AppTheme.textSecondary,
+    textAlign: 'right',
   },
   todayScheduleBox: {
     alignSelf: 'flex-start',
@@ -251,7 +326,7 @@ const styles = StyleSheet.create({
   questionnaireReminder: {
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
-    padding:15
+    padding: 15
   },
   questionnaireReminderRow: {
     marginTop: 8,

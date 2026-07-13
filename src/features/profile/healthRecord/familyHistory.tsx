@@ -5,8 +5,9 @@ import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getFamilyMedicalInfo, updateFamilyMedical, type FamilyMedicalItem, } from '@/api/familyMedical';
-import * as theme from '@/common/theme';
-import styles from '@/css/profile/allergies';
+import { AppTheme } from '@/common/theme';
+import layoutStyles from '@/css/profile/allergies';
+import styles from '@/css/profile/healthRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 
@@ -88,48 +89,48 @@ export default function FamilyHistoryPage() {
 
     if (loading) {
         return (
-            <PageLayout style={styles.container}>
+            <PageLayout style={layoutStyles.container}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                    <ActivityIndicator color={theme.AppTheme.primaryColor} />
+                    <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
             </PageLayout>
         );
     }
 
     return (
-        <PageLayout style={styles.container}>
-            <ScrollView contentContainerStyle={styles.body}>
-                <Flex style={styles.sectionBox}>
-                    <Image style={styles.imgItem} source={require('@/assets/images/user/file.png')} />
-                    <Text style={styles.sectionTitle}>已记录的家族病史</Text>
+        <PageLayout style={layoutStyles.container}>
+            <ScrollView contentContainerStyle={layoutStyles.body}>
+                <Flex style={layoutStyles.sectionBox}>
+                    <Image style={layoutStyles.imgItem} source={require('@/assets/images/user/file.png')} />
+                    <Text style={layoutStyles.sectionTitle}>已记录的家族病史</Text>
                 </Flex>
-                <View style={styles.listBox}>
+                <View style={layoutStyles.listBox}>
                     {familyList.length === 0 ? (
-                        <View style={styles.infoBox}>
-                            <Text style={styles.mapItemSubtitle}>暂无记录</Text>
+                        <View style={layoutStyles.infoBox}>
+                            <Text style={layoutStyles.mapItemSubtitle}>暂无记录</Text>
                         </View>
                     ) : (
                         familyList.map((item, index) => {
                             const isAlive = item.status === '在世';
                             return (
-                                <Flex key={`${index}-${item.familyRelationships}`} justify="between" style={styles.infoBox}>
+                                <Flex key={`${index}-${item.familyRelationships}`} justify="between" style={layoutStyles.infoBox}>
                                     <TouchableOpacity
                                         style={{ flex: 1 }}
                                         activeOpacity={0.7}
                                         onPress={() => navigation.navigate('FamilyHistoryAdd', { editIndex: index })}>
                                         <Flex>
-                                            <Text style={styles.mapItemName}>{formatMemberTitle(item)}</Text>
+                                            <Text style={layoutStyles.mapItemName}>{formatMemberTitle(item)}</Text>
                                             {item.status ? (
-                                                <Flex style={isAlive ? styles.jzBox : styles.ygBox}>
-                                                    <Text style={isAlive ? styles.jzText : styles.ygText}>{item.status}</Text>
+                                                <Flex style={isAlive ? layoutStyles.jzBox : layoutStyles.ygBox}>
+                                                    <Text style={isAlive ? layoutStyles.jzText : layoutStyles.ygText}>{item.status}</Text>
                                                 </Flex>
                                             ) : null}
                                         </Flex>
-                                        <Text style={styles.mapItemSubtitle}>{item.medicalCondition || '—'}</Text>
+                                        <Text style={layoutStyles.mapItemSubtitle}>{item.medicalCondition || '—'}</Text>
                                     </TouchableOpacity>
                                     <Flex>
                                         <TouchableOpacity onPress={() => handleDelete(index)}>
-                                            <Image style={styles.delIcon} source={require('@/assets/images/user/del.png')} />
+                                            <Image style={layoutStyles.delIcon} source={require('@/assets/images/user/del.png')} />
                                         </TouchableOpacity>
                                     </Flex>
                                 </Flex>

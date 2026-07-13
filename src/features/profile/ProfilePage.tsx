@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -108,7 +108,10 @@ export default function ProfilePage() {
               <Image source={defaultAvatar} style={styles.avatarImg} />
             )}
             <View>
-              <Text style={styles.name}>{name}</Text>
+              <Flex>
+                <Text style={styles.name}>{name}</Text>
+                <Image style={styles.wrzImg} source={require('@/assets/images/user/wrz.png')} />
+              </Flex>
               <Flex style={{ marginTop: 7 }}>
                 <Image style={styles.avatarIcon} source={require('@/assets/images/user/img1.png')} />
                 <Text style={styles.avatarValue}>{Number(systemUser?.tokens ?? 0).toFixed(2)}</Text>
@@ -116,12 +119,31 @@ export default function ProfilePage() {
             </View>
           </Flex>
           <View style={styles.rlBox}>
-            <Image style={styles.rlImg} source={require('@/assets/images/user/rl.png')} />
-            <Flex style={styles.qdBox}>
-              <Text style={styles.qdText}>签到+10积分</Text>
-            </Flex>
+            <Image style={styles.rlImg} source={require('@/assets/images/user/smrz.png')} />
           </View>
         </Flex>
+
+        <ImageBackground
+          source={require('@/assets/images/user/userBack.png')}
+          style={styles.bgImg}>
+          <Flex align="start" style={styles.diamondsBox}>
+            <View style={{ flex: 1 }}>
+              <Flex justify='between'>
+                <Flex>
+                  <Image style={styles.diamondsImg} source={require('@/assets/images/user/diamonds.png')} />
+                  <Text style={styles.diamondsTitle}>积分商城</Text>
+                </Flex>
+                <TouchableOpacity>
+                  <Flex style={styles.diamondsSignIn}>
+                    <Text style={styles.diamondsSignInText}>签到+10</Text>
+                    <Image style={styles.diamondsSignInImg} tintColor={"#804A15"} source={require('@/assets/images/user/img1.png')} />
+                  </Flex>
+                </TouchableOpacity>
+              </Flex>
+              <Text style={styles.diamondsDesc}>已连续签到15天，再签到5天可额外得100积分</Text>
+            </View>
+          </Flex>
+        </ImageBackground>
 
         <Flex justify="around" align="center" style={styles.navList}>
           {navList.map((item, index) => <TouchableOpacity key={index} onPress={() => navigation.navigate(item.route)}>
@@ -134,7 +156,7 @@ export default function ProfilePage() {
 
         <Text style={[styles.modelTitle, { marginTop: 24 }]}>我的家人</Text>
 
-        <View style={styles.familyBox}>
+        <View style={[styles.familyBox, { paddingVertical: 10 }]}>
           {/* <Flex justify='between' style={styles.familyItem}>
             <Flex>
               <Image style={styles.familyItemImg} source={require('@/assets/images/home/head.png')} />
@@ -143,7 +165,7 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemRelation}>已授权4项权限</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
@@ -153,38 +175,34 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemRelation}>已授权4项权限</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex> */}
 
           <TouchableOpacity onPress={() => navigation.navigate('MyFamily')}>
             <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
               <Flex>
-                <Flex justify='center' align='center' style={styles.imgBox}>
-                  <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
-                </Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>点击添加联系人</Text>
                   <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
         </View>
 
         <Text style={styles.modelTitle}>我的设备</Text>
-        <View style={styles.familyBox}>
+        <View style={[styles.familyBox, { paddingVertical: 10 }]}>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
-              </Flex>
+              <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
               <View style={styles.familyItemContent}>
                 <Text style={styles.familyItemName}>3个设备在线</Text>
                 <Text style={styles.familyItemRelation}>共绑定5个设备</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
         </View>
 
@@ -193,57 +211,61 @@ export default function ProfilePage() {
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
-                <Flex justify='center' align='center' style={styles.imgBox}>
-                  <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
-                </Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/tab.png')} />
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>视角与身份</Text>
+                  <Text style={styles.familyItemRelation}>当前：用户</Text>
+                </View>
+              </Flex>
+              <Image style={styles.tabSize} source={require('@/assets/images/user/icon_tab.png')} />
+            </Flex>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+            <Flex justify='between' style={styles.familyItem}>
+              <Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/fontSize.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>字体大小</Text>
                   <Text style={styles.familyItemRelation}>当前：{fontSizeLabel}</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
-                <Flex justify='center' align='center' style={styles.imgBox}>
-                  <Image style={styles.imgItem} source={require('@/assets/images/user/ys.png')} />
-                </Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/zs.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>语音语速</Text>
                   <Text style={styles.familyItemRelation}>当前：正常</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
-                <Flex justify='center' align='center' style={styles.imgBox}>
-                  <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
-                </Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>消息通知</Text>
                   <Text style={styles.familyItemRelation}>已开启</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
             <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
               <Flex>
-                <Flex justify='center' align='center' style={styles.imgBox}>
-                  <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
-                </Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/data.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>数据管理</Text>
                   <Text style={styles.familyItemRelation}>手动同步・7天</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
         </View>
@@ -251,50 +273,42 @@ export default function ProfilePage() {
         <View style={styles.familyBox}>
           <Flex justify='between' style={styles.familyItem}>
             <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/info.png')} />
-              </Flex>
+              <Image style={styles.imgItem} source={require('@/assets/images/user/info.png')} />
               <View style={styles.familyItemContent}>
                 <Text style={styles.familyItemName}>帮助与反馈</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/about.png')} />
-              </Flex>
+              <Image style={styles.imgItem} source={require('@/assets/images/user/about.png')} />
               <View style={styles.familyItemContent}>
                 <Text style={styles.familyItemName}>关于我们</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
         </View>
         <Text style={styles.modelTitle}>隐私设置</Text>
         <View style={styles.familyBox}>
           <Flex justify='between' style={styles.familyItem}>
             <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/sz.png')} />
-              </Flex>
+              <Image style={styles.imgItem} source={require('@/assets/images/user/sz.png')} />
               <View style={styles.familyItemContent}>
                 <Text style={styles.familyItemName}>修改密码</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
-              <Flex justify='center' align='center' style={styles.imgBox}>
-                <Image style={styles.imgItem} source={require('@/assets/images/user/eye.png')} />
-              </Flex>
+              <Image style={styles.imgItem} source={require('@/assets/images/user/eye.png')} />
               <View style={styles.familyItemContent}>
                 <Text style={styles.familyItemName}>个人信息可见性</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
+            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
         </View>
         <TouchableOpacity style={styles.logout} onPress={logout}>

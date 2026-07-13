@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getFamilyMedicalInfo, updateFamilyMedical, type FamilyMedicalItem } from '@/api/familyMedical';
 import { AppTheme } from '@/common/theme';
-import styles from '@/css/profile/allergies';
+import styles from '@/css/profile/healthRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
@@ -147,7 +147,7 @@ export default function FamilyHistoryAddPage({ route }: Props) {
     if (initializing) {
         return (
             <PageLayout style={styles.container}>
-                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                <View style={styles.center}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
             </PageLayout>
@@ -157,98 +157,107 @@ export default function FamilyHistoryAddPage({ route }: Props) {
     return (
         <PageLayout style={styles.container}>
             <KeyboardDoneAccessory />
-            <ScrollView contentContainerStyle={styles.body}>
-                <View style={styles.rowBox}>
-                    <View>
-                        <Text style={styles.rowTitle}>亲属关系</Text>
-                        <View style={styles.chipGrid}>
-                            {RELATION_OPTIONS.map((item, index) => (
-                                <TouchableOpacity
-                                    key={item}
-                                    style={[
-                                        styles.yzBox,
-                                        styles.chipItem,
-                                        index % 3 === 2 && styles.chipItemLastInRow,
-                                        relation === item && styles.yzBoxActive,
-                                    ]}
-                                    onPress={() => setRelation(item)}>
-                                    <Text style={[styles.yzText, relation === item && styles.yzTextActive]}>{item}</Text>
-                                </TouchableOpacity>
-                            ))}
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <ScrollView
+                    contentContainerStyle={styles.body}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag">
+                    <View style={styles.userBox}>
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.infoItemLabel}>亲属关系</Text>
+                            <View style={styles.chipGrid}>
+                                {RELATION_OPTIONS.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={item}
+                                        style={[
+                                            styles.choiceChip,
+                                            styles.chipItem,
+                                            index % 3 === 2 && styles.chipItemLastInRow,
+                                            relation === item && styles.choiceChipActive,
+                                        ]}
+                                        onPress={() => setRelation(item)}>
+                                        <Text style={[styles.choiceChipText, relation === item && styles.choiceChipTextActive]}>
+                                            {item}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         </View>
-                    </View>
 
-                    <View>
-                        <Text style={styles.rowTitle}>患病情况（可多选）</Text>
-                        <View style={styles.chipGrid}>
-                            {DISEASE_OPTIONS.map((item, index) => (
-                                <TouchableOpacity
-                                    key={item}
-                                    style={[
-                                        styles.yzBox,
-                                        styles.chipItem,
-                                        index % 3 === 2 && styles.chipItemLastInRow,
-                                        diseases.includes(item) && styles.yzBoxActive,
-                                    ]}
-                                    onPress={() => toggleDisease(item)}>
-                                    <Text style={[styles.yzText, diseases.includes(item) && styles.yzTextActive]}>{item}</Text>
-                                </TouchableOpacity>
-                            ))}
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.infoItemLabel}>患病情况（可多选）</Text>
+                            <View style={styles.chipGrid}>
+                                {DISEASE_OPTIONS.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={item}
+                                        style={[
+                                            styles.choiceChip,
+                                            styles.chipItem,
+                                            index % 3 === 2 && styles.chipItemLastInRow,
+                                            diseases.includes(item) && styles.choiceChipActive,
+                                        ]}
+                                        onPress={() => toggleDisease(item)}>
+                                        <Text style={[styles.choiceChipText, diseases.includes(item) && styles.choiceChipTextActive]}>
+                                            {item}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
                         </View>
-                    </View>
 
-                    <Flex style={{ marginTop: 10 }}>
-                        <Text style={[styles.rowTitle, { fontSize: 14 }]}>其他疾病</Text>
-                        <View style={{ flex: 1 }}>
+                        <Flex justify="between" align="center" style={styles.infoItem}>
+                            <Text style={styles.infoItemLabel}>其他疾病</Text>
                             <TextInput
-                                style={[styles.inputBox, { textAlign: 'right' }]}
+                                style={styles.infoInput}
                                 placeholder="请输入其他疾病"
                                 placeholderTextColor={AppTheme.textSecondary}
                                 value={otherDisease}
                                 onChangeText={setOtherDisease}
+                                returnKeyType="done"
+                                blurOnSubmit
+                                onSubmitEditing={Keyboard.dismiss}
                                 inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
-                            <View style={styles.rowLine} />
-                        </View>
-                    </Flex>
+                        </Flex>
 
-                    <Flex style={{ marginTop: 10 }}>
-                        <Text style={[styles.rowTitle, { fontSize: 14 }]}>年龄</Text>
-                        <View style={{ flex: 1 }}>
+                        <Flex justify="between" align="center" style={styles.infoItem}>
+                            <Text style={styles.infoItemLabel}>年龄</Text>
                             <TextInput
-                                style={[styles.inputBox, { textAlign: 'right' }]}
+                                style={styles.infoInput}
                                 placeholder="如：65"
                                 placeholderTextColor={AppTheme.textSecondary}
                                 value={age}
                                 onChangeText={setAge}
                                 keyboardType="number-pad"
+                                returnKeyType="done"
+                                blurOnSubmit
+                                onSubmitEditing={Keyboard.dismiss}
                                 inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                             />
-                            <View style={styles.rowLine} />
-                        </View>
-                    </Flex>
-
-                    <View>
-                        <Text style={styles.rowTitle}>状态</Text>
-                        <Flex justify="between" >
-                            {STATUS_OPTIONS.map((item, index) => (
-                                <TouchableOpacity
-                                    key={item}
-                                    style={[
-                                        styles.yzBox,
-                                        styles.chipItem,
-                                        { width: '43%' },
-                                        index % 3 === 2 && styles.chipItemLastInRow,
-                                        status === item && styles.yzBoxActive,
-                                    ]}
-                                    onPress={() => setStatus(item)}>
-                                    <Text style={[styles.yzText, status === item && styles.yzTextActive]}>{item}</Text>
-                                </TouchableOpacity>
-                            ))}
                         </Flex>
+
+                        <View style={styles.fieldBlock}>
+                            <Text style={styles.infoItemLabel}>状态</Text>
+                            <View style={[styles.chipGrid, { gap: 8 }]}>
+                                {STATUS_OPTIONS.map(item => (
+                                    <TouchableOpacity
+                                        key={item}
+                                        style={[
+                                            styles.choiceChip,
+                                            { width: '43%' },
+                                            status === item && styles.choiceChipActive,
+                                        ]}
+                                        onPress={() => setStatus(item)}>
+                                        <Text style={[styles.choiceChipText, status === item && styles.choiceChipTextActive]}>
+                                            {item}
+                                        </Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        </View>
                     </View>
-                </View>
-            </ScrollView>
+                </ScrollView>
+            </TouchableWithoutFeedback>
 
             <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
                 <Flex justify="center" align="center" style={{ flex: 1 }}>

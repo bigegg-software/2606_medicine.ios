@@ -214,7 +214,7 @@ export default function ConsumptionPage() {
                             <Text style={[styles.analysis2, { color: '#EE9C44' }]}>{overview.avgActive}</Text>
                         </View>
                         <View>
-                            <Text style={styles.analysis1}>日均静消耗(千卡)</Text>
+                            <Text style={styles.analysis1}>日均静息消耗(千卡)</Text>
                             <Text style={[styles.analysis2, { color: '#0951AE' }]}>{overview.avgBasal}</Text>
                         </View>
                     </Flex>

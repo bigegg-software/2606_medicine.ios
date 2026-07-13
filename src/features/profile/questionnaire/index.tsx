@@ -4,6 +4,8 @@ import { Flex, DatePicker, Toast } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import moment from 'moment';
 import {
     addUserQuestion,
@@ -21,6 +23,8 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import type { RootStackParamList } from '@/route/router';
+import QuestionnairePercentRulerSlider from './components/QuestionnairePercentRulerSlider';
+import { isPercentRulerQuestion } from './utils/helpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'QuestionnairePage'>;
 
@@ -30,23 +34,6 @@ function getTemplateKey(template: QuestionTemplate) {
 
 function sortOptions(options: QuestionOptionItem[] = []) {
     return [...options].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
-}
-
-function getQuestionTypeLabel(type?: number) {
-    switch (type) {
-        case 0:
-            return '单选题';
-        case 1:
-            return '选择时长';
-        case 2:
-            return '选择时间';
-        case 3:
-            return '填空题';
-        case 4:
-            return '多选题';
-        default:
-            return '';
-    }
 }
 
 function formatTimeAnswer(date: Date) {
@@ -124,6 +111,7 @@ function buildQuestionsAnswer(
 export default function QuestionnairePage({ route }: { route: { params: { type: QuestionnaireType } } }) {
     const { type } = route.params;
     const navigation = useNavigation<Nav>();
+    const insets = useSafeAreaInsets();
     const allowExitRef = useRef(false);
     const [templates, setTemplates] = useState<QuestionTemplate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -194,10 +182,16 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
     const currentAnswer = answers[templateKey] ?? '';
     const progressPercent = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
 
+    const isPercentRuler = isPercentRulerQuestion(templateKey, currentQuestion?.type);
+
     const hasCurrentAnswer = useMemo(() => {
         if (!currentQuestion) return false;
         if (currentQuestion.type === 3) {
             if (type === 3) {
+                if (isPercentRuler) {
+                    const num = Number(currentAnswer);
+                    return Number.isFinite(num) && num >= 1 && num <= 100;
+                }
                 return Boolean(currentAnswer.trim());
             }
             const { height, weight } = parseHeightWeightAnswer(currentAnswer);
@@ -207,11 +201,16 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
             return currentAnswer.split(',').filter(Boolean).length > 0;
         }
         return Boolean(currentAnswer.trim());
-    }, [currentAnswer, currentQuestion]);
+    }, [currentAnswer, currentQuestion, isPercentRuler, type]);
 
     const setSingleAnswer = (value: string) => {
         setAnswers(prev => ({ ...prev, [templateKey]: value }));
     };
+
+    useEffect(() => {
+        if (!isPercentRuler || currentAnswer) return;
+        setSingleAnswer('50');
+    }, [templateKey, isPercentRuler, currentAnswer]);
 
     const toggleMultiAnswer = (index: number) => {
         const selected = currentAnswer ? currentAnswer.split(',').filter(Boolean) : [];
@@ -261,11 +260,27 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         }
     };
 
+    useEffect(() => {
+        navigation.setOptions({
+            title: type === 0 ? '跌倒风险评估问卷' : type === 1 ? '日常生活能力评估' : type === 2 ? '营养风险评估' : "评估问卷",
+        });
+    }, []);
+
     const renderOptions = () => {
         if (!currentQuestion) return null;
 
         if (currentQuestion.type === 3) {
             if (type === 3) {
+                if (isPercentRulerQuestion(templateKey, currentQuestion.type)) {
+                    const initialValue = currentAnswer ? Number(currentAnswer) : 50;
+                    return (
+                        <QuestionnairePercentRulerSlider
+                            key={templateKey}
+                            initialValue={Number.isFinite(initialValue) ? initialValue : 50}
+                            onValueChange={value => setSingleAnswer(String(Math.round(value)))}
+                        />
+                    );
+                }
                 return (
                     <View style={styles.fillBox}>
                         <TextInput
@@ -348,7 +363,9 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                         activeOpacity={0.7}
                         style={[styles.mapItem, active && styles.mapItemActive]}
                         onPress={() => toggleMultiAnswer(index)}>
-                        <Text style={styles.mapItemText}>{option.desc ?? ''}</Text>
+                        <Text style={[styles.mapItemText, active && styles.mapItemTextActive]}>
+                            {option.desc ?? ''}
+                        </Text>
                     </TouchableOpacity>
                 );
             });
@@ -362,7 +379,9 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                     activeOpacity={0.7}
                     style={[styles.mapItem, active && styles.mapItemActive]}
                     onPress={() => setSingleAnswer(String(index))}>
-                    <Text style={styles.mapItemText}>{option.desc ?? ''}</Text>
+                    <Text style={[styles.mapItemText, active && styles.mapItemTextActive]}>
+                        {option.desc ?? ''}
+                    </Text>
                 </TouchableOpacity>
             );
         });
@@ -388,41 +407,70 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         );
     }
 
+
     return (
-        <PageLayout style={styles.container}>
+        <PageLayout style={styles.container} edges={[]}>
             <KeyboardDoneAccessory />
-            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-                <Flex style={styles.titleBox}>
-                    <Text style={styles.leftTitle}>测评进度</Text>
-                    <Flex style={styles.progressBarBox}>
-                        <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
+            <View style={styles.pageContent}>
+                <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+                    <Flex style={styles.titleBox}>
+                        <Flex style={styles.progressBarBox}>
+                            <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
+                        </Flex>
                     </Flex>
-                    <Text style={styles.leftTitle}>
-                        {currentIndex + 1}/{total}
-                    </Text>
-                </Flex>
 
-                <Flex align="center" style={styles.questionBox}>
-                    <Image source={require('@/assets/images/questionnaire/question.png')} style={styles.questionImg} />
-                    <View style={styles.questionBubbleWrap}>
-                        <View style={styles.questionBubbleArrow} />
-                        <View style={styles.questionBubble}>
-                            <Text style={styles.questionText}>{currentQuestion.question ?? ''}</Text>
-                        </View>
+
+                    <View style={styles.questionBox}>
+                        <LinearGradient
+                            colors={['#F4F6F0', '#FFFFFF', '#FFFFFF']}
+                            locations={[0, 0.4955, 1]}
+                            start={{ x: 0, y: 0 }}
+                            end={{ x: 0, y: 1 }}
+                            style={styles.questionBoxGradient}
+                        >
+                            <View style={styles.questionHeader}>
+                                <Flex justify='between'>
+                                    <Text style={styles.questionBubbleLeftTitle}>测评进度</Text>
+                                    <Text style={styles.leftTitle}>
+                                        <Text style={styles.leftTitleNumber}>{currentIndex + 1}</Text>/{total}
+                                    </Text>
+                                </Flex>
+                                <Text style={styles.questionBubbleLeftText}>请根据你的实际情况选择对应答案</Text>
+                            </View>
+                            <View style={styles.lineBox}></View>
+
+                            <Flex align="start" style={styles.questionBubble}>
+                                <View style={styles.questionBubbleIcon}></View>
+                                <Text style={styles.questionText}>{currentQuestion.question ?? ''}</Text>
+                            </Flex>
+
+                            {renderOptions()}
+                        </LinearGradient>
                     </View>
+                </ScrollView>
+                <Flex
+                    justify="between"
+                    style={[
+                        styles.bottomBar,
+                        { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+                    ]}
+                >
+                    <TouchableOpacity
+                        style={[
+                            styles.bottomBarButtonLeft,
+                            { flex: 1 },
+                            (!hasCurrentAnswer || submitting) && { opacity: 0.5 },
+                        ]}
+                        disabled={!hasCurrentAnswer || submitting}
+                        onPress={handleNext}
+                        activeOpacity={0.8}
+                    >
+                        <Flex justify="center" style={{ flex: 1 }}>
+                            <Text style={styles.bottomBarButtonTextLeft}>{isLast ? '提交' : '下一题'}</Text>
+                        </Flex>
+                    </TouchableOpacity>
                 </Flex>
-
-                <Text style={styles.questionTitle}>{getQuestionTypeLabel(currentQuestion.type)}</Text>
-                {renderOptions()}
-            </ScrollView>
-            <TouchableOpacity
-                style={[styles.nextBtn, (!hasCurrentAnswer || submitting) && styles.nextBtnDisabled]}
-                disabled={!hasCurrentAnswer || submitting}
-                onPress={handleNext}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    <Text style={styles.nextBtnText}>{isLast ? '提交' : '下一题'}</Text>
-                </Flex>
-            </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }

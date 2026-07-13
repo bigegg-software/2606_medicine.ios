@@ -157,6 +157,10 @@ export function sortOptions(options: QuestionOptionItem[] = []) {
     return [...options].sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
 }
 
+export function isPercentRulerQuestion(templateId: number, questionType?: number) {
+    return templateId === 6 && questionType === 3;
+}
+
 function getSelectedIndices(answer: string, questionType?: number) {
     if (questionType === 4) {
         return answer

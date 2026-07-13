@@ -17,9 +17,9 @@ import { getDisplayUserName, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
 import {
-  formatEmergencyContactName,
-  loadEmergencyContacts,
-  loadRelationTypeLabelMap,
+    formatEmergencyContactName,
+    loadEmergencyContacts,
+    loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
 import moment from 'moment';
 
@@ -29,6 +29,14 @@ function formatRecordTitle(record: MedicalRecord) {
     const diagnosis = record.diagnosticResult || '未填写诊断';
     const type = record.medicalRecordType;
     return type ? `${diagnosis}（${type}）` : diagnosis;
+}
+
+function formatRecordDateLabel(record: MedicalRecord) {
+    const { recordDate, medicalRecordType } = record;
+    if (!recordDate) return '—';
+    const dateMoment = moment(recordDate, ['YYYY-MM-DD', 'YYYYMMDD', 'YYYY/MM/DD'], true);
+    const dateText = dateMoment.isValid() ? dateMoment.format('YYYY/MM/DD') : recordDate;
+    return medicalRecordType ? `${dateText}·${medicalRecordType}` : dateText;
 }
 
 function recordIcon(type?: string) {
@@ -43,12 +51,15 @@ const ALLERGY_SECTIONS = [
     { type: '其他', title: '其他过敏', icon: require('@/assets/images/user/icon3.png') },
 ] as const;
 
-function formatAllergySummary(list: AllergyItem[], type: string) {
+function getAllergySectionSummary(list: AllergyItem[], type: string) {
     const names = list
         .filter(item => item.allergyType === type)
         .map(item => item.allergenName)
         .filter(Boolean);
-    return names.length ? names.join('、') : '无';
+    return {
+        text: names.length ? names.join('、') : '无',
+        hasAllergy: names.length > 0,
+    };
 }
 
 function formatFamilyPreviewLabel(item: FamilyMedicalItem) {
@@ -162,25 +173,26 @@ export default function HealthRecordPage() {
     return (
         <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
-                <Flex direction="column" justify='center' align='center' style={{ marginTop: 16 }}>
-                    {avatarOssUrl ? (
-                        <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
-                    ) : (
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>{name[0] ?? 'U'}</Text>
-                        </View>
-                    )}
-                    <Text style={styles.name}>{name}</Text>
-                </Flex>
 
-                <Flex justify='between' style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>个人信息</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('ProfileEditPage')}>
-                        <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                    </TouchableOpacity>
-                </Flex>
+                <View style={styles.userBox}>
+                    <Flex direction="column" justify='center' align='center' style={styles.userInfoBox}>
+                        {avatarOssUrl ? (
+                            <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
+                        ) : (
+                            <View style={styles.avatar}>
+                                <Text style={styles.avatarText}>{name[0] ?? 'U'}</Text>
+                            </View>
+                        )}
+                        <TouchableOpacity onPress={() => navigation.navigate('ProfileEditPage')}>
+                            <Image style={styles.userEditIcon} source={require('@/assets/images/user/userEdit.png')} />
+                        </TouchableOpacity>
+                    </Flex>
 
-                <View style={styles.infoBox}>
+                    <Flex justify="between" style={styles.infoItem}>
+                        <Text style={styles.infoItemLabel}>昵称</Text>
+                        <Text style={styles.infoItemValue}>{name}</Text>
+                    </Flex>
+
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>性别</Text>
                         <Text style={styles.infoItemValue}>{user?.gender || '--'}</Text>
@@ -211,163 +223,203 @@ export default function HealthRecordPage() {
                     </Flex>
                 </View>
 
-                <Flex justify='between' style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>紧急联系人</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Emergency')}>
-                        <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                    </TouchableOpacity>
-                </Flex>
-
                 <View style={styles.infoBox}>
-                    {emergencyContacts.length === 0 ? (
-                        <TouchableOpacity onPress={() => navigation.navigate('EmergencyAdd')}>
-                            <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                                <View>
-                                    <Text style={styles.familyItemName}>点击添加联系人</Text>
-                                    <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
-                                </View>
-                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                            </Flex>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>紧急联系人</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Emergency')}>
+                            <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
                         </TouchableOpacity>
-                    ) : (
-                        emergencyContacts.map((contact, index) => (
-                            <TouchableOpacity
-                                key={String(contact.id ?? index)}
-                                onPress={() => {
-                                    if (contact.id != null) {
-                                        navigation.navigate('EmergencyAdd', { id: contact.id });
-                                    } else {
-                                        navigation.navigate('Emergency');
-                                    }
-                                }}>
-                                <Flex
-                                    justify="between"
-                                    style={[
-                                        styles.familyItem,
-                                        index === emergencyContacts.length - 1 && { borderBottomWidth: 0 },
-                                    ]}>
-                                    <View>
-                                        <Flex align="center">
-                                            <Text style={styles.familyItemName}>
-                                                {formatEmergencyContactName(contact, relationMap)}
-                                            </Text>
-                                            {contact.isDefault === 1 ? (
-                                                <Flex style={styles.jzBox}>
-                                                    <Text style={styles.jzText}>默认</Text>
-                                                </Flex>
-                                            ) : null}
-                                        </Flex>
-                                        <Text style={styles.familyItemRelation}>
-                                            {contact.contactPhone || '—'}
-                                        </Text>
-                                    </View>
+                    </Flex>
+
+                    <View style={{ marginTop: 10 }}>
+                        {emergencyContacts.length === 0 ? (
+                            <TouchableOpacity onPress={() => navigation.navigate('EmergencyAdd')}>
+                                <Flex justify="between" style={styles.familyItem}>
+                                    <Flex>
+                                        <View style={styles.familyItemImgBox}>
+                                            <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_phone.png')} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.familyItemName}>点击添加联系人</Text>
+                                            <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
+                                        </View>
+                                    </Flex>
                                     <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                                 </Flex>
                             </TouchableOpacity>
-                        ))
-                    )}
+                        ) : (
+                            emergencyContacts.map((contact, index) => (
+                                <TouchableOpacity
+                                    key={String(contact.id ?? index)}
+                                    onPress={() => {
+                                        if (contact.id != null) {
+                                            navigation.navigate('EmergencyAdd', { id: contact.id });
+                                        } else {
+                                            navigation.navigate('Emergency');
+                                        }
+                                    }}>
+                                    <Flex
+                                        justify="between"
+                                        style={styles.familyItem}>
+                                        <Flex>
+                                            <View style={styles.familyItemImgBox}>
+                                                <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_phone.png')} />
+                                            </View>
+                                            <View>
+                                                <Flex align="center">
+                                                    <Text style={styles.familyItemName}>
+                                                        {formatEmergencyContactName(contact, relationMap)}
+                                                    </Text>
+                                                    {contact.isDefault === 1 ? (
+                                                        <Flex style={styles.jzBox}>
+                                                            <Text style={styles.jzText}>默认</Text>
+                                                        </Flex>
+                                                    ) : null}
+                                                </Flex>
+                                                <Text style={styles.familyItemRelation}>
+                                                    {contact.contactPhone || '—'}
+                                                </Text>
+                                            </View>
+                                        </Flex>
+                                        <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                    </Flex>
+                                </TouchableOpacity>
+                            ))
+                        )}
+                    </View>
                 </View>
 
-                <Flex justify='between' style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>病例记录</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('CaseNotes')}>
-                        <Text style={styles.more}>查看全部</Text>
-                    </TouchableOpacity>
-                </Flex>
-
                 <View style={styles.infoBox}>
-                    {records.map((item, index) => (
-                        <TouchableOpacity key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
-                            <Flex
-                                key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
-                                justify="between"
-                                style={[styles.familyItem, index == records.length - 1 && { borderBottomWidth: 0 }]}>
-                                <Flex>
-                                    <Flex justify="center" align="center" style={styles.imgBox}>
-                                        <Image style={styles.imgItem} source={recordIcon(item.medicalRecordType)} />
-                                    </Flex>
-                                    <View style={styles.familyItemContent}>
-                                        <Text style={styles.familyItemName} numberOfLines={1}>
-                                            {formatRecordTitle(item)}
-                                        </Text>
-                                        <Text style={styles.familyItemRelation} numberOfLines={1}>
-                                            {item.hospital || '—'}
-                                        </Text>
-                                    </View>
-                                </Flex>
-                                <Text style={styles.familyItemRelation}>{item.recordDate || '—'}</Text>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>病例记录</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('CaseNotes')}>
+                            <Flex>
+                                <Text style={styles.more}>全部</Text>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                             </Flex>
                         </TouchableOpacity>
-                    ))}
-                    {records.length == 0 && <TouchableOpacity onPress={() => navigation.navigate('CaseAdd')}>
-                        <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                            <Flex>
-                                <Flex justify="center" align="center" style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
+                    </Flex>
+
+                    <View style={{ marginTop: 10 }}>
+                        {records.map((item, index) => (
+                            <TouchableOpacity key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
+                                <Flex
+                                    key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
+                                    justify="between"
+                                    style={[styles.familyItem, index == records.length - 1 && { borderBottomWidth: 0 }]}>
+                                    <Flex>
+                                        <View style={styles.familyItemImgBox}>
+                                            <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_order.png')} />
+                                        </View>
+                                        <View>
+                                            <Text style={styles.familyItemName} numberOfLines={1}>
+                                                {formatRecordTitle(item)}
+                                            </Text>
+                                            <Text style={styles.familyItemRelation} numberOfLines={1}>
+                                                {item.hospital || '—'}
+                                            </Text>
+                                        </View>
+                                    </Flex>
+                                    <Text style={styles.familyItemTime}>{formatRecordDateLabel(item)}</Text>
                                 </Flex>
-                                <View style={styles.familyItemContent}>
-                                    <Text style={styles.familyItemName}>点击添加病例</Text>
-                                </View>
-                            </Flex>
-                            <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                        </Flex>
-                    </TouchableOpacity>}
+                            </TouchableOpacity>
+                        ))}
+                        {records.length === 0 ? (
+                            <TouchableOpacity onPress={() => navigation.navigate('CaseAdd')}>
+                                <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                    <Flex>
+                                        <View style={styles.familyItemImgBox}>
+                                            <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_order.png')} />
+                                        </View>
+                                        <Text style={styles.familyItemName}>点击添加病例</Text>
+                                    </Flex>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
+                        ) : null}
+                    </View>
+
                 </View>
-                <Flex justify='between' style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>过敏史</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('Allergies')}>
-                        <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                    </TouchableOpacity>
-                </Flex>
                 <View style={styles.infoBox}>
-                    {ALLERGY_SECTIONS.map((section, index) => (
-                        <Flex
-                            key={section.type}
-                            justify="between"
-                            style={[
-                                styles.familyItem,
-                                index === ALLERGY_SECTIONS.length - 1 && { borderBottomWidth: 0 },
-                            ]}>
-                            <Flex>
-                                <Image style={styles.imgItem} source={section.icon} />
-                                <View style={styles.familyItemContent}>
-                                    <Text style={styles.familyItemName}>{section.title}</Text>
-                                </View>
-                            </Flex>
-                            <Text style={styles.infoItemValue} numberOfLines={1}>
-                                {formatAllergySummary(allergyList, section.type)}
-                            </Text>
-                        </Flex>
-                    ))}
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>过敏史</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('Allergies')}>
+                            <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
+                        </TouchableOpacity>
+                    </Flex>
+
+                    <View style={{ marginTop: 10 }}>
+                        {ALLERGY_SECTIONS.map((section, index) => {
+                            const allergySummary = getAllergySectionSummary(allergyList, section.type);
+                            return (
+                                <Flex
+                                    key={section.type}
+                                    justify="between"
+                                    align="center"
+                                    style={[styles.familyItem,
+                                    index === ALLERGY_SECTIONS.length - 1 && { borderBottomWidth: 0 },
+                                    ]}>
+                                    <Flex style={styles.allergyItemLeft}>
+                                        <Image style={[styles.imgItem, { marginRight: 15 }]} source={section.icon} />
+                                        <Text style={styles.familyItemName}>{section.title}</Text>
+                                    </Flex>
+                                    <Text
+                                        style={[
+                                            styles.infoItemValue,
+                                            styles.allergySummaryText,
+                                            allergySummary.hasAllergy && styles.allergySummaryActive,
+                                        ]}
+                                        numberOfLines={1}
+                                        ellipsizeMode="tail"
+                                    >
+                                        {allergySummary.text}
+                                    </Text>
+                                </Flex>
+                            );
+                        })}
+                    </View>
                 </View>
-                <Flex justify='between' style={styles.sectionBox}>
-                    <Text style={styles.sectionTitle}>家族病史</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('FamilyHistory')}>
-                        <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                    </TouchableOpacity>
-                </Flex>
                 <View style={styles.infoBox}>
-                    {familyList.length === 0 ? (
-                        <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                            <Text style={styles.familyItemName}>暂无记录</Text>
-                            <Text style={styles.infoItemValue}>—</Text>
-                        </Flex>
-                    ) : (
-                        familyList.map((item, index) => (
-                            <Flex
-                                key={`${index}-${item.familyRelationships}`}
-                                justify="between"
-                                style={[
-                                    styles.familyItem,
-                                    index === familyList.length - 1 && { borderBottomWidth: 0 },
-                                ]}>
-                                <Text style={styles.familyItemName}>{formatFamilyPreviewLabel(item)}</Text>
-                                <Text style={styles.infoItemValue} numberOfLines={1}>
-                                    {formatFamilyPreviewValue(item)}
-                                </Text>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>家族病史</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('FamilyHistory')}>
+                            <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
+                        </TouchableOpacity>
+                    </Flex>
+
+                    <View style={{ marginTop: 10 }}>
+
+
+                        {familyList.length === 0 ? (
+                            <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                <Text style={styles.familyItemName}>暂无记录</Text>
+                                <Text style={styles.infoItemValue}>—</Text>
                             </Flex>
-                        ))
-                    )}
+                        ) : (
+                            familyList.map((item, index) => (
+                                <View
+                                    key={`${index}-${item.familyRelationships}`}
+                                    style={[
+                                        styles.familyItem,
+                                        styles.familyItemRow,
+                                        index === familyList.length - 1 && { borderBottomWidth: 0 },
+                                    ]}>
+                                    <View style={styles.familyItemImgBox}>
+                                        <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_user.png')} />
+                                    </View>
+                                    <View style={styles.familyItemContent}>
+                                        <Text style={styles.familyItemName} numberOfLines={1} ellipsizeMode="tail">
+                                            {formatFamilyPreviewLabel(item)}
+                                        </Text>
+                                        <Text style={styles.infoItemValue1} numberOfLines={1} ellipsizeMode="tail">
+                                            {formatFamilyPreviewValue(item)}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))
+                        )}
+
+                    </View>
                 </View>
             </ScrollView>
         </PageLayout>

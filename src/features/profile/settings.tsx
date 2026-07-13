@@ -259,7 +259,7 @@ export default function SettingsPage() {
                         <Flex justify="between" align="center">
                             <Flex align="center">
                                 <Flex justify="center" align="center" style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
+                                    <Image tintColor={AppTheme.primaryColor} style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
                                 </Flex>
                                 <Text style={styles.itemText}>消息通知</Text>
                             </Flex>
@@ -277,7 +277,7 @@ export default function SettingsPage() {
                         <Flex justify="between" align="center">
                             <Flex align="center">
                                 <Flex justify="center" align="center" style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={require('@/assets/images/user/ys.png')} />
+                                    <Image tintColor={AppTheme.primaryColor} style={styles.imgItem} source={require('@/assets/images/user/zs.png')} />
                                 </Flex>
                                 <Text style={styles.itemText}>声音提醒</Text>
                             </Flex>
@@ -295,7 +295,7 @@ export default function SettingsPage() {
                         <Flex justify="between" align="center">
                             <Flex align="center">
                                 <Flex justify="center" align="center" style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={require('@/assets/images/user/phonezd.png')} />
+                                    <Image tintColor={AppTheme.primaryColor} style={styles.imgItem} source={require('@/assets/images/user/phonezd.png')} />
                                 </Flex>
                                 <Text style={styles.itemText}>震动提醒</Text>
                             </Flex>
@@ -315,7 +315,7 @@ export default function SettingsPage() {
                     <Flex justify="between" align="center">
                         <Flex align="center">
                             <Flex justify="center" align="center" style={styles.imgBox}>
-                                <Image style={styles.imgItem} source={require('@/assets/images/user/sx.png')} />
+                                <Image tintColor={AppTheme.primaryColor} style={styles.imgItem} source={require('@/assets/images/user/sx.png')} />
                             </Flex>
                             <Text style={styles.itemText}>自动同步数据</Text>
                         </Flex>
@@ -360,7 +360,7 @@ export default function SettingsPage() {
                 <Flex justify="between" style={styles.sectionBox}>
                     <Flex>
                         <Flex justify='center' align='center' style={styles.imgBox}>
-                            <Image style={styles.imgItem} source={require('@/assets/images/user/del1.png')} />
+                            <Image tintColor={AppTheme.primaryColor} style={styles.imgItem} source={require('@/assets/images/user/del1.png')} />
                         </Flex>
                         <Text style={styles.itemText}>清除缓存</Text>
                     </Flex>

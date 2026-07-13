@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import EventSource from 'react-native-sse';
 import moment from 'moment';
@@ -27,6 +28,11 @@ import {
   type IncompleteSession,
 } from './chatSessionStorage';
 import { loadMedicationDictMaps } from '@/src/features/profile/medication/medicationHelpers';
+import {
+  resolveEnergyTarget,
+  resolveStepTarget,
+} from '@/src/features/profile/vitals/detail/helpers/vitalsGoalTargets';
+import type { RootState } from '@/store/store';
 import type { AssistantMessage, ChatGuideState, DisplayItem, UploadPreview } from './types';
 
 export type PendingAssistantNavigation = {
@@ -66,7 +72,7 @@ import {
 import {
   HEALTH_STATUS_ACTION,
   HEALTH_STATUS_QUESTION,
-  parseHealthStatusCardsFromInterfaceData,
+  parseHealthStatusSlidesFromInterfaceData,
   requestHealthStatusQuickAction,
 } from './healthStatusAction';
 import {
@@ -186,7 +192,7 @@ function mapDetailItem(
   extras?: {
     medicationGroups?: AssistantMessage['medicationGroups'];
     questionnaireItems?: AssistantMessage['questionnaireItems'];
-    healthStatusCards?: AssistantMessage['healthStatusCards'];
+    healthStatusSlides?: AssistantMessage['healthStatusSlides'];
     todaySchedule?: AssistantMessage['todaySchedule'];
   },
 ): AssistantMessage {
@@ -217,9 +223,9 @@ function mapDetailItem(
       item.action === QUESTIONNAIRE_QUICK_ACTION
         ? parseQuestionnaireSuggestionFromInterfaceData(parsedInterfaceData)
         : undefined,
-    healthStatusCards:
+    healthStatusSlides:
       item.action === HEALTH_STATUS_ACTION
-        ? extras?.healthStatusCards ?? parseHealthStatusCardsFromInterfaceData(parsedInterfaceData)
+        ? extras?.healthStatusSlides ?? parseHealthStatusSlidesFromInterfaceData(parsedInterfaceData) ?? undefined
         : undefined,
     todaySchedule:
       item.action === TODAY_SCHEDULE_ACTION
@@ -278,11 +284,11 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
         suggestion: msg.questionnaireSuggestion,
       });
     }
-    if (msg.action === HEALTH_STATUS_ACTION && msg.healthStatusCards?.length) {
+    if (msg.action === HEALTH_STATUS_ACTION && msg.healthStatusSlides?.length) {
       items.push({
         type: 'health_status_cards',
         key: `health-status-${msg.frontId ?? msg.id ?? index}`,
-        cards: msg.healthStatusCards,
+        slides: msg.healthStatusSlides,
       });
     }
     if (msg.action === TODAY_SCHEDULE_ACTION && msg.todaySchedule && !msg.todaySchedule.isEmpty) {
@@ -298,6 +304,17 @@ function buildDisplayItems(messages: AssistantMessage[], welcomeText: string): D
 }
 
 export function useAssistantChat() {
+  const userGender = useSelector((state: RootState) => state.user.info?.gender);
+  const userExtr = useSelector((state: RootState) => state.user.userExtr);
+  const stepTarget = useMemo(
+    () => resolveStepTarget(userExtr?.stepGoals),
+    [userExtr?.stepGoals],
+  );
+  const energyTarget = useMemo(
+    () => resolveEnergyTarget(userExtr?.energyGoals),
+    [userExtr?.energyGoals],
+  );
+
   const [messages, setMessages] = useState<AssistantMessage[]>([]);
   const [input, setInput] = useState('');
   const [chatId, setChatId] = useState('');
@@ -510,9 +527,9 @@ export function useAssistantChat() {
               item.action === QUESTIONNAIRE_QUICK_ACTION
                 ? parseQuestionnaireItemsFromInterfaceData(parsedInterface)
                 : undefined,
-            healthStatusCards:
+            healthStatusSlides:
               item.action === HEALTH_STATUS_ACTION
-                ? parseHealthStatusCardsFromInterfaceData(parsedInterface)
+                ? parseHealthStatusSlidesFromInterfaceData(parsedInterface) ?? undefined
                 : undefined,
             todaySchedule:
               item.action === TODAY_SCHEDULE_ACTION
@@ -681,6 +698,9 @@ export function useAssistantChat() {
         chatId: chatIdRef.current,
         chatGuide: chatGuideRef.current,
         question,
+        stepTarget,
+        energyTarget,
+        gender: userGender,
       });
 
       if (!isResourceApiOk(result.saveRes as { code?: number })) {
@@ -702,7 +722,7 @@ export function useAssistantChat() {
           answer: result.answer,
           action: HEALTH_STATUS_ACTION,
           interfaceData: result.interfaceData,
-          healthStatusCards: result.cards,
+          healthStatusSlides: result.slides,
           createTime: moment().format('YYYY-MM-DD HH:mm:ss'),
         },
       ]);
@@ -714,7 +734,7 @@ export function useAssistantChat() {
     } finally {
       setActionLoading(false);
     }
-  }, [initializing]);
+  }, [energyTarget, initializing, stepTarget, userGender]);
 
   const runTodayScheduleQuickAction = useCallback(async (question?: string) => {
     if (loadingRef.current || actionLoadingRef.current || initializing || !chatIdRef.current) return false;

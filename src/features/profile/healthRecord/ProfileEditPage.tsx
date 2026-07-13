@@ -9,7 +9,6 @@ import { getUserBaseInfo, updateUserBaseInfo } from '@/api/patient';
 import { uploadOss } from '@/api/oss';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
-import allergyStyles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { getDisplayUserName, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { fetchUserBaseInfo } from '@/store/actions/user';
@@ -237,31 +236,27 @@ export default function ProfileEditPage() {
           contentContainerStyle={styles.body}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
-          <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
-            <Flex direction="column" justify="center" align="center" style={{ marginTop: 16 }}>
-              <View>
-                {avatarOssUrl ? (
-                  <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
-                ) : (
-                  <View style={styles.avatar}>
-                    <Text style={styles.avatarText}>{displayName[0] ?? 'U'}</Text>
-                  </View>
-                )}
-                {uploadingAvatar ? (
-                  <View style={styles.avatarLoading}>
-                    <ActivityIndicator color="#FFFFFF" />
-                  </View>
-                ) : null}
-              </View>
-              <Text style={styles.tipText}>点击更换头像</Text>
-            </Flex>
-          </TouchableOpacity>
+          <View style={styles.userBox}>
+            <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
+              <Flex direction="column" justify="center" align="center" style={styles.userInfoBox}>
+                <View>
+                  {avatarOssUrl ? (
+                    <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
+                  ) : (
+                    <View style={styles.avatar}>
+                      <Text style={styles.avatarText}>{displayName[0] ?? 'U'}</Text>
+                    </View>
+                  )}
+                  {uploadingAvatar ? (
+                    <View style={styles.avatarLoading}>
+                      <ActivityIndicator color="#FFFFFF" />
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.tipText}>点击更换头像</Text>
+              </Flex>
+            </TouchableOpacity>
 
-          <Flex justify='between' style={[styles.sectionBox, { marginTop: 23 }]}>
-            <Text style={styles.sectionTitle}>个人信息</Text>
-          </Flex>
-
-          <View style={styles.infoBox}>
             <Flex justify="between" align="center" style={styles.infoItem}>
               <Text style={styles.infoItemLabel}>姓名</Text>
               <TextInput
@@ -280,21 +275,23 @@ export default function ProfileEditPage() {
 
             <Flex justify="between" align="center" style={styles.fieldBlock}>
               <Text style={styles.infoItemLabel}>性别</Text>
-              <View style={[allergyStyles.chipGrid, { gap: 8 }]}>
+              <View style={[styles.chipGrid, { gap: 8 }]}>
                 {GENDERS.map(item => (
                   <TouchableOpacity
                     key={item}
-                    style={[allergyStyles.yzBox, { marginTop: 0 }, form.gender === item && allergyStyles.yzBoxActive]}
+                    style={[
+                      styles.choiceChip,
+                      styles.choiceChipInline,
+                      form.gender === item && styles.choiceChipActive,
+                    ]}
                     onPress={() => patch('gender', item)}>
-                    <Flex style={{ flex: 1 }}>
-                      <Text
-                        style={[
-                          allergyStyles.yzText,
-                          form.gender === item && allergyStyles.yzTextActive,
-                        ]}>
-                        {item}
-                      </Text>
-                    </Flex>
+                    <Text
+                      style={[
+                        styles.choiceChipText,
+                        form.gender === item && styles.choiceChipTextActive,
+                      ]}>
+                      {item}
+                    </Text>
                   </TouchableOpacity>
                 ))}
               </View>
@@ -309,11 +306,11 @@ export default function ProfileEditPage() {
               <TouchableOpacity activeOpacity={0.7}>
                 <Flex justify="between" align="center" style={styles.infoItem}>
                   <Text style={styles.infoItemLabel}>出生日期</Text>
-                  <Flex justify='end' style={{ flex: 1 }}>
+                  <Flex justify="end" align="center" style={{ flex: 1 }}>
                     <Text style={[styles.infoItemValue, !form.birthDate && styles.infoPlaceholder]}>
                       {form.birthDate || '请选择出生日期'}
                     </Text>
-                    <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.arrowRight} />
+                    <Image tintColor={AppTheme.primaryColor} source={require('@/assets/images/user/icon-rl.png')} style={styles.arrowRight} />
                   </Flex>
                 </Flex>
               </TouchableOpacity>
@@ -357,21 +354,21 @@ export default function ProfileEditPage() {
 
             <View style={styles.fieldBlock}>
               <Text style={styles.infoItemLabel}>血型</Text>
-              <View style={allergyStyles.chipGrid}>
+              <View style={styles.chipGrid}>
                 {BLOOD_TYPES.map((item, index) => (
                   <TouchableOpacity
                     key={item}
                     style={[
-                      allergyStyles.yzBox,
-                      allergyStyles.chipItem,
-                      index % 3 === 2 && allergyStyles.chipItemLastInRow,
-                      form.bloodType === item && allergyStyles.yzBoxActive,
+                      styles.choiceChip,
+                      styles.chipItem,
+                      index % 3 === 2 && styles.chipItemLastInRow,
+                      form.bloodType === item && styles.choiceChipActive,
                     ]}
                     onPress={() => patch('bloodType', item)}>
                     <Text
                       style={[
-                        allergyStyles.yzText,
-                        form.bloodType === item && allergyStyles.yzTextActive,
+                        styles.choiceChipText,
+                        form.bloodType === item && styles.choiceChipTextActive,
                       ]}>
                       {item}
                     </Text>
@@ -379,7 +376,8 @@ export default function ProfileEditPage() {
                 ))}
               </View>
             </View>
-            <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
+
+            <Flex justify="between" align="center" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
               <Text style={styles.infoItemLabel}>手机号</Text>
               <Text style={styles.infoItemValue}>{maskPhoneNumber(systemUser?.phonenumber)}</Text>
             </Flex>
