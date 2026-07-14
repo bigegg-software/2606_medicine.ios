@@ -404,8 +404,8 @@ export default function RootStack() {
       <Stack.Screen name="MealHistoryPage" component={MealHistoryPage} options={{ title: '饮食记录' }} />
       <Stack.Screen name="MealDayDetailPage" component={MealDayDetailPage} options={{ title: '饮食详情' }} />
       <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
-      <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', ...darkMediaScreenOptions }} />
-      <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别' }} />
+      <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', headerShown: false, statusBarStyle: 'light' }} />
+      <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别', showHeaderBackground: false }} />
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />

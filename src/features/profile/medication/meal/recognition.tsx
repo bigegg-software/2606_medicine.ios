@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     AppState,
+    Image,
     Linking,
     Text,
     TouchableOpacity,
@@ -11,6 +12,7 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Flex, Modal, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import styles from '@/css/medication/deal/recognition';
 import type { RootStackParamList } from '@/route/router';
 
@@ -52,18 +54,6 @@ export default function MealRecognitionPage() {
     );
 
     useEffect(() => {
-        navigation.setOptions({
-            headerRight: () => (
-                <TouchableOpacity onPress={() => setTipVisible(true)}>
-                    <Flex justify="center" style={{ width: 44, height: 44 }}>
-                        <Text style={{ fontSize: 18, color: '#FFFFFF' }}>?</Text>
-                    </Flex>
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation]);
-
-    useEffect(() => {
         const subscription = AppState.addEventListener('change', nextState => {
             if (nextState === 'active' && isFocused) {
                 initCamera();
@@ -73,7 +63,7 @@ export default function MealRecognitionPage() {
     }, [initCamera, isFocused]);
 
     const takePicture = async () => {
-        if (!cameraRef.current || isCapturing || !cameraReady) return;
+        if (!cameraRef.current || isCapturing || !cameraReady || !permission?.granted) return;
 
         try {
             setIsCapturing(true);
@@ -89,36 +79,77 @@ export default function MealRecognitionPage() {
         }
     };
 
-    if (!permission) {
-        return (
-            <View style={[styles.page, { justifyContent: 'center', alignItems: 'center' }]}>
-                <ActivityIndicator size="large" color="#FFFFFF" />
-            </View>
-        );
-    }
+    const showCamera = Boolean(isFocused && permission?.granted && cameraReady);
 
     return (
         <SafeAreaView style={styles.page} edges={['bottom']}>
-            <Flex justify="center">
-                <View style={styles.cameraWrap}>
-                    {cameraReady && permission.granted ? (
-                        <CameraView ref={cameraRef} style={styles.cameraPreview} facing="back" />
-                    ) : (
-                        <View style={[styles.cameraPreview, styles.loadingBox]}>
-                            <ActivityIndicator size="large" color="#FFFFFF" />
-                            <Text style={styles.loadingText}>相机准备中...</Text>
-                        </View>
-                    )}
-                </View>
-            </Flex>
-
-            <Flex justify="center" style={styles.shutterWrap}>
-                <TouchableOpacity onPress={takePicture} disabled={isCapturing || !cameraReady}>
-                    <View style={styles.shutterBtn}>
-                        <View style={styles.shutterInner} />
+            <View style={styles.cameraWrap}>
+                {showCamera ? (
+                    <CameraView
+                        ref={cameraRef}
+                        style={styles.cameraPreview}
+                        facing="back"
+                        mode="picture"
+                        active={isFocused}
+                    />
+                ) : (
+                    <View style={[styles.cameraPreview, styles.loadingBox]}>
+                        <ActivityIndicator size="large" color="#FFFFFF" />
+                        <Text style={styles.loadingText}>
+                            {!permission
+                                ? '相机准备中...'
+                                : permission.granted
+                                    ? '相机准备中...'
+                                    : '等待相机权限...'}
+                        </Text>
                     </View>
+                )}
+
+                <LinearGradient
+                    pointerEvents="box-none"
+                    colors={['rgba(0,0,0,0.72)', 'rgba(0,0,0,0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 0, y: 1 }}
+                    style={styles.topFade}
+                >
+                    <View style={styles.topBar}>
+                        <TouchableOpacity
+                            style={styles.topBtn}
+                            onPress={() => navigation.goBack()}
+                            activeOpacity={0.8}
+                        >
+                            <Image
+                                style={styles.closeIcon}
+                                source={require('@/assets/images/camara/close.png')}
+                            />
+                        </TouchableOpacity>
+                        {/* <TouchableOpacity
+                            style={styles.topBtn}
+                            onPress={() => setTipVisible(true)}
+                            activeOpacity={0.8}
+                        >
+                            <Text style={styles.tipIconText}>?</Text>
+                        </TouchableOpacity> */}
+                    </View>
+                    <Text style={styles.captureHint}>去拍照，记录您的餐食</Text>
+                </LinearGradient>
+            </View>
+
+            <View style={styles.shutterWrap}>
+                <TouchableOpacity
+                    style={styles.shutterBtnWrap}
+                    onPress={takePicture}
+                    disabled={isCapturing || !showCamera}
+                >
+                    <Image style={styles.shutterBtn} source={require('@/assets/images/camara/camara.png')} />
                 </TouchableOpacity>
-            </Flex>
+                <TouchableOpacity style={styles.albumBtn} onPress={() => { }}>
+                    <Image
+                        style={styles.albumIcon}
+                        source={require('@/assets/images/camara/image.png')}
+                    />
+                </TouchableOpacity>
+            </View>
 
             <Modal
                 popup

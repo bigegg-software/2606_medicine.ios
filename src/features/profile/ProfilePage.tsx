@@ -19,33 +19,62 @@ import type { RootStackParamList } from '@/route/router';
 import { useFontSize } from '@/common/FontSizeContext';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+// const navList = [
+//   {
+//     img: require('@/assets/images/user/img2.png'),
+//     label: '健康档案',
+//     route: 'HealthRecord'
+//   },
+//   {
+//     img: require('@/assets/images/user/img3.png'),
+//     label: '体征数据',
+//     route: 'VitalsPage'
+//   },
+//   {
+//     img: require('@/assets/images/user/img6.png'),
+//     label: '用药记录',
+//     route: 'Medication'
+//   },
+//   {
+//     img: require('@/assets/images/user/img5.png'),
+//     label: '慢病管理',
+//     route: 'ChronicDisease'
+//   },
+//   {
+//     img: require('@/assets/images/user/img4.png'),
+//     label: '评估问卷',
+//     route: 'QuestionnaireList'
+//   }]
 
 const navList = [
   {
     img: require('@/assets/images/user/img2.png'),
     label: '健康档案',
-    route: 'HealthRecord'
+    route: 'HealthRecord' as const,
   },
   {
     img: require('@/assets/images/user/img3.png'),
     label: '体征数据',
-    route: 'VitalsPage'
+    route: 'VitalsPage' as const,
+  },
+  {
+    img: require('@/assets/images/user/img6.png'),
+    label: '运动处方',
+    route: 'Schedule' as const,
+  },
+  {
+    img: require('@/assets/images/user/img5.png'),
+    label: '营养处方',
+    route: 'Medication' as const,
+    params: { tab: 'meal' as const },
   },
   {
     img: require('@/assets/images/user/img4.png'),
     label: '用药记录',
-    route: 'Medication'
+    route: 'Medication' as const,
+    params: { tab: 'medication' as const },
   },
-  {
-    img: require('@/assets/images/user/img5.png'),
-    label: '慢病管理',
-    route: 'ChronicDisease'
-  },
-  {
-    img: require('@/assets/images/user/img6.png'),
-    label: '评估问卷',
-    route: 'QuestionnaireList'
-  }]
+];
 
 export default function ProfilePage() {
   const navigation: any = useNavigation<Nav>();
@@ -146,12 +175,17 @@ export default function ProfilePage() {
         </ImageBackground>
 
         <Flex justify="around" align="center" style={styles.navList}>
-          {navList.map((item, index) => <TouchableOpacity key={index} onPress={() => navigation.navigate(item.route)}>
-            <Flex direction="column" justify="start" align='center'>
-              <Image style={styles.navListItemImg} source={item.img} />
-              <Text style={styles.navListItemText}>{item.label}</Text>
-            </Flex>
-          </TouchableOpacity>)}
+          {navList.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              onPress={() => navigation.navigate(item.route, 'params' in item ? item.params : undefined)}
+            >
+              <Flex direction="column" justify="start" align='center'>
+                <Image style={styles.navListItemImg} source={item.img} />
+                <Text style={styles.navListItemText}>{item.label}</Text>
+              </Flex>
+            </TouchableOpacity>
+          ))}
         </Flex>
 
         <Text style={[styles.modelTitle, { marginTop: 24 }]}>我的家人</Text>
