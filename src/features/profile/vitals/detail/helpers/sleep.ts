@@ -192,11 +192,8 @@ function formatSleepCurrentLabel(item?: WearableDataItem) {
   return `当前：${dateLabel}`;
 }
 
-export function formatSleepSuggestionText(goalHours?: number | null) {
-  if (goalHours == null || goalHours <= 0) return '建议时长：7-9小时';
-  const minHours = Math.max(1, Math.floor(goalHours) - 1);
-  const maxHours = Math.ceil(goalHours) + 1;
-  return `建议时长：${minHours}-${maxHours}小时`;
+export function formatSleepSuggestionText(_goalHours?: number | null) {
+  return '建议时长：7-9小时';
 }
 
 export function formatSleepSuggestionTimeText(goalHours?: number | null, wakeMinutes = 7 * 60) {

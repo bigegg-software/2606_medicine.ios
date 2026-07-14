@@ -1,5 +1,5 @@
-import React, { useCallback,useEffect, useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Image, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -17,6 +17,7 @@ import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import {
     buildLastAssessmentMap,
     canStartAssessment,
+    getAssessmentStatusIcon,
     getNextAssessmentDate,
     QUESTIONNAIRE_CONFIG,
     QUESTIONNAIRE_TITLES,
@@ -25,6 +26,7 @@ import {
     type AssessmentSummary,
     type HistoryItem,
 } from './utils/helpers';
+import { MaterialIcons } from '@expo/vector-icons';
 
 export default function QuestionnaireListPage() {
     const navigation: any = useNavigation();
@@ -82,91 +84,118 @@ export default function QuestionnaireListPage() {
                         tintColor={AppTheme.primaryColor}
                     />
                 }>
-                <Text style={styles.sectionTitle}>评估问卷</Text>
-                {QUESTIONNAIRE_CONFIG.map(item => {
-                    const lastAssessment = lastAssessmentByType[item.type];
-                    const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
-                    const statusStyle = styles[lastAssessment?.statusStyle ?? 'rowStatus'];
-                    const canStart = canStartAssessment(item.type, lastAssessment?.date);
-                    const nextAssessmentDate = getNextAssessmentDate(item.type, lastAssessment?.date);
-
-                    return (
-                        <View key={item.type} style={styles.rowBox}>
-                            <Flex justify="between">
-                                <Text style={styles.rowTitle}>{QUESTIONNAIRE_TITLES[item.type]}</Text>
-                                <Text style={styles.rowText}>预计时间：{item.duration}</Text>
-                            </Flex>
-                            <Flex justify="between" style={styles.btmBox}>
-                                <View>
-                                    {hasLastAssessment ? (
-                                        <>
-                                            {lastAssessment?.date ? (
-                                                <Text style={styles.rowText}>上次评估：{lastAssessment.date}</Text>
-                                            ) : null}
-                                            {!canStart && nextAssessmentDate ? (
-                                                <Text style={[styles.rowText, { marginTop: 4 }]}>
-                                                    下次评估：{nextAssessmentDate}
-                                                </Text>
-                                            ) : null}
-                                            {lastAssessment?.result ? (
-                                                <Text style={statusStyle}>结果：{lastAssessment.result}</Text>
-                                            ) : null}
-                                        </>
-                                    ) : (
-                                        <Text style={styles.rowText}>暂无评估记录</Text>
-                                    )}
-                                </View>
-                                <TouchableOpacity
-                                    style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
-                                    disabled={!canStart}
-                                    onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
-                                    <Flex style={{ flex: 1 }} justify="center">
-                                        <Text style={[styles.startText, !canStart && styles.startTextDisabled]}>
-                                            开始评估
-                                        </Text>
-                                    </Flex>
-                                </TouchableOpacity>
-                            </Flex>
-                        </View>
-                    );
-                })}
-
-                <Flex justify="between">
-                    <Text style={styles.sectionTitle}>评估历史</Text>
-                    {!loading && historyList.length > 0 ? (
-                        <TouchableOpacity onPress={() => navigation.navigate('QuestionnaireHistory')}>
-                            <Text style={styles.moreText}>全部</Text>
-                        </TouchableOpacity>
-                    ) : null}
-                </Flex>
-                {loading && !refreshing ? (
-                    <Flex justify="center" style={{ marginTop: 16, marginBottom: 8 }}>
-                        <ActivityIndicator color={AppTheme.primaryColor} />
+                <View style={styles.infoBox}>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>可用问卷</Text>
                     </Flex>
-                ) : historyList.length > 0 ? (
-                    historyList.map(item => (
-                        <TouchableOpacity
-                            key={item.id}
-                            style={styles.rowBox}
-                            onPress={() => navigation.navigate('QuestionnaireDetail', { id: item.id })}>
-                            <Flex justify="between">
-                                <View>
-                                    <Text style={styles.rowTitle}>{item.title}</Text>
-                                    {item.date ? (
-                                        <Text style={[styles.rowText, { marginTop: 6 }]}>评估时间：{item.date}</Text>
-                                    ) : null}
-                                </View>
-                                {item.result ? (
-                                    <Text style={styles[item.statusStyle]}>{item.result}</Text>
-                                ) : null}
+
+                    {QUESTIONNAIRE_CONFIG.map(item => {
+                        const lastAssessment = lastAssessmentByType[item.type];
+                        const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
+                        const canStart = canStartAssessment(item.type, lastAssessment?.date);
+                        const nextAssessmentDate = getNextAssessmentDate(item.type, lastAssessment?.date);
+                        const actionLabel = hasLastAssessment ? '重新评估' : '开始评估';
+
+                        return (
+                            <View key={item.type} style={styles.rowBox}>
+                                <Flex justify='between'>
+                                    <View>
+                                        <Text style={styles.rowTitle}>{QUESTIONNAIRE_TITLES[item.type]}</Text>
+                                        <Text style={styles.rowText}>预计时间：{item.duration}</Text>
+                                        {!canStart && nextAssessmentDate ? (
+                                            <Text style={styles.rowText}>下次可评估：{nextAssessmentDate}</Text>
+                                        ) : null}
+                                    </View>
+                                    <Image style={styles.timeIcon} source={require('@/assets/images/questionnaire/time.png')} />
+                                </Flex>
+                                {hasLastAssessment ? (
+                                    <>
+                                        <View style={[styles.rowLine, { marginTop: 12 }]} />
+                                        <Flex justify="between" align="center" style={styles.btmBox}>
+                                            <Flex style={{ flex: 1, marginRight: 8 }}>
+                                                <Image
+                                                    style={styles.iconSize}
+                                                    source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
+                                                />
+                                                <View style={{ marginLeft: 6, flexShrink: 1 }}>
+                                                    {lastAssessment?.result ? (
+                                                        <Text style={styles.rowTitleText}>{lastAssessment.result}</Text>
+                                                    ) : null}
+                                                    {lastAssessment?.date ? (
+                                                        <Text style={styles.rowText}>上次评估：{lastAssessment.date}</Text>
+                                                    ) : null}
+                                                </View>
+                                            </Flex>
+                                            <TouchableOpacity
+                                                style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
+                                                disabled={!canStart}
+                                                onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
+                                                <Flex style={{ flex: 1 }} justify="center">
+                                                    <Text style={[styles.startText, !canStart && styles.startTextDisabled]}>
+                                                        {actionLabel}
+                                                    </Text>
+                                                </Flex>
+                                            </TouchableOpacity>
+                                        </Flex>
+                                    </>
+                                ) : (
+                                    <Flex justify="end" style={styles.btmBox}>
+                                        <TouchableOpacity
+                                            style={styles.startBtn}
+                                            onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
+                                            <Flex style={{ flex: 1 }} justify="center">
+                                                <Text style={styles.startText}>{actionLabel}</Text>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    </Flex>
+                                )}
+                            </View>
+                        );
+                    })}
+                </View>
+
+                <View style={styles.infoBox}>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>评估历史</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('QuestionnaireHistory')}>
+                            <Flex>
+                                <Text style={styles.more}>全部</Text>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                             </Flex>
                         </TouchableOpacity>
-                    ))
-                ) : (
-                    <View style={styles.rowBox}>
-                        <Text style={styles.rowText}>暂无评估历史</Text>
-                    </View>
-                )}
+                    </Flex>
+
+
+                    {loading && !refreshing ? (
+                        <Flex justify="center" style={{ marginTop: 16, marginBottom: 8 }}>
+                            <ActivityIndicator color={AppTheme.primaryColor} />
+                        </Flex>
+                    ) : historyList.length > 0 ? (
+                        historyList.map(item => (
+                            <TouchableOpacity
+                                key={item.id}
+                                style={styles.rowBox}
+                                onPress={() => navigation.navigate('QuestionnaireDetail', { id: item.id })}>
+                                <Flex justify="between">
+                                    <View>
+                                        <Text style={styles.rowTitle}>{item.title}</Text>
+                                        {item.date ? (
+                                            <Text style={styles.rowText}>评估时间：{item.date}</Text>
+                                        ) : null}
+                                    </View>
+                                    {item.result ? (
+                                        <Text style={styles[item.statusStyle]}>{item.result}</Text>
+                                    ) : null}
+                                </Flex>
+                            </TouchableOpacity>
+                        ))
+                    ) : (
+                        <View style={styles.rowBox}>
+                            <Text style={styles.rowText}>暂无评估历史</Text>
+                        </View>
+                    )}
+                </View>
+
             </ScrollView>
         </PageLayout>
     );

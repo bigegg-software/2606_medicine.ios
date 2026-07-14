@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert, } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, TextInput, Alert, } from 'react-native';
 import { Flex, DatePicker, Toast } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import { LinearGradient } from 'expo-linear-gradient';
 import moment from 'moment';
 import {
@@ -23,10 +24,19 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import QuestionnairePercentRulerSlider from './components/QuestionnairePercentRulerSlider';
 import { isPercentRulerQuestion } from './utils/helpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'QuestionnairePage'>;
+
+const HEIGHT_MIN = 120;
+const HEIGHT_MAX = 210;
+const HEIGHT_DEFAULT = 170;
+const WEIGHT_MIN = 30;
+const WEIGHT_MAX = 120;
+const WEIGHT_DEFAULT = 60;
+const BODY_MEASURE_STEP = 0.1;
 
 function getTemplateKey(template: QuestionTemplate) {
     return template.templateId ?? template.id ?? 0;
@@ -52,6 +62,32 @@ function formatHeightWeightAnswer(height: string, weight: string) {
 function normalizeHeightWeightAnswer(answer: string) {
     const { height, weight } = parseHeightWeightAnswer(answer);
     return `${height.trim()},${weight.trim()}`;
+}
+
+function formatBodyMeasureValue(value: number) {
+    return value.toFixed(1);
+}
+
+function resolveBodyMeasureValue(
+    raw: string,
+    min: number,
+    max: number,
+    fallback: number,
+) {
+    const num = Number(raw);
+    if (!Number.isFinite(num) || num <= 0) return fallback;
+    return Math.max(min, Math.min(max, num));
+}
+
+function resolveStoreBodyMeasure(
+    value: number | string | null | undefined,
+    min: number,
+    max: number,
+    fallback: number,
+) {
+    const num = Number(value);
+    if (!Number.isFinite(num) || num <= 0) return fallback;
+    return Math.max(min, Math.min(max, num));
 }
 
 function calculateBmi(heightCm: number, weightKg: number) {
@@ -112,6 +148,16 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
     const { type } = route.params;
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
+    const storeHeight = useSelector((state: RootState) => state.user.info?.height);
+    const storeWeight = useSelector((state: RootState) => state.user.info?.weight);
+    const defaultHeight = useMemo(
+        () => resolveStoreBodyMeasure(storeHeight, HEIGHT_MIN, HEIGHT_MAX, HEIGHT_DEFAULT),
+        [storeHeight],
+    );
+    const defaultWeight = useMemo(
+        () => resolveStoreBodyMeasure(storeWeight, WEIGHT_MIN, WEIGHT_MAX, WEIGHT_DEFAULT),
+        [storeWeight],
+    );
     const allowExitRef = useRef(false);
     const [templates, setTemplates] = useState<QuestionTemplate[]>([]);
     const [currentIndex, setCurrentIndex] = useState(0);
@@ -183,6 +229,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
     const progressPercent = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
 
     const isPercentRuler = isPercentRulerQuestion(templateKey, currentQuestion?.type);
+    const isHeightWeightQuestion = Boolean(currentQuestion?.type === 3 && type !== 3);
 
     const hasCurrentAnswer = useMemo(() => {
         if (!currentQuestion) return false;
@@ -195,7 +242,12 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                 return Boolean(currentAnswer.trim());
             }
             const { height, weight } = parseHeightWeightAnswer(currentAnswer);
-            return Number(height) > 0 && Number(weight) > 0;
+            const heightNum = Number(height);
+            const weightNum = Number(weight);
+            return heightNum >= HEIGHT_MIN
+                && heightNum <= HEIGHT_MAX
+                && weightNum >= WEIGHT_MIN
+                && weightNum <= WEIGHT_MAX;
         }
         if (currentQuestion.type === 4) {
             return currentAnswer.split(',').filter(Boolean).length > 0;
@@ -211,6 +263,16 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         if (!isPercentRuler || currentAnswer) return;
         setSingleAnswer('50');
     }, [templateKey, isPercentRuler, currentAnswer]);
+
+    useEffect(() => {
+        if (!isHeightWeightQuestion || currentAnswer) return;
+        setSingleAnswer(
+            formatHeightWeightAnswer(
+                formatBodyMeasureValue(defaultHeight),
+                formatBodyMeasureValue(defaultWeight),
+            ),
+        );
+    }, [templateKey, isHeightWeightQuestion, currentAnswer, defaultHeight, defaultWeight]);
 
     const toggleMultiAnswer = (index: number) => {
         const selected = currentAnswer ? currentAnswer.split(',').filter(Boolean) : [];
@@ -297,46 +359,77 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
             }
 
             const { height, weight } = parseHeightWeightAnswer(currentAnswer);
-            const heightNum = Number(height);
-            const weightNum = Number(weight);
-            const bmi =
-                heightNum > 0 && weightNum > 0 ? calculateBmi(heightNum, weightNum) : null;
+            const heightNum = resolveBodyMeasureValue(height, HEIGHT_MIN, HEIGHT_MAX, defaultHeight);
+            const weightNum = resolveBodyMeasureValue(weight, WEIGHT_MIN, WEIGHT_MAX, defaultWeight);
+            const bmi = calculateBmi(heightNum, weightNum);
             return (
-                <>
-                    <View style={styles.fillBox}>
-                        <Text style={styles.fillLabel}>身高（cm）</Text>
-                        <TextInput
-                            style={styles.fillInput}
-                            value={height}
-                            onChangeText={value =>
-                                setSingleAnswer(formatHeightWeightAnswer(value.replace(/[^\d.]/g, ''), weight))
-                            }
-                            placeholder="请输入身高"
-                            placeholderTextColor={AppTheme.textSecondary}
-                            keyboardType="decimal-pad"
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
+                <View style={styles.heightWeightBox}>
+                    <Text style={[styles.fillLabel, { marginTop: 8 }]}>请记录身高</Text>
+                    <QuestionnairePercentRulerSlider
+                        key={`${templateKey}-height`}
+                        min={HEIGHT_MIN}
+                        max={HEIGHT_MAX}
+                        step={BODY_MEASURE_STEP}
+                        majorStep={1}
+                        unit="cm"
+                        initialValue={heightNum}
+                        onValueChange={value => {
+                            setAnswers(prev => {
+                                const current = prev[templateKey] ?? '';
+                                const parsed = parseHeightWeightAnswer(current);
+                                const nextWeight = resolveBodyMeasureValue(
+                                    parsed.weight,
+                                    WEIGHT_MIN,
+                                    WEIGHT_MAX,
+                                    defaultWeight,
+                                );
+                                return {
+                                    ...prev,
+                                    [templateKey]: formatHeightWeightAnswer(
+                                        formatBodyMeasureValue(value),
+                                        formatBodyMeasureValue(nextWeight),
+                                    ),
+                                };
+                            });
+                        }}
+                    />
+                    <Text style={[styles.fillLabel, { marginTop: 20 }]}>请记录体重</Text>
+                    <QuestionnairePercentRulerSlider
+                        key={`${templateKey}-weight`}
+                        min={WEIGHT_MIN}
+                        max={WEIGHT_MAX}
+                        step={BODY_MEASURE_STEP}
+                        majorStep={1}
+                        unit="kg"
+                        initialValue={weightNum}
+                        onValueChange={value => {
+                            setAnswers(prev => {
+                                const current = prev[templateKey] ?? '';
+                                const parsed = parseHeightWeightAnswer(current);
+                                const nextHeight = resolveBodyMeasureValue(
+                                    parsed.height,
+                                    HEIGHT_MIN,
+                                    HEIGHT_MAX,
+                                    defaultHeight,
+                                );
+                                return {
+                                    ...prev,
+                                    [templateKey]: formatHeightWeightAnswer(
+                                        formatBodyMeasureValue(nextHeight),
+                                        formatBodyMeasureValue(value),
+                                    ),
+                                };
+                            });
+                        }}
+                    />
+                    <View style={styles.bmiFooter}>
+                        {bmi != null && Number.isFinite(bmi) ? (
+                            <Text style={styles.bmiText}>BMI：{bmi.toFixed(1)}</Text>
+                        ) : (
+                            <Text style={styles.bmiPlaceholder}>滑动选择身高和体重后自动计算 BMI</Text>
+                        )}
                     </View>
-                    <View style={styles.fillBox}>
-                        <Text style={styles.fillLabel}>体重（kg）</Text>
-                        <TextInput
-                            style={styles.fillInput}
-                            value={weight}
-                            onChangeText={value =>
-                                setSingleAnswer(formatHeightWeightAnswer(height, value.replace(/[^\d.]/g, '')))
-                            }
-                            placeholder="请输入体重"
-                            placeholderTextColor={AppTheme.textSecondary}
-                            keyboardType="decimal-pad"
-                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                        />
-                    </View>
-                    {bmi != null && Number.isFinite(bmi) ? (
-                        <Text style={styles.bmiText}>BMI：{bmi.toFixed(1)}</Text>
-                    ) : (
-                        <Text style={styles.bmiPlaceholder}>填写身高和体重后自动计算 BMI</Text>
-                    )}
-                </>
+                </View>
             );
         }
 
@@ -412,7 +505,14 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         <PageLayout style={styles.container} edges={[]}>
             <KeyboardDoneAccessory />
             <View style={styles.pageContent}>
-                <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+                <ScrollView
+                    style={{ flex: 1 }}
+                    contentContainerStyle={[
+                        styles.body,
+                        isHeightWeightQuestion && styles.bodyStretch,
+                    ]}
+                    keyboardShouldPersistTaps="handled"
+                >
                     <Flex style={styles.titleBox}>
                         <Flex style={styles.progressBarBox}>
                             <View style={[styles.progressBar, { width: `${progressPercent}%` }]} />
@@ -420,31 +520,36 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                     </Flex>
 
 
-                    <View style={styles.questionBox}>
+                    <View style={[styles.questionBox, isHeightWeightQuestion && styles.questionBoxStretch]}>
                         <LinearGradient
                             colors={['#F4F6F0', '#FFFFFF', '#FFFFFF']}
                             locations={[0, 0.4955, 1]}
                             start={{ x: 0, y: 0 }}
                             end={{ x: 0, y: 1 }}
-                            style={styles.questionBoxGradient}
+                            style={[
+                                styles.questionBoxGradient,
+                                isHeightWeightQuestion && styles.questionBoxGradientStretch,
+                            ]}
                         >
-                            <View style={styles.questionHeader}>
-                                <Flex justify='between'>
-                                    <Text style={styles.questionBubbleLeftTitle}>测评进度</Text>
-                                    <Text style={styles.leftTitle}>
-                                        <Text style={styles.leftTitleNumber}>{currentIndex + 1}</Text>/{total}
-                                    </Text>
+                            <View style={isHeightWeightQuestion ? styles.heightWeightContent : undefined}>
+                                <View style={styles.questionHeader}>
+                                    <Flex justify='between'>
+                                        <Text style={styles.questionBubbleLeftTitle}>测评进度</Text>
+                                        <Text style={styles.leftTitle}>
+                                            <Text style={styles.leftTitleNumber}>{currentIndex + 1}</Text>/{total}
+                                        </Text>
+                                    </Flex>
+                                    <Text style={styles.questionBubbleLeftText}>请根据你的实际情况选择对应答案</Text>
+                                </View>
+                                <View style={styles.lineBox}></View>
+
+                                <Flex align="start" style={styles.questionBubble}>
+                                    <View style={styles.questionBubbleIcon}></View>
+                                    <Text style={styles.questionText}>{currentQuestion.question ?? ''}</Text>
                                 </Flex>
-                                <Text style={styles.questionBubbleLeftText}>请根据你的实际情况选择对应答案</Text>
+
+                                {renderOptions()}
                             </View>
-                            <View style={styles.lineBox}></View>
-
-                            <Flex align="start" style={styles.questionBubble}>
-                                <View style={styles.questionBubbleIcon}></View>
-                                <Text style={styles.questionText}>{currentQuestion.question ?? ''}</Text>
-                            </Flex>
-
-                            {renderOptions()}
                         </LinearGradient>
                     </View>
                 </ScrollView>

@@ -111,7 +111,7 @@ const LIPID_METRICS: Array<{
   ];
 
 function formatLipidDecimal(value: number) {
-  return Number(value.toFixed(2)).toFixed(2);
+  return String(Number(value.toFixed(2)));
 }
 
 function getMetricConfig(key: BloodLipidMetricKey) {

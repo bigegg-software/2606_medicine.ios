@@ -7,9 +7,17 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, type AllergyItem } from '@/api/allergy';
 import { getFamilyMedicalInfo, type FamilyMedicalItem } from '@/api/familyMedical';
 import { getMedicalRecordFrontList, type MedicalRecord } from '@/api/medicalRecord';
+import { getChronicDiseaseFrontList, type ChronicDiseaseRecord } from '@/api/chronicDisease';
+import {
+    getUserQuestionNewList,
+    type QuestionnaireType,
+    type UserQuestionNewListResult,
+    type UserQuestionRecord,
+} from '@/api/questionTemplate';
 import type { EmergencyContact } from '@/api/emergencyContact';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
+import questionnaireStyles from '@/css/questionnaire/index';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
@@ -21,9 +29,27 @@ import {
     loadEmergencyContacts,
     loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
+import ChronicDiseaseCard from '@/src/features/profile/chronicDisease/components/ChronicDiseaseCard';
+import {
+    DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
+    loadChronicIndexIndicators,
+    loadDiseaseTypeLabelMap,
+    type ChronicDiseaseDailyIndicators,
+} from '@/src/features/profile/chronicDisease/components/chronicData';
+import {
+    buildLastAssessmentMap,
+    canStartAssessment,
+    getAssessmentStatusIcon,
+    getNextAssessmentDate,
+    QUESTIONNAIRE_CONFIG,
+    QUESTIONNAIRE_TITLES,
+    type AssessmentSummary,
+} from '@/src/features/profile/questionnaire/utils/helpers';
 import moment from 'moment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+const CHRONIC_PREVIEW_SIZE = 2;
 
 function formatRecordTitle(record: MedicalRecord) {
     const diagnosis = record.diagnosticResult || '未填写诊断';
@@ -84,6 +110,14 @@ export default function HealthRecordPage() {
     const [familyList, setFamilyList] = useState<FamilyMedicalItem[]>([]);
     const [emergencyContacts, setEmergencyContacts] = useState<EmergencyContact[]>([]);
     const [relationMap, setRelationMap] = useState<Record<string, string>>({});
+    const [chronicRecords, setChronicRecords] = useState<ChronicDiseaseRecord[]>([]);
+    const [diseaseTypeLabels, setDiseaseTypeLabels] = useState<Record<string, string>>({});
+    const [dailyIndicatorsById, setDailyIndicatorsById] = useState<Map<number, ChronicDiseaseDailyIndicators>>(
+        new Map(),
+    );
+    const [lastAssessmentByType, setLastAssessmentByType] = useState<
+        Partial<Record<QuestionnaireType, AssessmentSummary>>
+    >({});
 
     const loadRecords = useCallback(async () => {
         try {
@@ -132,6 +166,36 @@ export default function HealthRecordPage() {
         }
     }, []);
 
+    const loadChronicDiseases = useCallback(async () => {
+        try {
+            const [res, labelMap] = await Promise.all([
+                getChronicDiseaseFrontList({ pageNum: 1, pageSize: CHRONIC_PREVIEW_SIZE }),
+                loadDiseaseTypeLabelMap(),
+            ]);
+            const rows = getResourceRows(res as { code?: number; rows?: ChronicDiseaseRecord[] })
+                .slice(0, CHRONIC_PREVIEW_SIZE);
+            setDiseaseTypeLabels(labelMap);
+            setChronicRecords(rows);
+            const indicators = await loadChronicIndexIndicators(rows, labelMap);
+            setDailyIndicatorsById(indicators);
+        } catch {
+            setChronicRecords([]);
+            setDiseaseTypeLabels({});
+            setDailyIndicatorsById(new Map());
+        }
+    }, []);
+
+    const loadQuestionnaires = useCallback(async () => {
+        try {
+            const latestRes = await getUserQuestionNewList();
+            const latestRecords =
+                apiResourceData<UserQuestionRecord[]>(latestRes as unknown as UserQuestionNewListResult) ?? [];
+            setLastAssessmentByType(buildLastAssessmentMap(latestRecords));
+        } catch {
+            setLastAssessmentByType({});
+        }
+    }, []);
+
     const loadRecordsRef = useRef(loadRecords);
     loadRecordsRef.current = loadRecords;
     const loadAllergiesRef = useRef(loadAllergies);
@@ -140,6 +204,10 @@ export default function HealthRecordPage() {
     loadFamilyMedicalRef.current = loadFamilyMedical;
     const loadEmergencyRef = useRef(loadEmergency);
     loadEmergencyRef.current = loadEmergency;
+    const loadChronicDiseasesRef = useRef(loadChronicDiseases);
+    loadChronicDiseasesRef.current = loadChronicDiseases;
+    const loadQuestionnairesRef = useRef(loadQuestionnaires);
+    loadQuestionnairesRef.current = loadQuestionnaires;
 
     const hasMountedRef = useRef(false);
 
@@ -148,6 +216,8 @@ export default function HealthRecordPage() {
         loadAllergiesRef.current();
         loadFamilyMedicalRef.current();
         loadEmergencyRef.current();
+        loadChronicDiseasesRef.current();
+        loadQuestionnairesRef.current();
     }, []);
 
     useFocusEffect(
@@ -160,6 +230,8 @@ export default function HealthRecordPage() {
             loadAllergiesRef.current();
             loadFamilyMedicalRef.current();
             loadEmergencyRef.current();
+            loadChronicDiseasesRef.current();
+            loadQuestionnairesRef.current();
         }, []),
     );
 
@@ -420,6 +492,141 @@ export default function HealthRecordPage() {
                         )}
 
                     </View>
+                </View>
+                <View style={styles.infoBox}>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>慢病管理</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('ChronicDisease')}>
+                            <Flex>
+                                <Text style={styles.more}>全部</Text>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                            </Flex>
+                        </TouchableOpacity>
+                    </Flex>
+                    {chronicRecords.length > 0 ? (
+                        chronicRecords.map(item => {
+                            const dailyIndicators =
+                                item.id != null
+                                    ? dailyIndicatorsById.get(item.id) ?? DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS
+                                    : DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS;
+                            return (
+                                <ChronicDiseaseCard
+                                    key={String(item.id)}
+                                    record={item}
+                                    diseaseTypeLabels={diseaseTypeLabels}
+                                    dailyIndicators={dailyIndicators}
+                                    onPress={() =>
+                                        item.id != null
+                                        && navigation.navigate('ChronicDiseaseDetailPage', { id: item.id })
+                                    }
+                                />
+                            );
+                        })
+                    ) : (
+                        <TouchableOpacity onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
+                            <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0, marginTop: 10 }]}>
+                                <Text style={styles.familyItemName}>点击添加慢病</Text>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                            </Flex>
+                        </TouchableOpacity>
+                    )}
+                </View>
+                <View style={styles.infoBox}>
+                    <Flex justify='between'>
+                        <Text style={styles.sectionTitle}>评估问卷</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate('QuestionnaireList')}>
+                            <Flex>
+                                <Text style={styles.more}>全部</Text>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                            </Flex>
+                        </TouchableOpacity>
+                    </Flex>
+
+                    {QUESTIONNAIRE_CONFIG.map(item => {
+                        const lastAssessment = lastAssessmentByType[item.type];
+                        const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
+                        const canStart = canStartAssessment(item.type, lastAssessment?.date);
+                        const nextAssessmentDate = getNextAssessmentDate(item.type, lastAssessment?.date);
+                        const actionLabel = hasLastAssessment ? '重新评估' : '开始评估';
+
+                        return (
+                            <View key={item.type} style={questionnaireStyles.rowBox}>
+                                <Flex justify="between">
+                                    <View>
+                                        <Text style={questionnaireStyles.rowTitle}>
+                                            {QUESTIONNAIRE_TITLES[item.type]}
+                                        </Text>
+                                        <Text style={questionnaireStyles.rowText}>预计时间：{item.duration}</Text>
+                                        {!canStart && nextAssessmentDate ? (
+                                            <Text style={questionnaireStyles.rowText}>
+                                                下次可评估：{nextAssessmentDate}
+                                            </Text>
+                                        ) : null}
+                                    </View>
+                                    <Image
+                                        style={questionnaireStyles.timeIcon}
+                                        source={require('@/assets/images/questionnaire/time.png')}
+                                    />
+                                </Flex>
+                                {hasLastAssessment ? (
+                                    <>
+                                        <View style={[questionnaireStyles.rowLine, { marginTop: 12 }]} />
+                                        <Flex justify="between" align="center" style={questionnaireStyles.btmBox}>
+                                            <Flex style={{ flex: 1, marginRight: 8 }}>
+                                                <Image
+                                                    style={questionnaireStyles.iconSize}
+                                                    source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
+                                                />
+                                                <View style={{ marginLeft: 6, flexShrink: 1 }}>
+                                                    {lastAssessment?.result ? (
+                                                        <Text style={questionnaireStyles.rowTitleText}>
+                                                            {lastAssessment.result}
+                                                        </Text>
+                                                    ) : null}
+                                                    {lastAssessment?.date ? (
+                                                        <Text style={questionnaireStyles.rowText}>
+                                                            上次评估：{lastAssessment.date}
+                                                        </Text>
+                                                    ) : null}
+                                                </View>
+                                            </Flex>
+                                            <TouchableOpacity
+                                                style={[
+                                                    questionnaireStyles.startBtn,
+                                                    !canStart && questionnaireStyles.startBtnDisabled,
+                                                ]}
+                                                disabled={!canStart}
+                                                onPress={() =>
+                                                    navigation.navigate('QuestionnairePage', { type: item.type })
+                                                }>
+                                                <Flex style={{ flex: 1 }} justify="center">
+                                                    <Text
+                                                        style={[
+                                                            questionnaireStyles.startText,
+                                                            !canStart && questionnaireStyles.startTextDisabled,
+                                                        ]}>
+                                                        {actionLabel}
+                                                    </Text>
+                                                </Flex>
+                                            </TouchableOpacity>
+                                        </Flex>
+                                    </>
+                                ) : (
+                                    <Flex justify="end" style={questionnaireStyles.btmBox}>
+                                        <TouchableOpacity
+                                            style={questionnaireStyles.startBtn}
+                                            onPress={() =>
+                                                navigation.navigate('QuestionnairePage', { type: item.type })
+                                            }>
+                                            <Flex style={{ flex: 1 }} justify="center">
+                                                <Text style={questionnaireStyles.startText}>{actionLabel}</Text>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    </Flex>
+                                )}
+                            </View>
+                        );
+                    })}
                 </View>
             </ScrollView>
         </PageLayout>

@@ -249,7 +249,7 @@ export default function BloodAddPage({ route }: Props) {
 
   const remove = useCallback(() => {
     if (editItem?.id == null) return;
-    Alert.alert('删除记录', '确定删除该测量记录吗？', [
+    Alert.alert('删除记录', `确定要删除这条${measureType}记录吗？删除后无法恢复`, [
       { text: '取消', style: 'cancel' },
       {
         text: '删除',
@@ -271,7 +271,7 @@ export default function BloodAddPage({ route }: Props) {
         },
       },
     ]);
-  }, [editItem?.id, navigation]);
+  }, [editItem?.id, measureType, navigation]);
 
   useEffect(() => {
     navigation.setOptions({

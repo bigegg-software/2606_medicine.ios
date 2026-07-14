@@ -51,7 +51,7 @@ function isAbnormalBodyTemperatureItem(item: MeasureDataItem) {
   if (value == null || value <= 0) return false;
   if (value < BODY_TEMPERATURE_LOW_THRESHOLD || value > BODY_TEMPERATURE_HIGH_THRESHOLD) return true;
   const label = getBodyTemperatureItemStatusLabel(item);
-  return /偏高|偏低|发热|低体温/.test(label);
+  return /偏低|发热|低体温|偏高/.test(label);
 }
 
 function getTemperatureDayMinMax(dayItems: MeasureDataItem[]) {

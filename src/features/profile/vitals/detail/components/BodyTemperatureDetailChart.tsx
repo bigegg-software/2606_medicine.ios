@@ -18,12 +18,13 @@ export type BodyTemperatureRangePoint = {
 
 export type BodyTemperatureChartRange = 'today' | 'week' | 'month';
 
-const LOW_THRESHOLD = 35.7;
+const LOW_THRESHOLD = 36.0;
 const HIGH_THRESHOLD = 37.2;
 const LINE_COLOR_HIGH = '#FB4550';
 const LINE_COLOR_LOW = '#6D925E';
+const BAR_COLOR_LOW = '#0951AE';
 const BAR_COLOR_NORMAL = '#6D925E';
-const BAR_COLOR_ABNORMAL = '#FB4550';
+const BAR_COLOR_FEVER = '#FB4550';
 const THRESHOLD_LINE_OPACITY = 0.6;
 const BAR_WIDTH = 10;
 const BAR_STACK = 'bodyTemperatureRange';
@@ -185,10 +186,6 @@ function isValidPoint(point: BodyTemperatureRangePoint) {
     return point.min > 0 && point.max > 0 && point.max >= point.min;
 }
 
-function isWithinThresholdLines(min: number, max: number) {
-    return min >= LOW_THRESHOLD && max <= HIGH_THRESHOLD;
-}
-
 function getScatterPointStyle(min: number, max: number) {
     const color = getBarColor(min, max);
     return {
@@ -205,7 +202,9 @@ function isTodayPointSelected(point: BodyTemperatureRangePoint, selectedDataX: n
 }
 
 function getBarColor(min: number, max: number) {
-    return isWithinThresholdLines(min, max) ? BAR_COLOR_NORMAL : BAR_COLOR_ABNORMAL;
+    if (max > HIGH_THRESHOLD) return BAR_COLOR_FEVER;
+    if (min < LOW_THRESHOLD) return BAR_COLOR_LOW;
+    return BAR_COLOR_NORMAL;
 }
 
 function getRangeHeight(min: number, max: number) {

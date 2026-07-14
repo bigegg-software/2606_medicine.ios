@@ -167,7 +167,7 @@ export default function VitalsPage() {
 
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={{ paddingBottom:  insets.bottom }}
+                    contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
@@ -193,7 +193,8 @@ export default function VitalsPage() {
                             data={chartData}
                             onPointChange={handleChartPointChange}
                         />
-                          <Flex justify='center' style={styles.colTopBox}>
+                    </View>
+                    {/* <Flex justify='center' style={styles.colTopBox}>
                         <Flex>
                             <Flex style={styles.colRightBor}></Flex>
                             <Text style={styles.colRightText}>偏低</Text>
@@ -208,10 +209,9 @@ export default function VitalsPage() {
                         </Flex>
                         <Flex>
                             <Flex style={styles.colHxBor}></Flex>
-                            <Text style={styles.colHxText}>高风险</Text>
+                            <Text style={styles.colHxText}>发热</Text>
                         </Flex>
-                    </Flex>
-                    </View>
+                    </Flex> */}
 
                     <Flex style={[styles.colRow, { marginTop: 30 }]}>
                         <View style={styles.colBox}>

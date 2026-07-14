@@ -1,8 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ActivityIndicator, FlatList, RefreshControl, type ImageSourcePropType, type ListRenderItem, } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, type NativeScrollEvent, type NativeSyntheticEvent, } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChronicDiseaseFrontList, type ChronicDiseaseRecord } from '@/api/chronicDisease';
@@ -11,164 +10,17 @@ import styles from '@/css/chronicDisease/index';
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import NoData from '@/src/components/noData';
+import ChronicDiseaseCard from './components/ChronicDiseaseCard';
 import {
-    CHRONIC_DISEASE_CONTROL_STATUS_LABELS,
     DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
     loadChronicIndexIndicators,
     loadDiseaseTypeLabelMap,
-    resolveDiseaseTypeLabel,
-    type ChronicDiseaseControlStatus,
     type ChronicDiseaseDailyIndicators,
-    type ChronicDiseaseMealRecordStatus,
-    type ChronicDiseaseVitalsTodayStatus,
 } from './components/chronicData';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const PAGE_SIZE = 5;
-
-const CHRONIC_INDICATOR_COLOR = {
-    muted: '#999999',
-    ok: '#34B69F',
-    warning: '#FF8B07',
-} as const;
-
-function formatDiagnosisTime(value?: string): string {
-    if (!value) return '--';
-    const trimmed = value.trim();
-    if (/^\d{4}-\d{2}$/.test(trimmed)) {
-        const [year, month] = trimmed.split('-');
-        return `${year}年${Number(month)}月`;
-    }
-    return trimmed;
-}
-
-function getVitalsTodayIndicator(status: ChronicDiseaseVitalsTodayStatus) {
-    return status === 'measured'
-        ? { label: '今日已测', color: CHRONIC_INDICATOR_COLOR.ok }
-        : { label: '今日未测', color: CHRONIC_INDICATOR_COLOR.muted };
-}
-
-function getMedicationPendingIndicator(pendingCount: number) {
-    return pendingCount > 0
-        ? { label: `${pendingCount}项待服`, color: CHRONIC_INDICATOR_COLOR.warning }
-        : { label: '无待服', color: CHRONIC_INDICATOR_COLOR.ok };
-}
-
-function getMealRecordIndicator(
-    status: ChronicDiseaseMealRecordStatus,
-    mealLabel = '晚餐',
-) {
-    return status === 'recorded'
-        ? { label: '饮食已记录', color: CHRONIC_INDICATOR_COLOR.ok }
-        : { label: `${mealLabel}未记录`, color: CHRONIC_INDICATOR_COLOR.muted };
-}
-
-function getControlStatusStyles(status: ChronicDiseaseControlStatus) {
-    switch (status) {
-        case 'attention':
-            return {
-                box: styles.infoStatusBoxAttention,
-                icon: styles.infoStatusIconAttention,
-                text: styles.infoStatusTextAttention,
-            };
-        case 'highRisk':
-            return {
-                box: styles.infoStatusBoxHighRisk,
-                icon: styles.infoStatusIconHighRisk,
-                text: styles.infoStatusTextHighRisk,
-            };
-        default:
-            return {
-                box: styles.infoStatusBox,
-                icon: styles.infoStatusIcon,
-                text: styles.infoStatusText,
-            };
-    }
-}
-
-function IndicatorItem({
-    icon,
-    label,
-    color,
-}: {
-    icon: ImageSourcePropType;
-    label: string;
-    color: string;
-}) {
-    return (
-        <Flex>
-            <Image style={[styles.infoContentImage, { tintColor: color }]} source={icon} />
-            <Text style={[styles.infoContentText, { color }]}>{label}</Text>
-        </Flex>
-    );
-}
-
-type ChronicDiseaseCardProps = {
-    record: ChronicDiseaseRecord;
-    diseaseTypeLabels: Record<string, string>;
-    dailyIndicators: ChronicDiseaseDailyIndicators;
-    onPress: () => void;
-};
-
-function ChronicDiseaseCard({
-    record,
-    diseaseTypeLabels,
-    dailyIndicators,
-    onPress,
-}: ChronicDiseaseCardProps) {
-    const diseaseLabel = resolveDiseaseTypeLabel(record.diseaseType, diseaseTypeLabels);
-    const statusStyles = getControlStatusStyles(dailyIndicators.controlStatus);
-    const vitalsIndicator = getVitalsTodayIndicator(dailyIndicators.vitalsToday);
-    const medicationIndicator = getMedicationPendingIndicator(dailyIndicators.pendingMedicationCount);
-    const mealIndicator = getMealRecordIndicator(dailyIndicators.mealRecorded, dailyIndicators.mealLabel);
-
-    return (
-        <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
-            <View style={styles.infoBox}>
-                <Flex justify="between">
-                    <Text style={styles.infoTitle}>{diseaseLabel}</Text>
-                    <Flex style={statusStyles.box}>
-                        <View style={statusStyles.icon} />
-                        <Text style={statusStyles.text}>
-                            {CHRONIC_DISEASE_CONTROL_STATUS_LABELS[dailyIndicators.controlStatus]}
-                        </Text>
-                    </Flex>
-                </Flex>
-                <Flex justify="between" style={styles.infoContent}>
-                    <IndicatorItem
-                        icon={require('@/assets/images/chronic/mb.png')}
-                        label={vitalsIndicator.label}
-                        color={vitalsIndicator.color}
-                    />
-                    <IndicatorItem
-                        icon={require('@/assets/images/chronic/yh.png')}
-                        label={medicationIndicator.label}
-                        color={medicationIndicator.color}
-                    />
-                    <IndicatorItem
-                        icon={require('@/assets/images/chronic/ys.png')}
-                        label={mealIndicator.label}
-                        color={mealIndicator.color}
-                    />
-                </Flex>
-                {/* <View style={styles.pageLine} />
-                <Flex justify="between" style={{ marginHorizontal: 5 }}>
-                    <Flex>
-                        <Image
-                            style={styles.infoContentImage}
-                            source={require('@/assets/images/medication/time.png')}
-                        />
-                        <Text style={styles.infoContentTime}>
-                            确诊：{formatDiagnosisTime(record.diagnosisTime)}
-                        </Text>
-                    </Flex>
-                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
-                </Flex> */}
-            </View>
-        </TouchableOpacity>
-    );
-}
 
 function getListTotal(
     res: { code?: number; total?: number; rows?: unknown[] } | null | undefined,
@@ -342,28 +194,17 @@ export default function ChronicDiseasePage() {
         void fetchPageRef.current(pageNumRef.current + 1, 'loadMore');
     }, [loading, refreshing]);
 
-    const renderItem: ListRenderItem<ChronicDiseaseRecord> = useCallback(
-        ({ item }) => {
-            const dailyIndicators =
-                item.id != null
-                    ? dailyIndicatorsById.get(item.id) ?? DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS
-                    : DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS;
-
-            return (
-                <ChronicDiseaseCard
-                    record={item}
-                    diseaseTypeLabels={diseaseTypeLabels}
-                    dailyIndicators={dailyIndicators}
-                    onPress={() =>
-                        item.id != null && navigation.navigate('ChronicDiseaseDetailPage', { id: item.id })
-                    }
-                />
-            );
+    const handleScroll = useCallback(
+        (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+            const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+            if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 80) {
+                handleLoadMore();
+            }
         },
-        [dailyIndicatorsById, diseaseTypeLabels, navigation],
+        [handleLoadMore],
     );
 
-    const listFooter = useCallback(() => {
+    const listFooter = (() => {
         if (loadingMore) {
             return (
                 <View style={{ paddingVertical: 16, alignItems: 'center' }}>
@@ -379,7 +220,7 @@ export default function ChronicDiseasePage() {
             );
         }
         return null;
-    }, [hasMore, loadingMore, records.length]);
+    })();
 
     if (!hasLoadedOnce && loading) {
         return (
@@ -393,11 +234,8 @@ export default function ChronicDiseasePage() {
 
     return (
         <PageLayout style={styles.container}>
-            <FlatList
-                data={records}
-                keyExtractor={item => String(item.id)}
-                renderItem={renderItem}
-                contentContainerStyle={[styles.body, records.length === 0 && { flexGrow: 1 }]}
+            <ScrollView
+                contentContainerStyle={styles.body}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -406,20 +244,41 @@ export default function ChronicDiseasePage() {
                         colors={[AppTheme.primaryColor]}
                     />
                 }
-                onEndReached={handleLoadMore}
-                onEndReachedThreshold={0.2}
-                ListHeaderComponent={
-                    <Flex style={styles.sectionBox}>
+                onScroll={handleScroll}
+                scrollEventThrottle={400}
+            >
+                <View style={styles.infoBox}>
+                    <Flex justify="between">
                         <Text style={styles.sectionTitle}>已建档慢病</Text>
                     </Flex>
-                }
-                ListEmptyComponent={
-                    <Flex style={{ marginTop: 100 }}>
-                        <NoData text="暂无慢病记录" />
-                    </Flex>
-                }
-                ListFooterComponent={listFooter}
-            />
+                    {records.length > 0 ? (
+                        records.map(item => {
+                            const dailyIndicators =
+                                item.id != null
+                                    ? dailyIndicatorsById.get(item.id) ?? DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS
+                                    : DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS;
+
+                            return (
+                                <ChronicDiseaseCard
+                                    key={String(item.id)}
+                                    record={item}
+                                    diseaseTypeLabels={diseaseTypeLabels}
+                                    dailyIndicators={dailyIndicators}
+                                    onPress={() =>
+                                        item.id != null
+                                        && navigation.navigate('ChronicDiseaseDetailPage', { id: item.id })
+                                    }
+                                />
+                            );
+                        })
+                    ) : (
+                        <Flex style={{ marginTop: 40, marginBottom: 20 }}>
+                            <NoData text="暂无慢病记录" />
+                        </Flex>
+                    )}
+                    {listFooter}
+                </View>
+            </ScrollView>
         </PageLayout>
     );
 }

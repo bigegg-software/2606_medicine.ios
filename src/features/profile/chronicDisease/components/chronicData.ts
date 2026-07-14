@@ -68,6 +68,7 @@ export type ChronicDiseaseDailyIndicators = {
     mealRecorded: ChronicDiseaseMealRecordStatus;
     mealLabel?: string;
     controlStatus: ChronicDiseaseControlStatus;
+    lastVitalsText: string;
 };
 
 export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndicators = {
@@ -76,6 +77,7 @@ export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndica
     mealRecorded: 'notRecorded',
     mealLabel: getCurrentMealLabel(),
     controlStatus: 'stable',
+    lastVitalsText: '上次体征：--',
 };
 
 export type AssociatedMedicationRow = {
@@ -520,6 +522,54 @@ function resolveVitalsTodayStatus(
     return overview.mode === 'full' ? 'measured' : 'notMeasured';
 }
 
+function getWearableItemTimestamp(item: WearableDataItem) {
+    const date = moment(item.customerLocalDate ?? item.dataDate, ['YYYY-MM-DD', moment.ISO_8601], true);
+    const base = date.isValid() ? date.clone().startOf('day') : moment().startOf('day');
+    const time = item.endTimeStr?.trim() || item.startTimeStr?.trim();
+    if (!time) return base;
+    const parsedTime = moment(time, [moment.ISO_8601, 'YYYY-MM-DD HH:mm:ss', 'HH:mm:ss', 'HH:mm', 'H:mm'], true);
+    if (parsedTime.isValid()) {
+        return base.hour(parsedTime.hour()).minute(parsedTime.minute()).second(parsedTime.second());
+    }
+    return base;
+}
+
+function formatRelativeVitalsTime(ts: moment.Moment) {
+    if (!ts.isValid()) return '--';
+    if (ts.isSame(moment(), 'day')) return `今天${ts.format('HH:mm')}`;
+    if (ts.isSame(moment().subtract(1, 'day'), 'day')) return `昨天${ts.format('HH:mm')}`;
+    return ts.format('MM-DD HH:mm');
+}
+
+function resolveLastVitalsText(
+    config: DiseaseTrendConfig,
+    measureItems: MeasureDataItem[],
+    wearableItems: WearableDataItem[],
+): string {
+    const name = config.overviewMeasureName || '体征';
+    let latest: moment.Moment | null = null;
+
+    if (config.wearableType && (config.chartKind === 'heartRate' || config.chartKind === 'bloodOxygen')) {
+        wearableItems.forEach(item => {
+            const value = config.chartKind === 'heartRate'
+                ? parseMeasureNumber(item.heartRate ?? item.newHeartRate)
+                : parseMeasureNumber(item.newOxygenSaturation ?? item.maxOxygenSaturation);
+            if (value == null || value <= 0) return;
+            const ts = getWearableItemTimestamp(item);
+            if (!latest || ts.isAfter(latest)) latest = ts;
+        });
+    } else {
+        measureItems.forEach(item => {
+            if (!isValidTodayMeasureItem(config, item)) return;
+            const ts = getItemTimestamp(item);
+            if (!latest || ts.isAfter(latest)) latest = ts;
+        });
+    }
+
+    if (!latest) return `上次${name}：--`;
+    return `上次${name}：${formatRelativeVitalsTime(latest)}`;
+}
+
 function countPendingMedicationDoses(
     record: ChronicDiseaseRecord,
     planGroups: MedicationPlanGroupView[],
@@ -585,6 +635,7 @@ export async function loadChronicIndexIndicators(
                 measureWeekItems,
                 wearableWeekItems,
             ),
+            lastVitalsText: resolveLastVitalsText(config, measureWeekItems, wearableWeekItems),
         });
     });
 

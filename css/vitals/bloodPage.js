@@ -5,7 +5,7 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F7F7F9" },
     pageContent: { flex: 1, position: 'relative' },
     body: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 14 },
-    pageHeader:{paddingHorizontal: 18, paddingTop: 18, paddingBottom: 6, borderTopWidth: 1, borderColor: '#E9E9E9'},
+    pageHeader: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 6, borderTopWidth: 1, borderColor: '#E9E9E9' },
     typeListFade: { position: 'absolute', top: 0, left: 0, right: 0, height: 66, borderRadius: 0, zIndex: -1 },
     typeListBox: { height: 30, backgroundColor: '#EDEEEF', borderRadius: 25, padding: 2, zIndex: 2 },
     typeItem: { flex: 1 },
@@ -529,6 +529,24 @@ const styles = StyleSheet.create({
         width: 20,
         height: 20,
         marginRight: 16
+    },
+    headerTipBox: {
+        paddingHorizontal: 17,
+        paddingVertical: 15,
+        height: 49,
+        backgroundColor: "#FEF8E1",
+        borderWidth: 1,
+        borderColor: "#F6EDC8",
+    },
+    headerTipIcon: {
+        width: 15,
+        height: 15
+    },
+    headerTipText: {
+        fontWeight: 500,
+        fontSize: 14,
+        marginLeft: 6,
+        color: "#C98A41",
     }
 })
 

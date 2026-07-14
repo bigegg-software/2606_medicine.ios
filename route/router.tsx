@@ -234,7 +234,7 @@ function StackHeader({ route, options, back, navigation }: any) {
         title={options.headerTitle != null ? undefined : getHeaderTitle(options, route.name)}
         headerTitle={options.headerTitle}
         headerTransparent={showHeaderBackground}
-        headerTintColor={AppTheme.primaryColor}
+        headerTintColor="#000000"
         headerTitleStyle={headerTitleStyle}
         headerStyle={{
           backgroundColor: showHeaderBackground ? 'transparent' : '#FFFFFF',
@@ -248,7 +248,7 @@ function StackHeader({ route, options, back, navigation }: any) {
               ? props => (
                 <HeaderBackButton
                   {...props}
-                  tintColor={AppTheme.primaryColor}
+                  tintColor="#000000"
                   displayMode="minimal"
                   onPress={navigation.goBack}
                 />
@@ -326,7 +326,7 @@ export default function RootStack() {
         headerTransparent: true,
         headerStyle: { backgroundColor: 'transparent' },
         headerShadowVisible: false,
-        headerTintColor: AppTheme.primaryColor,
+        headerTintColor: '#000000',
         headerTitleStyle,
         headerBackTitleVisible: false,
         headerBackTitle: '',

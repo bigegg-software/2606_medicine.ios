@@ -25,15 +25,18 @@ const CENTER_LINE_WIDTH = 3;
 const CENTER_TRIANGLE_WIDTH = 10;
 const CENTER_TRIANGLE_HEIGHT = 6;
 const TRIANGLE_TO_TICK_GAP = 8;
-const LABEL_WIDTH = 36;
+const LABEL_WIDTH = 40;
 
 type TickKind = 'major' | 'minor';
 
-type Props = {
+export type QuestionnaireRulerSliderProps = {
   min?: number;
   max?: number;
   step?: number;
+  /** 大刻度间隔；不传时沿用 1–100 百分比刻度规则 */
+  majorStep?: number;
   initialValue?: number;
+  unit?: string;
   onValueChange?: (value: number) => void;
 };
 
@@ -52,15 +55,26 @@ function snapToStep(val: number, min: number, max: number, step: number) {
   return parseFloat(snapped.toFixed(getDecimalPlaces(step)));
 }
 
-function isMajorTickValue(value: number) {
+function isPercentMajorTickValue(value: number) {
   const rounded = Math.round(value);
   return rounded === 1
     || rounded === 100
     || (rounded >= 10 && rounded <= 90 && rounded % 10 === 0);
 }
 
-function getTickKind(value: number): TickKind {
-  return isMajorTickValue(value) ? 'major' : 'minor';
+function isMajorTickValue(value: number, majorStep?: number) {
+  if (majorStep == null) return isPercentMajorTickValue(value);
+  const ratio = value / majorStep;
+  return Math.abs(ratio - Math.round(ratio)) < 1e-6;
+}
+
+function getTickKind(value: number, majorStep?: number): TickKind {
+  return isMajorTickValue(value, majorStep) ? 'major' : 'minor';
+}
+
+function formatDisplayValue(value: number, step: number) {
+  const decimals = getDecimalPlaces(step);
+  return decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
 }
 
 function getSnapScrollX(snapIndex: number) {
@@ -92,9 +106,11 @@ export default function QuestionnairePercentRulerSlider({
   min = 1,
   max = 100,
   step = 1,
+  majorStep,
   initialValue = 50,
+  unit,
   onValueChange,
-}: Props) {
+}: QuestionnaireRulerSliderProps) {
   const scrollRef = useRef<ScrollView | null>(null);
   const ticking = useRef(false);
   const centerOffset = RULER_WIDTH / 2 - VISUAL_TICK_WIDTH / 2;
@@ -102,6 +118,7 @@ export default function QuestionnairePercentRulerSlider({
   const totalVisualSteps = totalSnapSteps;
   const maxScrollX = getSnapScrollX(totalSnapSteps);
   const snapPixelWidth = VISUAL_TICKS_PER_SNAP * VISUAL_TICK_WIDTH;
+  const decimals = getDecimalPlaces(step);
 
   const snapToStepValue = (val: number) => snapToStep(val, min, max, step);
   const [value, setValue] = useState<number>(() => snapToStepValue(initialValue));
@@ -110,7 +127,7 @@ export default function QuestionnairePercentRulerSlider({
     const bounded = Math.max(0, Math.min(x, maxScrollX));
     const snapIndex = Math.round(bounded / snapPixelWidth);
     const nextValue = min + snapIndex * step;
-    return parseFloat(nextValue.toFixed(getDecimalPlaces(step)));
+    return parseFloat(nextValue.toFixed(decimals));
   };
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
@@ -164,9 +181,9 @@ export default function QuestionnairePercentRulerSlider({
   }
 
   const renderTickColumn = (visualIndex: number) => {
-    const tickValue = min + visualIndex * step;
-    const kind = getTickKind(tickValue);
-    const label = kind === 'major' ? String(Math.round(tickValue)) : '';
+    const tickValue = parseFloat((min + visualIndex * step).toFixed(decimals));
+    const kind = getTickKind(tickValue, majorStep);
+    const label = kind === 'major' ? formatDisplayValue(tickValue, majorStep ?? 1) : '';
 
     return (
       <View key={visualIndex} style={styles.tickColumn}>
@@ -180,9 +197,14 @@ export default function QuestionnairePercentRulerSlider({
     );
   };
 
+  const displayValue = formatDisplayValue(value, step);
+
   return (
     <View style={styles.container}>
-      <Text style={styles.valueText}>{Math.round(value)}</Text>
+      <Text style={styles.valueText}>
+        {displayValue}
+        {unit ? <Text style={styles.unitText}> {unit}</Text> : null}
+      </Text>
       <View style={styles.triangleRow}>
         <View style={styles.centerTriangle} />
       </View>
@@ -238,6 +260,11 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     marginBottom: 4,
     textAlign: 'center',
+  },
+  unitText: {
+    fontWeight: '500',
+    fontSize: 16,
+    color: '#666666',
   },
   triangleRow: {
     width: RULER_WIDTH,

@@ -57,10 +57,13 @@ export function formatHeartRateValueStatus(value: number) {
   };
 }
 
-const BODY_TEMPERATURE_LOW_THRESHOLD = 35.7;
+const BODY_TEMPERATURE_LOW_THRESHOLD = 36.0;
 const BODY_TEMPERATURE_HIGH_THRESHOLD = 37.2;
-const BODY_TEMPERATURE_POINT_COLOR_NORMAL = '#6D925E';
-const BODY_TEMPERATURE_POINT_COLOR_ABNORMAL = '#FB4550';
+const BODY_TEMPERATURE_FEVER_THRESHOLD = 38.0;
+const BODY_TEMPERATURE_COLOR_LOW = '#0951AE';
+const BODY_TEMPERATURE_COLOR_NORMAL = '#6D925E';
+const BODY_TEMPERATURE_COLOR_HIGH = '#EE9C44';
+const BODY_TEMPERATURE_COLOR_FEVER = '#FB4550';
 
 function parseMeasureNumber(value?: number | string | null) {
   if (value == null || value === '') return null;
@@ -80,29 +83,30 @@ function getMeasureLevelLabel(item?: MeasureDataItem) {
 function normalizeBodyTemperatureLevelLabel(label?: string) {
   const trimmed = label?.split(',')[0]?.trim();
   if (!trimmed) return '';
+  if (/发热|高热/.test(trimmed)) return '发热';
+  if (/偏高/.test(trimmed)) return '偏高';
   if (/低体温|偏低/.test(trimmed)) return '偏低';
-  if (/发热|偏高/.test(trimmed)) return '偏高';
   if (/正常/.test(trimmed)) return '正常';
   if (/低血压|高血压|高血糖|低血糖|正常高值/.test(trimmed)) return '';
   return trimmed;
 }
 
 export function getBodyTemperatureLevelFromValue(min: number, max: number) {
-  if (min < BODY_TEMPERATURE_LOW_THRESHOLD) return '偏低';
+  if (max >= BODY_TEMPERATURE_FEVER_THRESHOLD) return '发热';
   if (max > BODY_TEMPERATURE_HIGH_THRESHOLD) return '偏高';
+  if (min < BODY_TEMPERATURE_LOW_THRESHOLD) return '偏低';
   return '正常';
 }
 
 export function getBodyTemperaturePointColor(value: number) {
-  if (value >= BODY_TEMPERATURE_LOW_THRESHOLD && value <= BODY_TEMPERATURE_HIGH_THRESHOLD) {
-    return BODY_TEMPERATURE_POINT_COLOR_NORMAL;
-  }
-  return BODY_TEMPERATURE_POINT_COLOR_ABNORMAL;
+  return getBodyTemperatureStatusColor(getBodyTemperatureLevelFromValue(value, value));
 }
 
 export function getBodyTemperatureStatusColor(label: string) {
-  if (/偏低|低体温/.test(label)) return '#0951AE';
-  if (/偏高|发热/.test(label)) return '#FB4550';
+  if (/偏低|低体温/.test(label)) return BODY_TEMPERATURE_COLOR_LOW;
+  if (/发热|高热/.test(label)) return BODY_TEMPERATURE_COLOR_FEVER;
+  if (/偏高/.test(label)) return BODY_TEMPERATURE_COLOR_HIGH;
+  if (/正常/.test(label)) return BODY_TEMPERATURE_COLOR_NORMAL;
   return getLevelColor(label);
 }
 
@@ -151,4 +155,5 @@ export function formatHeartRateWearableStatus(_item: WearableDataItem | undefine
 export {
   BODY_TEMPERATURE_LOW_THRESHOLD,
   BODY_TEMPERATURE_HIGH_THRESHOLD,
+  BODY_TEMPERATURE_FEVER_THRESHOLD,
 };

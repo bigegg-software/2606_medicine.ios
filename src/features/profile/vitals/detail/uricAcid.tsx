@@ -9,6 +9,7 @@ import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
+import TopHeaderTip from './components/TopHeaderTip';
 import WeightDetailChart, {
     type WeightDetailPoint,
 } from './components/WeightDetailChart';
@@ -146,6 +147,7 @@ export default function UricAcidPage() {
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
+            {!userGender ? <TopHeaderTip /> : null}
             <View style={styles.pageContent}>
                 <ScrollView
                     style={styles.body}

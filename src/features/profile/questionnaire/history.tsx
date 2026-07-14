@@ -75,7 +75,7 @@ export default function QuestionnaireHistoryPage() {
                     historyList.map(item => (
                         <TouchableOpacity
                             key={item.id}
-                            style={styles.rowBox}
+                            style={[styles.rowBox, { backgroundColor: "#FFF" }]}
                             onPress={() => navigation.navigate('QuestionnaireDetail', { id: item.id })}>
                             <Flex justify="between">
                                 <View>

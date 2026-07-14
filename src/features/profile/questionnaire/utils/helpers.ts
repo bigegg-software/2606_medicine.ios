@@ -1,4 +1,5 @@
 import moment from 'moment';
+import type { ImageSourcePropType } from 'react-native';
 import type {
     QuestionnaireType,
     QuestionOptionItem,
@@ -12,6 +13,17 @@ export type ScoreLevel = {
     result: string;
     statusStyle: StatusStyleKey;
 };
+
+export const ASSESSMENT_STATUS_ICONS: Record<StatusStyleKey, ImageSourcePropType> = {
+    rowStatus: require('@/assets/images/questionnaire/icon1.png'),
+    rowStatusWarn: require('@/assets/images/questionnaire/icon2.png'),
+    rowStatusOrange: require('@/assets/images/questionnaire/icon3.png'),
+    rowStatusError: require('@/assets/images/questionnaire/icon4.png'),
+};
+
+export function getAssessmentStatusIcon(statusStyle?: StatusStyleKey) {
+    return ASSESSMENT_STATUS_ICONS[statusStyle ?? 'rowStatus'];
+}
 
 export const QUESTIONNAIRE_TITLES: Record<QuestionnaireType, string> = {
     0: '跌倒风险评估问卷',

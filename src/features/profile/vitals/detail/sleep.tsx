@@ -33,7 +33,6 @@ import {
     buildSleepScoreSummary,
     calcSleepDetailStats,
     formatSleepDetailPointDisplay,
-    formatSleepSuggestionTimeText,
     getSleepDetailDisplayItem,
     getSleepDetailInitialDisplay,
     resolveStoreSleepGoal,
@@ -68,9 +67,6 @@ export default function SleepPage() {
     const [displayStatus, setDisplayStatus] = useState('--');
     const [displayStatusColor, setDisplayStatusColor] = useState('#999999');
     const [currentLabel, setCurrentLabel] = useState('当前：--');
-    const [suggestionLabel, setSuggestionLabel] = useState(() =>
-        formatSleepSuggestionTimeText(defaultSleepGoal),
-    );
     const [stats, setStats] = useState(EMPTY_STATS);
     const [sleepGoal, setSleepGoal] = useState(defaultSleepGoal);
 
@@ -102,7 +98,6 @@ export default function SleepPage() {
         setDisplayStatus(display.quality.label || '--');
         setDisplayStatusColor(display.quality.color);
         setCurrentLabel(display.currentLabel);
-        setSuggestionLabel(display.suggestionLabel);
     }, [selectedType, sleepGoal]);
 
     const loadSleepData = useCallback(async (range: SleepChartRange, goalHoursOverride?: number) => {
@@ -124,7 +119,6 @@ export default function SleepPage() {
                 setDisplayStatus(emptyDisplay.quality.label || '--');
                 setDisplayStatusColor(emptyDisplay.quality.color);
                 setCurrentLabel(emptyDisplay.currentLabel);
-                setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setStats(EMPTY_STATS);
                 setSleepGoal(goalHours);
                 return;
@@ -145,7 +139,6 @@ export default function SleepPage() {
             setDisplayStatus(initialDisplay.quality.label || '--');
             setDisplayStatusColor(initialDisplay.quality.color);
             setCurrentLabel(initialDisplay.currentLabel);
-            setSuggestionLabel(initialDisplay.suggestionLabel);
 
             const periodStats = calcSleepDetailStats(items, range);
             setStats(periodStats ?? EMPTY_STATS);
@@ -157,7 +150,6 @@ export default function SleepPage() {
             setDisplayStatus(emptyDisplay.quality.label || '--');
             setDisplayStatusColor(emptyDisplay.quality.color);
             setCurrentLabel(emptyDisplay.currentLabel);
-            setSuggestionLabel(emptyDisplay.suggestionLabel);
             setStats(EMPTY_STATS);
             setSleepGoal(goalHours);
         }
@@ -173,7 +165,6 @@ export default function SleepPage() {
         allRecordsType: '睡眠',
         goalKind: 'sleep',
         onGoalSaved: (target) => {
-            setSuggestionLabel(formatSleepSuggestionTimeText(target));
             void loadSleepData(selectedType, target);
         },
     });
@@ -231,7 +222,7 @@ export default function SleepPage() {
                                     </Flex>
                                 </Flex>
                                 <Flex justify='between'>
-                                    <Text style={styles.rowTitle}>{suggestionLabel}</Text>
+                                    <Text style={styles.rowTitle}>建议时长：7-9小时</Text>
                                     <Flex style={styles.dayBox}>
                                         <Text style={styles.dayText}>{currentLabel}</Text>
                                     </Flex>
