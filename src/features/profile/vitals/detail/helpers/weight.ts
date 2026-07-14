@@ -393,6 +393,7 @@ export type WeightGoalDisplay = {
   remainingLabel: string;
   remainingText: string;
   progressPercent: number;
+  planLabel?: string;
 };
 
 function formatGoalWeightValue(value: number) {
@@ -506,6 +507,35 @@ export function resolveWeightGoalDisplay(
     remainingLabel: summary.isGain ? '还需增重 (kg)' : '还需减重 (kg)',
     remainingText: current != null ? formatGoalWeightValue(remainingKg) : '--',
     progressPercent,
+    planLabel: summary.planLabel,
+  };
+}
+
+export function resolvePersonalWeightGoalDisplay(
+  targetWeightKg: number,
+  currentWeightKg?: number | null,
+): WeightGoalDisplay | null {
+  const target = parseWeightNumber(targetWeightKg);
+  if (target == null) return null;
+
+  const current = parseWeightNumber(currentWeightKg);
+  const isGain = current != null ? current < target : false;
+  const remainingKg = current == null
+    ? 0
+    : Math.max(0, Math.abs(current - target));
+  const reached = current != null && remainingKg < 0.05;
+  const progressPercent = reached
+    ? 100
+    : current == null
+      ? 0
+      : Math.min(99, Math.max(0, Math.round((1 - remainingKg / Math.max(target, 1)) * 100)));
+
+  return {
+    targetWeightText: formatGoalWeightValue(target),
+    remainingLabel: isGain ? '还需增重 (kg)' : '还需减重 (kg)',
+    remainingText: current != null ? formatGoalWeightValue(remainingKg) : '--',
+    progressPercent,
+    planLabel: isGain ? '增重计划' : '减重计划',
   };
 }
 

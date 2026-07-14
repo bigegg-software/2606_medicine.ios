@@ -39,6 +39,7 @@ import {
   getInitialWeightFromPoints,
   getEarliestWeightFromItems,
   hasWeightHealthGoal,
+  resolvePersonalWeightGoalDisplay,
   resolveWeightDetailBmi,
   resolveWeightGoalDisplay,
   type WeightGoalSummary,
@@ -50,6 +51,7 @@ import {
   normalizeStatisRangeData,
 } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveWeightTarget, WEIGHT_GOAL_MIN } from './helpers/vitalsGoalTargets';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -179,6 +181,11 @@ export default function WeightPage() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const userHeight = useSelector((state: RootState) => state.user.info?.height);
+  const storeWeightGoal = useSelector((state: RootState) => state.user.userExtr?.weightGoals);
+  const defaultPersonalWeightGoal = useMemo(
+    () => resolveWeightTarget(storeWeightGoal),
+    [storeWeightGoal],
+  );
   const [selectedType, setSelectedType] = useState<WeightChartRange>('today');
   const [loadedRange, setLoadedRange] = useState<WeightChartRange>('today');
   const [chartData, setChartData] = useState<WeightDetailPoint[]>([]);
@@ -192,6 +199,7 @@ export default function WeightPage() {
   const [showWeightGoal, setShowWeightGoal] = useState(false);
   const [weightGoalSummary, setWeightGoalSummary] = useState<WeightGoalSummary | null>(null);
   const [initialWeightKg, setInitialWeightKg] = useState<number | null>(null);
+  const [personalWeightGoal, setPersonalWeightGoal] = useState(defaultPersonalWeightGoal);
   const rangeCacheRef = useRef<Partial<Record<WeightChartRange, WeightRangeSnapshot>>>({});
   const loadRequestRef = useRef(0);
   const selectedTypeRef = useRef(selectedType);
@@ -199,6 +207,10 @@ export default function WeightPage() {
   const prevUserHeightRef = useRef(userHeight);
   selectedTypeRef.current = selectedType;
   userHeightRef.current = userHeight;
+
+  useEffect(() => {
+    setPersonalWeightGoal(defaultPersonalWeightGoal);
+  }, [defaultPersonalWeightGoal]);
 
   const currentWeightText = useMemo(
     () => formatWeightCurrentValue(displayValue, latestItem),
@@ -213,6 +225,25 @@ export default function WeightPage() {
       ?? getInitialWeightFromPoints(chartData, latestItem);
     return resolveWeightGoalDisplay(weightGoalSummary, currentKg, initialKg);
   }, [chartData, currentWeightText, initialWeightKg, latestItem, weightGoalSummary]);
+
+  const personalWeightGoalDisplay = useMemo(() => {
+    if (showWeightGoal) return null;
+    if (storeWeightGoal == null || storeWeightGoal < WEIGHT_GOAL_MIN) return null;
+    const currentKg = parseMeasureNumber(latestItem?.val)
+      ?? parseMeasureNumber(currentWeightText);
+    return resolvePersonalWeightGoalDisplay(personalWeightGoal, currentKg);
+  }, [
+    currentWeightText,
+    latestItem,
+    personalWeightGoal,
+    showWeightGoal,
+    storeWeightGoal,
+  ]);
+
+  const activeGoalDisplay = weightGoalDisplay ?? personalWeightGoalDisplay;
+  const goalPlanLabel = activeGoalDisplay?.planLabel
+    ?? weightGoalSummary?.planLabel
+    ?? '减重计划';
 
   const navigateToAddData = useCallback(() => {
     navigation.navigate('AddDataPage', { type: '体重' });
@@ -385,6 +416,10 @@ export default function WeightPage() {
 
   const { menuModals } = useVitalsDetailMoreMenu({
     allRecordsType: '体重',
+    goalKind: showWeightGoal ? undefined : 'weight',
+    onGoalSaved: (target) => {
+      setPersonalWeightGoal(target);
+    },
   });
 
   const weightTrend = useMemo(
@@ -415,14 +450,14 @@ export default function WeightPage() {
           style={styles.body}
           contentContainerStyle={{ paddingBottom: insets.bottom }}
         >
-          {showWeightGoal && weightGoalDisplay ? (
+          {activeGoalDisplay ? (
             <Flex style={[styles.colRow, { marginTop: 10 }]}>
               <View style={styles.colBox}>
                 <Flex justify='between'>
                   <Text style={styles.analysisTitle}>体重目标</Text>
                   <Flex style={styles.rightBox}>
                     <Image style={styles.rightBoxIcon} source={require('@/assets/images/vitals/jz.png')} />
-                    <Text style={styles.rightBoxText}>{weightGoalSummary?.planLabel}</Text>
+                    <Text style={styles.rightBoxText}>{goalPlanLabel}</Text>
                   </Flex>
                 </Flex>
 
@@ -430,17 +465,17 @@ export default function WeightPage() {
                   <Flex style={styles.targetBox}>
                     <View>
                       <Text style={styles.targetBoxText}>目标体重 (kg)</Text>
-                      <Text style={styles.targetBoxValue}>{weightGoalDisplay.targetWeightText}</Text>
+                      <Text style={styles.targetBoxValue}>{activeGoalDisplay.targetWeightText}</Text>
                     </View>
                     <View>
-                      <Text style={styles.targetBoxText}>{weightGoalDisplay.remainingLabel}</Text>
+                      <Text style={styles.targetBoxText}>{activeGoalDisplay.remainingLabel}</Text>
                       <Text style={[styles.targetBoxValue, { color: '#0951AE' }]}>
-                        {weightGoalDisplay.remainingText}
+                        {activeGoalDisplay.remainingText}
                       </Text>
                     </View>
                   </Flex>
                   <VitalsProgressRing
-                    progress={weightGoalDisplay.progressPercent}
+                    progress={activeGoalDisplay.progressPercent}
                     trackColor="rgba(131,174,255,0.14)"
                     progressColor="#0951AE"
                   />

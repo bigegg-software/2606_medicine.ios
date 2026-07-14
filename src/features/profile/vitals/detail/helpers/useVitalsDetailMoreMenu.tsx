@@ -42,7 +42,7 @@ export function useVitalsDetailMoreMenu({
   useEffect(() => {
     if (!goalKind) return;
     setGoalTarget(resolveGoalTargetValue(goalKind, userExtr));
-  }, [goalKind, userExtr?.sleepGoals, userExtr?.stepGoals, userExtr?.energyGoals]);
+  }, [goalKind, userExtr?.sleepGoals, userExtr?.stepGoals, userExtr?.energyGoals, userExtr?.weightGoals]);
 
   const openMenu = useCallback(() => {
     setSheetVisible(true);

@@ -9,7 +9,7 @@ import { getRankingList, type RankingItem } from '@/api/ranking';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootState } from '@/store/store';
 
-import { DEFAULT_AVATAR, getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 const PODIUM_FRAMES = [
     require('@/assets/images/community/image2.png'),
     require('@/assets/images/community/image1.png'),
@@ -77,11 +77,14 @@ function formatScore(value?: number) {
     return num.toFixed(2);
 }
 
-function resolveAvatarSource(avatar?: number | string): ImageSourcePropType {
+function resolveAvatarSource(
+    avatar?: number | string,
+    gender?: string | number | null,
+): ImageSourcePropType {
     if (typeof avatar === 'string' && /^https?:\/\//.test(avatar)) {
         return { uri: avatar };
     }
-    return DEFAULT_AVATAR;
+    return getDefaultAvatarByGender(gender == null ? undefined : String(gender));
 }
 
 function sortRankingList(list: RankingItem[]) {
@@ -141,7 +144,7 @@ function PodiumItem({
                 align="center"
                 style={styles.podiumInner}>
                 <Image
-                    source={resolveAvatarSource(item?.avatar)}
+                    source={resolveAvatarSource(item?.avatar, item?.gender)}
                     style={[styles.headImg, rankIndex === 0 && styles.headImgFirst]}
                 />
                 <View style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}>
@@ -222,7 +225,7 @@ export default function RankingPage() {
     const myStreak = formatStreak(myEntry?.continuousDays);
     const myScore = myEntry?.tokens ?? 0;
     const myAvatarSource = myEntry?.avatar
-        ? resolveAvatarSource(myEntry.avatar)
+        ? resolveAvatarSource(myEntry.avatar, myEntry.gender ?? currentUserGender)
         : currentUserAvatar
             ? { uri: currentUserAvatar }
             : getDefaultAvatarByGender(currentUserGender);
@@ -265,7 +268,7 @@ export default function RankingPage() {
                                 name={item.nickName?.trim() || '用户'}
                                 streak={formatStreak(item.continuousDays)}
                                 score={item.tokens ?? 0}
-                                avatarSource={resolveAvatarSource(item.avatar)}
+                                avatarSource={resolveAvatarSource(item.avatar, item.gender)}
                             />
                         ))}
                         <Text style={styles.rankingUpdateHint}>每小时更新</Text>

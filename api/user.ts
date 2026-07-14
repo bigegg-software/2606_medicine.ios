@@ -52,6 +52,7 @@ export type UserExtr = {
   stepGoals?: number;
   energyGoals?: number;
   calorieGoals?: number;
+  weightGoals?: number;
   createTime?: string;
   drugIsTip?: number;
   drugBeforeTipTime?: number;
@@ -92,6 +93,7 @@ export type UpdateExtrInfoPayload = {
   stepGoals?: number;
   energyGoals?: number;
   calorieGoals?: number;
+  weightGoals?: number;
   longitude?: string;
   latitude?: string;
   drugIsTip?: number;

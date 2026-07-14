@@ -7,6 +7,7 @@ export type RankingItem = {
   tokens?: number;
   continuousDays?: number;
   avatar?: number | string;
+  gender?: string | number;
   sort?: number;
 };
 
