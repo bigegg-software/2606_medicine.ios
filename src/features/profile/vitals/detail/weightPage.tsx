@@ -17,6 +17,7 @@ import WeightDetailChart, {
 import BmiProgressBar from './components/BmiProgressBar';
 import VitalsProgressRing from './components/VitalsProgressRing';
 import { LinearGradient } from 'expo-linear-gradient';
+import TopHeaderTip from './components/TopHeaderTip';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import {
   getMeasureDataDetailByDate,
@@ -181,6 +182,7 @@ export default function WeightPage() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const userHeight = useSelector((state: RootState) => state.user.info?.height);
+  const userWeight = useSelector((state: RootState) => state.user.info?.weight);
   const storeWeightGoal = useSelector((state: RootState) => state.user.userExtr?.weightGoals);
   const defaultPersonalWeightGoal = useMemo(
     () => resolveWeightTarget(storeWeightGoal),
@@ -416,7 +418,8 @@ export default function WeightPage() {
 
   const { menuModals } = useVitalsDetailMoreMenu({
     allRecordsType: '体重',
-    goalKind: showWeightGoal ? undefined : 'weight',
+    goalKind: 'weight',
+    goalDisabled: showWeightGoal,
     onGoalSaved: (target) => {
       setPersonalWeightGoal(target);
     },
@@ -431,8 +434,11 @@ export default function WeightPage() {
     [chartData],
   );
 
+  const showProfileTip = !(Number(userHeight) > 0) || !(Number(userWeight) > 0);
+
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
+      {showProfileTip ? <TopHeaderTip /> : null}
       <View style={styles.pageContent}>
         <LinearGradient
           pointerEvents="none"

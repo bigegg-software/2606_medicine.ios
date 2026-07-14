@@ -75,12 +75,12 @@ export default function SleepPage() {
         [sleepItems, selectedType],
     );
     const analysisStages = useMemo(
-        () => buildSleepAnalysisStages(analysisItem),
-        [analysisItem],
+        () => buildSleepAnalysisStages(sleepItems, selectedType),
+        [sleepItems, selectedType],
     );
     const analysisPieSegments = useMemo(
-        () => buildSleepAnalysisPieSegments(analysisItem),
-        [analysisItem],
+        () => buildSleepAnalysisPieSegments(sleepItems, selectedType),
+        [sleepItems, selectedType],
     );
     const goalProgress = useMemo(
         () => buildSleepGoalProgress(analysisItem, sleepGoal),

@@ -8,6 +8,7 @@ export type VitalsDetailMoreAction = {
   key: string;
   label: string;
   onPress: () => void;
+  disabled?: boolean;
 };
 
 type Props = {
@@ -26,11 +27,22 @@ export default function VitalsDetailMoreSheet({ visible, actions, onClose, onDis
         {actions.map(action => (
           <TouchableOpacity
             key={action.key}
-            style={styles.detailActionItem}
+            style={[
+              styles.detailActionItem,
+              action.disabled ? styles.detailActionItemDisabled : null,
+            ]}
             onPress={action.onPress}
-            activeOpacity={0.8}
+            activeOpacity={action.disabled ? 1 : 0.8}
+            disabled={action.disabled}
           >
-            <Text style={styles.detailActionText}>{action.label}</Text>
+            <Text
+              style={[
+                styles.detailActionText,
+                action.disabled ? styles.detailActionTextDisabled : null,
+              ]}
+            >
+              {action.label}
+            </Text>
           </TouchableOpacity>
         ))}
         <TouchableOpacity

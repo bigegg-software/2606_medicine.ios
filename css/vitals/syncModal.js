@@ -136,10 +136,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 12,
     },
+    detailActionItemDisabled: {
+        borderColor: AppTheme.borderColor,
+        backgroundColor: '#F5F6F8',
+        opacity: 0.7,
+    },
     detailActionText: {
         fontWeight: '500',
         fontSize: 16,
         color: AppTheme.primaryColor,
+    },
+    detailActionTextDisabled: {
+        color: AppTheme.textSecondary,
     },
     detailActionCancel: {
         width: '100%',

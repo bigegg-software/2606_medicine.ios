@@ -9,7 +9,6 @@ import {
   getSleepDurationMinutes,
   getSleepQuality,
   getSleepScoreQuality,
-  getSleepSummary,
   type VitalsRange,
 } from '../../vitalsHelpers';
 import { getLatestWearableItem, parseMeasureNumber } from './shared';
@@ -213,19 +212,58 @@ function formatSleepSuggestionLabel(range: SleepDetailChartRange, goalHours?: nu
   return formatSleepSuggestionText(goalHours);
 }
 
-export function buildSleepAnalysisStages(item?: WearableDataItem): SleepStageDisplay[] {
-  const summary = getSleepSummary(item ? [item] : [], 'today');
+export function buildSleepAnalysisStages(
+  items: WearableDataItem[],
+  range: SleepDetailChartRange,
+): SleepStageDisplay[] {
+  const segments = getSleepAnalysisPieSegments(items, range);
 
-  return SLEEP_STAGE_CONFIG.map(stage => ({
+  return SLEEP_STAGE_CONFIG.map((stage, index) => ({
     key: stage.key,
     label: STAGE_DISPLAY_LABEL[stage.key] ?? stage.name,
     color: stage.color,
-    duration: summary.stages.find(entry => entry.key === stage.key)?.duration ?? '--',
+    duration: formatSleepDuration(segments[index]?.value ?? null),
   }));
 }
 
-export function buildSleepAnalysisPieSegments(item?: WearableDataItem): SleepPieSegment[] {
-  return buildSleepPieSegments(item);
+export function buildSleepAnalysisPieSegments(
+  items: WearableDataItem[],
+  range: SleepDetailChartRange,
+): SleepPieSegment[] {
+  return getSleepAnalysisPieSegments(items, range);
+}
+
+function getSleepAnalysisPieSegments(
+  items: WearableDataItem[],
+  range: SleepDetailChartRange,
+): SleepPieSegment[] {
+  if (range === 'today') {
+    return buildSleepPieSegments(getSleepDetailDisplayItem(items, range));
+  }
+
+  const rangedItems = dedupeDailySleepItems(filterSleepItemsForRange(items, range));
+  if (!rangedItems.length) {
+    return SLEEP_STAGE_CONFIG.map(stage => ({
+      name: stage.name,
+      value: 0,
+      color: stage.color,
+    }));
+  }
+
+  const totals = SLEEP_STAGE_CONFIG.map(() => 0);
+  for (const item of rangedItems) {
+    const segments = buildSleepPieSegments(item);
+    segments.forEach((segment, index) => {
+      totals[index] += segment.value;
+    });
+  }
+
+  const dayCount = rangedItems.length;
+  return SLEEP_STAGE_CONFIG.map((stage, index) => ({
+    name: stage.name,
+    value: Math.round(totals[index] / dayCount),
+    color: stage.color,
+  }));
 }
 
 export function calcSleepDetailStats(

@@ -10,6 +10,8 @@ export type VitalsGoalKind = 'sleep' | 'energy' | 'steps' | 'weight';
 export type VitalsDetailMenuConfig = {
   allRecordsType?: RootStackParamList['AllDataPage']['type'];
   goalKind?: VitalsGoalKind;
+  /** When true, show set-goal action but keep it disabled */
+  goalDisabled?: boolean;
 };
 
 export const DEFAULT_SLEEP_TARGET_HOURS = 8;

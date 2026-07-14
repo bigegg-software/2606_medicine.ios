@@ -26,6 +26,7 @@ type Options = VitalsDetailMenuConfig & {
 export function useVitalsDetailMoreMenu({
   allRecordsType,
   goalKind,
+  goalDisabled = false,
   onGoalSaved,
 }: Options) {
   const navigation = useNavigation<Nav>();
@@ -60,11 +61,11 @@ export function useVitalsDetailMoreMenu({
   }, [allRecordsType, closeMenu, navigation]);
 
   const handleSetGoal = useCallback(() => {
-    if (!goalKind) return;
+    if (!goalKind || goalDisabled) return;
     setGoalTarget(resolveGoalTargetValue(goalKind, userExtr));
     pendingGoalOpenRef.current = true;
     closeMenu();
-  }, [closeMenu, goalKind, userExtr]);
+  }, [closeMenu, goalDisabled, goalKind, userExtr]);
 
   const handleSheetDismissed = useCallback(() => {
     if (!pendingGoalOpenRef.current) return;
@@ -73,7 +74,7 @@ export function useVitalsDetailMoreMenu({
   }, []);
 
   const handleSaveGoal = useCallback(async (target: number) => {
-    if (!goalKind) return;
+    if (!goalKind || goalDisabled) return;
 
     setSavingGoal(true);
     try {
@@ -92,7 +93,7 @@ export function useVitalsDetailMoreMenu({
     } finally {
       setSavingGoal(false);
     }
-  }, [dispatch, goalKind, onGoalSaved, userExtr]);
+  }, [dispatch, goalDisabled, goalKind, onGoalSaved, userExtr]);
 
   useEffect(() => {
     navigation.setOptions({
@@ -111,6 +112,7 @@ export function useVitalsDetailMoreMenu({
         key: 'set-goal',
         label: '设置目标',
         onPress: handleSetGoal,
+        disabled: goalDisabled,
       });
     }
     if (allRecordsType) {
@@ -121,7 +123,7 @@ export function useVitalsDetailMoreMenu({
       });
     }
     return actions;
-  }, [allRecordsType, goalKind, handleAllRecords, handleSetGoal]);
+  }, [allRecordsType, goalDisabled, goalKind, handleAllRecords, handleSetGoal]);
 
   const goalModalConfig = goalKind ? getGoalTargetModalConfig(goalKind) : null;
 
