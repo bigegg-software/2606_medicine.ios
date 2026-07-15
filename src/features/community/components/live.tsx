@@ -133,8 +133,9 @@ export default function LivePage() {
                             <Text style={styles.liveTopCategoryText}>{typeLabel}</Text>
                         </Flex>
                     ) : null}
+                    <Text style={styles.gkrsText}>{item.viewCount}人次观看</Text>
                     <View style={styles.liveTopLiveTag}>
-                        <View style={styles.liveTopLiveDot} />
+                        <Image source={require('@/assets/images/community/zb.png')} style={styles.liveTopLiveDot} />
                         <Text style={styles.liveTopLiveText}>
                             {getLiveStatusText(item.status, item.statusName)}
                         </Text>
@@ -180,27 +181,16 @@ export default function LivePage() {
                         <Text style={styles.mapIntro} numberOfLines={2}>
                             {item.liveIntro?.trim() || '敬请期待'}
                         </Text>
-                        <Flex justify='between' style={{ marginTop: 2 }}>
+                        <Flex justify='between' style={{ marginTop: 6 }}>
                             <Flex>
-                                <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
+                                <Image style={styles.mapIcon} source={require('@/assets/images/community/nz.png')} />
                                 <Text style={styles.mapText}>{formatLiveStartTime(item.liveStartTime)}</Text>
                             </Flex>
                             <Flex align="center">
+                                <Image style={styles.mapIcon} source={require('@/assets/images/community/user.png')} />
                                 <Text style={styles.mapText}>
                                     主播: {item.anchorName?.trim() || '--'}
                                 </Text>
-                                <TouchableOpacity
-                                    disabled={reserving}
-                                    onPress={event => {
-                                        event.stopPropagation();
-                                        void handleToggleReservation(item);
-                                    }}>
-                                    <Flex style={item.isReserved ? styles.mapRightBtn : styles.wbmBtn}>
-                                        <Text style={item.isReserved ? styles.mapRightText : styles.wbmText}>
-                                            {reserving ? '处理中' : item.isReserved ? '已预约' : '预约'}
-                                        </Text>
-                                    </Flex>
-                                </TouchableOpacity>
                             </Flex>
                         </Flex>
                     </View>

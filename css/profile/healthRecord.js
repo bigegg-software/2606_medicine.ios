@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     infoItemLabel: { fontWeight: 500, fontSize: 14, color: AppTheme.textSecondary },
     infoItemValue: { textAlign: "right", fontWeight: 500, fontSize: 14, color: AppTheme.textPrimary },
     allergyItemLeft: { flexShrink: 0 },
-    allergySummaryText: { flex: 1, marginLeft: 12, minWidth: 0 },
+    allergySummaryText: { flex: 1, marginLeft: 12, minWidth: 0, color: '#999999' },
     allergySummaryActive: { color: '#6D925E' },
     infoInput: { flex: 1, marginLeft: 12, textAlign: 'right', fontWeight: 500, fontSize: 14, color: AppTheme.textPrimary, paddingVertical: 0 },
     infoPlaceholder: { color: AppTheme.textSecondary },

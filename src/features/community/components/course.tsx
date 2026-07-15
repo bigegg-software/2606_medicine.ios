@@ -4,11 +4,11 @@ import {
   FlatList,
   Image,
   RefreshControl,
+  ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { GlassView } from 'expo-glass-effect';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -223,9 +223,9 @@ export default function CoursePage() {
             source={coverUri ? { uri: coverUri } : DEFAULT_COVER}
             style={styles.courseImg}
           />
-          <GlassView style={styles.courseCategoryTag} glassEffectStyle="regular">
+          <View style={styles.courseCategoryTag}>
             <Text style={styles.liveTopCategoryText}>{getCourseTypeLabel(item.courseType)}</Text>
-          </GlassView>
+          </View>
           <Text style={styles.gkrsText}>{formatCourseViewCount(item.viewCount)}</Text>
           <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
         </View>
@@ -235,12 +235,15 @@ export default function CoursePage() {
             {item.courseIntro || '暂无课程简介'}
           </Text>
           <Flex justify="between" style={{ marginTop: 12 }}>
-            <Text style={styles.mapText}>{item.instructor || '讲师待定'}</Text>
+            <Flex>
+              <Image style={styles.courseIcon} source={require('@/assets/images/community/user.png')} />
+              <Text style={styles.courseBtmText}>{item.instructor || '讲师待定'}</Text>
+            </Flex>
             <Flex>
               <Image style={styles.courseIcon} source={require('@/assets/images/community/dz.png')} />
-              <Text style={styles.mapText}>{item.likeCount ?? 0}</Text>
-              <Image style={styles.courseIcon} source={require('@/assets/images/community/sc.png')} />
-              <Text style={styles.mapText}>{item.favoriteCount ?? 0}</Text>
+              <Text style={styles.courseBtmText}>{item.likeCount ?? 0}</Text>
+              <Image style={[styles.courseIcon, { marginLeft: 20 }]} source={require('@/assets/images/community/sc.png')} />
+              <Text style={styles.courseBtmText}>{item.favoriteCount ?? 0}</Text>
             </Flex>
           </Flex>
         </View>
@@ -249,26 +252,27 @@ export default function CoursePage() {
   }, [getCourseTypeLabel, navigation]);
 
   const listHeader = (
-    <Flex justify="around" style={styles.navBox}>
-      {tabs.map(item => (
-        <TouchableOpacity
-          style={styles.navCol}
-          key={item.value || 'all'}
-          onPress={() => setActiveTab(item.value)}
-        >
-          <View style={styles.navItemWrap}>
-            <Text style={[styles.navText, activeTab === item.value && styles.activeNavText]}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.courseTabBox}
+    >
+      {tabs.map(item => {
+        const selected = activeTab === item.value;
+        return (
+          <TouchableOpacity
+            style={[styles.courseTabItem, selected && styles.courseTabItemActive]}
+            key={item.value || 'all'}
+            onPress={() => setActiveTab(item.value)}
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.courseTabText, selected && styles.courseTabTextActive]}>
               {item.label}
             </Text>
-            {activeTab === item.value ? (
-              <View style={styles.navIndicatorWrap}>
-                <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
-              </View>
-            ) : null}
-          </View>
-        </TouchableOpacity>
-      ))}
-    </Flex>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
   );
 
   const listFooter = loadingMore && hasMore ? (

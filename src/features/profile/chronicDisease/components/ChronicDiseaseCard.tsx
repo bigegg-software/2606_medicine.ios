@@ -31,13 +31,15 @@ function getMedicationPendingIndicator(pendingCount: number) {
         : { label: '无待服', color: CHRONIC_INDICATOR_COLOR.muted };
 }
 
-function getMealRecordIndicator(
-    status: ChronicDiseaseMealRecordStatus,
-    mealLabel = '晚餐',
-) {
-    return status === 'recorded'
-        ? { label: '饮食已记录', color: CHRONIC_INDICATOR_COLOR.mealActive }
-        : { label: `${mealLabel}未记录`, color: CHRONIC_INDICATOR_COLOR.muted };
+function getMealRecordIndicator(status: ChronicDiseaseMealRecordStatus) {
+    switch (status) {
+        case 'achieved':
+            return { label: '已达标', color: CHRONIC_INDICATOR_COLOR.mealActive };
+        case 'inProgress':
+            return { label: '进行中', color: CHRONIC_INDICATOR_COLOR.mealActive };
+        default:
+            return { label: '未记录', color: CHRONIC_INDICATOR_COLOR.muted };
+    }
 }
 
 function getControlStatusStyles(status: ChronicDiseaseControlStatus) {
@@ -94,7 +96,7 @@ export default function ChronicDiseaseCard({
     const statusStyles = getControlStatusStyles(dailyIndicators.controlStatus);
     const vitalsIndicator = getVitalsTodayIndicator(dailyIndicators.vitalsToday);
     const medicationIndicator = getMedicationPendingIndicator(dailyIndicators.pendingMedicationCount);
-    const mealIndicator = getMealRecordIndicator(dailyIndicators.mealRecorded, dailyIndicators.mealLabel);
+    const mealIndicator = getMealRecordIndicator(dailyIndicators.mealRecorded);
 
     return (
         <TouchableOpacity activeOpacity={0.8} onPress={onPress}>

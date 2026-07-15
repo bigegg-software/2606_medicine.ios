@@ -98,15 +98,30 @@ export default function QuestionnaireListPage() {
 
                         return (
                             <View key={item.type} style={styles.rowBox}>
-                                <Flex justify='between'>
-                                    <View>
+                                <Flex justify="between" align="center">
+                                    <View style={{ flex: 1, marginRight: 8 }}>
                                         <Text style={styles.rowTitle}>{QUESTIONNAIRE_TITLES[item.type]}</Text>
                                         <Text style={styles.rowText}>预计时间：{item.duration}</Text>
                                         {!canStart && nextAssessmentDate ? (
                                             <Text style={styles.rowText}>下次可评估：{nextAssessmentDate}</Text>
                                         ) : null}
                                     </View>
-                                    <Image style={styles.timeIcon} source={require('@/assets/images/questionnaire/time.png')} />
+                                    {hasLastAssessment ? (
+                                        <Image
+                                            style={styles.timeIcon}
+                                            source={require('@/assets/images/questionnaire/time.png')}
+                                        />
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={styles.startBtn}
+                                            onPress={() =>
+                                                navigation.navigate('QuestionnairePage', { type: item.type })
+                                            }>
+                                            <Flex style={{ flex: 1 }} justify="center">
+                                                <Text style={styles.startText}>{actionLabel}</Text>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    )}
                                 </Flex>
                                 {hasLastAssessment ? (
                                     <>
@@ -138,17 +153,7 @@ export default function QuestionnaireListPage() {
                                             </TouchableOpacity>
                                         </Flex>
                                     </>
-                                ) : (
-                                    <Flex justify="end" style={styles.btmBox}>
-                                        <TouchableOpacity
-                                            style={styles.startBtn}
-                                            onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
-                                            <Flex style={{ flex: 1 }} justify="center">
-                                                <Text style={styles.startText}>{actionLabel}</Text>
-                                            </Flex>
-                                        </TouchableOpacity>
-                                    </Flex>
-                                )}
+                                ) : null}
                             </View>
                         );
                     })}

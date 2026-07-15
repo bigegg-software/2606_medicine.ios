@@ -16,12 +16,13 @@ import moment from 'moment';
 
 export const MEDICATION_REMINDER_QUESTION = '帮我看看今天要吃什么药';
 export const MEDICATION_REMINDER_ANSWER = '您今天需要服用的药物如下:';
+export const MEDICATION_REMINDER_EMPTY_ANSWER = '今日无服用药物';
 export const MEDICATION_REMINDER_ACTION = 'reminder';
 const INDEX_PLAN_GROUP_PATH = '/patient/medicationPlan/indexPlanGroupByTime';
 const AI_ADVICE_PATH = '/patient/medicationPlan/aiAdvice';
 
-export function buildMedicationReminderAnswer(_groups: MedicationPlanGroupView[]): string {
-  return MEDICATION_REMINDER_ANSWER;
+export function buildMedicationReminderAnswer(groups: MedicationPlanGroupView[]): string {
+  return groups.length > 0 ? MEDICATION_REMINDER_ANSWER : MEDICATION_REMINDER_EMPTY_ANSWER;
 }
 
 export function buildMedicationAdviceParamJson(rawGroups: IndexMedicationPlanGroupItem[]) {
@@ -71,8 +72,8 @@ export async function requestMedicationReminderQuickAction(params: {
   const planRes = await getIndexMedicationPlanGroupByTime();
   const rawGroups = isResourceApiOk(planRes as { code?: number })
     ? apiResourceData<IndexMedicationPlanGroupItem[]>(
-        planRes as unknown as { code?: number; data?: IndexMedicationPlanGroupItem[] },
-      ) ?? []
+      planRes as unknown as { code?: number; data?: IndexMedicationPlanGroupItem[] },
+    ) ?? []
     : [];
   const groups = mapIndexPlanGroups(rawGroups, dictMaps);
   const answer = buildMedicationReminderAnswer(groups);
@@ -80,22 +81,24 @@ export async function requestMedicationReminderQuickAction(params: {
 
   let aiAdvice = '';
   let aiAdviceMeta: { paramsMd5?: string; cached?: boolean } | undefined;
-  try {
-    const adviceRes = await postMedicationAiAdvice(paramJson);
-    if (isResourceApiOk(adviceRes as { code?: number })) {
-      const adviceData = apiResourceData<{
-        aiAdvice?: string;
-        paramsMd5?: string;
-        cached?: boolean;
-      }>(adviceRes as { code?: number; data?: { aiAdvice?: string; paramsMd5?: string; cached?: boolean } });
-      aiAdvice = adviceData?.aiAdvice?.trim() ?? '';
-      aiAdviceMeta = {
-        paramsMd5: adviceData?.paramsMd5,
-        cached: adviceData?.cached,
-      };
+  if (groups.length > 0) {
+    try {
+      const adviceRes = await postMedicationAiAdvice(paramJson);
+      if (isResourceApiOk(adviceRes as { code?: number })) {
+        const adviceData = apiResourceData<{
+          aiAdvice?: string;
+          paramsMd5?: string;
+          cached?: boolean;
+        }>(adviceRes as { code?: number; data?: { aiAdvice?: string; paramsMd5?: string; cached?: boolean } });
+        aiAdvice = adviceData?.aiAdvice?.trim() ?? '';
+        aiAdviceMeta = {
+          paramsMd5: adviceData?.paramsMd5,
+          cached: adviceData?.cached,
+        };
+      }
+    } catch (error) {
+      console.error('postMedicationAiAdvice failed:', error);
     }
-  } catch (error) {
-    console.error('postMedicationAiAdvice failed:', error);
   }
 
   const interfaceData = {

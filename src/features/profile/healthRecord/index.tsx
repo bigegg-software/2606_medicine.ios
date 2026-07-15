@@ -21,7 +21,7 @@ import questionnaireStyles from '@/css/questionnaire/index';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
-import { getDisplayUserName, maskPhoneNumber } from '@/src/utils/userHelpers';
+import { getDisplayUserName, getDefaultAvatarByGender, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
 import {
@@ -237,6 +237,7 @@ export default function HealthRecordPage() {
 
 
     const avatarOssUrl = String(user?.avatarOssUrl ?? '');
+    const defaultAvatar = getDefaultAvatarByGender(user?.gender);
     const name = getDisplayUserName(user);
 
     const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
@@ -251,9 +252,7 @@ export default function HealthRecordPage() {
                         {avatarOssUrl ? (
                             <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
                         ) : (
-                            <View style={styles.avatar}>
-                                <Text style={styles.avatarText}>{name[0] ?? 'U'}</Text>
-                            </View>
+                            <Image source={defaultAvatar} style={styles.avatarImg} />
                         )}
                         <TouchableOpacity onPress={() => navigation.navigate('ProfileEditPage')}>
                             <Image style={styles.userEditIcon} source={require('@/assets/images/user/userEdit.png')} />
@@ -551,8 +550,8 @@ export default function HealthRecordPage() {
 
                         return (
                             <View key={item.type} style={questionnaireStyles.rowBox}>
-                                <Flex justify="between">
-                                    <View>
+                                <Flex justify="between" align="center">
+                                    <View style={{ flex: 1, marginRight: 8 }}>
                                         <Text style={questionnaireStyles.rowTitle}>
                                             {QUESTIONNAIRE_TITLES[item.type]}
                                         </Text>
@@ -563,10 +562,22 @@ export default function HealthRecordPage() {
                                             </Text>
                                         ) : null}
                                     </View>
-                                    <Image
-                                        style={questionnaireStyles.timeIcon}
-                                        source={require('@/assets/images/questionnaire/time.png')}
-                                    />
+                                    {hasLastAssessment ? (
+                                        <Image
+                                            style={questionnaireStyles.timeIcon}
+                                            source={require('@/assets/images/questionnaire/time.png')}
+                                        />
+                                    ) : (
+                                        <TouchableOpacity
+                                            style={questionnaireStyles.startBtn}
+                                            onPress={() =>
+                                                navigation.navigate('QuestionnairePage', { type: item.type })
+                                            }>
+                                            <Flex style={{ flex: 1 }} justify="center">
+                                                <Text style={questionnaireStyles.startText}>{actionLabel}</Text>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    )}
                                 </Flex>
                                 {hasLastAssessment ? (
                                     <>
@@ -611,19 +622,7 @@ export default function HealthRecordPage() {
                                             </TouchableOpacity>
                                         </Flex>
                                     </>
-                                ) : (
-                                    <Flex justify="end" style={questionnaireStyles.btmBox}>
-                                        <TouchableOpacity
-                                            style={questionnaireStyles.startBtn}
-                                            onPress={() =>
-                                                navigation.navigate('QuestionnairePage', { type: item.type })
-                                            }>
-                                            <Flex style={{ flex: 1 }} justify="center">
-                                                <Text style={questionnaireStyles.startText}>{actionLabel}</Text>
-                                            </Flex>
-                                        </TouchableOpacity>
-                                    </Flex>
-                                )}
+                                ) : null}
                             </View>
                         );
                     })}

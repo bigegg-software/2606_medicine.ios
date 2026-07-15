@@ -5,6 +5,7 @@ import {
     FlatList,
     Image,
     RefreshControl,
+    ScrollView,
     Text,
     TouchableOpacity,
     View,
@@ -266,9 +267,19 @@ export default function ActivityPage() {
                                     event.stopPropagation();
                                     void handleToggleSignup(item);
                                 }}>
-                                <Flex style={item.isBm ? styles.mapRightBtn : styles.wbmBtn}>
-                                    <Text style={item.isBm ? styles.mapRightText : styles.wbmText}>
-                                        {joining ? '处理中' : item.isBm ? '已报名' : '报名'}
+                                <Flex
+                                    style={[
+                                        styles.activitySignupBtn,
+                                        item.isBm ? styles.activitySignupBtnJoined : null,
+                                    ]}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.activitySignupText,
+                                            item.isBm ? styles.activitySignupTextJoined : null,
+                                        ]}
+                                    >
+                                        {joining ? '处理中' : item.isBm ? '已报名' : '去报名'}
                                     </Text>
                                 </Flex>
                             </TouchableOpacity>
@@ -280,12 +291,12 @@ export default function ActivityPage() {
                 </Flex>
                 <View style={styles.mapMetaRow}>
                     <View style={styles.mapMetaItem}>
-                        <Image style={styles.mapIcon} source={require('@/assets/images/home/nz.png')} />
+                        <Image style={styles.mapIcon} source={require('@/assets/images/community/nz.png')} />
                         <Text style={styles.mapText}>{formatActivityStartTime(item.activityStartTime)}</Text>
                     </View>
                     {item.activityLocation?.trim() ? (
                         <View style={styles.mapMetaLocation}>
-                            <Image style={styles.mapIcon} source={require('@/assets/images/home/dw.png')} />
+                            <Image style={styles.mapIcon} source={require('@/assets/images/community/dw.png')} />
                             <Text
                                 style={[styles.mapText, styles.mapMetaLocationText]}
                                 numberOfLines={1}
@@ -306,25 +317,27 @@ export default function ActivityPage() {
     };
 
     const renderHeader = () => (
-        <Flex justify="around" style={styles.navBox}>
+        <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.courseTabBox}
+        >
             {tabs.map(item => {
                 const selected = activeTab === item.value;
                 return (
                     <TouchableOpacity
+                        style={[styles.courseTabItem, selected && styles.courseTabItemActive]}
                         key={item.value || 'all'}
-                        onPress={() => handleTabChange(item.value)}>
-                        <View style={styles.navItemWrap}>
-                            <Text style={[styles.navText, selected && styles.activeNavText]}>{item.label}</Text>
-                            {selected ? (
-                                <View style={styles.navIndicatorWrap}>
-                                    <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
-                                </View>
-                            ) : null}
-                        </View>
+                        onPress={() => handleTabChange(item.value)}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={[styles.courseTabText, selected && styles.courseTabTextActive]}>
+                            {item.label}
+                        </Text>
                     </TouchableOpacity>
                 );
             })}
-        </Flex>
+        </ScrollView>
     );
 
     if (loading && activities.length === 0) {

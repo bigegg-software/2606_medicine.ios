@@ -35,8 +35,7 @@ import {
     CHRONIC_DISEASE_CONTROL_STATUS_LABELS,
 } from './controlStatus';
 import {
-    getCurrentMealLabel,
-    isCurrentMealRecorded,
+    resolveMainMealsRecordStatus,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 
 export { type ChronicDiseaseControlStatus, CHRONIC_DISEASE_CONTROL_STATUS_LABELS };
@@ -60,13 +59,12 @@ export type TodayOverviewResult = {
 };
 
 export type ChronicDiseaseVitalsTodayStatus = 'measured' | 'notMeasured';
-export type ChronicDiseaseMealRecordStatus = 'recorded' | 'notRecorded';
+export type ChronicDiseaseMealRecordStatus = 'notRecorded' | 'inProgress' | 'achieved';
 
 export type ChronicDiseaseDailyIndicators = {
     vitalsToday: ChronicDiseaseVitalsTodayStatus;
     pendingMedicationCount: number;
     mealRecorded: ChronicDiseaseMealRecordStatus;
-    mealLabel?: string;
     controlStatus: ChronicDiseaseControlStatus;
     lastVitalsText: string;
 };
@@ -75,7 +73,6 @@ export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndica
     vitalsToday: 'notMeasured',
     pendingMedicationCount: 0,
     mealRecorded: 'notRecorded',
-    mealLabel: getCurrentMealLabel(),
     controlStatus: 'stable',
     lastVitalsText: '上次体征：--',
 };
@@ -519,7 +516,8 @@ function resolveVitalsTodayStatus(
                     : v => `${Math.round(v)}%`,
             )
             : buildTodayOverviewFromMeasure(config, measureItems);
-    return overview.mode === 'full' ? 'measured' : 'notMeasured';
+    // 有至少一条今日有效记录即视为已测（partial 也算）；full 仅用于详情「今日概况」达标判断
+    return overview.mode === 'empty' ? 'notMeasured' : 'measured';
 }
 
 function getWearableItemTimestamp(item: WearableDataItem) {
@@ -614,8 +612,7 @@ export async function loadChronicIndexIndicators(
     const wearableTodayCache = new Map<WearableDataType, WearableDataItem[]>(wearableTodayEntries);
     const measureWeekCache = new Map<MeasureDataType, MeasureDataItem[]>(measureWeekEntries);
     const wearableWeekCache = new Map<WearableDataType, WearableDataItem[]>(wearableWeekEntries);
-    const currentMealLabel = getCurrentMealLabel();
-    const currentMealRecorded = isCurrentMealRecorded(todayMealList);
+    const mealRecorded = resolveMainMealsRecordStatus(todayMealList);
     const result = new Map<number, ChronicDiseaseDailyIndicators>();
 
     records.forEach(record => {
@@ -628,8 +625,7 @@ export async function loadChronicIndexIndicators(
         result.set(record.id, {
             vitalsToday: resolveVitalsTodayStatus(config, measureTodayItems, wearableTodayItems),
             pendingMedicationCount: countPendingMedicationDoses(record, planGroups),
-            mealRecorded: currentMealRecorded ? 'recorded' : 'notRecorded',
-            mealLabel: currentMealLabel,
+            mealRecorded,
             controlStatus: resolveChronicDiseaseControlStatusFromData(
                 config,
                 measureWeekItems,

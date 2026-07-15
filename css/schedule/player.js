@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
     height: 15
   },
   msgText: {
-    marginLeft:4,
+    marginLeft: 4,
     fontWeight: 500,
     fontSize: 12,
     color: '#666666',
@@ -184,6 +184,18 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 12,
     color: '#EE9C44',
+  },
+  confirmTitle: {
+    fontWeight: "bold",
+    fontSize: 16,
+    color: '#333333',
+  },
+  exitConfirmMessage: {
+    marginTop: 10,
+    fontWeight: 500,
+    fontSize: 14,
+    lineHeight: 20,
+    color: '#000000',
   },
 })
 

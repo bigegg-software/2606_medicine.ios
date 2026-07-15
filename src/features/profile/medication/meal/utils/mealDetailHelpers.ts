@@ -33,6 +33,20 @@ export function isCurrentMealRecorded(list: MealDetailItem[], date = new Date())
     return getFoodRecordsByCategory(list, getCurrentMealKey(date)).length > 0;
 }
 
+const MAIN_MEAL_KEYS: CurrentMealKey[] = ['breakfast', 'lunch', 'dinner'];
+
+export type MainMealsRecordStatus = 'notRecorded' | 'inProgress' | 'achieved';
+
+/** 早餐/中餐/晚餐：未记 → notRecorded；部分已记 → inProgress；全部已记 → achieved */
+export function resolveMainMealsRecordStatus(list: MealDetailItem[]): MainMealsRecordStatus {
+    const recordedCount = MAIN_MEAL_KEYS.filter(
+        key => getFoodRecordsByCategory(list, key).length > 0,
+    ).length;
+    if (recordedCount <= 0) return 'notRecorded';
+    if (recordedCount >= MAIN_MEAL_KEYS.length) return 'achieved';
+    return 'inProgress';
+}
+
 export function isWaterRecord(item: MealDetailItem): boolean {
     return item.isWater === 1;
 }

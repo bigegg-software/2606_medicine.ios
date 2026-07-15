@@ -9,7 +9,7 @@ export default function TopHeaderTip() {
 
     return (
         <TouchableOpacity onPress={() => {
-            navigation.navigate('ProfilePage');
+            navigation.navigate('ProfileEditPage');
         }}>
             <Flex justify='between' style={styles.headerTipBox}>
                 <Flex>

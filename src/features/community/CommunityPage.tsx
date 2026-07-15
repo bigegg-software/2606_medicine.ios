@@ -9,10 +9,10 @@ import CoursePage from './components/course';
 import RankingPage from './components/ranking';
 
 const NAV_LIST = [
-  { label: '排行榜', value: 'ranking' },
+  { label: '活动', value: 'activity' },
   { label: '直播', value: 'live' },
   { label: '课程', value: 'course' },
-  { label: '活动', value: 'activity' },
+  { label: '排行榜', value: 'ranking' },
 ] as const;
 
 export default function CommunityPage() {

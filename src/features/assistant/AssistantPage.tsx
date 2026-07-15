@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
-import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator, Keyboard, Alert, Modal, useWindowDimensions, type KeyboardEvent, } from 'react-native';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator, Keyboard, Alert, Modal, useWindowDimensions, type ImageSourcePropType, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import PageLayout from '@/src/components/PageLayout';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ import {
   isFileUploadType,
 } from './utils/uploadPreviewHelpers';
 import { openRemoteFile } from '@/src/features/profile/healthRecord/caseDetail';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import SpeechToText, { type SpeechToTextRef } from './components/SpeechToText';
 import MedicationReminderCards from './components/MedicationReminderCards';
 import QuestionnaireListCards from './components/QuestionnaireListCards';
@@ -140,11 +141,11 @@ function UserUploadPreview({
 
 function MessageRow({
   item,
-  userAvatar,
+  userAvatarSource,
   onPreviewImage,
 }: {
   item: DisplayItem;
-  userAvatar?: string;
+  userAvatarSource: ImageSourcePropType;
   onPreviewImage: (files: UploadPreview['fileList']) => void;
 }) {
   if (item.type === 'time') {
@@ -167,11 +168,7 @@ function MessageRow({
           ) : null}
           <View style={styles.myMessageBubbleArrow} />
         </View>
-        {userAvatar ? (
-          <Image source={{ uri: userAvatar }} style={styles.avatar} />
-        ) : (
-          <Image source={require('@/assets/images/assistant/avatar.png')} style={styles.avatar} />
-        )}
+        <Image source={userAvatarSource} style={styles.avatar} />
       </Flex>
     );
   }
@@ -248,6 +245,10 @@ export default function AssistantPage() {
   const { width: windowWidth } = useWindowDimensions();
   const { scaleSize } = useFontSize();
   const user = useSelector((state: RootState) => state.user.info);
+  const avatarOssUrl = String(user?.avatarOssUrl ?? '');
+  const userAvatarSource = avatarOssUrl
+    ? { uri: avatarOssUrl }
+    : getDefaultAvatarByGender(user?.gender);
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<TextInput>(null);
   const speechToTextRef = useRef<SpeechToTextRef>(null);
@@ -570,7 +571,7 @@ export default function AssistantPage() {
               <MessageRow
                 key={item.key}
                 item={item}
-                userAvatar={user?.avatarOssUrl}
+                userAvatarSource={userAvatarSource}
                 onPreviewImage={handlePreviewImage}
               />
             ))}

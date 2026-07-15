@@ -17,12 +17,33 @@ const styles = StyleSheet.create({
     mapBoxItemTitle: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, },
     mapRightBtn: { height: 19, backgroundColor: "#00C950", borderRadius: 16, },
     mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
-    wbmBtn: { height: 19, backgroundColor: "#053A93", borderRadius: 16, },
+    wbmBtn: { height: 19, backgroundColor: "#0951AE", borderRadius: 4, },
     wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
+    activitySignupBtn: {
+        height: 22,
+        paddingHorizontal: 8,
+        borderRadius: 4,
+        backgroundColor: '#6D925E',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    activitySignupBtnJoined: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#EE9C44',
+    },
+    activitySignupText: {
+        fontWeight: '700',
+        fontSize: 12,
+        color: '#FFFFFF',
+    },
+    activitySignupTextJoined: {
+        color: '#EE9C44',
+    },
     mapIntro: { marginTop: 11, fontWeight: 400, fontSize: 14, lineHeight: 20, color: AppTheme.textSecondary }, mapBox: { marginTop: 14, },
     mapBoxItem: {
-        marginBottom: 10, paddingHorizontal: 19, paddingVertical: 12, paddingBottom: 17, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08, shadowRadius: 12, backgroundColor: "#FFF", borderRadius: 8
+        marginBottom: 10, padding: 15, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08, shadowRadius: 12, backgroundColor: "#FFF", borderRadius: 6
     },
     pageTitle: { height: 27, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 27, textAlign: "center" },
     pageLine: { marginTop: 18, height: 1, backgroundColor: "#053A93", opacity: 0.06 },
@@ -37,8 +58,8 @@ const styles = StyleSheet.create({
     navIndicatorWrap: { position: 'absolute', left: 0, right: 0, bottom: 6, alignItems: 'center', },
     navIndicator: { width: 34, height: 10, },
     sectionTitle: { marginTop: 16, fontWeight: 500, fontSize: 18, marginLeft: 14, color: AppTheme.textPrimary, },
-    mapIcon: { width: 14, height: 14, },
-    mapText: { marginLeft: 2, marginRight: 7, height: 19, fontWeight: 400, fontSize: 14, color: "rgba(43,18,13,0.75)", lineHeight: 19, },
+    mapIcon: { width: 15, height: 15 },
+    mapText: { marginLeft: 2, marginRight: 7, fontWeight: 500, fontSize: 14, color: "#999999" },
     mapMetaRow: { flexDirection: 'row', alignItems: 'center', marginTop: 12 },
     mapMetaItem: { flexDirection: 'row', alignItems: 'center', flexShrink: 0 },
     mapMetaLocation: { flex: 1, flexDirection: 'row', alignItems: 'center', minWidth: 0, marginHorizontal: 6 },
@@ -54,45 +75,79 @@ const styles = StyleSheet.create({
     // live
     liveTopRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 12, },
     liveTopBox: {
-        width: '48%', borderRadius: 18, backgroundColor: "#FFF", shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
+        width: '48%', borderRadius: 8, backgroundColor: "#FFF", shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08, shadowRadius: 14,
     },
-    liveTopInfo: { padding: 16, },
-    liveTopText: { fontWeight: 400, fontSize: 14, color: "#000000", marginTop: 2 },
-    liveTopIntro: { marginTop: 6, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, },
-    liveTopImgWrap: { position: 'relative', width: '100%', aspectRatio: 1, borderTopLeftRadius: 14, borderTopRightRadius: 14, overflow: 'hidden', },
+    liveTopInfo: { padding: 8, },
+    liveTopText: { fontWeight: "bold", fontSize: 14, color: "#333333", marginTop: 2 },
+    liveTopIntro: { marginTop: 6, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary, lineHeight: 20 },
+    liveTopImgWrap: { position: 'relative', width: '100%', aspectRatio: 1, borderTopLeftRadius: 8, borderTopRightRadius: 8, overflow: 'hidden', },
     liveTopImg: { width: '100%', height: '100%', },
     liveTopCategoryTag: {
-        position: 'absolute', top: 0, right: 0, height: 24, paddingHorizontal: 15, backgroundColor: '#B4D0FF', borderTopRightRadius: 14,
-        borderBottomLeftRadius: 36
+
+        position: 'absolute', top: 0, right: 0, height: 24, paddingHorizontal: 15, backgroundColor: '#B4D0FF', borderTopRightRadius: 8,
+        borderBottomLeftRadius: 8
     },
     liveTopCategoryText: { fontWeight: 500, fontSize: 12, color: '#053A93', },
     liveTopLiveTag: {
         position: 'absolute', right: 6, bottom: 6, height: 16, paddingHorizontal: 4, flexDirection: 'row', alignItems: 'center',
-        justifyContent: 'center', gap: 3, backgroundColor: 'rgba(0, 0, 0, 0.62)', borderRadius: 8,
+        justifyContent: 'center', gap: 3, backgroundColor: 'rgba(0, 0, 0, 0.62)', borderRadius: 4,
     },
-    liveTopLiveDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#34C759', },
+    liveTopLiveDot: { width: 12, height: 12, marginRight: 2 },
     liveTopLiveText: { fontWeight: '400', fontSize: 10, color: '#FFFFFF', lineHeight: 12, },
-    liveImg: { width: 85, height: 85, borderRadius: 18, },
-    liveMapBox: { marginLeft: 10, flex: 1 },
+    liveImg: { width: 85, height: 85, borderRadius: 6, },
+    liveMapBox: { marginLeft: 15, flex: 1 },
 
 
     // Course
-    courseBox: { marginTop: 12, backgroundColor: "#FEFFFF", borderRadius: 8, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 }, },
+    courseBox: { marginBottom: 12, backgroundColor: "#FEFFFF", borderRadius: 8, shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 }, },
     courseImgWrap: { position: 'relative', width: '100%' },
-    courseImg: { width: '100%', height: 155, borderTopLeftRadius: 18, borderTopRightRadius: 18, },
+    courseImg: { width: '100%', height: 155, borderTopLeftRadius: 8, borderTopRightRadius: 8, },
     courseCategoryTag: {
-        position: 'absolute', top: 0, right: 0, paddingVertical: 5, paddingHorizontal: 16,
-        borderTopRightRadius: 18, borderBottomLeftRadius: 50, overflow: 'hidden',
+        backgroundColor: "#D5E6F6",
+        borderBottomLeftRadius: 8,
+        position: 'absolute', top: 0, right: 0, paddingVertical: 5, paddingHorizontal: 10,
+        borderTopRightRadius: 8, overflow: 'hidden',
         alignItems: 'center', justifyContent: 'center',
     },
     courseBoxInfo: { padding: 18 },
-    courseTitle: { fontWeight: 500, fontSize: 16, color: "#333333" },
-    courseText: { fontWeight: 400, marginTop: 10, fontSize: 14, color: "#999999" },
+    courseTitle: { fontWeight: 'bold', fontSize: 16, color: "#333333" },
+    courseText: { fontWeight: 500, marginTop: 8, fontSize: 14, color: "#999999" },
     gkrsText: { position: 'absolute', zIndex: 1, bottom: 5, left: 10, fontWeight: 400, fontSize: 12, color: "#FFFFFF" },
     coursePlayIcon: { position: 'absolute', top: '50%', left: '50%', width: 38, height: 38, transform: [{ translateX: -19 }, { translateY: -19 }], },
-    courseIcon: { width: 19, height: 19, marginLeft: 21 },
-
+    courseIcon: { width: 15, height: 15, marginRight: 4 },
+    courseBtmText: { fontWeight: 500, fontSize: 14, color: "#999999" },
+    courseTabBox: {
+        marginBottom: 16,
+        paddingHorizontal: 14,
+        paddingBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 8,
+    },
+    courseTabItem: {
+        paddingHorizontal: 14,
+        height: 30,
+        borderRadius: 25,
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+        justifyContent: 'center',
+        alignItems: 'center',
+        flexShrink: 0,
+    },
+    courseTabItemActive: {
+        backgroundColor: '#6D925E',
+        borderColor: '#6D925E',
+    },
+    courseTabText: {
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#333333',
+    },
+    courseTabTextActive: {
+        color: '#FFFFFF',
+    },
 
     //ranking
     rankingBpx: {

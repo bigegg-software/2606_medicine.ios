@@ -219,7 +219,7 @@ export default function PlayerPage() {
             targetMinutesRef.current,
         );
 
-        Modal.alert(content.title, content.message, [
+        Modal.alert(<Text style={styles.confirmTitle}>{content.title}</Text>, <Text style={styles.exitConfirmMessage}>{content.message}</Text>, [
             { text: '取消', style: 'cancel' },
             {
                 text: '结束',
