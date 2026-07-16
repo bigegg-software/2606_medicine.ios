@@ -50,6 +50,7 @@
     "punycode": "^2.3.1",
     "react": "19.2.3",
     "react-native": "0.85.3",
+    "react-native-device-info": "^15.0.2",
     "react-native-file-viewer": "^2.1.5",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "~2.31.1",

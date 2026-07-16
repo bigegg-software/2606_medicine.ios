@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { Alert, AppState, Platform } from 'react-native';
+import { Alert, AppState, DeviceEventEmitter, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppleHealthKit from 'react-native-health';
 import { getUserBaseInfo } from '@/api/patient';
@@ -8,6 +8,9 @@ import store from '@/store/store';
 import { SET_UPLOADING, SET_UPLOAD_PROGRESS } from '@/store/type/upload';
 import filterData from '@/utils/filterData';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
+
+/** 自动/手动健康同步成功完成后发出，首页等可监听刷新展示数据 */
+export const HEALTH_KIT_SYNC_COMPLETED = 'healthKitSyncCompleted';
 
 type HealthBatchItem = {
   type: string;
@@ -155,11 +158,13 @@ export default async function updateHealthKit(syncDays: number | null = null) {
           const res = await postBatch(endData, true);
           await AsyncStorage.setItem(cacheKey, 'true');
           dispatch({ type: SET_UPLOAD_PROGRESS, payload: 100 });
+          DeviceEventEmitter.emit(HEALTH_KIT_SYNC_COMPLETED);
           resolve(res);
           return;
         }
 
         dispatch({ type: SET_UPLOAD_PROGRESS, payload: 100 });
+        DeviceEventEmitter.emit(HEALTH_KIT_SYNC_COMPLETED);
         resolve({ code: 1, msg: '' });
       } catch (error) {
         console.error('Upload failed:', error);

@@ -242,7 +242,13 @@ export default function ProfilePage() {
 
         <Text style={styles.modelTitle}>设置</Text>
         <View style={styles.familyBox}>
-          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+          <TouchableOpacity
+            onPress={() =>
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'FamilyTabs' }],
+              })
+            }>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/tab.png')} />
@@ -314,15 +320,17 @@ export default function ProfilePage() {
             </Flex>
             <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
-          <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-            <Flex>
-              <Image style={styles.imgItem} source={require('@/assets/images/user/about.png')} />
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>关于我们</Text>
-              </View>
+          <TouchableOpacity onPress={() => navigation.navigate('AboutUsPage')}>
+            <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+              <Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/about.png')} />
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>关于我们</Text>
+                </View>
+              </Flex>
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
-          </Flex>
+          </TouchableOpacity>
         </View>
         <Text style={styles.modelTitle}>隐私设置</Text>
         <View style={styles.familyBox}>

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
@@ -36,6 +36,7 @@ import {
   type WearableDataType,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
+import { HEALTH_KIT_SYNC_COMPLETED } from '@/utils/healthKit';
 import {
   buildSingleValueSeries,
   buildWearableHeartRateSeries,
@@ -448,6 +449,12 @@ export default function HomeTab() {
       void loadMealData();
       void loadVitalsData();
       void loadExercisePrescription();
+
+      // 自动/手动同步完成时，仅在首页有焦点时刷新心率/卡路里/血糖
+      const sub = DeviceEventEmitter.addListener(HEALTH_KIT_SYNC_COMPLETED, () => {
+        void loadVitalsData();
+      });
+      return () => sub.remove();
     }, [loadExercisePrescription, loadMealData, loadVitalsData]),
   );
 

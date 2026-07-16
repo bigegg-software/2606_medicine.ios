@@ -13,7 +13,9 @@ import type { MeasureDataItem } from '@/api/measureData';
 import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
 import MainTabs from '@/src/features/home/MainTabs';
+import FamilyTabs from '@/src/features/familyPage/FamilyTabs';
 import type { MainTabParamList } from '@/src/utils/tabNavigation';
+import type { FamilyTabParamList } from '@/src/features/familyPage/FamilyTabs';
 
 // 运动处方
 import ExercisePage from "@/src/features/home/exercise/exercisePage"
@@ -32,6 +34,7 @@ import FamilyHistoryAdd from "@/src/features/profile/healthRecord/familyHistoryA
 import ProfileEditPage from '@/src/features/profile/healthRecord/ProfileEditPage';
 import MyFamily from '@/src/features/profile/myFamily';
 import FamilyDetail from '@/src/features/profile/myFamily/detail';
+import AboutUs from '@/src/features/profile/aboutUs';
 
 // AI健康管家
 import AssistantPage from '@/src/features/assistant/AssistantPage';
@@ -115,6 +118,7 @@ export type RootStackParamList = {
   Login: undefined;
   Register: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
+  FamilyTabs: NavigatorScreenParams<FamilyTabParamList> | undefined;
   ExercisePage: undefined;
   NutritionPage: undefined;
   ActivityDetail: { id: number | string };
@@ -342,6 +346,11 @@ export default function RootStack() {
         component={MainTabs}
         options={{ title: '', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
       />
+      <Stack.Screen
+        name="FamilyTabs"
+        component={FamilyTabs}
+        options={{ title: '首页', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
+      />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: '活动详情' }} />
@@ -350,6 +359,7 @@ export default function RootStack() {
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
+      <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
       <Stack.Screen name="EmergencyAdd" component={EmergencyAdd} options={{ title: "添加紧急联系人" }} />
