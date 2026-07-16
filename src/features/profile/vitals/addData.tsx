@@ -6,13 +6,14 @@ import { useNavigation } from '@react-navigation/native';
 import { useHeaderHeight } from '@react-navigation/elements';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import moment from 'moment';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/vitals/add';
 import { AppTheme } from '@/common/theme';
 import { addMeasureData, removeMeasureDataById, updateMeasureData, type AddMeasureDataResult, type MeasureDataType, } from '@/api/measureData';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchUserBaseInfo } from '@/store/actions/user';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import {
   BLOOD_SUGAR_MEASURE_STATUS_LIST,
@@ -25,6 +26,7 @@ import {
   toBloodSugarMeasureStatusValue,
 } from './addDataHelpers';
 import { getUricAcidAddDataReferenceLines } from './detail/helpers/uricAcid';
+import { syncMeasureWeightToUserBaseInfo } from './utils/weightSyncHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AddDataPage'>;
@@ -187,6 +189,7 @@ export default function BloodAddPage({ route }: Props) {
   const isEdit = editItem?.id != null;
   const config = MEASURE_CONFIG[measureType];
   const navigation = useNavigation<Nav>();
+  const dispatch = useDispatch<AppDispatch>();
   const headerHeight = useHeaderHeight();
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const scrollRef = useRef<ScrollView>(null);
@@ -374,6 +377,16 @@ export default function BloodAddPage({ route }: Props) {
         Alert.alert('提示', res?.msg || (isEdit ? '保存失败' : '添加失败'));
         return;
       }
+
+      if (measureType === '体重') {
+        try {
+          await syncMeasureWeightToUserBaseInfo(val);
+          await dispatch(fetchUserBaseInfo());
+        } catch (error) {
+          console.error('syncMeasureWeightToUserBaseInfo failed:', error);
+        }
+      }
+
       navigation.goBack();
     } catch {
       Alert.alert('错误', isEdit ? '保存失败' : '添加失败');

@@ -12,6 +12,8 @@ export type VitalLevelTier = keyof typeof VITAL_LEVEL_COLORS;
 export function getVitalLevelTier(label: string): VitalLevelTier {
   if (!label) return 'empty';
 
+  if (/未达标|偏少/.test(label)) return 'mild';
+  if (/^(已)?达标$|进行中/.test(label)) return 'normal';
   if (/低血糖|低血压|偏低/.test(label)) return 'low';
   if (/重度|严重|红色|危险|急症|高风险|糖尿病|发热|高热/.test(label)) return 'severe';
   if (/中度|橙色/.test(label)) return 'moderate';

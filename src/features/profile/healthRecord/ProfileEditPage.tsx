@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
@@ -10,11 +10,15 @@ import { uploadOss } from '@/api/oss';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { getDisplayUserName, maskPhoneNumber } from '@/src/utils/userHelpers';
+import { getDefaultAvatarByGender, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import { useDispatch, useSelector } from 'react-redux';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import type { AppDispatch, RootState } from '@/store/store';
+import {
+  isSameWeight,
+  syncProfileWeightToMeasureData,
+} from '@/src/features/profile/vitals/utils/weightSyncHelpers';
 
 const PROFILE_EDIT_ACCESSORY = {
   name: 'profileEditNameDoneToolbar',
@@ -76,7 +80,6 @@ export default function ProfileEditPage() {
   const dispatch = useDispatch<AppDispatch>();
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const [avatarOssUrl, setAvatarOssUrl] = useState('');
-  const [userId, setUserId] = useState<number | undefined>();
   const [form, setForm] = useState({
     avatarOssId: undefined as string | undefined,
     name: '',
@@ -89,6 +92,7 @@ export default function ProfileEditPage() {
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const initialWeightRef = useRef<number | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -106,7 +110,10 @@ export default function ProfileEditPage() {
           bloodType?: string;
         }>(res as { code?: number; data?: Record<string, unknown> });
         if (data) {
-          setUserId(data.userId);
+          const loadedWeight = data.weight != null && Number.isFinite(Number(data.weight))
+            ? Number(data.weight)
+            : null;
+          initialWeightRef.current = loadedWeight;
           setAvatarOssUrl(data.avatarOssUrl ?? '');
           setForm({
             avatarOssId: data.avatarOssId != null ? String(data.avatarOssId) : undefined,
@@ -114,7 +121,7 @@ export default function ProfileEditPage() {
             gender: data.gender ?? '',
             birthDate: normalizeBirthDate(data.birthDate),
             height: limitText(data.height != null ? String(data.height) : '', METRIC_MAX_LENGTH),
-            weight: limitText(data.weight != null ? String(data.weight) : '', METRIC_MAX_LENGTH),
+            weight: limitText(loadedWeight != null ? String(loadedWeight) : '', METRIC_MAX_LENGTH),
             bloodType: data.bloodType ?? '',
           });
         }
@@ -172,27 +179,54 @@ export default function ProfileEditPage() {
       Alert.alert('提示', '请输入姓名');
       return;
     }
+    if (!form.height.trim()) {
+      Alert.alert('提示', '请输入身高');
+      return;
+    }
+    if (!form.weight.trim()) {
+      Alert.alert('提示', '请输入体重');
+      return;
+    }
+
+    const height = Number(form.height);
+    const weight = Number(form.weight);
+    if (!Number.isFinite(height) || height <= 0) {
+      Alert.alert('提示', '请输入有效身高');
+      return;
+    }
+    if (!Number.isFinite(weight) || weight <= 0) {
+      Alert.alert('提示', '请输入有效体重');
+      return;
+    }
 
     setLoading(true);
     try {
-      const height = form.height.trim() ? Number(form.height) : undefined;
-      const weight = form.weight.trim() ? Number(form.weight) : undefined;
       const res = await updateUserBaseInfo({
         avatarOssId: form.avatarOssId,
         name: form.name.trim(),
         gender: form.gender || undefined,
         birthDate: form.birthDate || undefined,
-        height: Number.isFinite(height) ? height : undefined,
-        weight: Number.isFinite(weight) ? weight : undefined,
+        height,
+        weight,
         bloodType: form.bloodType || undefined,
       });
-      if (isResourceApiOk(res as { code?: number })) {
-        await dispatch(fetchUserBaseInfo());
-        Alert.alert('成功', '资料已保存', [{ text: '确定', onPress: () => navigation.goBack() }]);
-      } else {
+      if (!isResourceApiOk(res as { code?: number })) {
         const r = res as { msg?: string; message?: string };
         Alert.alert('失败', r.msg ?? r.message ?? '请稍后重试');
+        return;
       }
+
+      if (!isSameWeight(initialWeightRef.current, weight)) {
+        try {
+          await syncProfileWeightToMeasureData(weight);
+        } catch (error) {
+          console.error('syncProfileWeightToMeasureData failed:', error);
+        }
+        initialWeightRef.current = weight;
+      }
+
+      await dispatch(fetchUserBaseInfo());
+      Alert.alert('成功', '资料已保存', [{ text: '确定', onPress: () => navigation.goBack() }]);
     } catch {
       Alert.alert('错误', '网络错误，请稍后重试');
     } finally {
@@ -224,7 +258,7 @@ export default function ProfileEditPage() {
     );
   }
 
-  const displayName = getDisplayUserName({ name: form.name, userId }, systemUser);
+  const defaultAvatar = getDefaultAvatarByGender(form.gender);
 
   return (
     <PageLayout style={styles.container}>
@@ -243,9 +277,7 @@ export default function ProfileEditPage() {
                   {avatarOssUrl ? (
                     <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
                   ) : (
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{displayName[0] ?? 'U'}</Text>
-                    </View>
+                    <Image source={defaultAvatar} style={styles.avatarImg} />
                   )}
                   {uploadingAvatar ? (
                     <View style={styles.avatarLoading}>
@@ -322,7 +354,7 @@ export default function ProfileEditPage() {
                 style={styles.infoInput}
                 value={form.height}
                 onChangeText={t => patch('height', limitText(t, METRIC_MAX_LENGTH))}
-                placeholder="请输入身高"
+                placeholder="请输入身高（必填）"
                 placeholderTextColor={AppTheme.textSecondary}
                 keyboardType="decimal-pad"
                 maxLength={METRIC_MAX_LENGTH}
@@ -340,7 +372,7 @@ export default function ProfileEditPage() {
                 style={styles.infoInput}
                 value={form.weight}
                 onChangeText={t => patch('weight', limitText(t, METRIC_MAX_LENGTH))}
-                placeholder="请输入体重"
+                placeholder="请输入体重（必填）"
                 placeholderTextColor={AppTheme.textSecondary}
                 keyboardType="decimal-pad"
                 maxLength={METRIC_MAX_LENGTH}

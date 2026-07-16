@@ -491,9 +491,26 @@ export function formatUricAcidFromItems(
 }
 
 export function getTotalCholesterolStatusLabel(value: number) {
-  if (value < 5.2) return '理想';
-  if (value < 6.2) return '边缘升高';
-  return '升高';
+  if (value < 5.2) return '正常';
+  if (value < 6.2) return '偏高';
+  return '异常偏高';
+}
+
+export function getTriglycerideStatusLabel(value: number) {
+  if (value < 1.7) return '正常';
+  if (value < 2.3) return '偏高';
+  return '异常偏高';
+}
+
+export function getLdlCholesterolStatusLabel(value: number) {
+  if (value < 3.4) return '正常';
+  if (value < 4.1) return '偏高';
+  return '异常偏高';
+}
+
+export function getHdlCholesterolStatusLabel(value: number) {
+  if (value >= 1.0) return '正常';
+  return '偏低';
 }
 
 export function formatBloodLipidsFromItems(items: MeasureDataItem[], range: VitalsRange = 'today') {
@@ -509,21 +526,40 @@ export function formatBloodLipidsFromItems(items: MeasureDataItem[], range: Vita
       tgValue: '--',
       hdlValue: '--',
       ldlValue: '--',
+      tcStatus: '',
+      tgStatus: '',
+      hdlStatus: '',
+      ldlStatus: '',
+      tcStatusColor: '#999999',
+      tgStatusColor: '#999999',
+      hdlStatusColor: '#999999',
+      ldlStatusColor: '#999999',
       status: '',
       statusColor: '#999999',
     };
   }
 
-  const serverLabel = getLevelLabel(item);
-  const label = serverLabel || (tc != null ? getTotalCholesterolStatusLabel(tc) : '');
+  const tcStatus = tc != null ? getTotalCholesterolStatusLabel(tc) : '';
+  const tgStatus = tg != null ? getTriglycerideStatusLabel(tg) : '';
+  const hdlStatus = hdl != null ? getHdlCholesterolStatusLabel(hdl) : '';
+  const ldlStatus = ldl != null ? getLdlCholesterolStatusLabel(ldl) : '';
 
   return {
     tcValue: tc != null ? tc.toFixed(2) : '--',
     tgValue: tg != null ? tg.toFixed(2) : '--',
     hdlValue: hdl != null ? hdl.toFixed(2) : '--',
     ldlValue: ldl != null ? ldl.toFixed(2) : '--',
-    status: label ? `・${label}` : '',
-    statusColor: getLevelColor(label),
+    tcStatus,
+    tgStatus,
+    hdlStatus,
+    ldlStatus,
+    tcStatusColor: getLevelColor(tcStatus),
+    tgStatusColor: getLevelColor(tgStatus),
+    hdlStatusColor: getLevelColor(hdlStatus),
+    ldlStatusColor: getLevelColor(ldlStatus),
+    // 首页卡片不再展示总状态，排序占位保持空
+    status: '',
+    statusColor: '#999999',
   };
 }
 

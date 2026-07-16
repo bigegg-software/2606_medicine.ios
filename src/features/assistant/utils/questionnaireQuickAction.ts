@@ -128,3 +128,22 @@ export async function requestQuestionnaireQuickAction(params: {
     question: QUESTIONNAIRE_QUICK_QUESTION,
   };
 }
+
+/** 点击开始评估时实时拉取最新评估记录，判定是否可开始 */
+export async function checkQuestionnaireStartAvailability(type: QuestionnaireType) {
+  const listRes = await getUserQuestionNewList();
+  if (!isResourceApiOk(listRes as { code?: number })) {
+    throw new Error(
+      (listRes as { msg?: string; message?: string })?.msg ??
+        (listRes as { message?: string })?.message ??
+        '评估状态校验失败',
+    );
+  }
+  const records =
+    apiResourceData<UserQuestionRecord[]>(listRes as unknown as UserQuestionNewListResult) ?? [];
+  const item = buildAssistantQuestionnaireItems(records).find(row => row.type === type);
+  return {
+    canStart: item?.canStart ?? true,
+    nextAssessmentDate: item?.nextAssessmentDate,
+  };
+}

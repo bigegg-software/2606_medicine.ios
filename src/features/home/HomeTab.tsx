@@ -16,6 +16,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/home/home';
 import MiniProgressRing from './components/MiniProgressRing';
 import MiniSparkline from './components/MiniSparkline';
+import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
 import { fetchUserInfo } from '@/store/actions/user';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -236,6 +237,7 @@ export default function HomeTab() {
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [homePrescriptionGoal, setHomePrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(null);
+  const [vitalInfoKey, setVitalInfoKey] = useState<string | null>(null);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
@@ -482,86 +484,110 @@ export default function HomeTab() {
               </TouchableOpacity>
             </View>
             <Flex justify='between' style={styles.blurCardContentListBox}>
-              <TouchableOpacity style={styles.blurCardContentList} onPress={() => navigation.navigate('HeartRatePage')}>
+              <View style={styles.blurCardContentList}>
                 <View style={styles.blurCardListRow}>
-                  <Flex align="center">
-                    <Image source={require('@/assets/images/home/xl_Icon.png')} style={styles.blurCardListIcon} />
+                  <TouchableOpacity onPress={() => setVitalInfoKey('心率')}>
                     <Flex align="center">
-                      <Text style={styles.blurCardListText}>心率</Text>
-                      <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
+                      <Image source={require('@/assets/images/home/xl_Icon.png')} style={styles.blurCardListIcon} />
+                      <Flex align="center">
+                        <Text style={styles.blurCardListText}>心率</Text>
+                        <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
+                      </Flex>
                     </Flex>
-                  </Flex>
-                  <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('HeartRatePage')}>
+                    <Flex style={{ flex: 1 }}>
+                      <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                    </Flex>
+                  </TouchableOpacity>
                 </View>
-                <Flex align="end" style={styles.blurCardValueCol}>
-                  <Text style={styles.blurCardValue}>{heartRate.value}</Text>
-                  <Text style={styles.blurCardUnit}>次/分</Text>
-                </Flex>
-                <Flex align="center" style={styles.blurCardSparklineWrap}>
-                  {heartRateSparkline.length > 0 ? (
-                    <MiniSparkline data={heartRateSparkline} />
-                  ) : null}
-                </Flex>
-                <Text style={styles.blurCardValueText}>静息心率:{restingHeartRate}次/分</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.blurCardContentList} onPress={() => navigation.navigate('ConsumptionPage')}>
-                <View style={styles.blurCardListRow}>
-                  <Flex align="center">
-                    <Image source={require('@/assets/images/home/kll_Icon.png')} style={styles.blurCardListIcon} />
-                    <Flex align="center">
-                      <Text style={styles.blurCardListText}>卡路里</Text>
-                      <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
-                    </Flex>
+                <TouchableOpacity onPress={() => navigation.navigate('HeartRatePage')}>
+                  <Flex align="end" style={styles.blurCardValueCol}>
+                    <Text style={styles.blurCardValue}>{heartRate.value}</Text>
+                    <Text style={styles.blurCardUnit}>次/分</Text>
                   </Flex>
-                  <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                  <Flex align="center" style={styles.blurCardSparklineWrap}>
+                    {heartRateSparkline.length > 0 ? (
+                      <MiniSparkline data={heartRateSparkline} />
+                    ) : null}
+                  </Flex>
+                  <Text style={styles.blurCardValueText}>静息心率:{restingHeartRate}次/分</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.blurCardContentList} >
+                <View style={styles.blurCardListRow}>
+                  <TouchableOpacity onPress={() => setVitalInfoKey('卡路里')}>
+                    <Flex align="center">
+                      <Image source={require('@/assets/images/home/kll_Icon.png')} style={styles.blurCardListIcon} />
+                      <Flex align="center">
+                        <Text style={styles.blurCardListText}>卡路里</Text>
+                        <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
+                      </Flex>
+                    </Flex>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('ConsumptionPage')}>
+                    <Flex style={{ flex: 1 }}>
+                      <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                    </Flex>
+                  </TouchableOpacity>
                 </View>
 
-                <Flex align="end" style={styles.blurCardValueCol}>
-                  <Text style={styles.blurCardValue}>{energySummary.total}</Text>
-                  <Text style={styles.blurCardUnit}>千卡</Text>
-                </Flex>
-                <Flex align="center" style={styles.blurCardSparklineWrap}>
-                  <View style={styles.blurCardProgressTrack}>
-                    <View
-                      style={[
-                        styles.blurCardProgressFill,
-                        {
-                          width: Math.max(
-                            0,
-                            Math.min(
-                              BLUR_CARD_ENERGY_TRACK_WIDTH,
-                              (BLUR_CARD_ENERGY_TRACK_WIDTH * blurCardEnergyProgress) / 100,
-                            ),
-                          ),
-                        },
-                      ]}
-                    />
-                  </View>
-                </Flex>
-                <Text style={styles.blurCardValueText}>目标:{energyTarget}千卡</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.blurCardContentList} onPress={() => navigation.navigate('BloodSugarPage')}>
-                <View style={styles.blurCardListRow}>
-                  <Flex align="center">
-                    <Image source={require('@/assets/images/home/xt_Icon.png')} style={styles.blurCardListIcon} />
-                    <Flex align="center">
-                      <Text style={styles.blurCardListText}>血糖</Text>
-                      <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
-                    </Flex>
+                <TouchableOpacity onPress={() => navigation.navigate('ConsumptionPage')}>
+                  <Flex align="end" style={styles.blurCardValueCol}>
+                    <Text style={styles.blurCardValue}>{energySummary.total}</Text>
+                    <Text style={styles.blurCardUnit}>千卡</Text>
                   </Flex>
-                  <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                  <Flex align="center" style={styles.blurCardSparklineWrap}>
+                    <View style={styles.blurCardProgressTrack}>
+                      <View
+                        style={[
+                          styles.blurCardProgressFill,
+                          {
+                            width: Math.max(
+                              0,
+                              Math.min(
+                                BLUR_CARD_ENERGY_TRACK_WIDTH,
+                                (BLUR_CARD_ENERGY_TRACK_WIDTH * blurCardEnergyProgress) / 100,
+                              ),
+                            ),
+                          },
+                        ]}
+                      />
+                    </View>
+                  </Flex>
+                  <Text style={styles.blurCardValueText}>目标:{energyTarget}千卡</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.blurCardContentList}>
+                <View style={styles.blurCardListRow}>
+                  <TouchableOpacity onPress={() => setVitalInfoKey('血糖')}>
+                    <Flex align="center">
+                      <Image source={require('@/assets/images/home/xt_Icon.png')} style={styles.blurCardListIcon} />
+                      <Flex align="center">
+                        <Text style={styles.blurCardListText}>血糖</Text>
+                        <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
+                      </Flex>
+                    </Flex>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => navigation.navigate('BloodSugarPage')}>
+                    <Flex style={{ flex: 1 }}>
+                      <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                    </Flex>
+                  </TouchableOpacity>
                 </View>
-                <Flex align="end" style={styles.blurCardValueCol}>
-                  <Text style={styles.blurCardValue}>{glucose.value}</Text>
-                  <Text style={styles.blurCardUnit}>mmol/L</Text>
-                </Flex>
-                <Flex align="center" style={styles.blurCardSparklineWrap}>
-                  {glucoseSparkline.length > 0 ? (
-                    <MiniSparkline data={glucoseSparkline} color="#EE9C44" />
-                  ) : null}
-                </Flex>
-                <Text style={styles.blurCardValueText}>{glucoseSubtitle}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity onPress={() => navigation.navigate('BloodSugarPage')}>
+                  <Flex align="end" style={styles.blurCardValueCol}>
+                    <Text style={styles.blurCardValue}>{glucose.value}</Text>
+                    <Text style={styles.blurCardUnit}>mmol/L</Text>
+                  </Flex>
+                  <Flex align="center" style={styles.blurCardSparklineWrap}>
+                    {glucoseSparkline.length > 0 ? (
+                      <MiniSparkline data={glucoseSparkline} color="#EE9C44" />
+                    ) : null}
+                  </Flex>
+                  <Text style={styles.blurCardValueText}>{glucoseSubtitle}</Text>
+                </TouchableOpacity>
+              </View>
             </Flex>
             {blurCardLayout.height > 0 ? (
               <Svg
@@ -818,6 +844,7 @@ export default function HomeTab() {
       ) : (
         content
       )}
+      <VitalInfoModal vitalKey={vitalInfoKey} onClose={() => setVitalInfoKey(null)} />
     </View>
   );
 }

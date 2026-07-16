@@ -25,18 +25,23 @@ function EmptyTabScreen() {
   return null;
 }
 
-function TabIcon({ focused, source, focusedMarginLeft }: {
+function TabIcon({
+  focused,
+  source,
+  activeSource,
+  focusedMarginLeft,
+}: {
   focused: boolean;
   source: ImageSourcePropType;
+  activeSource: ImageSourcePropType;
   focusedMarginLeft?: number;
 }) {
   return (
     <Image
-      source={source}
+      source={focused ? activeSource : source}
       style={{
         width: 28,
         height: 28,
-        tintColor: focused ? AppTheme.primaryColor : AppTheme.textSecondary,
         marginLeft: focusedMarginLeft ?? 0,
       }}
     />
@@ -115,7 +120,13 @@ export default function MainTabs() {
         component={HomeTabScreen}
         options={{
           tabBarLabel: '首页',
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/home.png')} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              focused={focused}
+              source={require('@/assets/tabbar/home.png')}
+              activeSource={require('@/assets/tabbar/homeActive.png')}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -123,7 +134,13 @@ export default function MainTabs() {
         component={ScheduleTabScreen}
         options={{
           tabBarLabel: '里程碑',
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/time.png')} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              focused={focused}
+              source={require('@/assets/tabbar/time.png')}
+              activeSource={require('@/assets/tabbar/timeActive.png')}
+            />
+          ),
         }}
       />
       <Tab.Screen
@@ -149,7 +166,12 @@ export default function MainTabs() {
         options={{
           tabBarLabel: '社区',
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} source={require('@/assets/tabbar/community.png')} focusedMarginLeft={-2} />
+            <TabIcon
+              focused={focused}
+              source={require('@/assets/tabbar/community.png')}
+              activeSource={require('@/assets/tabbar/communityActive.png')}
+              focusedMarginLeft={-2}
+            />
           ),
         }}
       />
@@ -158,7 +180,13 @@ export default function MainTabs() {
         component={ProfileTabScreen}
         options={{
           tabBarLabel: '我的',
-          tabBarIcon: ({ focused }) => <TabIcon focused={focused} source={require('@/assets/tabbar/user.png')} />,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon
+              focused={focused}
+              source={require('@/assets/tabbar/user.png')}
+              activeSource={require('@/assets/tabbar/userActive.png')}
+            />
+          ),
         }}
       />
     </Tab.Navigator>

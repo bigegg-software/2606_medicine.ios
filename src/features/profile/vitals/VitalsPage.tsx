@@ -638,8 +638,8 @@ export default function VitalsPage() {
             </Flex> : null}
           </Flex>
           {dataTime || onPress ? (
-            <TouchableOpacity onPress={onPress} disabled={!onPress}>
-              <Flex align="center">
+            <TouchableOpacity style={{ width: 100 }} onPress={onPress} disabled={!onPress}>
+              <Flex align="center" justify='end'>
                 {dataTime ? <Text style={styles.rightText}>{dataTime}</Text> : null}
                 {onPress ? (
                   <Image style={{ width: 5, height: 7 }} source={require('@/assets/images/vitals/right.png')} />
@@ -823,22 +823,45 @@ export default function VitalsPage() {
                   <Text style={styles.vUnit}>总胆固醇 TC</Text>
                   <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
                   <Text style={styles.vUnit}>mmol/L</Text>
-                  {bloodLipids.status ? (
-                    <Text style={[styles.vStatus, { color: bloodLipids.statusColor }]}>{bloodLipids.status}</Text>
+                  {bloodLipids.tcStatus ? (
+                    <Text style={[styles.vStatus, { color: bloodLipids.tcStatusColor }]}>
+                      {bloodLipids.tcStatus}
+                    </Text>
                   ) : null}
                 </View>
                 <View style={styles.vRightBox}>
                   <Flex justify="between" style={{ marginBottom: 6 }}>
                     <Text style={styles.vText1}>TG</Text>
-                    <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
+                    <Flex align="center">
+                      <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
+                      {bloodLipids.tgStatus ? (
+                        <Text style={[styles.vStatus, { marginLeft: 6, color: bloodLipids.tgStatusColor }]}>
+                          {bloodLipids.tgStatus}
+                        </Text>
+                      ) : null}
+                    </Flex>
                   </Flex>
                   <Flex justify="between" style={{ marginBottom: 6 }}>
                     <Text style={styles.vText1}>HDL-C</Text>
-                    <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
+                    <Flex align="center">
+                      <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
+                      {bloodLipids.hdlStatus ? (
+                        <Text style={[styles.vStatus, { marginLeft: 6, color: bloodLipids.hdlStatusColor }]}>
+                          {bloodLipids.hdlStatus}
+                        </Text>
+                      ) : null}
+                    </Flex>
                   </Flex>
                   <Flex justify="between">
                     <Text style={styles.vText1}>LDL-C</Text>
-                    <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
+                    <Flex align="center">
+                      <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
+                      {bloodLipids.ldlStatus ? (
+                        <Text style={[styles.vStatus, { marginLeft: 6, color: bloodLipids.ldlStatusColor }]}>
+                          {bloodLipids.ldlStatus}
+                        </Text>
+                      ) : null}
+                    </Flex>
                   </Flex>
                 </View>
               </Flex>

@@ -74,6 +74,7 @@ const styles = StyleSheet.create({
     lipidMetricLabel: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
     lipidMetricValue: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary },
     lipidMetricUnit: { marginLeft: 4, fontWeight: 400, fontSize: 12, color: AppTheme.textSecondary },
+    lipidMetricStatus: { marginLeft: 8, fontWeight: 500, fontSize: 12 },
     rowLine: { height: 1, backgroundColor: '#E8DED2' },
     mapLeftText: {
         marginTop:12,
