@@ -165,6 +165,15 @@ export function getCalendarDayDotColors(status?: DailyRecordStatusItem | null): 
   return colors;
 }
 
+/** 时间轴圆点颜色：与图例一致（用餐/用药/运动/其他） */
+export function getTimelineAxisColor(items: CalendarTimelineItem[]): string {
+  const kinds = new Set(items.map(item => item.kind));
+  if (kinds.has('diet')) return CALENDAR_DAY_DOT_COLORS.diet;
+  if (kinds.has('drug')) return CALENDAR_DAY_DOT_COLORS.drug;
+  if (kinds.has('ex')) return CALENDAR_DAY_DOT_COLORS.ex;
+  return CALENDAR_DAY_DOT_COLORS.other;
+}
+
 function parseDateTimeSortValue(value?: string) {
   const parsed = moment(value);
   if (!parsed.isValid()) return 0;

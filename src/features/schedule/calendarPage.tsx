@@ -18,7 +18,9 @@ import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/schedule/calendar';
 import type { DailyRecordStatusItem } from '@/api/dailyRecordStatus';
 import {
+  CALENDAR_DAY_DOT_COLORS,
   getCalendarDayDotColors,
+  getTimelineAxisColor,
   groupTimelineItems,
   groupTimelineItemsByTime,
   loadCalendarDayTimelineItems,
@@ -543,7 +545,12 @@ function TimelineSection({
               key={group.key}
               style={[styles.timelineRow, !isLast && styles.timelineRowGap]}>
               <View style={styles.axisCol}>
-                <View style={styles.timeAxisLine} />
+                <View
+                  style={[
+                    styles.timeAxisLine,
+                    { backgroundColor: getTimelineAxisColor(group.items) },
+                  ]}
+                />
                 {!isLast ? <View style={styles.axisSegment} /> : null}
               </View>
               <View style={styles.timelineContent}>
@@ -972,19 +979,19 @@ export default function ScheduleCalendarPage() {
         <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.calendarBack}>
           <Flex style={{ gap: 30, flex: 1 }} justify="center">
             <Flex>
-              <View style={[styles.typeColor, { backgroundColor: "#EE9C44" }]}></View>
+              <View style={[styles.typeColor, { backgroundColor: CALENDAR_DAY_DOT_COLORS.diet }]} />
               <Text style={styles.typeText}>用餐</Text>
             </Flex>
             <Flex>
-              <View style={[styles.typeColor, { backgroundColor: "#72A1C5" }]}></View>
+              <View style={[styles.typeColor, { backgroundColor: CALENDAR_DAY_DOT_COLORS.drug }]} />
               <Text style={styles.typeText}>用药</Text>
             </Flex>
             <Flex>
-              <View style={[styles.typeColor, { backgroundColor: "#6D925E" }]}></View>
+              <View style={[styles.typeColor, { backgroundColor: CALENDAR_DAY_DOT_COLORS.ex }]} />
               <Text style={styles.typeText}>运动</Text>
             </Flex>
             <Flex>
-              <View style={[styles.typeColor, { backgroundColor: "#FB4550" }]}></View>
+              <View style={[styles.typeColor, { backgroundColor: CALENDAR_DAY_DOT_COLORS.other }]} />
               <Text style={styles.typeText}>其他</Text>
             </Flex>
           </Flex>

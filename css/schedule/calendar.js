@@ -78,23 +78,10 @@ const styles = StyleSheet.create({
   loadingBox: { marginTop: 24, alignItems: 'center' },
   emptyTimelineBox: { marginTop: 20, paddingVertical: 24, alignItems: 'center' },
   emptyTimelineText: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
-  titleText: {
-    marginTop: 24,
-    fontWeight: 400,
-    fontSize: 14,
-    textAlign: 'center',
-    color: AppTheme.textSecondary,
-  },
   timelineWrap: {
-    // marginTop: 20,
     position: 'relative',
   },
-  exerciseSectionWrap: {
-    // marginBottom: 24,
-  },
-  exerciseRowSectionLast: {
-    marginBottom: 0,
-  },
+  exerciseSectionWrap: {},
   scheduledTimelineWrap: {
     position: 'relative',
   },
@@ -136,12 +123,6 @@ const styles = StyleSheet.create({
   timelineRowGap: {
     marginBottom: 0,
   },
-  timelineRowSectionLast: {
-    marginBottom: 0,
-  },
-  timelineRowLast: {
-    marginBottom: 0,
-  },
   periodText: {
     fontWeight: "bold",
     fontSize: 16,
@@ -163,10 +144,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#131141",
     zIndex: 1,
   },
-  timeAxis: {
-    width: 52,
-    alignItems: 'center',
-  },
   cardSide: {
     flex: 1,
     marginRight: 16,
@@ -184,30 +161,12 @@ const styles = StyleSheet.create({
   mergedTimelineCardGap: {
     marginTop: 12,
   },
-  timeSlot: {
-    width: '100%',
-    minHeight: 64,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1,
-  },
-  timePrefixText: {
-    fontWeight: 400,
-    fontSize: 12,
-    color: AppTheme.textSecondary,
-    textAlign: 'center',
-    lineHeight: 17,
-    backgroundColor: AppTheme.backgroundColor,
-    paddingHorizontal: 2,
-    marginBottom: 2,
-  },
   timeText: {
     fontWeight: 400,
     fontSize: 16,
     color: '#333333',
   },
   taskCardIcon: { width: 15, height: 15, marginRight: 3 },
-  mergedTimelineCardTitle: {},
   taskCard: {
     width: 280,
     maxWidth: '100%',
@@ -234,29 +193,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
-  exerciseCardItem: {},
-  exerciseCardItemGap: {
-    marginTop: 10,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(51,51,51,0.08)',
-  },
-  exerciseCardItemTitle: {
-    fontWeight: 500,
-    fontSize: 14,
-    color: '#333333',
-  },
-  exerciseProgressWrap: {
-    width: 48,
-    height: 48,
-    marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'visible',
-  },
-  exerciseProgressScale: {
-    transform: [{ scale: 0.55 }],
-  },
   dietTaskCard: {
     width: '100%',
     minHeight: 64,
@@ -270,55 +206,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: AppTheme.textSecondary,
   },
-  dietCalorieRow: {
-    marginTop: 8,
-  },
-  dietCalorieIcon: {
-    width: 12,
-    height: 12,
-    marginRight: 4,
-  },
-  dietCalorieText: {
-    fontWeight: 400,
-    fontSize: 12,
-    color: AppTheme.textSecondary,
-  },
-  mealNutritionCard: {
-    width: 280,
-    maxWidth: '100%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 17,
-    paddingVertical: 14,
-    shadowColor: '#053A93',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  mealNutritionRow: {
-    marginTop: 10,
-  },
-  mealNutritionItem: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  mealNutritionLabel: {
-    fontWeight: 400,
-    fontSize: 12,
-    color: AppTheme.textSecondary,
-  },
-  mealNutritionValue: {
-    marginTop: 4,
-    fontWeight: 500,
-    fontSize: 14,
-    color: '#333333',
-  },
-  mealNutritionUnit: {
-    fontWeight: 400,
-    fontSize: 12,
-    color: AppTheme.textSecondary,
-  },
   taskCardTitle: {
     fontWeight: "bold",
     fontSize: 16,
@@ -327,11 +214,6 @@ const styles = StyleSheet.create({
   mergedTimelineCardItem: {
     marginTop: 15,
     paddingLeft: 18,
-  },
-  mergedTimelineCardItemDivider: {
-    paddingTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(5,58,147,0.06)',
   },
   mergedMedicationContent: {
     flex: 1,
@@ -392,7 +274,6 @@ const styles = StyleSheet.create({
   taskCardDescText: {
     fontWeight: "bold",
     fontSize: 14,
-    color: "#333333",
     color: AppTheme.textSecondary,
   },
   taskCardStatus: {
