@@ -14,7 +14,7 @@ const styles = StyleSheet.create({
     navIndicator: { width: 34, height: 10 },
     vCard: { marginTop: 12, padding: 18, borderRadius: 8, backgroundColor: '#FFF', shadowColor: AppTheme.primaryColor, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
     vIcon: { width: 24, height: 24 },
-    vLabel: { fontSize: 16, color: AppTheme.textPrimary, fontWeight: 500, lineHeight: 19, marginLeft: 6 },
+    vLabel: { fontSize: 16, color: AppTheme.textPrimary, fontWeight: 500, marginLeft: 6 },
     vStatusWrap: {
         marginLeft: 4,
         paddingHorizontal: 6,
@@ -159,6 +159,16 @@ const styles = StyleSheet.create({
         fontWeight: 500,
         fontSize: 14,
         color: '#FFFFFF',
+    },
+    rightBtn: {
+        position: "absolute",
+        right: -10,
+        top: -10,
+        padding: 6,
+        paddingTop: 14,
+        paddingRight: 10,
+        width: 100,
+        height: 40
     },
 })
 

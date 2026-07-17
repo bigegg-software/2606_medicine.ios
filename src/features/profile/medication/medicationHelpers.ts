@@ -506,7 +506,7 @@ export async function loadMedicationHistory(limitDays = 7) {
       action: 1,
       startDate,
       endDate,
-      pageSize: 1,
+      pageSize: Math.max(limitDays, 7),
       pageNum: 1,
     });
     return mapMedicationHistoryRows(getResourceRows(res));

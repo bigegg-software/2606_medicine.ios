@@ -103,7 +103,7 @@ export function getWaterSummary(currentMl: number, targetMl?: number) {
 export function getFoodRecordsByCategory(list: MealDetailItem[], mealKey: string): MealDetailItem[] {
     const category = MEAL_CATEGORY_BY_KEY[mealKey];
     if (category == null) return [];
-    return list.filter(item => !isWaterRecord(item) && item.mealCategory === category);
+    return list.filter(item => !isWaterRecord(item) && Number(item.mealCategory) === category);
 }
 
 export function sumCalories(list: MealDetailItem[]): number {

@@ -288,7 +288,7 @@ export default function SchedulePage() {
               </Flex>
             </Flex>
             <Flex direction="column" justify='center' style={{ marginTop: 20, width: "100%" }}>
-              <MilestoneRings />
+              <MilestoneRings progress={ringProgress} />
 
               <Flex justify="between" style={styles.colRow}>
                 <Flex align="start" style={styles.colBox}>

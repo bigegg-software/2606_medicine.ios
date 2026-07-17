@@ -638,7 +638,7 @@ export default function VitalsPage() {
             </Flex> : null}
           </Flex>
           {dataTime || onPress ? (
-            <TouchableOpacity style={{ width: 100 }} onPress={onPress} disabled={!onPress}>
+            <TouchableOpacity style={styles.rightBtn} onPress={onPress} disabled={!onPress}>
               <Flex align="center" justify='end'>
                 {dataTime ? <Text style={styles.rightText}>{dataTime}</Text> : null}
                 {onPress ? (

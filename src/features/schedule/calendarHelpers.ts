@@ -9,10 +9,10 @@ import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type M
 import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import {
-  getIndexMedicationPlanGroupByTime,
-  type IndexMedicationPlanGroupItem,
-  type IndexMedicationPlanItem,
-} from '@/api/medicationPlan';
+  getMedicationRecordAll,
+  type MedicationRecordDayGroup,
+  type MedicationRecordItem,
+} from '@/api/medicationRecord';
 import {
   getDailyActivityListByDate,
   getDailyLiveListByDate,
@@ -27,19 +27,28 @@ import {
 } from '@/src/features/home/exercise/exerciseHelpers';
 import {
   formatMedicationDoseText,
+  getMedicationPlanTypeLabel,
   loadMedicationDictMaps,
   resolveDictLabel,
   type MedicationDictMaps,
   type MedicationPlanGroupView,
 } from '@/src/features/profile/medication/medicationHelpers';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+  buildDictLabelMap,
+  DICT_TYPES,
+  getDictDataByType,
+  type DictDataItem,
+} from '@/api/dict';
 import {
   buildMealCardsFromRuleForDate,
+  getDietRuleSummary,
   type MealCardData,
 } from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 import {
   getFoodRecordsByCategory,
   MEAL_CATEGORY_BY_KEY,
+  resolveMainMealsRecordStatus,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import type { ImageSourcePropType } from 'react-native';
 import {
@@ -55,9 +64,20 @@ export type CalendarTimelineItem = {
   desc: string;
   kind: 'diet' | 'ex' | 'drug' | 'activity' | 'live';
   activityId?: string;
+  activityLocation?: string;
+  activityStatus?: number;
+  activityStatusName?: string;
   liveId?: string;
+  liveAnchorName?: string;
+  livePlatform?: string;
+  liveStatus?: number;
+  liveStatusName?: string;
   exerciseTypeLabel?: string;
   exerciseGoalText?: string;
+  /** 已完成分钟（展示：done/target分钟） */
+  exerciseDoneMinutes?: number;
+  /** 目标分钟 */
+  exerciseTargetMinutes?: number;
   exerciseProgress?: number;
   exerciseIcon?: number;
   exerciseTaskIndex?: number;
@@ -68,6 +88,7 @@ export type CalendarTimelineItem = {
   period: 'morning' | 'afternoon' | 'exercise';
   medicationPlanId?: string;
   medicationPlanTime?: string;
+  medicationPlanTypeLabel?: string;
   canCheckIn?: boolean;
   taken?: boolean;
   eventBasedLabel?: string;
@@ -87,12 +108,30 @@ const MEAL_CATEGORY_LABELS: Record<number, string> = {
   4: '加餐',
 };
 
+const MEAL_CATEGORY_ICONS: Record<number, ImageSourcePropType> = {
+  1: require('@/assets/images/schedule/zc.png'),
+  2: require('@/assets/images/schedule/wwc.png'),
+  3: require('@/assets/images/schedule/ws.png'),
+};
+
+function getMealCategoryIcon(category?: number, fallback?: ImageSourcePropType) {
+  if (category != null && MEAL_CATEGORY_ICONS[category]) {
+    return MEAL_CATEGORY_ICONS[category];
+  }
+  return fallback ?? MEAL_CATEGORY_ICONS[1];
+}
+
+/** 推荐餐次固定时间：早餐7点 午餐12点 晚餐18点 */
 const MEAL_CATEGORY_DEFAULT_MINUTES: Record<number, number> = {
-  1: 8 * 60,
+  1: 7 * 60,
   2: 12 * 60,
   3: 18 * 60,
   4: 15 * 60,
 };
+
+function formatMinutesToTime(minutes: number) {
+  return moment().startOf('day').add(minutes, 'minutes').format('HH:mm');
+}
 
 export function getCalendarGridDateRange(month: Moment) {
   const start = moment(month).startOf('month').startOf('week');
@@ -106,6 +145,24 @@ export function getCalendarGridDateRange(month: Moment) {
 export function hasDailyRecord(status?: DailyRecordStatusItem | null) {
   if (!status) return false;
   return Boolean(status.isDiet || status.isEx || status.isDrug || status.isActivity || status.isLive);
+}
+
+/** 日历日期点颜色：用餐 / 用药 / 运动 / 其他 */
+export const CALENDAR_DAY_DOT_COLORS = {
+  diet: '#EE9C44',
+  drug: '#72A1C5',
+  ex: '#6D925E',
+  other: '#FB4550',
+} as const;
+
+export function getCalendarDayDotColors(status?: DailyRecordStatusItem | null): string[] {
+  if (!status) return [];
+  const colors: string[] = [];
+  if (status.isDiet) colors.push(CALENDAR_DAY_DOT_COLORS.diet);
+  if (status.isDrug) colors.push(CALENDAR_DAY_DOT_COLORS.drug);
+  if (status.isEx) colors.push(CALENDAR_DAY_DOT_COLORS.ex);
+  if (status.isActivity || status.isLive) colors.push(CALENDAR_DAY_DOT_COLORS.other);
+  return colors;
 }
 
 function parseDateTimeSortValue(value?: string) {
@@ -147,16 +204,6 @@ function getMealCardMetaKey(mealCard: MealCardData) {
   return mealCard.key.split('-')[0] ?? '';
 }
 
-function parseMealWindowStart(timeWindow?: string) {
-  const start = timeWindow?.split('-')[0]?.trim();
-  return start ? formatPlanTime(start) : '—';
-}
-
-function mealWindowToSortValue(timeWindow?: string, fallback = 8 * 60) {
-  const start = timeWindow?.split('-')[0]?.trim();
-  return parseTimeStrSortValue(start) || fallback;
-}
-
 function sumRecordCalories(records: MealDetailItem[]) {
   return records.reduce((sum, item) => sum + Math.round(Number(item.calorie) || 0), 0);
 }
@@ -167,11 +214,11 @@ function mapRecommendedMealTimelineItem(
 ): CalendarTimelineItem {
   const metaKey = getMealCardMetaKey(mealCard);
   const category = MEAL_CATEGORY_BY_KEY[metaKey] ?? 1;
-  const sortValue = mealWindowToSortValue(mealCard.time, MEAL_CATEGORY_DEFAULT_MINUTES[category]);
+  const sortValue = MEAL_CATEGORY_DEFAULT_MINUTES[category] ?? 8 * 60;
 
   return {
     key: `diet-suggest-${mealCard.key}-${index}`,
-    time: parseMealWindowStart(mealCard.time),
+    time: formatMinutesToTime(sortValue),
     title: mealCard.title,
     desc: mealCard.foods.length ? mealCard.foods.join('、') : '暂无推荐',
     kind: 'diet',
@@ -180,7 +227,7 @@ function mapRecommendedMealTimelineItem(
     mealIsRecommended: true,
     mealFoods: mealCard.foods,
     mealCalories: mealCard.calories,
-    mealIcon: mealCard.icon,
+    mealIcon: getMealCategoryIcon(category, mealCard.icon),
     mealTimeWindow: mealCard.time,
     mealCategory: category,
   };
@@ -197,14 +244,15 @@ function mapRecordedMealTimelineItem(params: {
   const foods = records.map(item => item.mealName?.trim()).filter(Boolean) as string[];
   const calories = sumRecordCalories(records);
   const recordTime = records.find(item => item.timeStr?.trim())?.timeStr;
+  const fallbackMinutes = MEAL_CATEGORY_DEFAULT_MINUTES[category] ?? 8 * 60;
   const sortValue = recordTime
     ? parseTimeStrSortValue(formatPlanTime(recordTime))
-    : mealWindowToSortValue(mealCard.time, MEAL_CATEGORY_DEFAULT_MINUTES[category]);
+    : fallbackMinutes;
   const firstDetailId = records.find(item => item.mealDetailId != null)?.mealDetailId;
 
   return {
     key: `diet-record-${metaKey}-${index}`,
-    time: recordTime ? formatPlanTime(recordTime) : parseMealWindowStart(mealCard.time),
+    time: recordTime ? formatPlanTime(recordTime) : formatMinutesToTime(fallbackMinutes),
     title: mealCard.title,
     desc: foods.length ? foods.join('、') : '已记录用餐',
     kind: 'diet',
@@ -213,7 +261,7 @@ function mapRecordedMealTimelineItem(params: {
     mealIsRecommended: false,
     mealFoods: foods,
     mealCalories: calories,
-    mealIcon: mealCard.icon,
+    mealIcon: getMealCategoryIcon(category, mealCard.icon),
     mealTimeWindow: mealCard.time,
     mealCategory: category,
     mealDetailId: firstDetailId != null ? String(firstDetailId) : undefined,
@@ -244,6 +292,7 @@ function mapRecordedMealTimelineItemWithoutCard(
     mealIsRecommended: false,
     mealFoods: foods,
     mealCalories: calories,
+    mealIcon: getMealCategoryIcon(category),
     mealCategory: category,
     mealDetailId: firstDetailId != null ? String(firstDetailId) : undefined,
   };
@@ -301,33 +350,60 @@ function isMealCategoryRecord(meal: MealRecordItem) {
 function mapActivityTimelineItem(item: DailyActivityItem, index: number): CalendarTimelineItem {
   const sortValue = parseDateTimeSortValue(item.activityStartTime);
   const location = item.activityLocation?.trim();
-  const remark = item.activityRemark?.trim();
   return {
     key: `activity-${item.activityId ?? index}`,
     time: formatTimelineTime(item.activityStartTime),
     title: item.activityName?.trim() || '社区活动',
-    desc: location || remark || item.statusName?.trim() || '社区活动',
+    desc: location || item.activityRemark?.trim() || '',
     kind: 'activity',
     activityId: item.activityId != null ? String(item.activityId) : undefined,
+    activityLocation: location,
+    activityStatus: item.status,
+    activityStatusName: item.statusName?.trim(),
     sortValue: sortValue || index + 100,
     period: resolvePeriod(sortValue || 540),
   };
 }
 
-function mapLiveTimelineItem(item: DailyLiveItem, index: number): CalendarTimelineItem {
+function mapLiveTimelineItem(
+  item: DailyLiveItem,
+  index: number,
+  platformLabelMap: Record<string, string> = {},
+): CalendarTimelineItem {
   const sortValue = parseDateTimeSortValue(item.liveStartTime);
   const anchor = item.anchorName?.trim();
-  const intro = item.liveIntro?.trim();
+  const platformValue = item.livePlatform?.trim();
+  const platform = platformValue
+    ? platformLabelMap[platformValue] ?? platformValue
+    : undefined;
+  const subtitle = [anchor, platform].filter(Boolean).join('  ');
   return {
     key: `live-${item.liveId ?? index}`,
     time: formatTimelineTime(item.liveStartTime),
     title: item.title?.trim() || '直播',
-    desc: anchor ? `${anchor}${intro ? ` · ${intro}` : ''}` : intro || item.statusName?.trim() || '直播',
+    desc: subtitle || item.liveIntro?.trim() || '',
     kind: 'live',
     liveId: item.liveId != null ? String(item.liveId) : undefined,
+    liveAnchorName: anchor,
+    livePlatform: platform,
+    liveStatus: item.status,
+    liveStatusName: item.statusName?.trim(),
     sortValue: sortValue || index + 200,
     period: resolvePeriod(sortValue || 540),
   };
+}
+
+async function loadLivePlatformLabelMap(): Promise<Record<string, string>> {
+  try {
+    const res = await getDictDataByType(DICT_TYPES.livePlatform);
+    const dictRes = res as unknown as { code?: number; data?: DictDataItem[] };
+    if (isResourceApiOk(dictRes)) {
+      return buildDictLabelMap(dictRes.data);
+    }
+  } catch {
+    // ignore
+  }
+  return {};
 }
 
 function formatExerciseDurationText(minutes?: number | null) {
@@ -356,8 +432,17 @@ function mapDayTypeExerciseTimelineItems(
       child => child.exerciseChildType?.trim() || child.exerciseDuration != null,
     );
 
-    const doneMinutes = item.typeSumExerciseDuration ?? 0;
-    const exerciseGoalText = formatExerciseGoalText(doneMinutes, item.typeNeedExerciseDuration);
+    const doneMinutes = Math.round(item.typeSumExerciseDuration ?? 0);
+    const targetMinutes = Math.round(item.typeNeedExerciseDuration ?? 0);
+    const exerciseGoalText = formatExerciseGoalText(doneMinutes, targetMinutes);
+    const goalFields =
+      targetMinutes > 0
+        ? {
+          exerciseGoalText,
+          exerciseDoneMinutes: doneMinutes,
+          exerciseTargetMinutes: targetMinutes,
+        }
+        : {};
 
     if (children.length > 0) {
       children.forEach((child, childIndex) => {
@@ -373,7 +458,7 @@ function mapDayTypeExerciseTimelineItems(
           title: durationText || '0分钟',
           desc: childLabel,
           exerciseTypeLabel: typeLabel,
-          exerciseGoalText: childIndex === 0 ? exerciseGoalText : undefined,
+          ...(childIndex === 0 ? goalFields : {}),
           exerciseType: typeKey,
           kind: 'ex',
           sortValue: 540 + sortOffset * 15,
@@ -392,7 +477,7 @@ function mapDayTypeExerciseTimelineItems(
       title: formatExerciseDurationText(doneMinutes) || '0分钟',
       desc: childTypes !== '--' ? childTypes : '运动训练',
       exerciseTypeLabel: typeLabel,
-      exerciseGoalText,
+      ...goalFields,
       exerciseType: typeKey,
       kind: 'ex',
       sortValue: 540 + sortOffset * 15,
@@ -421,34 +506,40 @@ function formatMedicationEventLabel(label?: string) {
   return text;
 }
 
-function mapMedicationTimelineItems(
-  groups: IndexMedicationPlanGroupItem[] | undefined,
+function mapMedicationRecordTimelineItems(
+  records: MedicationRecordItem[],
   dictMaps?: MedicationDictMaps,
 ): CalendarTimelineItem[] {
-  return (groups ?? []).flatMap((group, groupIndex) =>
-    (group.list ?? []).map((item: IndexMedicationPlanItem, itemIndex) => {
-      const plan = item.healthMedicationPlan;
-      const medicationPlanId = plan?.medicationPlanId;
-      const time = formatPlanTime(item.medicationPlanTime ?? group.medicationPlanTime ?? plan?.timeList?.[0]);
-      const sortValue = parseTimeStrSortValue(time) || (groupIndex + 1) * 60 + itemIndex;
-      const doseText = formatMedicationDoseText(plan, dictMaps);
-      const eventBasedLabel = formatMedicationEventLabel(
-        resolveDictLabel(dictMaps?.eventBased ?? {}, plan?.eventBased),
-      );
+  return records.map((item, index) => {
+    const plan = item.snapshotRule;
+    const time =
+      formatPlanTime(item.medicationPlanTime)
+      || (item.actionTime ? formatTimelineTime(item.actionTime) : '—');
+    const sortValue =
+      parseTimeStrSortValue(time)
+      || parseDateTimeSortValue(item.actionTime)
+      || index + 1;
+    const doseText = formatMedicationDoseText(plan, dictMaps);
+    const eventBasedLabel = formatMedicationEventLabel(
+      resolveDictLabel(dictMaps?.eventBased ?? {}, plan?.eventBased),
+    );
 
-      return {
-        key: `drug-${medicationPlanId ?? groupIndex}-${itemIndex}`,
-        time,
-        title: plan?.name?.trim() || '用药',
-        desc: doseText !== '--' ? doseText : '',
-        kind: 'drug',
-        sortValue,
-        period: resolvePeriod(sortValue),
-        taken: item.action === 1,
-        eventBasedLabel,
-      };
-    }),
-  );
+    return {
+      key: `drug-record-${item.medicationRecordId ?? `${item.medicationPlanId ?? 'x'}-${index}`}`,
+      time,
+      title: plan?.name?.trim() || '用药',
+      desc: doseText !== '--' ? doseText : '',
+      kind: 'drug' as const,
+      sortValue,
+      period: resolvePeriod(sortValue),
+      taken: item.action === 1,
+      canCheckIn: false,
+      medicationPlanId: item.medicationPlanId != null ? String(item.medicationPlanId) : undefined,
+      medicationPlanTime: formatPlanTime(item.medicationPlanTime),
+      medicationPlanTypeLabel: getMedicationPlanTypeLabel(plan?.planType),
+      eventBasedLabel,
+    };
+  });
 }
 
 export function mapTodayMedicationGroupsToTimelineItems(
@@ -469,6 +560,7 @@ export function mapTodayMedicationGroupsToTimelineItems(
         period: resolvePeriod(sortValue),
         medicationPlanId: item.medicationPlanId,
         medicationPlanTime: item.medicationPlanTime,
+        medicationPlanTypeLabel: item.planTypeLabel,
         canCheckIn: item.canCheckIn,
         taken: item.taken,
         eventBasedLabel: formatMedicationEventLabel(item.eventBasedLabel),
@@ -492,59 +584,109 @@ function mapMealTimelineItem(
   return null;
 }
 
+async function loadDietRuleInfo(): Promise<DietPatientRuleInfo | null> {
+  try {
+    const ruleRes = await getInUseDietPatientRuleInfo();
+    return apiResourceData<DietPatientRuleInfo>(
+      ruleRes as { code?: number; data?: DietPatientRuleInfo },
+    ) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 与 MealTab「餐食建议」同源：在用饮食处方 mealList */
+function getMealSuggestionCards(dietRule: DietPatientRuleInfo | null): MealCardData[] {
+  return getDietRuleSummary(dietRule).mealCards;
+}
+
+function mapRecordedMealsFromDetailList(mealDetailList: MealDetailItem[]): CalendarTimelineItem[] {
+  const items: CalendarTimelineItem[] = [];
+  Object.entries(MEAL_CATEGORY_KEY_BY_NUMBER).forEach(([categoryText, metaKey]) => {
+    const category = Number(categoryText);
+    const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+    if (records.length === 0) return;
+    items.push(mapRecordedMealTimelineItemWithoutCard(category, records, category));
+  });
+  return items;
+}
+
+/**
+ * 今日饮食（对齐 MealTab）：
+ * 1. 先取「今日摄入」
+ * 2. 早/中/晚未记全时，用「餐食建议」mealCards 补齐未记录餐次
+ */
+async function loadTodayDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
+  const mealDetailList = await loadMealDetailListForDate(customerLocalDate);
+  const items = mapRecordedMealsFromDetailList(mealDetailList);
+  const coveredCategories = new Set(
+    items.map(item => item.mealCategory).filter((value): value is number => value != null),
+  );
+
+  // 三餐已全部录入：只展示真实摄入
+  if (resolveMainMealsRecordStatus(mealDetailList) === 'achieved') {
+    return items.sort((left, right) => left.sortValue - right.sortValue);
+  }
+
+  const dietRule = await loadDietRuleInfo();
+  const suggestionCards = getMealSuggestionCards(dietRule);
+
+  suggestionCards.forEach((mealCard, index) => {
+    const metaKey = getMealCardMetaKey(mealCard);
+    const category = MEAL_CATEGORY_BY_KEY[metaKey];
+    // 仅补齐未记录的早/中/晚
+    if (category == null || category > 3 || coveredCategories.has(category)) return;
+    items.push(mapRecommendedMealTimelineItem(mealCard, index));
+    coveredCategories.add(category);
+  });
+
+  return items.sort((left, right) => left.sortValue - right.sortValue);
+}
+
+/** 历史：保持原逻辑，用处方 mealList + 当日记录，不调 AI */
+async function loadHistoryDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
+  const [dietRule, mealDetailList] = await Promise.all([
+    loadDietRuleInfo(),
+    loadMealDetailListForDate(customerLocalDate),
+  ]);
+
+  const recommendedCards = buildMealCardsFromRuleForDate(dietRule?.mealList, customerLocalDate);
+  const items: CalendarTimelineItem[] = [];
+
+  if (recommendedCards.length > 0) {
+    const coveredCategories = new Set<number>();
+    recommendedCards.forEach((mealCard, index) => {
+      const metaKey = getMealCardMetaKey(mealCard);
+      const category = MEAL_CATEGORY_BY_KEY[metaKey];
+      if (category != null) coveredCategories.add(category);
+      const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+      // 历史只展示已记录；有处方卡但无记录则不展示推荐
+      const item = mapMealTimelineItem(mealCard, records, index, false);
+      if (item) items.push(item);
+    });
+
+    Object.entries(MEAL_CATEGORY_KEY_BY_NUMBER).forEach(([categoryText, metaKey]) => {
+      const category = Number(categoryText);
+      if (coveredCategories.has(category)) return;
+      const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+      if (records.length === 0) return;
+      items.push(mapRecordedMealTimelineItemWithoutCard(category, records, category));
+    });
+
+    return items.sort((left, right) => left.sortValue - right.sortValue);
+  }
+
+  return mapRecordedMealsFromDetailList(mealDetailList)
+    .sort((left, right) => left.sortValue - right.sortValue);
+}
+
 async function loadDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
   try {
-    const [ruleRes, mealDetailList] = await Promise.all([
-      getInUseDietPatientRuleInfo(),
-      loadMealDetailListForDate(customerLocalDate),
-    ]);
-
-    const dietRule = apiResourceData<DietPatientRuleInfo>(
-      ruleRes as { code?: number; data?: DietPatientRuleInfo },
-    );
-    const recommendedCards = buildMealCardsFromRuleForDate(dietRule?.mealList, customerLocalDate);
     const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
-    const items: CalendarTimelineItem[] = [];
-
-    if (recommendedCards.length > 0) {
-      const coveredCategories = new Set<number>();
-      recommendedCards.forEach((mealCard, index) => {
-        const metaKey = getMealCardMetaKey(mealCard);
-        const category = MEAL_CATEGORY_BY_KEY[metaKey];
-        if (category != null) coveredCategories.add(category);
-        const records = getFoodRecordsByCategory(mealDetailList, metaKey);
-        const item = mapMealTimelineItem(mealCard, records, index, isToday);
-        if (item) items.push(item);
-      });
-
-      Object.entries(MEAL_CATEGORY_KEY_BY_NUMBER).forEach(([categoryText, metaKey]) => {
-        const category = Number(categoryText);
-        if (coveredCategories.has(category)) return;
-        const records = getFoodRecordsByCategory(mealDetailList, metaKey);
-        if (records.length === 0) return;
-        items.push(mapRecordedMealTimelineItemWithoutCard(category, records, category));
-      });
-
-      return items.sort((left, right) => left.sortValue - right.sortValue);
+    if (isToday) {
+      return loadTodayDietTimelineItems(customerLocalDate);
     }
-
-    if (mealDetailList.length === 0) return items;
-
-    const grouped = new Map<number, MealDetailItem[]>();
-    mealDetailList
-      .filter(item => item.isWater !== 1 && item.mealCategory != null)
-      .forEach(item => {
-        const category = item.mealCategory!;
-        const list = grouped.get(category) ?? [];
-        list.push(item);
-        grouped.set(category, list);
-      });
-
-    const fallbackItems = Array.from(grouped.entries())
-      .sort(([left], [right]) => left - right)
-      .map(([category, records], index) => mapRecordedMealTimelineItemWithoutCard(category, records, index));
-
-    return [...items, ...fallbackItems].sort((left, right) => left.sortValue - right.sortValue);
+    return loadHistoryDietTimelineItems(customerLocalDate);
   } catch {
     return [];
   }
@@ -599,17 +741,24 @@ async function loadExerciseTimelineItems(
   }
 }
 
+/** 历史日期用药：按真实服药记录展示，避免 indexPlan 把今日打卡状态带到历史 */
 async function loadMedicationTimelineItems(
   customerLocalDate: string,
   dictMaps?: MedicationDictMaps,
 ): Promise<CalendarTimelineItem[]> {
   try {
-    const res = await getIndexMedicationPlanGroupByTime({ customerLocalDate });
-    if (!isResourceApiOk(res)) return [];
-    return mapMedicationTimelineItems(
-      apiResourceData<IndexMedicationPlanGroupItem[]>(res as any),
-      dictMaps,
-    );
+    const res = await getMedicationRecordAll({
+      startDate: customerLocalDate,
+      endDate: customerLocalDate,
+      pageSize: 100,
+      pageNum: 1,
+    });
+    if (!isResourceApiOk(res as { code?: number })) return [];
+
+    const rows = getResourceRows<MedicationRecordDayGroup>(res);
+    const records = rows.flatMap(group => group.list ?? []);
+    return mapMedicationRecordTimelineItems(records, dictMaps)
+      .sort((left, right) => left.sortValue - right.sortValue);
   } catch {
     return [];
   }
@@ -644,10 +793,16 @@ export async function loadCalendarDayTimelineItems(
         .then(res => (isResourceApiOk(res)
           ? (apiResourceData<DailyActivityItem[]>(res as any) ?? []).map(mapActivityTimelineItem)
           : [])),
-      getDailyLiveListByDate({ customerLocalDate })
-        .then(res => (isResourceApiOk(res)
-          ? (apiResourceData<DailyLiveItem[]>(res as any) ?? []).map(mapLiveTimelineItem)
-          : [])),
+      (async () => {
+        const [liveRes, platformLabelMap] = await Promise.all([
+          getDailyLiveListByDate({ customerLocalDate }),
+          loadLivePlatformLabelMap(),
+        ]);
+        if (!isResourceApiOk(liveRes)) return [];
+        return (apiResourceData<DailyLiveItem[]>(liveRes as any) ?? []).map((item, index) =>
+          mapLiveTimelineItem(item, index, platformLabelMap),
+        );
+      })(),
       loadDietTimelineItems(customerLocalDate),
     ];
 
@@ -685,4 +840,35 @@ export function groupTimelineItems(items: CalendarTimelineItem[]) {
   const morning = scheduled.filter(item => item.period === 'morning');
   const afternoon = scheduled.filter(item => item.period === 'afternoon');
   return { exercise, morning, afternoon };
+}
+
+export type CalendarTimelineTimeGroup = {
+  key: string;
+  time: string;
+  sortValue: number;
+  items: CalendarTimelineItem[];
+};
+
+/** 同一展示时间合并为一组，共用一个时间点 */
+export function groupTimelineItemsByTime(items: CalendarTimelineItem[]): CalendarTimelineTimeGroup[] {
+  const groups: CalendarTimelineTimeGroup[] = [];
+  const indexByTime = new Map<string, number>();
+
+  for (const item of items) {
+    const timeKey = item.time?.trim() || '—';
+    const existingIndex = indexByTime.get(timeKey);
+    if (existingIndex == null) {
+      indexByTime.set(timeKey, groups.length);
+      groups.push({
+        key: `time-${timeKey}-${item.sortValue}`,
+        time: timeKey,
+        sortValue: item.sortValue,
+        items: [item],
+      });
+      continue;
+    }
+    groups[existingIndex].items.push(item);
+  }
+
+  return groups.sort((left, right) => left.sortValue - right.sortValue);
 }

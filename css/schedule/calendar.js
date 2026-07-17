@@ -3,9 +3,10 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
-  body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
+  body: { paddingVertical: 18, paddingTop: 2, paddingBottom: 40 },
+  mg18: { marginHorizontal: 18 },
   rowBox: {
-    padding: 22,
+    padding: 15,
     borderRadius: 8,
     marginTop: 16,
     backgroundColor: '#FFFFFF',
@@ -14,55 +15,66 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
   },
   dayTitleBtn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  dayTitle: { fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, textAlign: 'center' },
-  navIcon: { width: 24, height: 24 },
-  navIconRight: { width: 24, height: 24, transform: [{ rotate: '180deg' }] },
-  weekHead: { flexDirection: 'row', marginTop: 20 },
+  dayTitle: { fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, textAlign: 'center' },
+  navIconLeftWrap: { width: 18, height: 18 },
+  navIconRightWrap: { width: 18, height: 18, alignItems: "flex-end" },
+  navIcon: { width: 8, height: 18 },
+  weekHead: { flexDirection: 'row', marginTop: 20, gap: 12 },
+  weekCellWrap: {
+    flex: 1,
+    height: 29,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "rgba(109,146,94,0.08)",
+    borderRadius: 6,
+  },
   weekCell: {
     flex: 1,
-    height: 21,
-    fontWeight: 400,
+    fontWeight: 500,
     fontSize: 14,
-    color: AppTheme.textPrimary,
+    color: AppTheme.textSecondary,
     lineHeight: 21,
     textAlign: 'center',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: 12,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  dash: { width: 5, height: 1, backgroundColor: 'rgba(153,153,153,0.17)' },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.28%', height: 40, justifyContent: 'center', alignItems: 'center' },
+  dayCell: { width: '14.28%', marginTop: 25, height: 32, justifyContent: 'center', alignItems: 'center' },
   dayText: {
     fontWeight: 400,
     fontSize: 14,
-    color: AppTheme.textPrimary,
+    color: '#4F6E43',
     lineHeight: 21,
     textAlign: 'center',
   },
   dayTextOther: {
     fontWeight: 400,
     fontSize: 14,
-    color: AppTheme.textSecondary,
+    color: 'rgba(79,110,67,0.5)',
     lineHeight: 21,
     textAlign: 'center',
   },
   dayInner: { width: 24, height: 24, justifyContent: 'center', alignItems: 'center' },
-  daySelected: { backgroundColor: '#053A93', borderRadius: 20 },
+  daySelected: { backgroundColor: AppTheme.primaryColor, borderRadius: 20 },
   dayTextSelected: { fontWeight: 400, fontSize: 14, color: '#FFFFFF', textAlign: 'center' },
-  dayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#FF8B07',
+  dayDotWrap: {
+    height: 16,
+    width: '100%',
     marginTop: 2,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  dayDotSelected: { backgroundColor: '#FFFFFF' },
+  dayDotWrapGap: { gap: 4 },
+  dayDotWrapOverlap: {},
+  dayDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
+  },
+  dayDotOverlap: { marginLeft: -2 },
+  calendarBack: { marginTop: 12, height: 50, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  typeColor: { width: 6, height: 6, borderRadius: 3, backgroundColor: AppTheme.primaryColor },
+  typeText: { fontWeight: 500, fontSize: 14, color: AppTheme.textSecondary, marginLeft: 6 },
   loadingBox: { marginTop: 24, alignItems: 'center' },
   emptyTimelineBox: { marginTop: 20, paddingVertical: 24, alignItems: 'center' },
   emptyTimelineText: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
@@ -71,14 +83,14 @@ const styles = StyleSheet.create({
     fontWeight: 400,
     fontSize: 14,
     textAlign: 'center',
-    color: '#999999',
+    color: AppTheme.textSecondary,
   },
   timelineWrap: {
-    marginTop: 20,
+    // marginTop: 20,
     position: 'relative',
   },
   exerciseSectionWrap: {
-    marginBottom: 24,
+    // marginBottom: 24,
   },
   exerciseRowSectionLast: {
     marginBottom: 0,
@@ -86,28 +98,43 @@ const styles = StyleSheet.create({
   scheduledTimelineWrap: {
     position: 'relative',
   },
-  axisLine: {
-    position: 'absolute',
-    left: 25.5,
-    top: 25,
-    bottom: 32,
-    width: 1,
-    backgroundColor: 'rgba(51,51,51,0.2)',
+  timelineSection: {
+    position: 'relative',
   },
-  periodRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 24,
-  },
-  periodRowAfternoon: {
-    marginTop: 26,
+  sectionItems: {
+    position: 'relative',
   },
   timelineRow: {
+    marginTop: 20,
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'stretch',
+  },
+  axisCol: {
+    marginTop: 4,
+    width: 8,
+    alignItems: 'center',
+  },
+  axisSegment: {
+    flex: 1,
+    width: 1,
+    marginTop: -4,
+    marginBottom: -30,
+    backgroundColor: 'rgba(19,17,65,0.1)',
+  },
+  timelineContent: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 8,
+  },
+  periodRow: {
+    marginTop: 20
+  },
+  exerciseDateTitle: {
+    marginBottom: 20,
+    alignItems: 'center',
   },
   timelineRowGap: {
-    marginBottom: 16,
+    marginBottom: 0,
   },
   timelineRowSectionLast: {
     marginBottom: 0,
@@ -115,22 +142,47 @@ const styles = StyleSheet.create({
   timelineRowLast: {
     marginBottom: 0,
   },
+  periodText: {
+    fontWeight: "bold",
+    fontSize: 16,
+    color: "#333333"
+  },
+  todayText: {
+    fontWeight: 500,
+    fontSize: 16,
+    color: "#333333",
+    marginLeft: 3
+  },
+  exerciseScroll: {
+    marginTop: 20
+  },
+  timeAxisLine: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "#131141",
+    zIndex: 1,
+  },
   timeAxis: {
     width: 52,
     alignItems: 'center',
   },
   cardSide: {
     flex: 1,
-    paddingLeft: 16,
+    marginRight: 16,
   },
-  periodText: {
-    fontWeight: 500,
-    fontSize: 18,
-    color: '#333333',
-    textAlign: 'center',
-    lineHeight: 25,
-    backgroundColor: AppTheme.backgroundColor,
-    paddingHorizontal: 4,
+  cardSideBox: {
+    flex: 1,
+    marginTop: 6,
+    backgroundColor: "#F6F8FB",
+    borderRadius: 12
+  },
+  mergedTimelineCard: {
+    paddingHorizontal: 12,
+    paddingVertical: 15
+  },
+  mergedTimelineCardGap: {
+    marginTop: 12,
   },
   timeSlot: {
     width: '100%',
@@ -142,7 +194,7 @@ const styles = StyleSheet.create({
   timePrefixText: {
     fontWeight: 400,
     fontSize: 12,
-    color: '#999999',
+    color: AppTheme.textSecondary,
     textAlign: 'center',
     lineHeight: 17,
     backgroundColor: AppTheme.backgroundColor,
@@ -153,12 +205,9 @@ const styles = StyleSheet.create({
     fontWeight: 400,
     fontSize: 16,
     color: '#333333',
-    textAlign: 'center',
-    lineHeight: 22,
-    backgroundColor: AppTheme.backgroundColor,
-    paddingHorizontal: 4,
   },
-  taskCardIcon: { width: 32, height: 32, marginRight: 12 },
+  taskCardIcon: { width: 15, height: 15, marginRight: 3 },
+  mergedTimelineCardTitle: {},
   taskCard: {
     width: 280,
     maxWidth: '100%',
@@ -173,18 +222,13 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   exerciseTaskCard: {
-    width: 280,
+    width: 200,
     maxWidth: '100%',
     minHeight: 64,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F6F8FB',
     borderRadius: 8,
-    paddingHorizontal: 17,
-    paddingVertical: 14,
-    shadowColor: '#053A93',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 15,
   },
   exerciseCardContent: {
     flex: 1,
@@ -214,48 +258,17 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.55 }],
   },
   dietTaskCard: {
-    width: 280,
-    maxWidth: '100%',
+    width: '100%',
     minHeight: 64,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    paddingHorizontal: 17,
-    paddingVertical: 14,
-    shadowColor: '#053A93',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
+    paddingHorizontal: 12,
+    paddingVertical: 15,
   },
-  dietRecommendBadge: {
+  dietCalorieInlineText: {
     marginLeft: 8,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255,139,7,0.12)',
-  },
-  dietRecommendBadgeText: {
-    fontWeight: 400,
-    fontSize: 11,
-    color: '#FF8B07',
-  },
-  dietFoodRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 6,
-    gap: 6,
-  },
-  dietFoodTag: {
-    maxWidth: '48%',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    backgroundColor: 'rgba(5,58,147,0.06)',
-  },
-  dietFoodTagText: {
+    flexShrink: 1,
     fontWeight: 400,
     fontSize: 12,
-    color: '#666666',
+    color: AppTheme.textSecondary,
   },
   dietCalorieRow: {
     marginTop: 8,
@@ -268,7 +281,7 @@ const styles = StyleSheet.create({
   dietCalorieText: {
     fontWeight: 400,
     fontSize: 12,
-    color: '#999999',
+    color: AppTheme.textSecondary,
   },
   mealNutritionCard: {
     width: 280,
@@ -293,7 +306,7 @@ const styles = StyleSheet.create({
   mealNutritionLabel: {
     fontWeight: 400,
     fontSize: 12,
-    color: '#999999',
+    color: AppTheme.textSecondary,
   },
   mealNutritionValue: {
     marginTop: 4,
@@ -304,30 +317,101 @@ const styles = StyleSheet.create({
   mealNutritionUnit: {
     fontWeight: 400,
     fontSize: 12,
-    color: '#999999',
+    color: AppTheme.textSecondary,
   },
   taskCardTitle: {
-    fontWeight: 500,
+    fontWeight: "bold",
     fontSize: 16,
     color: '#333333',
+  },
+  mergedTimelineCardItem: {
+    marginTop: 15,
+    paddingLeft: 18,
+  },
+  mergedTimelineCardItemDivider: {
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(5,58,147,0.06)',
+  },
+  mergedMedicationContent: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 12,
+  },
+  mergedMedicationTitleRow: {
+    minWidth: 0,
+  },
+  mergedMedicationName: {
+    flexShrink: 1,
+    fontWeight: "bold",
+    fontSize: 14,
+    color: '#333333',
+  },
+  mergedMedicationDesc: {
+    marginTop: 4,
+    fontWeight: 500,
+    fontSize: 12,
+    color: '#666666',
+  },
+  activityStatusBtn: {
+    maxWidth: 88,
+    height: 28,
+    paddingHorizontal: 10,
+    borderRadius: 14,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#3B74BD',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityStatusBtnText: {
+    fontWeight: '500',
+    fontSize: 12,
+    color: '#3B74BD',
+  },
+  activityLocationText: {
+    marginLeft: 18,
   },
   taskCardMedicationType: {
     marginLeft: 8,
     fontWeight: 400,
     fontSize: 14,
-    color: '#999999',
+    color: AppTheme.textSecondary,
   },
   taskCardDesc: {
-    marginTop: 4,
-    fontWeight: 400,
+    fontWeight: "bold",
     fontSize: 14,
-    color: '#999999',
+    color: AppTheme.textPrimary,
+  },
+  taskCardDescBtm: {
+    marginTop: 4,
+    fontWeight: 500,
+    fontSize: 12,
+    color: "#666666",
+  },
+  taskCardDescText: {
+    fontWeight: "bold",
+    fontSize: 14,
+    color: "#333333",
+    color: AppTheme.textSecondary,
   },
   taskCardStatus: {
     marginLeft: 6,
     fontWeight: 400,
     fontSize: 14,
-    color: '#999999',
+    color: AppTheme.textSecondary,
+  },
+  taskCardStatusButton: {
+    height: 29,
+    paddingHorizontal: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  taskCardStatusTakenWrap: {
+    height: 29,
+    justifyContent: 'center',
   },
   taskCardStatusIconWrap: {
     width: 18,
@@ -366,7 +450,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   taskCardStatusTaken: {
-    color: '#6D925E',
+    color: AppTheme.primaryColor,
   },
   taskCardStatusAction: {
     color: AppTheme.primaryColor,

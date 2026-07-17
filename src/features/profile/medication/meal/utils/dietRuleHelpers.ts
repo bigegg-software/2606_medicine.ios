@@ -41,9 +41,14 @@ const MEAL_CATEGORY_META: Record<
     },
 };
 
-export function parseFoods(foods?: string): string[] {
-    if (!foods?.trim()) return [];
-    return foods
+export function parseFoods(foods?: string | string[] | null): string[] {
+    if (foods == null) return [];
+    if (Array.isArray(foods)) {
+        return foods.map(item => String(item).trim()).filter(Boolean);
+    }
+    const text = String(foods).trim();
+    if (!text) return [];
+    return text
         .split(/[,，、]/)
         .map(item => item.trim())
         .filter(Boolean);
@@ -73,17 +78,24 @@ export function buildMealCardsFromRuleForDate(
 ): MealCardData[] {
     const weekday = moment(date).isoWeekday();
     return (mealList ?? [])
-        .filter(item => item.day === weekday && item.mealCategory != null)
-        .sort((a, b) => (a.mealCategory ?? 0) - (b.mealCategory ?? 0))
+        .filter(item => {
+            if (item.mealCategory == null || String(item.mealCategory).trim() === '') return false;
+            const day = Number(item.day);
+            // 无 day / 非法 day 时视为每日适用；否则按 1=周一...7=周日 匹配
+            if (!Number.isFinite(day) || day <= 0) return true;
+            return day === weekday;
+        })
+        .sort((a, b) => Number(a.mealCategory) - Number(b.mealCategory))
         .map((item, index) => {
-            const meta = MEAL_CATEGORY_META[item.mealCategory!] ?? MEAL_CATEGORY_META[1];
+            const category = Number(item.mealCategory);
+            const meta = MEAL_CATEGORY_META[category] ?? MEAL_CATEGORY_META[1];
             return {
                 key: `${meta.key}-${index}`,
                 title: meta.title,
                 time: meta.time,
                 icon: meta.icon,
                 foods: parseFoods(item.foods),
-                calories: item.calories ?? 0,
+                calories: Number(item.calories) || 0,
             };
         });
 }

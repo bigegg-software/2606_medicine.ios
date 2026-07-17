@@ -12,9 +12,9 @@ export type DietRestriction = {
 };
 
 export type DietMealItem = {
-    day?: number;
-    mealCategory?: number;
-    foods?: string;
+    day?: number | string;
+    mealCategory?: number | string;
+    foods?: string | string[];
     calories?: number;
     protein?: number;
     carbs?: number;
@@ -70,3 +70,26 @@ export type DietAiAdviceResult = ApiResult & {
 
 export const postDietPatientRuleAiAdvice = (paramJson: Record<string, unknown>) =>
     request.post<DietAiAdviceResult>('/patient/dietPatientRule/aiAdvice', { paramJson });
+
+export type DietAiMakeMealListPayload = {
+    patientUserId: number | string;
+    diagnosis?: string;
+    energyPerKg?: number;
+    proteinPerKg?: number;
+    waterPerKg?: number;
+    fatPercent?: number;
+    carbsPercent?: number;
+    recommendedIntake?: DietRecommendedIntake[];
+    restrictions?: DietRestriction[];
+};
+
+export type DietAiMakeMealListData = {
+    mealList?: DietMealItem[];
+    precautions?: string;
+};
+
+export type DietAiMakeMealListResult = ApiResult<DietAiMakeMealListData>;
+
+/** AI 一键生成周一到周日的餐食安排 */
+export const postDietPatientRuleAiMakeMealList = (payload: DietAiMakeMealListPayload) =>
+    request.post<DietAiMakeMealListResult>('/patient/dietPatientRule/aiMakeMealList', payload);

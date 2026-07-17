@@ -177,7 +177,11 @@ function getSuggestedMealItem(
   category: number,
 ): DietMealItem | null {
   const today = moment().isoWeekday();
-  return mealList?.find(item => item.day === today && item.mealCategory === category) ?? null;
+  return mealList?.find(item => {
+    const day = Number(item.day);
+    const matchDay = !Number.isFinite(day) || day <= 0 || day === today;
+    return matchDay && Number(item.mealCategory) === category;
+  }) ?? null;
 }
 
 function sumMealCalories(records: MealDetailItem[]): number {

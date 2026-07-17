@@ -3,12 +3,13 @@ import {
   Text,
   View,
   ScrollView,
+  ImageBackground,
   TouchableOpacity,
   Image,
   ActivityIndicator,
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { Flex, Picker, Toast } from '@ant-design/react-native';
+import { Flex, Modal, Picker, Toast } from '@ant-design/react-native';
 import moment, { type Moment } from 'moment';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,20 +18,25 @@ import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/schedule/calendar';
 import type { DailyRecordStatusItem } from '@/api/dailyRecordStatus';
 import {
+  getCalendarDayDotColors,
   groupTimelineItems,
-  hasDailyRecord,
+  groupTimelineItemsByTime,
   loadCalendarDayTimelineItems,
   loadDailyRecordStatusMap,
   mapTodayMedicationGroupsToTimelineItems,
   type CalendarTimelineItem,
 } from './calendarHelpers';
 import {
+  applyMedicationCheckInBatchToPlanGroups,
   applyMedicationCheckInToPlanGroups,
+  buildMedicationCheckInConfirmMessage,
   loadMedicationPlanGroupsForDate,
   submitMedicationCheckIn,
   type MedicationPlanGroupView,
 } from '@/src/features/profile/medication/medicationHelpers';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import { getActivityStatusText } from '@/src/features/community/activityHelpers';
+import { getLiveStatusText } from '@/src/features/community/liveHelpers';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const DASH_COUNT = 30;
@@ -52,8 +58,8 @@ const TIMELINE_ICONS: Record<CalendarTimelineItem['kind'], number> = {
   diet: require('@/assets/images/schedule/yw.png'),
   ex: require('@/assets/images/schedule/exercise2.png'),
   drug: require('@/assets/images/schedule/yw.png'),
-  activity: require('@/assets/images/schedule/exercise4.png'),
-  live: require('@/assets/images/schedule/exercise3.png'),
+  activity: require('@/assets/images/schedule/hd.png'),
+  live: require('@/assets/images/schedule/zb.png'),
 };
 
 type CalendarDay = {
@@ -62,16 +68,6 @@ type CalendarDay = {
 };
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-function DashedDivider() {
-  return (
-    <View style={styles.divider}>
-      {Array.from({ length: DASH_COUNT }, (_, index) => (
-        <View key={index} style={styles.dash} />
-      ))}
-    </View>
-  );
-}
 
 function buildCalendarDays(month: Moment): CalendarDay[] {
   const start = moment(month).startOf('month');
@@ -92,56 +88,52 @@ function buildCalendarDays(month: Moment): CalendarDay[] {
   return days;
 }
 
-const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
-
 function ExerciseTimelineSection({
   items,
   isToday,
+  selectedDate,
   onPressItem,
 }: {
   items: CalendarTimelineItem[];
   isToday: boolean;
+  selectedDate: string;
   onPressItem: (item: CalendarTimelineItem) => void;
 }) {
   if (items.length === 0) return null;
+  const selectedDateLabel = moment(selectedDate).format('M月D日');
 
   return (
     <View style={styles.exerciseSectionWrap}>
-      <View style={styles.periodRow}>
-        <View style={styles.timeAxis}>
-          <Text style={styles.periodText}>随时</Text>
-        </View>
-        <View style={styles.cardSide} />
-      </View>
+      <Flex align="center" style={styles.exerciseDateTitle}>
+        <Text style={styles.periodText}>{selectedDateLabel}</Text>
+        {isToday ? <Text style={styles.todayText}>今天</Text> : null}
+      </Flex>
 
-      {items.map((item, itemIndex) => {
-        const isLastInSection = itemIndex === items.length - 1;
+      <Text style={styles.periodText}>随时</Text>
 
-        return (
-          <View
-            key={item.key}
-            style={[
-              styles.timelineRow,
-              !isLastInSection && styles.timelineRowGap,
-              isLastInSection && styles.exerciseRowSectionLast,
-            ]}>
-            <View style={styles.cardSide}>
+      <ScrollView style={styles.exerciseScroll} horizontal showsHorizontalScrollIndicator={false}>
+        {items.map(item => {
+          return (
+            <View key={item.key} style={styles.cardSide}>
               {isToday ? (
                 <TouchableOpacity
                   activeOpacity={0.7}
                   onPress={() => onPressItem(item)}>
                   <Flex style={styles.exerciseTaskCard} align="start">
-                    <Image style={styles.taskCardIcon} source={TIMELINE_ICONS.ex} />
+                    <Image style={styles.taskCardIcon} tintColor={"#333333"} source={TIMELINE_ICONS.ex} />
                     <View style={styles.exerciseCardContent}>
                       <Flex justify="between" align="center">
                         <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
-                        {item.exerciseGoalText ? (
+                        {item.exerciseTargetMinutes != null && item.exerciseTargetMinutes > 0 ? (
                           <Text style={styles.taskCardDesc} numberOfLines={1}>
-                            {item.exerciseGoalText}
+                            {item.exerciseDoneMinutes ?? 0}
+                            <Text style={styles.taskCardDescText}>
+                              /{item.exerciseTargetMinutes}分钟
+                            </Text>
                           </Text>
                         ) : null}
                       </Flex>
-                      <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                      <Text style={styles.taskCardDescBtm} numberOfLines={2}>{item.desc}</Text>
                     </View>
                   </Flex>
                 </TouchableOpacity>
@@ -151,54 +143,70 @@ function ExerciseTimelineSection({
                   <View style={styles.exerciseCardContent}>
                     <Flex justify="between" align="center">
                       <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
-                      {item.exerciseGoalText ? (
+                      {item.exerciseTargetMinutes != null && item.exerciseTargetMinutes > 0 ? (
                         <Text style={styles.taskCardDesc} numberOfLines={1}>
-                          {item.exerciseGoalText}
+                          {item.exerciseDoneMinutes ?? 0}
+                          <Text style={styles.taskCardDescText}>
+                            /{item.exerciseTargetMinutes}分钟
+                          </Text>
                         </Text>
                       ) : null}
                     </Flex>
-                    <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+                    <Text style={styles.taskCardDescBtm} numberOfLines={2}>{item.desc}</Text>
                   </View>
                 </Flex>
               )}
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </ScrollView>
+
     </View>
   );
 }
 
 function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
+  const isRecorded = !item.mealIsRecommended;
   const foods = item.mealFoods ?? [];
+  const foodText = foods.length > 0
+    ? foods.join('、')
+    : isRecorded
+      ? ''
+      : (item.desc || '暂无推荐');
+  const calorieText =
+    item.mealCalories != null && item.mealCalories > 0
+      ? `${item.mealCalories} 千卡`
+      : '';
 
   return (
-    <Flex style={styles.dietTaskCard} align="start">
-      <Image
-        style={styles.taskCardIcon}
-        source={item.mealIcon ?? TIMELINE_ICONS.diet}
-      />
-      <View style={styles.exerciseCardContent}>
-        <Flex align="center" style={{ flexWrap: 'wrap' }}>
-          <Text style={styles.taskCardTitle}>{item.title}</Text>
-          {item.mealIsRecommended ? (
-            <View style={styles.dietRecommendBadge}>
-              <Text style={styles.dietRecommendBadgeText}>AI推荐</Text>
-            </View>
+    <Flex justify="between" align="center" style={styles.dietTaskCard}>
+      <View style={styles.mergedMedicationContent}>
+        <Flex align="center">
+          <Image
+            style={styles.taskCardIcon}
+            source={item.mealIcon ?? TIMELINE_ICONS.diet}
+          />
+          <Text style={styles.mergedMedicationName} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {calorieText ? (
+            <Text style={styles.dietCalorieInlineText} numberOfLines={1}>
+              {calorieText}
+            </Text>
           ) : null}
         </Flex>
-        {foods.length > 0 ? (
-          <View style={styles.dietFoodRow}>
-            {foods.slice(0, 4).map((food, index) => (
-              <View key={`${food}-${index}`} style={styles.dietFoodTag}>
-                <Text style={styles.dietFoodTagText} numberOfLines={1}>{food}</Text>
-              </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
-        )}
-
+        {foodText ? (
+          <Text
+            style={[styles.mergedMedicationDesc, styles.activityLocationText]}
+            numberOfLines={2}>
+            {foodText}
+          </Text>
+        ) : null}
+      </View>
+      <View style={styles.activityStatusBtn}>
+        <Text style={styles.activityStatusBtnText} numberOfLines={1}>
+          {isRecorded ? '已记录' : '未记录'}
+        </Text>
       </View>
     </Flex>
   );
@@ -218,6 +226,7 @@ function MedicationStatus({
       <TouchableOpacity
         activeOpacity={0.7}
         disabled={checkingIn}
+        style={styles.taskCardStatusButton}
         onPress={() => onCheckIn(item)}>
         {checkingIn ? (
           <ActivityIndicator color={AppTheme.primaryColor} size="small" />
@@ -234,7 +243,7 @@ function MedicationStatus({
   }
 
   return (
-    <Flex align="center">
+    <Flex align="center" style={item.taken ? styles.taskCardStatusTakenWrap : null}>
       <View style={styles.taskCardStatusIconWrap}>
         {item.taken ? (
           <>
@@ -256,86 +265,343 @@ function MedicationStatus({
   );
 }
 
+function TimelineCardItem({
+  item,
+  onPressItem,
+  checkingInKey,
+  onMedicationCheckIn,
+}: {
+  item: CalendarTimelineItem;
+  onPressItem: (item: CalendarTimelineItem) => void;
+  checkingInKey: string | null;
+  onMedicationCheckIn: (item: CalendarTimelineItem) => void;
+}) {
+  const isDietItem = item.kind === 'diet';
+  const isPressable = isDietItem || item.kind === 'activity' || item.kind === 'live';
+
+  return (
+    <TouchableOpacity
+      activeOpacity={isPressable ? 0.7 : 1}
+      disabled={!isPressable}
+      onPress={() => onPressItem(item)}>
+      {isDietItem ? (
+        <DietTimelineCard item={item} />
+      ) : (
+        <Flex style={styles.taskCard} align="center">
+          <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
+          <View style={{ flex: 1 }}>
+            <Flex align="center" style={{ flexWrap: 'wrap' }}>
+              <Text style={styles.taskCardTitle}>{item.title}</Text>
+              {item.kind === 'drug' && item.eventBasedLabel ? (
+                <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+              ) : null}
+            </Flex>
+            {item.desc ? (
+              <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+            ) : null}
+          </View>
+          {item.kind === 'drug' ? (
+            <MedicationStatus
+              item={item}
+              checkingIn={checkingInKey === item.key}
+              onCheckIn={onMedicationCheckIn}
+            />
+          ) : null}
+        </Flex>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function LiveTimelineCard({
+  items,
+  onPressItem,
+}: {
+  items: CalendarTimelineItem[];
+  onPressItem: (item: CalendarTimelineItem) => void;
+}) {
+  return (
+    <View style={styles.mergedTimelineCard}>
+      {items.map((item, itemIndex) => {
+        const subtitle =
+          [item.liveAnchorName, item.livePlatform].filter(Boolean).join('  ') || item.desc;
+        const statusText = getLiveStatusText(item.liveStatus, item.liveStatusName);
+
+        return (
+          <TouchableOpacity
+            key={item.key}
+            activeOpacity={0.7}
+            onPress={() => onPressItem(item)}>
+            <Flex
+              justify="between"
+              align="center"
+              style={itemIndex > 0 ? styles.mergedTimelineCardItem : null}>
+              <View style={styles.mergedMedicationContent}>
+                <Flex align="center">
+                  <Image
+                    style={styles.taskCardIcon}
+                    source={require('@/assets/images/schedule/zb.png')}
+                  />
+                  <Text style={styles.mergedMedicationName} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                </Flex>
+                {subtitle ? (
+                  <Text style={[styles.mergedMedicationDesc, styles.activityLocationText]} numberOfLines={2}>
+                    {subtitle}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.activityStatusBtn}>
+                <Text style={styles.activityStatusBtnText} numberOfLines={1}>
+                  {statusText}
+                </Text>
+              </View>
+            </Flex>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function ActivityTimelineCard({
+  items,
+  onPressItem,
+}: {
+  items: CalendarTimelineItem[];
+  onPressItem: (item: CalendarTimelineItem) => void;
+}) {
+  return (
+    <View style={styles.mergedTimelineCard}>
+      {items.map((item, itemIndex) => {
+        const location = item.activityLocation || item.desc;
+        const statusText = getActivityStatusText(item.activityStatus, item.activityStatusName);
+
+        return (
+          <TouchableOpacity
+            key={item.key}
+            activeOpacity={0.7}
+            onPress={() => onPressItem(item)}>
+            <Flex
+              justify="between"
+              align="center"
+              style={itemIndex > 0 ? styles.mergedTimelineCardItem : null}>
+              <View style={styles.mergedMedicationContent}>
+                <Flex align="center">
+                  <Image
+                    style={styles.taskCardIcon}
+                    source={require('@/assets/images/schedule/hd.png')}
+                  />
+                  <Text style={styles.mergedMedicationName} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                </Flex>
+                {location ? (
+                  <Text style={[styles.mergedMedicationDesc, styles.activityLocationText]} numberOfLines={2}>
+                    {location}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={styles.activityStatusBtn}>
+                <Text style={styles.activityStatusBtnText} numberOfLines={1}>
+                  {statusText}
+                </Text>
+              </View>
+            </Flex>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+function MedicationTimelineCard({
+  items,
+  checkingInKey,
+  checkingInAll,
+  onMedicationCheckIn,
+  onMedicationCheckInAll,
+}: {
+  items: CalendarTimelineItem[];
+  checkingInKey: string | null;
+  checkingInAll: boolean;
+  onMedicationCheckIn: (item: CalendarTimelineItem) => void;
+  onMedicationCheckInAll: (items: CalendarTimelineItem[]) => void;
+}) {
+  const canCheckInItems = items.filter(item => item.canCheckIn);
+  const allTaken = items.length > 0 && items.every(item => item.taken);
+
+  return (
+    <View style={styles.mergedTimelineCard}>
+      <Flex justify="between" align="center">
+        <Flex align="center">
+          <Image
+            style={styles.taskCardIcon}
+            source={require('@/assets/images/schedule/yy.png')}
+          />
+          <Text style={styles.taskCardTitle}>用药</Text>
+        </Flex>
+        {canCheckInItems.length > 0 ? (
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.taskCardStatusButton}
+            disabled={checkingInAll || checkingInKey != null}
+            onPress={() => onMedicationCheckInAll(canCheckInItems)}>
+            {checkingInAll ? (
+              <ActivityIndicator color={AppTheme.primaryColor} size="small" />
+            ) : (
+              <Flex align="center">
+                <View style={styles.taskCardStatusIconWrap}>
+                  <View style={styles.taskCardStatusCircleAction} />
+                </View>
+              </Flex>
+            )}
+          </TouchableOpacity>
+        ) : allTaken ? (
+          <Flex align="center">
+            <View style={styles.taskCardStatusIconWrap}>
+              <View style={styles.taskCardStatusCircleTaken} />
+              <Text style={styles.taskCardStatusCheck}>✓</Text>
+            </View>
+          </Flex>
+        ) : null}
+      </Flex>
+
+      {items.map((item, itemIndex) => (
+        <Flex
+          key={item.key}
+          justify="between"
+          align="center"
+          style={[
+            styles.mergedTimelineCardItem,
+          ]}>
+          <View style={styles.mergedMedicationContent}>
+            <Flex align="center" style={styles.mergedMedicationTitleRow}>
+              <Text style={styles.mergedMedicationName} numberOfLines={1}>
+                {item.title}
+              </Text>
+            </Flex>
+            {item.desc ? (
+              <Text style={styles.mergedMedicationDesc} numberOfLines={2}>
+                {item.desc}
+              </Text>
+            ) : null}
+          </View>
+          <MedicationStatus
+            item={item}
+            checkingIn={checkingInAll || checkingInKey === item.key}
+            onCheckIn={onMedicationCheckIn}
+          />
+        </Flex>
+      ))}
+    </View>
+  );
+}
+
 function TimelineSection({
   period,
   items,
   onPressItem,
   checkingInKey,
+  checkingInGroupKey,
   onMedicationCheckIn,
+  onMedicationCheckInAll,
 }: {
   period: string;
   items: CalendarTimelineItem[];
   onPressItem: (item: CalendarTimelineItem) => void;
   checkingInKey: string | null;
+  checkingInGroupKey: string | null;
   onMedicationCheckIn: (item: CalendarTimelineItem) => void;
+  onMedicationCheckInAll: (items: CalendarTimelineItem[], groupKey: string) => void;
 }) {
-  if (items.length === 0) return null;
+  const timeGroups = useMemo(() => groupTimelineItemsByTime(items), [items]);
+
+  if (timeGroups.length === 0) return null;
 
   return (
-    <>
-      <View style={[styles.periodRow, period === '下午' && styles.periodRowAfternoon]}>
-        <View style={styles.timeAxis}>
-          <Text style={styles.periodText}>{period}</Text>
-        </View>
-        <View style={styles.cardSide} />
+    <View style={styles.timelineSection}>
+      <View style={styles.periodRow}>
+        <Text style={styles.periodText}>{period}</Text>
       </View>
 
-      {items.map((item, itemIndex) => {
-        const isLastInSection = itemIndex === items.length - 1;
-        const isDietItem = item.kind === 'diet';
-        const isPressable = isDietItem || item.kind === 'activity' || item.kind === 'live';
+      <View style={styles.sectionItems}>
+        {timeGroups.map((group, groupIndex) => {
+          const isLast = groupIndex === timeGroups.length - 1;
+          const medicationItems = group.items.filter(item => item.kind === 'drug');
+          const activityItems = group.items.filter(item => item.kind === 'activity');
+          const liveItems = group.items.filter(item => item.kind === 'live');
+          const otherItems = group.items.filter(
+            item => item.kind !== 'drug' && item.kind !== 'activity' && item.kind !== 'live',
+          );
+          const hasMergedCards =
+            medicationItems.length > 0 || activityItems.length > 0 || liveItems.length > 0;
 
-        return (
-          <View
-            key={item.key}
-            style={[
-              styles.timelineRow,
-              !isLastInSection && styles.timelineRowGap,
-              isLastInSection && styles.timelineRowSectionLast,
-            ]}>
-            <View style={styles.timeAxis}>
-              {!isDietItem ? (
-                <View style={styles.timeSlot}>
-                  <Text style={styles.timeText}>{item.time}</Text>
-                </View>
-              ) : null}
-            </View>
-            <View style={styles.cardSide}>
-              <TouchableOpacity
-                activeOpacity={isPressable ? 0.7 : 1}
-                disabled={!isPressable}
-                onPress={() => onPressItem(item)}>
-                {isDietItem ? (
-                  <DietTimelineCard item={item} />
-                ) : (
-                  <Flex style={styles.taskCard} align="center">
-                    <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
-                    <View style={{ flex: 1 }}>
-                      <Flex align="center" style={{ flexWrap: 'wrap' }}>
-                        <Text style={styles.taskCardTitle}>{item.title}</Text>
-                        {item.kind === 'drug' && item.eventBasedLabel ? (
-                          <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
-                        ) : null}
-                      </Flex>
-                      {item.desc ? (
-                        <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
-                      ) : null}
-                    </View>
-                    {item.kind === 'drug' ? (
-                      <MedicationStatus
-                        item={item}
-                        checkingIn={checkingInKey === item.key}
-                        onCheckIn={onMedicationCheckIn}
+          return (
+            <View
+              key={group.key}
+              style={[styles.timelineRow, !isLast && styles.timelineRowGap]}>
+              <View style={styles.axisCol}>
+                <View style={styles.timeAxisLine} />
+                {!isLast ? <View style={styles.axisSegment} /> : null}
+              </View>
+              <View style={styles.timelineContent}>
+                <Text style={styles.timeText}>{group.time}</Text>
+                <View style={styles.cardSideBox}>
+                  {medicationItems.length > 0 ? (
+                    <MedicationTimelineCard
+                      items={medicationItems}
+                      checkingInKey={checkingInKey}
+                      checkingInAll={checkingInGroupKey === group.key}
+                      onMedicationCheckIn={onMedicationCheckIn}
+                      onMedicationCheckInAll={items => onMedicationCheckInAll(items, group.key)}
+                    />
+                  ) : null}
+                  {activityItems.length > 0 ? (
+                    <View style={medicationItems.length > 0 ? styles.mergedTimelineCardGap : null}>
+                      <ActivityTimelineCard
+                        items={activityItems}
+                        onPressItem={onPressItem}
                       />
-                    ) : null}
-                  </Flex>
-                )}
-              </TouchableOpacity>
+                    </View>
+                  ) : null}
+                  {liveItems.length > 0 ? (
+                    <View
+                      style={
+                        medicationItems.length > 0 || activityItems.length > 0
+                          ? styles.mergedTimelineCardGap
+                          : null
+                      }>
+                      <LiveTimelineCard
+                        items={liveItems}
+                        onPressItem={onPressItem}
+                      />
+                    </View>
+                  ) : null}
+                  {otherItems.map((item, itemIndex) => (
+                    <View
+                      key={item.key}
+                      style={
+                        hasMergedCards || itemIndex > 0
+                          ? styles.mergedTimelineCardGap
+                          : null
+                      }>
+                      <TimelineCardItem
+                        item={item}
+                        onPressItem={onPressItem}
+                        checkingInKey={checkingInKey}
+                        onMedicationCheckIn={onMedicationCheckIn}
+                      />
+                    </View>
+                  ))}
+                </View>
+              </View>
             </View>
-          </View>
-        );
-      })}
-    </>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
@@ -343,16 +609,22 @@ function ScheduleTimeline({
   items,
   loading,
   isToday,
+  selectedDate,
   onPressItem,
   checkingInKey,
+  checkingInGroupKey,
   onMedicationCheckIn,
+  onMedicationCheckInAll,
 }: {
   items: CalendarTimelineItem[];
   loading: boolean;
   isToday: boolean;
+  selectedDate: string;
   onPressItem: (item: CalendarTimelineItem) => void;
   checkingInKey: string | null;
+  checkingInGroupKey: string | null;
   onMedicationCheckIn: (item: CalendarTimelineItem) => void;
+  onMedicationCheckInAll: (items: CalendarTimelineItem[], groupKey: string) => void;
 }) {
   const grouped = useMemo(() => groupTimelineItems(items), [items]);
   const hasScheduledItems = grouped.morning.length > 0 || grouped.afternoon.length > 0;
@@ -379,25 +651,29 @@ function ScheduleTimeline({
         <ExerciseTimelineSection
           items={grouped.exercise}
           isToday={isToday}
+          selectedDate={selectedDate}
           onPressItem={onPressItem}
         />
       ) : null}
       {hasScheduledItems ? (
         <View style={styles.scheduledTimelineWrap}>
-          <View style={styles.axisLine} pointerEvents="none" />
           <TimelineSection
             period="上午"
             items={grouped.morning}
             onPressItem={onPressItem}
             checkingInKey={checkingInKey}
+            checkingInGroupKey={checkingInGroupKey}
             onMedicationCheckIn={onMedicationCheckIn}
+            onMedicationCheckInAll={onMedicationCheckInAll}
           />
           <TimelineSection
             period="下午"
             items={grouped.afternoon}
             onPressItem={onPressItem}
             checkingInKey={checkingInKey}
+            checkingInGroupKey={checkingInGroupKey}
             onMedicationCheckIn={onMedicationCheckIn}
+            onMedicationCheckInAll={onMedicationCheckInAll}
           />
         </View>
       ) : null}
@@ -416,6 +692,7 @@ export default function ScheduleCalendarPage() {
   const [loadingDay, setLoadingDay] = useState(false);
   const [loadingMedication, setLoadingMedication] = useState(false);
   const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
+  const [checkingInGroupKey, setCheckingInGroupKey] = useState<string | null>(null);
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
   const selectedStatus = statusMap.get(selectedDate);
@@ -505,7 +782,7 @@ export default function ScheduleCalendarPage() {
   }, [navigation, selectedDate]);
 
   const handleMedicationCheckIn = useCallback(async (item: CalendarTimelineItem) => {
-    if (!item.canCheckIn || checkingInKey) return;
+    if (!item.canCheckIn || checkingInKey || checkingInGroupKey) return;
 
     const planItem = medicationPlanGroups
       .flatMap(group => group.items)
@@ -526,17 +803,81 @@ export default function ScheduleCalendarPage() {
     } finally {
       setCheckingInKey(null);
     }
-  }, [checkingInKey, medicationPlanGroups]);
+  }, [checkingInGroupKey, checkingInKey, medicationPlanGroups]);
+
+  const confirmMedicationCheckInAll = useCallback(async (
+    items: CalendarTimelineItem[],
+    groupKey: string,
+  ) => {
+    if (items.length === 0 || checkingInKey || checkingInGroupKey) return;
+
+    const planItems = medicationPlanGroups
+      .flatMap(group => group.items)
+      .filter(plan => items.some(item => item.key === plan.key && item.canCheckIn));
+    if (planItems.length === 0) return;
+
+    setCheckingInGroupKey(groupKey);
+    try {
+      const results = await Promise.all(planItems.map(item => submitMedicationCheckIn(item)));
+      const failedCount = results.filter(res => !isResourceApiOk(res as { code?: number })).length;
+      if (failedCount > 0) {
+        Toast.fail(failedCount === planItems.length ? '打卡失败' : '部分打卡失败', 1.5);
+        await loadTodayMedication(selectedDate);
+        return;
+      }
+      Toast.success('已全部标记为已服用', 1.5);
+      setMedicationPlanGroups(prev =>
+        applyMedicationCheckInBatchToPlanGroups(prev, planItems.map(item => item.key)),
+      );
+    } catch {
+      Toast.fail('打卡失败', 1.5);
+    } finally {
+      setCheckingInGroupKey(null);
+    }
+  }, [
+    checkingInGroupKey,
+    checkingInKey,
+    loadTodayMedication,
+    medicationPlanGroups,
+    selectedDate,
+  ]);
+
+  const handleMedicationCheckInAll = useCallback((
+    items: CalendarTimelineItem[],
+    groupKey: string,
+  ) => {
+    if (items.length === 0 || checkingInKey || checkingInGroupKey) return;
+
+    const planItems = medicationPlanGroups
+      .flatMap(group => group.items)
+      .filter(plan => items.some(item => item.key === plan.key && item.canCheckIn));
+    if (planItems.length === 0) return;
+
+    Modal.alert('', buildMedicationCheckInConfirmMessage(planItems), [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确定',
+        onPress: () => void confirmMedicationCheckInAll(items, groupKey),
+      },
+    ]);
+  }, [
+    checkingInGroupKey,
+    checkingInKey,
+    confirmMedicationCheckInAll,
+    medicationPlanGroups,
+  ]);
 
   return (
     <PageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <View style={styles.rowBox}>
+        <View style={[styles.rowBox, styles.mg18]}>
           <Flex justify="between" align="center">
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setCurrentMonth(m => moment(m).subtract(1, 'month'))}>
-              <Image source={require('@/assets/images/user/left.png')} style={styles.navIcon} />
+              onPress={() => setCurrentMonth(m => moment(m).subtract(1, 'month'))}
+              style={styles.navIconLeftWrap}
+            >
+              <Image source={require('@/assets/images/schedule/icon_left.png')} style={styles.navIcon} />
             </TouchableOpacity>
             <Picker
               data={MONTH_PICKER_DATA}
@@ -558,20 +899,22 @@ export default function ScheduleCalendarPage() {
             </Picker>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setCurrentMonth(m => moment(m).add(1, 'month'))}>
-              <Image source={require('@/assets/images/user/left.png')} style={styles.navIconRight} />
+              onPress={() => setCurrentMonth(m => moment(m).add(1, 'month'))}
+              style={styles.navIconRightWrap}
+            >
+              <Image source={require('@/assets/images/schedule/icon_right.png')} style={styles.navIcon} />
             </TouchableOpacity>
           </Flex>
 
           <View style={styles.weekHead}>
             {WEEK_LABELS.map(label => (
-              <Text key={label} style={styles.weekCell}>
-                {label}
-              </Text>
+              <Flex key={label} style={styles.weekCellWrap}>
+                <Text style={styles.weekCell}>
+                  {label}
+                </Text>
+              </Flex>
             ))}
           </View>
-
-          <DashedDivider />
 
           {loadingMonth ? (
             <View style={styles.loadingBox}>
@@ -583,7 +926,8 @@ export default function ScheduleCalendarPage() {
                 const dateKey = day.date.format('YYYY-MM-DD');
                 const isSelected = selectedDate === dateKey;
                 const isToday = day.date.isSame(moment(), 'day');
-                const hasTask = hasDailyRecord(statusMap.get(dateKey));
+                const dayDots = getCalendarDayDotColors(statusMap.get(dateKey));
+                const overlapDots = dayDots.length >= 4;
 
                 return (
                   <TouchableOpacity
@@ -603,24 +947,62 @@ export default function ScheduleCalendarPage() {
                         {isToday ? '今' : day.date.date()}
                       </Text>
                     </View>
-                    {hasTask ? (
-                      <View style={[styles.dayDot, isSelected && styles.dayDotSelected]} />
-                    ) : null}
+                    <Flex
+                      style={[
+                        styles.dayDotWrap,
+                        overlapDots ? styles.dayDotWrapOverlap : styles.dayDotWrapGap,
+                      ]}>
+                      {dayDots.map((color, index) => (
+                        <View
+                          key={`${dateKey}-${color}-${index}`}
+                          style={[
+                            styles.dayDot,
+                            { backgroundColor: color },
+                            overlapDots && index > 0 ? styles.dayDotOverlap : null,
+                          ]}
+                        />
+                      ))}
+                    </Flex>
                   </TouchableOpacity>
                 );
               })}
             </View>
           )}
         </View>
-        {/* <Text style={styles.titleText}>{dateHeader}</Text> */}
-        <ScheduleTimeline
-          items={displayTimelineItems}
-          loading={loadingDay || (isToday && loadingMedication)}
-          isToday={isToday}
-          onPressItem={handleTimelinePress}
-          checkingInKey={checkingInKey}
-          onMedicationCheckIn={handleMedicationCheckIn}
-        />
+        <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.calendarBack}>
+          <Flex style={{ gap: 30, flex: 1 }} justify="center">
+            <Flex>
+              <View style={[styles.typeColor, { backgroundColor: "#EE9C44" }]}></View>
+              <Text style={styles.typeText}>用餐</Text>
+            </Flex>
+            <Flex>
+              <View style={[styles.typeColor, { backgroundColor: "#72A1C5" }]}></View>
+              <Text style={styles.typeText}>用药</Text>
+            </Flex>
+            <Flex>
+              <View style={[styles.typeColor, { backgroundColor: "#6D925E" }]}></View>
+              <Text style={styles.typeText}>运动</Text>
+            </Flex>
+            <Flex>
+              <View style={[styles.typeColor, { backgroundColor: "#FB4550" }]}></View>
+              <Text style={styles.typeText}>其他</Text>
+            </Flex>
+          </Flex>
+        </ImageBackground>
+
+        <View style={[styles.rowBox, { marginTop: 0 }, styles.mg18]}>
+          <ScheduleTimeline
+            items={displayTimelineItems}
+            loading={loadingDay || (isToday && loadingMedication)}
+            isToday={isToday}
+            selectedDate={selectedDate}
+            onPressItem={handleTimelinePress}
+            checkingInKey={checkingInKey}
+            checkingInGroupKey={checkingInGroupKey}
+            onMedicationCheckIn={handleMedicationCheckIn}
+            onMedicationCheckInAll={handleMedicationCheckInAll}
+          />
+        </View>
       </ScrollView>
     </PageLayout>
   );
