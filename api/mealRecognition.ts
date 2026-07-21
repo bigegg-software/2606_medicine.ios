@@ -77,3 +77,14 @@ export async function uploadFoodIdentifyText(text: string) {
         headers: { 'Content-Type': 'multipart/form-data' },
     });
 }
+
+export type FillOthersNutritionPayload = {
+    analysisResult: Array<Record<string, unknown>>;
+    ossId?: number | string;
+    ossUrl?: string;
+};
+
+/** 图片识别后补充其他营养元素 */
+export function fillOthersNutrition(payload: FillOthersNutritionPayload) {
+    return request.post<FoodIdentifyResult>('/patient/fitpulse/foodIdentify/fillOthers', payload);
+}

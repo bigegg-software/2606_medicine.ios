@@ -4,7 +4,7 @@ import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useRoute, type RouteProp } from '@react-navigation/native';
 import { getMealDetailInfo, type MealDetailInfo } from '@/api/mealDetail';
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
-import styles from '@/css/medication/deal/mealResult';
+import styles from '@/css/nutrition/mealResult';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
@@ -16,7 +16,7 @@ import {
 import FoodDetailCard, {
     createFoodItemStateFromMealDetail,
     type FoodItemEditState,
-} from './components/FoodDetailCard';
+} from '@/src/features/profile/medication/meal/components/FoodDetailCard';
 
 export default function MealRecordDetailPage() {
     const route = useRoute<RouteProp<RootStackParamList, 'MealRecordDetailPage'>>();

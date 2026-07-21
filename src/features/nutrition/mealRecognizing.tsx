@@ -13,7 +13,7 @@ import Animated, {
     type SharedValue,
 } from 'react-native-reanimated';
 import PageLayout from '@/src/components/PageLayout';
-import styles from '@/css/medication/deal/recognition';
+import styles from '@/css/nutrition/recognition';
 import {
     uploadFoodIdentifyImage,
     uploadFoodIdentifyText,
@@ -108,7 +108,7 @@ export default function MealRecognizingPage() {
                 ) as FoodIdentifyResult;
 
                 if (cancelled) return;
-
+        
                 if (isResourceApiOk(res) && res.data) {
                     const hasFood =
                         Array.isArray(res.data.analysisResult) && res.data.analysisResult.length > 0;

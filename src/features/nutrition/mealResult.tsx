@@ -1,93 +1,39 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, ScrollView, Text, TouchableOpacity, View, type ImageSourcePropType } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, ImageBackground, Text, TouchableOpacity, View } from 'react-native';
 import { Flex, Picker, Toast } from '@ant-design/react-native';
 import moment from 'moment';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { addMealDetailList } from '@/api/mealDetail';
-import type { FoodIdentifyData, FoodIdentifyItem } from '@/api/mealRecognition';
-import styles from '@/css/medication/deal/mealResult';
+import {
+    fillOthersNutrition,
+    type FoodIdentifyData,
+    type FoodIdentifyItem,
+} from '@/api/mealRecognition';
+import styles from '@/css/nutrition/mealResult';
 import PageLayout from '@/src/components/PageLayout';
-import { isResourceApiOk } from '@/src/utils/apiHelpers';
-import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
-import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
+import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
+import type { RootStackParamList } from '@/route/router';
+import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import FoodDetailCard, {
     createFoodItemState,
-    isGramUnit,
     type FoodItemEditState,
-} from './components/FoodDetailCard';
-import NutritionTable from './components/NutritionTable';
+} from '@/src/features/profile/medication/meal/components/FoodDetailCard';
 import {
     buildAggregatedNutritionEntries,
     PREVIEW_NUTRITION_KEYS,
-} from './utils/mealNutritionHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealNutritionHelpers';
 import type { ManualCorrectionSavePayload } from './utils/manualCorrectionHelpers';
-import { markMealInputForReset } from './utils/mealInputReset';
-
-function getMealCategoryByTime() {
-    const hour = new Date().getHours();
-    if (hour >= 6 && hour < 9) return 1;
-    if (hour >= 11 && hour < 14) return 2;
-    if (hour >= 17 && hour < 20) return 3;
-    return 4;
-}
-
-function buildMealDetailItems(
-    items: FoodIdentifyItem[],
-    states: FoodItemEditState[],
-    timeStr: string,
-    mealCategory: number,
-) {
-    return items.map((item, index) => {
-        const state = states[index] ?? createFoodItemState(item);
-        return {
-            mealName: item.mealName || '未知食物',
-            servingAmount: state.amount,
-            servingUnit: state.unitValue,
-            unit: state.unitValue,
-            weight: isGramUnit(state.unitValue) ? state.amount : toNumber(item.weight),
-            mealCategory,
-            calorie: toNumber(item.calorie),
-            protein: toNumber(item.protein),
-            fat: toNumber(item.fat),
-            carbs: toNumber(item.carbs),
-            fiber: toNumber(item.fiber),
-            salt: 0,
-            waterIntake: 0,
-            isWater: 0,
-            othersNutrition: (item.othersNutrition ?? {}) as Record<string, never>,
-            timeStr,
-        };
-    });
-}
-
-const MEAL_PERIOD_OPTIONS: ReadonlyArray<{
-    category: number;
-    label: string;
-    icon: ImageSourcePropType;
-}> = [
-        { category: 1, label: '早餐', icon: require('@/assets/images/meal/zc.png') },
-        { category: 2, label: '中餐', icon: require('@/assets/images/meal/zzc.png') },
-        { category: 3, label: '晚餐', icon: require('@/assets/images/meal/wc.png') },
-        { category: 4, label: '加餐', icon: require('@/assets/images/meal/jc.png') },
-    ];
-
-const TIME_PICKER_DATA = [
-    Array.from({ length: 24 }, (_, hour) => ({
-        label: String(hour).padStart(2, '0'),
-        value: hour,
-    })),
-    Array.from({ length: 60 }, (_, minute) => ({
-        label: String(minute).padStart(2, '0'),
-        value: minute,
-    })),
-];
-
-function parseTimeValue(time: string): [number, number] {
-    const parsed = moment(time, 'HH:mm', true);
-    return parsed.isValid() ? [parsed.hour(), parsed.minute()] : [moment().hour(), moment().minute()];
-}
+import { markMealInputForReset } from '@/src/features/profile/medication/meal/utils/mealInputReset';
+import {
+    buildFillOthersPayload,
+    buildMealDetailItems,
+    getMealCategoryByTime,
+    MEAL_PERIOD_OPTIONS,
+    parseTimeValue,
+    TIME_PICKER_DATA,
+} from './utils/mealResultHelpers';
 
 export default function MealResultPage() {
     const navigation = useNavigation<any>();
@@ -102,6 +48,7 @@ export default function MealResultPage() {
     );
     const [mealCategory, setMealCategory] = useState(() => getMealCategoryByTime());
     const [saving, setSaving] = useState(false);
+    const [othersLoading, setOthersLoading] = useState(false);
 
     const isError = !result.hasFood || foods.length === 0;
     const isPhotoInput = Boolean(result.ossUrl?.trim());
@@ -115,9 +62,48 @@ export default function MealResultPage() {
         setRecordTime(correction.recordTime);
     }, []);
 
+    const deleteFood = useCallback((itemIndex: number) => {
+        setFoods(prev => prev.filter((_, index) => index !== itemIndex));
+        setFoodItemStates(prev => prev.filter((_, index) => index !== itemIndex));
+    }, []);
+
     useEffect(() => {
         navigation.setOptions({ gestureEnabled: false });
     }, [navigation]);
+
+    // 图片识别：补充其他营养元素；文字识别不请求
+    useEffect(() => {
+        if (!isPhotoInput || isError || initialAnalysisResult.length === 0) return;
+
+        let cancelled = false;
+        const loadOthers = async () => {
+            setOthersLoading(true);
+            try {
+                const res = (await fillOthersNutrition(
+                    buildFillOthersPayload(initialAnalysisResult, result.ossId, result.ossUrl),
+                )) as unknown as ApiResult<FoodIdentifyData>;
+                if (cancelled) return;
+                if (!isResourceApiOk(res)) return;
+                const data = apiResourceData(res);
+                const nextFoods = data?.analysisResult;
+                if (Array.isArray(nextFoods) && nextFoods.length > 0) {
+                    setFoods(nextFoods);
+                    setFoodItemStates(nextFoods.map(createFoodItemState));
+                }
+            } catch {
+                // 补充失败不影响主流程，保留基础识别结果
+            } finally {
+                if (!cancelled) setOthersLoading(false);
+            }
+        };
+
+        void loadOthers();
+        return () => {
+            cancelled = true;
+        };
+        // 仅进入页时按初始识别结果请求一次
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isPhotoInput, isError]);
 
     const totals = useMemo(() => {
         return foods.reduce<{ calorie: number; protein: number; fat: number; carbs: number }>(
@@ -164,7 +150,7 @@ export default function MealResultPage() {
                 return;
             }
             Toast.fail(res?.msg || res?.message || '保存失败');
-        } catch (error) {
+        } catch {
             Toast.fail('保存失败');
         } finally {
             setSaving(false);
@@ -175,26 +161,149 @@ export default function MealResultPage() {
         setFoodItemStates(prev => prev.map((item, itemIndex) => (itemIndex === index ? next : item)));
     }, []);
 
-
     return (
         <PageLayout edges={[]}>
             <View style={styles.page}>
                 <ScrollView
-                    style={styles.body}
+                    style={styles.scrollNew}
                     contentContainerStyle={styles.bodyContent}
                     showsVerticalScrollIndicator={false}>
-                    <View style={styles.imageBox}>
-                        {result.ossUrl ? (
-                            <Image source={{ uri: result.ossUrl }} style={styles.image} />
-                        ) : (
-                            <Image
-                                source={require('@/assets/images/medication/default2.png')}
-                                style={styles.image}
-                            />
-                        )}
-                    </View>
-
                     {isError ? (
+                        <View style={styles.errorState}>
+                            <Text style={styles.errorTitle}>未识别到食物</Text>
+                            <Text style={styles.errorIntro}>请重新拍摄，或稍后再试。</Text>
+                        </View>
+                    ) : (
+                        <>
+                            <View style={styles.mH12}>
+                                <Flex justify='between' style={styles.commonWrap}>
+                                    <Flex>
+                                        <View style={styles.imageBox}>
+                                            {result.ossUrl ? (
+                                                <Image source={{ uri: result.ossUrl }} style={styles.image} />
+                                            ) : (
+                                                <Image
+                                                    source={require('@/assets/images/medication/default2.png')}
+                                                    style={styles.image}
+                                                />
+                                            )}
+                                        </View>
+                                        <View style={{ marginLeft: 20 }}>
+                                            <Flex>
+                                                <Image style={styles.iconImage} source={require('@/assets/images/medication/icon_xj.png')} />
+                                                <Text style={styles.iconText}>识别结果</Text>
+                                            </Flex>
+                                            <Text style={styles.iconTextFood}>识别到{foods.length}种食物</Text>
+                                        </View>
+                                    </Flex>
+                                    <Image style={styles.iconImageBack} source={require('@/assets/images/medication/icon_image.png')} />
+                                </Flex>
+
+                                <View style={[styles.commonWrap, styles.summarySplitRow]}>
+                                    <View style={styles.rlBox}>
+                                        <Text style={styles.rlValue}>{totals.calorie.toFixed(0)}</Text>
+                                        <Flex justify="center" style={styles.kllWrap}>
+                                            <Image style={styles.rlImg} source={require('@/assets/images/medication/icon_rl.png')} />
+                                            <Text style={styles.kllText}>总热量 (千卡)</Text>
+                                        </Flex>
+                                    </View>
+                                    <View style={styles.lineBox} />
+                                    <View style={styles.macroList}>
+                                        {[
+                                            { label: '碳水', value: totals.carbs, color: '#72A1C5' },
+                                            { label: '蛋白质', value: totals.protein, color: '#0951AE' },
+                                            { label: '脂肪', value: totals.fat, color: '#FB4550' },
+                                        ].map(item => (
+                                            <Flex key={item.label} align="center" style={styles.macroRow}>
+                                                <View style={[styles.macroDot, { backgroundColor: item.color }]} />
+                                                <Text style={styles.macroLabel}>{item.label}</Text>
+                                                <Text style={styles.macroValue}>{item.value.toFixed(1)}g</Text>
+                                            </Flex>
+                                        ))}
+                                    </View>
+                                </View>
+
+                                {isPhotoInput ? (
+                                    othersLoading ? (
+                                        <View style={styles.nutrientLoading}>
+                                            <ActivityIndicator color={AppTheme.primaryColor} />
+                                            <Text style={styles.nutrientLoadingText}>正在补充营养成分...</Text>
+                                        </View>
+                                    ) : allNutrition.length > 0 ? (
+                                        <View style={styles.nutrientGrid}>
+                                            {allNutrition.map(entry => {
+                                                const valueText =
+                                                    entry.value % 1 === 0
+                                                        ? String(entry.value)
+                                                        : entry.value.toFixed(1);
+                                                return (
+                                                    <View key={entry.key} style={styles.nutrientCard}>
+                                                        <Text style={styles.nutrientTitle}>{entry.label}</Text>
+                                                        <Flex justify="center" align="end" style={styles.nutrientValueRow}>
+                                                            <Text style={styles.nutrientValue}>{valueText}</Text>
+                                                            <Text style={styles.nutrientUnit}>{entry.unit}</Text>
+                                                        </Flex>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    ) : null
+                                ) : null}
+                            </View>
+
+
+
+                            <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
+                                <Flex justify="between" style={{ flex: 1, paddingHorizontal: 27 }}>
+                                    <Text style={styles.backImage1Text}>食物明细</Text>
+                                </Flex>
+                            </ImageBackground>
+
+                            <View style={styles.mH12}>
+                                {foods.map((item, index) => {
+                                    const state = foodItemStates[index] ?? createFoodItemState(item);
+                                    const weight = toNumber(item.weight);
+                                    const isGram = String(state.unitValue).includes('克');
+                                    const metaText = isGram
+                                        ? `${Math.round(state.amount)}克`
+                                        : weight > 0
+                                            ? `${state.amount}${state.unitValue}·约${weight}克`
+                                            : `${state.amount}${state.unitValue}`;
+                                    return (
+                                        <TouchableOpacity
+                                            key={`${item.mealName}-${index}`}
+                                            activeOpacity={0.7}
+                                            onPress={() => {
+                                                navigation.navigate('FoodDetailPage', {
+                                                    itemIndex: index,
+                                                    item,
+                                                    state,
+                                                    recordTime,
+                                                    onSave: applyCorrection,
+                                                onDelete: deleteFood,
+                                                });
+                                            }}>
+                                            <Flex
+                                                justify="between"
+                                                align="center"
+                                                style={styles.foodItemRow}>
+                                                <View>
+                                                    <Text style={styles.foodItemName}>{item.mealName || '未知食物'}</Text>
+                                                    <Text style={styles.foodItemMeta}>{metaText}</Text>
+                                                </View>
+                                                <Flex>
+                                                    <Text style={styles.foodItemKcal}>{toNumber(item.calorie).toFixed(0)}Kcal</Text>
+                                                    <Image style={styles.foodItemRightIcon} source={require('@/assets/images/medication/icon_right.png')} />
+                                                </Flex>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </>
+                    )}
+
+                    {/* {isError ? (
                         <>
                             <Text style={styles.errorTitle}>未识别到食物</Text>
                             <Text style={styles.errorIntro}>请重新拍摄，或稍后再试。</Text>
@@ -304,7 +413,7 @@ export default function MealResultPage() {
                                 />
                             ))}
                         </>
-                    )}
+                    )} */}
                 </ScrollView>
 
                 <View style={styles.bottomBar}>
@@ -341,11 +450,14 @@ export default function MealResultPage() {
                             style={[styles.primaryBtn, saving && { opacity: 0.6 }]}
                             disabled={saving}
                             onPress={handleSave}>
-                            <Text style={styles.primaryBtnText}>{saving ? '保存中...' : '保存'}</Text>
+                            <Flex style={{ flex: 1 }}>
+                                <Image style={styles.primaryBtnIcon} source={require('@/assets/images/schedule/save.png')}></Image>
+                                <Text style={styles.primaryBtnText}>{saving ? '保存中...' : '保存'}</Text>
+                            </Flex>
                         </TouchableOpacity>
                     )}
                 </View>
             </View>
-        </PageLayout>
+        </PageLayout >
     );
 }

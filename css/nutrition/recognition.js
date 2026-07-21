@@ -10,10 +10,20 @@ const styles = StyleSheet.create({
         width: '100%',
         position: 'relative',
         backgroundColor: '#000000',
+        justifyContent: 'center',
+    },
+    // 正方形取景框，垂直居中
+    cameraSquareBox: {
+        marginTop: 140,
+        width: '100%',
+        aspectRatio: 1,
+        borderRadius: 12,
+        overflow: 'hidden',
+        alignSelf: 'center',
     },
     cameraPreview: {
-        flex: 1,
         width: '100%',
+        height: '100%',
     },
     topFade: {
         position: 'absolute',
@@ -68,8 +78,8 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     shutterBtn: {
-        width: 56,
-        height: 56,
+        width: 70,
+        height: 70,
     },
     albumBtn: {
         position: 'absolute',
@@ -80,8 +90,8 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     albumIcon: {
-        width: 25,
-        height: 25,
+        width: 30,
+        height: 30,
     },
     shutterInner: {
         width: 62,
@@ -100,8 +110,8 @@ const styles = StyleSheet.create({
         borderTopColor: '#E9E9E9',
         flex: 1,
         paddingHorizontal: 27,
-        paddingTop: 60,
-        paddingBottom: 24,
+        paddingTop: 100,
+        paddingBottom: 50,
         alignItems: 'center',
     },
     scanTextWrap: {
@@ -117,8 +127,8 @@ const styles = StyleSheet.create({
         position: 'absolute',
     },
     iconWrap: {
-        width: 281,
-        height: 496,
+        width: 320,
+        height: 320,
         borderRadius: 8,
         resizeMode: 'cover',
     },
@@ -127,7 +137,6 @@ const styles = StyleSheet.create({
         height: 10,
     },
     recognizingBottom: {
-        flex:1,
         width: '100%',
         marginTop: 50,
         alignItems: 'center',

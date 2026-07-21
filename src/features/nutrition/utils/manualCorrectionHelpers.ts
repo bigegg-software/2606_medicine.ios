@@ -1,8 +1,12 @@
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
-import { toNumber } from './mealDetailHelpers';
-import type { FoodItemEditState, FoodUnitValue } from '../components/FoodDetailCard';
-import { isGramUnit } from './foodUnitHelpers';
-import { ALL_NUTRITION_KEYS, getOtherNutrientValue, NUTRITION_LABELS } from './mealNutritionHelpers';
+import type { FoodItemEditState, FoodUnitValue } from '@/src/features/profile/medication/meal/components/FoodDetailCard';
+import { isGramUnit } from '@/src/features/profile/medication/meal/utils/foodUnitHelpers';
+import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import {
+    ALL_NUTRITION_KEYS,
+    getOtherNutrientValue,
+    NUTRITION_LABELS,
+} from '@/src/features/profile/medication/meal/utils/mealNutritionHelpers';
 
 export type CustomNutrientItem = {
     id: string;
@@ -157,6 +161,6 @@ export function adjustServingAmount(amount: number, unitValue: FoodUnitValue, de
 export type ManualCorrectionSavePayload = {
     index: number;
     item: FoodIdentifyItem;
-    state: import('./components/FoodDetailCard').FoodItemEditState;
+    state: FoodItemEditState;
     recordTime: string;
 };

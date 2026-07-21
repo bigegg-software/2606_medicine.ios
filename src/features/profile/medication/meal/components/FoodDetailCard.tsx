@@ -4,12 +4,12 @@ import { Flex } from '@ant-design/react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { FoodIdentifyItem } from '@/api/mealRecognition';
 import type { MealDetailItem } from '@/api/mealDetail';
-import styles from '@/css/medication/deal/mealResult';
+import styles from '@/css/nutrition/mealResult';
 import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import SleepRulerSlider from '@/src/features/profile/vitals/components/SleepRulerSlider';
 import NutritionTable from './NutritionTable';
 import { buildItemNutritionEntries } from '../utils/mealNutritionHelpers';
-import type { ManualCorrectionSavePayload } from '../utils/manualCorrectionHelpers';
+import type { ManualCorrectionSavePayload } from '@/src/features/nutrition/utils/manualCorrectionHelpers';
 import { useNavigation } from '@react-navigation/native';
 import {
     FOOD_UNIT,

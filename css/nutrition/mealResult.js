@@ -2,11 +2,200 @@ import { StyleSheet } from 'react-native';
 import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
-    page: { flex: 1, },
-    body: { flex: 1, paddingHorizontal: 18, paddingTop: 12, },
+    page: { flex: 1, backgroundColor: AppTheme.backgroundColor },
+    body: { flex: 1, paddingHorizontal: 12, paddingTop: 12, },
+    scrollNew: { paddingBottom: 40 },
+    mH12: { marginHorizontal: 12 },
     bodyContent: { paddingBottom: 10 },
-    imageBox: { width: '100%', height: 208, borderRadius: 18, overflow: 'hidden', },
-    image: { width: '100%', height: '100%', },
+    commonWrap: {
+        marginTop: 12,
+        paddingHorizontal: 15,
+        paddingVertical: 13,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 12,
+        alignItems: 'center',
+        shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3
+    },
+    nutrientGrid: {
+        marginTop: 12,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        justifyContent: 'space-between',
+        rowGap: 12,
+    },
+    nutrientLoading: {
+        marginTop: 12,
+        height: 60,
+        borderRadius: 12,
+        backgroundColor: '#FFFFFF',
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    nutrientLoadingText: {
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#999999',
+    },
+    nutrientCard: {
+        width: '31.5%',
+        height: 60,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        paddingHorizontal: 10,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    nutrientTitle: {
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#999999',
+        textAlign: 'center',
+    },
+    nutrientValueRow: {
+        marginTop: 4,
+    },
+    nutrientValue: {
+        fontWeight: '500',
+        fontSize: 18,
+        color: '#333333',
+        textAlign: 'center',
+    },
+    backImage1: { width: "100%", height: 50, marginTop: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+    backImage1Text: { fontWeight: "bold", fontSize: 16, color: "#333333" },
+    nutrientUnit: {
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#333333',
+        marginLeft: 2,
+        marginBottom: 2,
+    },
+    foodDetailNutrientGrid: {
+        marginTop: 0,
+        width: '100%',
+        rowGap: 12,
+        justifyContent: 'flex-start',
+    },
+    foodDetailNutrientCard: {
+        backgroundColor: '#F6F8FB',
+        // 一行 3 个，列间距 12：(100% - 12*2) / 3 ≈ 31.5%，用 margin 控制列间距
+        width: '31.5%',
+        marginRight: '2.75%',
+    },
+    foodDetailNutrientCardLast: {
+        marginRight: 0,
+    },
+    foodItemRow: {
+        marginBottom: 12,
+        paddingHorizontal: 15,
+        paddingVertical: 13,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+    },
+    foodItemName: {
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#333333',
+    },
+    foodItemMeta: {
+        marginTop: 6,
+        fontWeight: '400',
+        fontSize: 12,
+        color: '#999999',
+    },
+    foodItemKcal: {
+        fontWeight: 'bold',
+        fontSize: 13,
+        color: '#6D925E',
+    },
+    detailMacroCard: {
+        alignItems: 'flex-start',
+        paddingVertical: 16,
+    },
+    detailMacroList: {
+        width: '100%',
+        gap: 8,
+    },
+    detailAmountCard: {
+        alignItems: 'stretch',
+        marginBottom: 24,
+    },
+    foodItemRightIcon: {
+        width: 5, height: 9,
+        marginLeft: 6
+    },
+    imageBox: { width: 60, height: 60, borderRadius: 30, overflow: 'hidden', },
+    iconImage: { width: 18, height: 18 },
+    iconText: {
+        marginLeft: 4,
+        fontWeight: "bold",
+        fontSize: 16,
+        color: "#333333",
+    },
+    // 左右各占一半，中线始终居中
+    summarySplitRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    rlBox: {
+        flex: 1,
+        flexBasis: 0,
+        minWidth: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rlValue: {
+        fontWeight: "bold",
+        fontSize: 25,
+        color: "#333333",
+        textAlign: 'center',
+    },
+    kllWrap: { marginTop: 12 },
+    kllText: {
+        fontWeight: "bold",
+        fontSize: 14,
+        color: "#999999",
+        marginLeft: 6,
+    },
+    macroList: {
+        flex: 1,
+        flexBasis: 0,
+        minWidth: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+    },
+    macroRow: {
+        gap: 8,
+    },
+    macroDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+    },
+    macroLabel: {
+        width: 45,
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#666666',
+    },
+    macroValue: {
+        fontWeight: 'bold',
+        fontSize: 14,
+        color: '#333333',
+    },
+    iconTextFood: {
+        marginTop: 8,
+        fontWeight: 500,
+        fontSize: 13,
+        color: "#666666"
+    },
+    iconImageBack: {
+        width: 75,
+        height: 75,
+    },
+    image: { width: 60, height: 60 },
     title: {
         marginTop: 20,
         fontSize: 18,
@@ -56,17 +245,40 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#173F7D',
     },
+    foodManualIcon: {
+        width: 15,
+        height: 15,
+        marginRight: 3,
+    },
+    foodManualBtn: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 25,
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+    },
     foodManualText: {
         fontWeight: '500',
-        fontSize: 12,
-        color: '#053A93',
+        fontSize: 13,
+        color: '#333333',
+    },
+    foodDetailDivider: {
+        marginVertical: 20,
+        width:"100%",
+        height: 1,
+        backgroundColor: 'rgba(23,63,125,0.08)',
     },
     foodHeaderMain: {
         flex: 1,
         paddingRight: 12,
     },
+    errorState: {
+        paddingTop: 120,
+        paddingHorizontal: 24,
+        alignItems: 'center',
+    },
     errorTitle: {
-        marginTop: 24,
         fontSize: 18,
         fontWeight: '600',
         color: '#333333',
@@ -133,6 +345,11 @@ const styles = StyleSheet.create({
         backgroundColor: AppTheme.primaryColor,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    primaryBtnIcon: {
+        width: 20,
+        height: 20,
+        marginRight: 4,
     },
     primaryBtnText: {
         fontSize: 16,
@@ -202,8 +419,8 @@ const styles = StyleSheet.create({
         color: "#333333",
     },
     rlImg: {
-        width: 18,
-        height: 18
+        width: 15,
+        height: 15
     },
     rlText: {
         fontWeight: 400,
@@ -211,10 +428,10 @@ const styles = StyleSheet.create({
         color: "#333333"
     },
     lineBox: {
-        marginHorizontal: 21,
         width: 1,
-        height: 66,
-        backgroundColor: "rgba(23,63,125,0.08)"
+        height: 81,
+        backgroundColor: "rgba(23,63,125,0.08)",
+        flexShrink: 0,
     },
     rightBox: {
         flex: 1
@@ -285,7 +502,6 @@ const styles = StyleSheet.create({
         color: '#333333',
     },
     sliderWrap: {
-        marginTop: 12,
         alignItems: 'center',
     },
     unitRow: {
@@ -298,23 +514,34 @@ const styles = StyleSheet.create({
         width: 47,
         height: 25,
         borderRadius: 16,
-        backgroundColor: 'rgba(23,63,125,0.14)',
+        backgroundColor: 'rgba(109,146,94,0.12)',
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 8,
     },
     unitChipSelected: {
-        backgroundColor: '#053A93',
+        backgroundColor: '#6D925E',
     },
     unitChipText: {
-        fontWeight: '400',
-        fontSize: 12,
-        color: '#053A93',
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#6D925E',
     },
     unitChipTextSelected: {
         fontWeight: '500',
-        fontSize: 12,
+        fontSize: 13,
         color: '#FFFFFF',
+    },
+    foodDeleteBtn: {
+        width: 28,
+        height: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 4,
+    },
+    foodDeleteIcon: {
+        width: 18,
+        height: 18,
     },
     collapseToggle: {
         marginTop: 24,

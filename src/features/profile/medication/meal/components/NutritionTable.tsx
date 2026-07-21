@@ -1,7 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import styles from '@/css/medication/deal/mealResult';
+import styles from '@/css/nutrition/mealResult';
 import {
     chunkPairs,
     formatNutritionValue,

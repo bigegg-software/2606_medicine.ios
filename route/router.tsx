@@ -53,6 +53,8 @@ import QuestionnaireTestingRecordPage from '@/src/features/schedule/testing/ques
 
 // 营养处方新
 import NutritionPage from '@/src/features/nutrition';
+import MealRecognizingPage from '@/src/features/nutrition/mealRecognizing';
+
 
 // 用药记录
 import MedicationPage from '@/src/features/profile/medication';
@@ -64,11 +66,11 @@ import MedicationDetailPage from '@/src/features/profile/medication/detail';
 //饮食
 import MealDetailPage from '@/src/features/profile/medication/meal/detail';
 import MealWaterPage from '@/src/features/profile/medication/meal/water';
-import MealRecognitionPage from '@/src/features/profile/medication/meal/recognition';
-import MealRecognizingPage from '@/src/features/profile/medication/meal/mealRecognizing';
-import MealResultPage from '@/src/features/profile/medication/meal/mealResult';
-import ManualCorrectionPage from '@/src/features/profile/medication/meal/manualCorrection';
-import MealRecordDetailPage from '@/src/features/profile/medication/meal/mealRecordDetail';
+import MealRecognitionPage from '@/src/features/nutrition/recognition';
+import MealResultPage from '@/src/features/nutrition/mealResult';
+import FoodDetailPage from '@/src/features/nutrition/foodDetail';
+import ManualCorrectionPage from '@/src/features/nutrition/manualCorrection';
+import MealRecordDetailPage from '@/src/features/nutrition/mealRecordDetail';
 import MealHistoryPage from '@/src/features/profile/medication/meal/MealHistoryPage';
 import MealDayDetailPage from '@/src/features/profile/medication/meal/MealDayDetailPage';
 
@@ -203,7 +205,15 @@ export type RootStackParamList = {
     item: import('@/api/mealRecognition').FoodIdentifyItem;
     state: import('@/src/features/profile/medication/meal/components/FoodDetailCard').FoodItemEditState;
     recordTime: string;
-    onSave?: (payload: import('@/src/features/profile/medication/meal/utils/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
+    onSave?: (payload: import('@/src/features/nutrition/utils/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
+  };
+  FoodDetailPage: {
+    itemIndex: number;
+    item: import('@/api/mealRecognition').FoodIdentifyItem;
+    state: import('@/src/features/profile/medication/meal/components/FoodDetailCard').FoodItemEditState;
+    recordTime: string;
+    onSave?: (payload: import('@/src/features/nutrition/utils/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
+    onDelete?: (itemIndex: number) => void;
   };
   MealResultPage: {
     ossUrl?: string;
@@ -223,6 +233,7 @@ const Stack: any = createNativeStackNavigator<RootStackParamList>();
 function StackHeader({ route, options, back, navigation }: any) {
   const { scaleSize } = useFontSize();
   const showHeaderBackground = options.showHeaderBackground !== false;
+  const plainHeaderColor = options.headerBackgroundColor ?? '#FFFFFF';
   const headerTitleStyle = useMemo(
     () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),
     [scaleSize],
@@ -233,7 +244,7 @@ function StackHeader({ route, options, back, navigation }: any) {
     <View
       style={[
         styles.stackHeader,
-        !showHeaderBackground ? styles.stackHeaderPlain : null,
+        !showHeaderBackground ? { backgroundColor: plainHeaderColor } : null,
       ]}>
       <Header
         {...options}
@@ -243,7 +254,7 @@ function StackHeader({ route, options, back, navigation }: any) {
         headerTintColor="#000000"
         headerTitleStyle={headerTitleStyle}
         headerStyle={{
-          backgroundColor: showHeaderBackground ? 'transparent' : '#FFFFFF',
+          backgroundColor: showHeaderBackground ? 'transparent' : plainHeaderColor,
         }}
         headerShadowVisible={false}
         headerRight={options.headerRight}
@@ -417,8 +428,9 @@ export default function RootStack() {
       <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
       <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', headerShown: false, statusBarStyle: 'light' }} />
       <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别', showHeaderBackground: false }} />
-      <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食' }} />
-      <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正' }} />
+      <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />
       <Stack.Screen name="QuestionnairePage" component={QuestionnairePage} options={{ title: '评估问卷', gestureEnabled: false }} />
       <Stack.Screen name="QuestionnaireList" component={QuestionnaireList} options={{ title: "评估问卷" }} />

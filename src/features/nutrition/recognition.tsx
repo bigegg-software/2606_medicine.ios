@@ -1,19 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-    ActivityIndicator,
-    AppState,
-    Image,
-    Linking,
-    Text,
-    TouchableOpacity,
-    View,
-} from 'react-native';
+import { ActivityIndicator, AppState, Image, Linking, Text, TouchableOpacity, View, } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { Flex, Modal, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useIsFocused, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import styles from '@/css/medication/deal/recognition';
+import styles from '@/css/nutrition/recognition';
 import type { RootStackParamList } from '@/route/router';
 
 export default function MealRecognitionPage() {
@@ -84,26 +76,28 @@ export default function MealRecognitionPage() {
     return (
         <SafeAreaView style={styles.page} edges={['bottom']}>
             <View style={styles.cameraWrap}>
-                {showCamera ? (
-                    <CameraView
-                        ref={cameraRef}
-                        style={styles.cameraPreview}
-                        facing="back"
-                        mode="picture"
-                        active={isFocused}
-                    />
-                ) : (
-                    <View style={[styles.cameraPreview, styles.loadingBox]}>
-                        <ActivityIndicator size="large" color="#FFFFFF" />
-                        <Text style={styles.loadingText}>
-                            {!permission
-                                ? '相机准备中...'
-                                : permission.granted
+                <View style={styles.cameraSquareBox}>
+                    {showCamera ? (
+                        <CameraView
+                            ref={cameraRef}
+                            style={styles.cameraPreview}
+                            facing="back"
+                            mode="picture"
+                            active={isFocused}
+                        />
+                    ) : (
+                        <View style={[styles.cameraPreview, styles.loadingBox]}>
+                            <ActivityIndicator size="large" color="#FFFFFF" />
+                            <Text style={styles.loadingText}>
+                                {!permission
                                     ? '相机准备中...'
-                                    : '等待相机权限...'}
-                        </Text>
-                    </View>
-                )}
+                                    : permission.granted
+                                        ? '相机准备中...'
+                                        : '等待相机权限...'}
+                            </Text>
+                        </View>
+                    )}
+                </View>
 
                 <LinearGradient
                     pointerEvents="box-none"

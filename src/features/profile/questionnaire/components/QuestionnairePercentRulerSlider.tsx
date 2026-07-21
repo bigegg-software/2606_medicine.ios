@@ -35,6 +35,8 @@ export type QuestionnaireRulerSliderProps = {
   step?: number;
   /** 大刻度间隔；不传时沿用 1–100 百分比刻度规则 */
   majorStep?: number;
+  /** 相邻刻度间距（像素），默认 10 */
+  tickWidth?: number;
   initialValue?: number;
   unit?: string;
   onValueChange?: (value: number) => void;
@@ -77,8 +79,8 @@ function formatDisplayValue(value: number, step: number) {
   return decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
 }
 
-function getSnapScrollX(snapIndex: number) {
-  return snapIndex * VISUAL_TICKS_PER_SNAP * VISUAL_TICK_WIDTH;
+function getSnapScrollX(snapIndex: number, tickWidth: number) {
+  return snapIndex * VISUAL_TICKS_PER_SNAP * tickWidth;
 }
 
 function TickMark({ kind }: { kind: TickKind }) {
@@ -107,17 +109,18 @@ export default function QuestionnairePercentRulerSlider({
   max = 100,
   step = 1,
   majorStep,
+  tickWidth = VISUAL_TICK_WIDTH,
   initialValue = 50,
   unit,
   onValueChange,
 }: QuestionnaireRulerSliderProps) {
   const scrollRef = useRef<ScrollView | null>(null);
   const ticking = useRef(false);
-  const centerOffset = RULER_WIDTH / 2 - VISUAL_TICK_WIDTH / 2;
+  const centerOffset = RULER_WIDTH / 2 - tickWidth / 2;
   const totalSnapSteps = Math.round((max - min) / step);
   const totalVisualSteps = totalSnapSteps;
-  const maxScrollX = getSnapScrollX(totalSnapSteps);
-  const snapPixelWidth = VISUAL_TICKS_PER_SNAP * VISUAL_TICK_WIDTH;
+  const maxScrollX = getSnapScrollX(totalSnapSteps, tickWidth);
+  const snapPixelWidth = VISUAL_TICKS_PER_SNAP * tickWidth;
   const decimals = getDecimalPlaces(step);
 
   const snapToStepValue = (val: number) => snapToStep(val, min, max, step);
@@ -151,7 +154,7 @@ export default function QuestionnairePercentRulerSlider({
     let x = event.nativeEvent.contentOffset.x;
     x = Math.max(0, Math.min(x, maxScrollX));
     const snapIndex = Math.round(x / snapPixelWidth);
-    const alignedX = getSnapScrollX(snapIndex);
+    const alignedX = getSnapScrollX(snapIndex, tickWidth);
     if (Math.abs(alignedX - x) > 1) {
       scrollRef.current?.scrollTo({ x: alignedX, animated: true });
     }
@@ -159,21 +162,21 @@ export default function QuestionnairePercentRulerSlider({
 
   useEffect(() => {
     const snapIndex = Math.round((snapToStepValue(initialValue) - min) / step);
-    const x = getSnapScrollX(snapIndex);
+    const x = getSnapScrollX(snapIndex, tickWidth);
     const rafId = requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ x, animated: false });
     });
     return () => cancelAnimationFrame(rafId);
   }, []);
 
-  const visibleCount = Math.ceil(RULER_WIDTH / VISUAL_TICK_WIDTH) + 10;
+  const visibleCount = Math.ceil(RULER_WIDTH / tickWidth) + 10;
   const centerSnapIndex = Math.round((value - min) / step);
   const centerVisualIndex = centerSnapIndex * VISUAL_TICKS_PER_SNAP;
   const half = Math.ceil(visibleCount / 2);
   const startIndex = Math.max(0, centerVisualIndex - half);
   const endIndex = Math.min(totalVisualSteps, centerVisualIndex + half);
-  const leftSpacerWidth = startIndex * VISUAL_TICK_WIDTH;
-  const rightSpacerWidth = (totalVisualSteps - endIndex) * VISUAL_TICK_WIDTH;
+  const leftSpacerWidth = startIndex * tickWidth;
+  const rightSpacerWidth = (totalVisualSteps - endIndex) * tickWidth;
 
   const renderIndices: number[] = [];
   for (let i = startIndex; i <= endIndex; i += 1) {
@@ -186,8 +189,8 @@ export default function QuestionnairePercentRulerSlider({
     const label = kind === 'major' ? formatDisplayValue(tickValue, majorStep ?? 1) : '';
 
     return (
-      <View key={visualIndex} style={styles.tickColumn}>
-        <View style={styles.tickSlot}>
+      <View key={visualIndex} style={[styles.tickColumn, { width: tickWidth }]}>
+        <View style={[styles.tickSlot, { width: tickWidth }]}>
           <TickMark kind={kind} />
         </View>
         <View style={styles.labelRowSlot}>
