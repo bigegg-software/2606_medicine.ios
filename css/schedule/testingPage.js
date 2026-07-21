@@ -178,12 +178,12 @@ const styles = StyleSheet.create({
     },
     bottomBarButtonTextLeft: {
         fontWeight: 'bold',
-        fontSize: 18,
+        fontSize: 16,
         color: '#FFFFFF',
     },
     bottomBarButtonTextRight: {
         fontWeight: 'bold',
-        fontSize: 18,
+        fontSize: 16,
         color: '#6D925E',
     },
     pgBox: {

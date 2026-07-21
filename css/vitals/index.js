@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     },
     bottomBarButtonTextLeft: {
         fontWeight: 'bold',
-        fontSize: 18,
+        fontSize: 16,
         color: '#FFFFFF',
     },
     btmTitle: { marginTop: 14, fontWeight: 400, fontSize: 12, color: AppTheme.textPrimary, textAlign: 'center' },

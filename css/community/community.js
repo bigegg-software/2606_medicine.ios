@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
 
     //ranking
     rankingBpx: {
-        paddingTop: 10,
+        paddingTop: 27,
         alignItems: 'flex-end',
         marginBottom: -10
     },
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
     rankingItemText: { fontWeight: 500, width: "100%", fontSize: 16, color: AppTheme.textPrimary, zIndex: 1 },
     rankingItemTextFirst: { fontSize: 17, fontWeight: '600', maxWidth: 108, color: "#AE761B" },
     avatarIcon: { width: 18, height: 18 },
-    avatarValue: { marginLeft: 5, fontWeight: "bold", fontSize: 16, color: "#333333" },
+    avatarValue: { fontWeight: 500, fontSize: 14, color: "#999999" },
     rankingItemBox: {
         marginTop: 12,
         height: 70,
@@ -206,8 +206,8 @@ const styles = StyleSheet.create({
         height: 25,
     },
     rankingItemText2: {
-        fontWeight: 400,
-        fontSize: 14,
+        fontWeight: 500,
+        fontSize: 13,
         color: "#999999"
     },
     rankingPage: { flex: 1 },
@@ -240,8 +240,55 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#999999',
     },
-    listImg: { width: 42, height: 42, borderRadius: 22 }
+    listImg: { width: 42, height: 42, borderRadius: 22 },
+    tabBox: {
+        marginTop: 13,
+        margin: "auto",
+        width: 236,
+        height: 40,
+        padding: 3,
+        backgroundColor: "rgba(109,146,94,0.12)",
+        borderRadius: 25
+    },
+    tabItem: {
+        flex: 1,
+        height: 34,
+        borderRadius: 50,
+    },
+    tabItemActive: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 50,
+    },
+    tabItemIcon: {
+        width: 18,
+        height: 18,
+        marginRight: 3
+    },
+    tabItemText: {
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#333333',
+    },
+    tabItemTextActive: {
+        fontWeight: 'bold',
+        fontSize: 14,
+        color: '#333333',
+    },
+    rankingItemText3: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#999999",
+        marginTop: 4,
+        textAlign: "center"
+    },
+    rankingItemText4: {
+        fontWeight: 500,
+        fontSize: 12,
+        marginTop: 4,
+        color: "#999999",
+        textAlign: "center"
 
+    }
 
 
 

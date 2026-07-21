@@ -324,7 +324,10 @@ export function mapIndexPlanGroups(
       if (items.length === 0) return null;
 
       const time = formatPlanTime(group.medicationPlanTime ?? items[0]?.medicationPlanTime);
-      const eventBasedLabel = items.find(item => item.eventBasedLabel)?.eventBasedLabel ?? '';
+      const eventBasedLabel = items.find(item => {
+        const label = item.eventBasedLabel?.trim();
+        return Boolean(label) && label !== '无';
+      })?.eventBasedLabel?.trim() ?? '';
 
       return {
         time,

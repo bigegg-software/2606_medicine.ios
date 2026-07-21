@@ -1,8 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Flex, Modal, Switch, Toast } from '@ant-design/react-native';
-import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDrugTipInfo } from '@/api/patient';
 import { AppTheme } from '@/common/theme';
@@ -40,9 +39,6 @@ const TIME_LIST = [
     { label: '15分钟', value: '15' },
 ];
 
-const PROGRESS_SIZE = 48;
-const PROGRESS_STROKE = 4;
-
 function PlanTypeBadge({ isPrescription }: { isPrescription: boolean }) {
     if (isPrescription) {
         return (
@@ -59,70 +55,18 @@ function PlanTypeBadge({ isPrescription }: { isPrescription: boolean }) {
 }
 
 function ActionStatus({ taken }: { taken: boolean }) {
-    if (taken) {
-        return (
-            <Flex align="center">
-                <View style={styles.medicationStatusIconWrap}>
-                    <View style={styles.medicationStatusCircleTaken} />
-                    <Text style={styles.medicationStatusCheck}>✓</Text>
-                </View>
-                <Text style={styles.medicationYfyText}>已服用</Text>
-            </Flex>
-        );
-    }
     return (
-        <Flex align="center">
-            <View style={styles.medicationStatusIconWrap}>
-                <View style={styles.medicationStatusCircle} />
-            </View>
-            <Text style={styles.medicationWfyText}>已服用</Text>
+        <Flex align="center" style={styles.medicationActionBtn}>
+            <Image
+                style={styles.medicationSelectIcon}
+                source={
+                    taken
+                        ? require('@/assets/images/medication/select.png')
+                        : require('@/assets/images/medication/unselected.png')
+                }
+            />
+            <Text style={styles.medicationActionText}>已服用</Text>
         </Flex>
-    );
-}
-
-function ProgressRing({ progress }: { progress: number }) {
-    const value = Math.min(100, Math.max(0, Math.round(progress)));
-    const isComplete = value >= 100;
-    const ringColor = isComplete ? "rgba(0,201,80,0.14)" : "rgba(255,139,7,0.14)";
-    const progressColor = isComplete ? "#00C950" : "#FF8B07";
-    const progressRadius = (PROGRESS_SIZE - PROGRESS_STROKE) / 2;
-    const progressCenter = PROGRESS_SIZE / 2;
-    const progressPath = useMemo(() => {
-        const path = Skia.Path.Make();
-        path.addArc(
-            {
-                x: progressCenter - progressRadius,
-                y: progressCenter - progressRadius,
-                width: progressRadius * 2,
-                height: progressRadius * 2,
-            },
-            -90,
-            (360 * value) / 100,
-        );
-        return path;
-    }, [progressCenter, progressRadius, value]);
-
-    return (
-        <View style={styles.progressRing}>
-            <Canvas style={styles.progressCanvas}>
-                <Circle
-                    cx={progressCenter}
-                    cy={progressCenter}
-                    r={progressRadius}
-                    color={ringColor}
-                    style="stroke"
-                    strokeWidth={PROGRESS_STROKE}
-                />
-                <Path
-                    path={progressPath}
-                    color={progressColor}
-                    style="stroke"
-                    strokeWidth={PROGRESS_STROKE}
-                    strokeCap="round"
-                />
-            </Canvas>
-            <Text style={[styles.progressText, isComplete && { color: progressColor }]}>{value}%</Text>
-        </View>
     );
 }
 
@@ -138,14 +82,20 @@ function PlanRow({
     const statusNode = <ActionStatus taken={item.taken} />;
 
     return (
-        <Flex justify="between" align="center">
-            <View style={styles.medicationLeftBox}>
-                <Flex>
-                    <Text style={styles.medicationLeftTitle}>{item.name}</Text>
-                    <PlanTypeBadge isPrescription={item.planType === 1} />
-                </Flex>
-                <Text style={styles.medicationText}>{item.doseText}</Text>
-            </View>
+        <Flex justify="between" align="center" style={styles.medicationItemCard}>
+            <Flex align="center" style={styles.medicationLeftBox}>
+                <Image
+                    style={styles.medicationItemIcon}
+                    source={require('@/assets/images/medication/icon_yp.png')}
+                />
+                <View style={styles.medicationItemContent}>
+                    <Flex>
+                        <Text style={styles.medicationLeftTitle}>{item.name}</Text>
+                        {/* <PlanTypeBadge isPrescription={item.planType === 1} /> */}
+                    </Flex>
+                    <Text style={styles.medicationText}>{item.doseText}</Text>
+                </View>
+            </Flex>
             {item.canCheckIn ? (
                 <TouchableOpacity activeOpacity={0.7} disabled={checkingIn} onPress={() => onCheckIn(item)}>
                     {checkingIn ? <ActivityIndicator color={AppTheme.primaryColor} /> : statusNode}
@@ -374,75 +324,107 @@ export default function MedicationTab() {
                 </View>
             ) : null}
 
-            <Flex justify="between">
-                <Text style={[styles.sectionTitle, { marginTop: 6 }]}>当前用药</Text>
-                <TouchableOpacity
-                    style={{ marginRight: 16 }}
-                    onPress={() => navigation.navigate('MedicationAddPage')}>
-                    <Text style={[styles.more, { marginTop: 0 }]}>添加用药</Text>
-                </TouchableOpacity>
-            </Flex>
-
-
-            {!loading && planGroups.length === 0 ? (
-                <View style={styles.medicationBox}>
-                    <Text style={styles.leftText}>暂无用药计划</Text>
-                </View>
-            ) : null}
-
-            {planGroups.map(group => {
-                const hasPendingCheckIn = group.items.some(item => item.canCheckIn);
-                const isGroupCheckingIn = checkingInGroupTime === group.time;
-
-                return (
-                    <View key={group.time} style={styles.medicationBox}>
-                        <Flex align="center" justify="between" style={styles.medicationTitleBox}>
-                            <Flex align="center" style={{ flex: 1, paddingRight: 12 }}>
-                                <Image source={require('@/assets/images/medication/time.png')} style={styles.medicationTime} />
-                                <Text style={styles.medicationTitle}>{group.timeLabel}</Text>
-                                {group.eventBasedLabel ? (
-                                    <Text style={styles.medicationTimeText}>{group.eventBasedLabel}</Text>
-                                ) : null}
-                            </Flex>
-                            {hasPendingCheckIn ? (
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    disabled={Boolean(checkingInKey) || isGroupCheckingIn}
-                                    onPress={() => handleCheckInAll(group)}>
-                                    {isGroupCheckingIn ? (
-                                        <ActivityIndicator color={AppTheme.primaryColor} />
-                                    ) : (
-                                        <Text style={[styles.more, { marginTop: 0 }]}>全选</Text>
-                                    )}
-                                </TouchableOpacity>
-                            ) : null}
-                        </Flex>
-                        <View style={[styles.rowLine, { marginBottom: 16 }]} />
-                        <View style={styles.medicationInfo}>
-                            {group.items.map((item, index) => (
-                                <View key={item.key} style={index > 0 ? { marginTop: 8 } : undefined}>
-                                    <PlanRow
-                                        item={item}
-                                        checkingIn={checkingInKey === item.key || isGroupCheckingIn}
-                                        onCheckIn={handleCheckIn}
-                                    />
-                                </View>
-                            ))}
-                        </View>
-                    </View>
-                );
-            })}
-
             <View style={styles.medicationBox}>
                 <Flex justify="between">
-                    <Text style={styles.medicationTitle}>用药进度</Text>
-                    <ProgressRing progress={progress.rate} />
+                    <Text style={styles.sectionTitle}>当前用药</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('MedicationAddPage')}>
+                        <Image style={styles.medicationAddIcon} source={require('@/assets/images/medication/icon_jia.png')} />
+                    </TouchableOpacity>
                 </Flex>
+
+                {planGroups.map((group, groupIndex) => {
+                    const hasPendingCheckIn = group.items.some(item => item.canCheckIn);
+                    const isGroupCheckingIn = checkingInGroupTime === group.time;
+                    const isLastGroup = groupIndex === planGroups.length - 1;
+
+                    return (
+                        <View key={group.time} style={styles.medicationTimelineRow}>
+                            <View style={styles.medicationAxisCol}>
+                                <View style={styles.medicationAxisPointWrap}>
+                                    <Image
+                                        style={styles.medicationPoint}
+                                        source={require('@/assets/images/medication/icon_point.png')}
+                                    />
+                                </View>
+                                {!isLastGroup ? <View style={styles.medicationAxisLine} /> : null}
+                            </View>
+                            <View style={styles.medicationTimelineContent}>
+                                <Flex align="center" justify="between" style={styles.medicationTitleBox}>
+                                    <Flex align="center" style={{ flex: 1, paddingRight: 12 }}>
+                                        <Text style={styles.medicationTitle}>{group.timeLabel}</Text>
+                                        {group.eventBasedLabel ? (
+                                            <Text style={styles.medicationTimeText}>{group.eventBasedLabel}</Text>
+                                        ) : null}
+                                    </Flex>
+                                    {hasPendingCheckIn ? (
+                                        <TouchableOpacity
+                                            activeOpacity={0.7}
+                                            disabled={Boolean(checkingInKey) || isGroupCheckingIn}
+                                            onPress={() => handleCheckInAll(group)}>
+                                            {isGroupCheckingIn ? (
+                                                <ActivityIndicator color={AppTheme.primaryColor} />
+                                            ) : (
+                                                <Image
+                                                    style={styles.medicationSelectIcon}
+                                                    source={require('@/assets/images/medication/unselected.png')}
+                                                />
+                                            )}
+                                        </TouchableOpacity>
+                                    ) : group.items.every(item => item.taken) ? (
+                                        <Image
+                                            style={styles.medicationSelectIcon}
+                                            source={require('@/assets/images/medication/select.png')}
+                                        />
+                                    ) : null}
+                                </Flex>
+                                <View style={styles.medicationInfo}>
+                                    {group.items.map((item, index) => (
+                                        <View key={item.key} style={index > 0 ? { marginTop: 8 } : undefined}>
+                                            <PlanRow
+                                                item={item}
+                                                checkingIn={checkingInKey === item.key || isGroupCheckingIn}
+                                                onCheckIn={handleCheckIn}
+                                            />
+                                        </View>
+                                    ))}
+                                </View>
+                            </View>
+                        </View>
+                    );
+                })}
+
+                {!loading && planGroups.length === 0 ? (
+                    <View style={styles.medicationBox}>
+                        <Text style={styles.leftText}>暂无用药计划</Text>
+                    </View>
+                ) : null}
             </View>
 
-            <Text style={[styles.sectionTitle, { marginTop: 18 }]}>用药提醒</Text>
             <View style={styles.medicationBox}>
-                <Flex justify="between" align="center" style={{ marginBottom: 12 }}>
+                <Text style={styles.sectionTitle}>今日用药进度</Text>
+
+                <Flex justify="between" style={styles.medicationProgressBox}>
+                    <Text style={styles.medicationLeftText}>{progress.rate}%</Text>
+                    <Text style={styles.medicationRightText}>
+                        <Text style={styles.medicationLeftText}>{progress.takeCount}</Text>
+                        /{progress.takeCount + progress.notTakeCount} 已完成
+                    </Text>
+                </Flex>
+                <View style={styles.medicationProgressTrack}>
+                    <View
+                        style={[
+                            styles.medicationProgressFill,
+                            { width: `${Math.min(100, Math.max(0, progress.rate))}%` },
+                        ]}
+                    />
+                </View>
+            </View>
+
+
+            <View style={styles.medicationBox}>
+                <Text style={styles.sectionTitle}>用药提醒设置</Text>
+
+                <Flex justify="between" align="center" style={styles.reminderModule}>
                     <Text style={styles.colTitle}>开启用药提醒</Text>
                     <Switch
                         checked={reminderEnabled}
@@ -451,96 +433,100 @@ export default function MedicationTab() {
                         color={AppTheme.primaryColor}
                     />
                 </Flex>
-                <View style={[styles.rowLine, { marginBottom: 10 }]} />
-                <Text style={styles.colTitle}>提前提醒时间</Text>
-                <Flex justify="between" style={{ marginTop: 14, marginBottom: 12, gap: 8 }}>
-                    {TIME_LIST.map(item => (
-                        <TouchableOpacity
-                            style={[styles.typeItem, advanceRemindTime === item.value && styles.typeItemActive]}
-                            key={item.value}
-                            disabled={!reminderEnabled || savingTip}
-                            onPress={() => handleAdvanceTimeChange(item.value)}>
-                            <Flex style={{ flex: 1 }}>
-                                <Text style={[styles.typeItemText, advanceRemindTime === item.value && styles.typeItemTextActive]}>
-                                    {item.label}
-                                </Text>
-                            </Flex>
-                        </TouchableOpacity>
-                    ))}
-                </Flex>
-                <View style={[styles.rowLine, { marginBottom: 10 }]} />
-                <Text style={styles.colTitle}>提醒方式</Text>
-                <Flex justify="between" style={{ marginTop: 14, marginBottom: 12, gap: 8 }}>
-                    {DRUG_TIP_TYPE_OPTIONS.map(item => {
-                        const selected = reminderEnabled && tipSettings.drugTipTypes.includes(item.value);
-                        return (
+
+                <View style={styles.reminderModule}>
+                    <Text style={styles.colTitle}>提前提醒时间</Text>
+                    <Flex justify="between" style={{ marginTop: 15, gap: 15 }}>
+                        {TIME_LIST.map(item => (
                             <TouchableOpacity
+                                style={[styles.typeItem, advanceRemindTime === item.value && styles.typeItemActive]}
                                 key={item.value}
                                 disabled={!reminderEnabled || savingTip}
-                                onPress={() => handleTipTypeToggle(item.value)}>
-                                <Flex align="center">
-                                    <Image
-                                        style={[
-                                            styles.tipCheckIcon,
-                                            !reminderEnabled && { opacity: 0.45 },
-                                        ]}
-                                        source={
-                                            selected
-                                                ? require('@/assets/images/medication/tipCheckOn.png')
-                                                : require('@/assets/images/medication/tipCheckOff.png')
-                                        }
-                                    />
-                                    <Text
-                                        style={[
-                                            styles.colText,
-                                            (!reminderEnabled || !selected) && { color: AppTheme.textSecondary },
-                                            selected && reminderEnabled && { color: AppTheme.primaryColor },
-                                        ]}>
+                                onPress={() => handleAdvanceTimeChange(item.value)}>
+                                <Flex style={{ flex: 1 }}>
+                                    <Text style={[styles.typeItemText, advanceRemindTime === item.value && styles.typeItemTextActive]}>
                                         {item.label}
                                     </Text>
                                 </Flex>
                             </TouchableOpacity>
-                        );
-                    })}
-                </Flex>
+                        ))}
+                    </Flex>
+                </View>
+
+                <View style={styles.reminderModule}>
+                    <Text style={styles.colTitle}>提醒方式</Text>
+                    <Flex justify="between" style={{ marginTop: 15 }}>
+                        {DRUG_TIP_TYPE_OPTIONS.map(item => {
+                            const selected = reminderEnabled && tipSettings.drugTipTypes.includes(item.value);
+                            return (
+                                <TouchableOpacity
+                                    key={item.value}
+                                    disabled={!reminderEnabled || savingTip}
+                                    onPress={() => handleTipTypeToggle(item.value)}>
+                                    <Flex align="center">
+                                        <Image
+                                            style={[
+                                                styles.medicationSelectIcon,
+                                                !reminderEnabled && { opacity: 0.45 },
+                                            ]}
+                                            source={
+                                                selected
+                                                    ? require('@/assets/images/medication/select.png')
+                                                    : require('@/assets/images/medication/unselected.png')
+                                            }
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.colText,
+                                                (!reminderEnabled || !selected) && { color: AppTheme.textSecondary },
+                                                selected && reminderEnabled && { color: '#6D925E' },
+                                            ]}>
+                                            {item.label}
+                                        </Text>
+                                    </Flex>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </Flex>
+                </View>
             </View>
 
-            <Flex justify="between">
-                <Text style={[styles.sectionTitle, { marginTop: 18 }]}>服药历史</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('MedicationHistoryPage')}>
-                    <Text style={styles.more}>全部</Text>
-                </TouchableOpacity>
-            </Flex>
-
-            {!loading && historyDays.length === 0 ? (
-                <View style={styles.medicationBox}>
-                    <Text style={styles.leftText}>暂无服药记录</Text>
-                </View>
-            ) : null}
-
-            {historyDays.length > 0 ? (
-                <View style={styles.medicationBox}>
-                    {historyDays.map((day, dayIndex) => (
-                        <View key={day.key}>
-                            <Text style={styles.colTitle}>{formatDayLabel(day.label)}</Text>
-                            <View style={styles.listBox}>
-                                {[...day.items].reverse().map(item => (
-                                    <Flex justify="between" style={styles.listItem} key={item.key}>
-                                        <Flex>
-                                            <Text style={styles.listItemText}>{item.name}</Text>
-                                            <PlanTypeBadge isPrescription={item.isPrescription} />
+            <View style={styles.medicationBox}>
+                <Flex justify="between" align="center">
+                    <Text style={styles.sectionTitle}>服药历史</Text>
+                    <TouchableOpacity onPress={() => navigation.navigate('MedicationHistoryPage')}>
+                        <Flex align="center">
+                            <Text style={styles.more}>全部</Text>
+                            <Image style={styles.moreImg} source={require('@/assets/images/medication/icon_right.png')} />
+                        </Flex>
+                    </TouchableOpacity>
+                </Flex>
+                {historyDays.length > 0 ? (
+                    <View style={styles.contentModule}>
+                        {historyDays.map((day, dayIndex) => (
+                            <View key={day.key} style={dayIndex > 0 ? { marginTop: 12 } : undefined}>
+                                <Text style={styles.colTitle}>{formatDayLabel(day.label)}</Text>
+                                <View style={styles.listBox}>
+                                    {[...day.items].reverse().map(item => (
+                                        <Flex justify="between" style={styles.listItem} key={item.key}>
+                                            <Flex>
+                                                <Text style={styles.listItemText}>{item.name}</Text>
+                                                {/* <PlanTypeBadge isPrescription={item.isPrescription} /> */}
+                                            </Flex>
+                                            <Text style={styles.listItemText}>{item.timeText}</Text>
                                         </Flex>
-                                        <Text style={styles.listItemText}>{item.timeText}</Text>
-                                    </Flex>
-                                ))}
+                                    ))}
+                                </View>
                             </View>
-                            {dayIndex < historyDays.length - 1 ? (
-                                <View style={[styles.rowLine, { marginBottom: 10 }]} />
-                            ) : null}
-                        </View>
-                    ))}
-                </View>
-            ) : null}
+                        ))}
+                    </View>
+                ) : null}
+                {!loading && historyDays.length === 0 ? (
+                    <View style={styles.contentModule}>
+                        <Text style={styles.leftText}>暂无服药记录</Text>
+                    </View>
+                ) : null}
+            </View>
         </ScrollView>
     );
 }

@@ -4,7 +4,39 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
   headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 310 },
-  pageTitle: { height: 27, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 27, textAlign: "center" },
+  pageTitleBox: {},
+  pageTitle: { fontWeight: "bold", fontSize: 22, color: "#000" },
+  pageTitleSubtitle: {
+    marginLeft: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    backgroundColor: "rgba(109,146,94,0.06)",
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: "#FFFFFF",
+    shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3
+  },
+  pageTitleSubtitleText: { fontWeight: "bold", fontSize: 12, color: "#6D925E" },
+  pageTopText: { marginTop: 11, fontWeight: 500, fontSize: 12, color: "#666666" },
+  pageTopBgWrap: {
+    marginTop: 18,
+    shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3
+  },
+  pageTopBg: { padding: 12, height: 214, borderRadius: 12, overflow: "hidden" },
+  pageTopBgIcon: { width: 18, height: 18 },
+  pageTopBgText: { fontWeight: "bold", fontSize: 12, color: "#333333", marginLeft: 4 },
+  topRowBox: {
+
+  },
+  topRowBoxItem: {
+
+  },
+  topRowBoxItemValue: {
+    fontWeight: "bold",
+    fontSize: 18,
+    color: "#333333"
+  },
+  topRowBoxItemText: {},
   navIcon: { width: 24, height: 24 },
   pageLine: { marginTop: 18, height: 1, backgroundColor: "#053A93", opacity: 0.06 },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
@@ -168,8 +200,8 @@ const styles = StyleSheet.create({
     resizeMode: 'cover',
   },
   statTitle: { fontWeight: 500, fontSize: 14, color: "#666666", marginTop: 6 },
-  statValue: { fontWeight: "bold", fontSize: 18, color: "#333333", },
-  statValue_1: { fontWeight: 500, fontSize: 18, color: "#666666", },
+  statValue: { fontWeight: "bold", fontSize: 18, color: "#333333" },
+  statValue_1: { fontWeight: 500, fontSize: 18, color: "#666666" },
   statUnit: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
   medicalTitle: { fontWeight: 500, marginTop: 14, fontSize: 16, color: AppTheme.textPrimary },
   leftText: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, marginTop: 14 },

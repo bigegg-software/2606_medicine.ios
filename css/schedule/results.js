@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
     },
     bottomBarButtonText: {
         fontWeight: 'bold',
-        fontSize: 18,
+        fontSize: 16,
         color: '#FFFFFF',
     },
     recordModalBox: {

@@ -498,8 +498,8 @@ export const PLAYER_SPORT_IMAGES: Record<string, number> = {
 export const EXERCISE_TYPE_COLORS: Record<string, string> = {
   cardio: '#6D925E',
   strength: '#72A1C5',
-  flexibility: '#EE9C44',
-  balance: '#0951AE',
+  flexibility: '#0951AE',
+  balance: '#EE9C44',
 };
 
 export type ExercisePrescriptionMetricItem = {

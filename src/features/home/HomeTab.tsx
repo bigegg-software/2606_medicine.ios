@@ -490,7 +490,7 @@ export default function HomeTab() {
               <TouchableOpacity onPress={() => navigation.navigate('VitalsPage')}>
                 <Flex align="center">
                   <Text style={styles.blurCardMore}>查看全部</Text>
-                  <Image style={styles.blurCardMoreIcon} source={require('@/assets/images/home/more.png')} />
+                  <Image style={styles.blurCardMoreIcon} tintColor={"#FFF"} source={require('@/assets/images/home/icon_right.png')} />
                 </Flex>
               </TouchableOpacity>
             </View>
@@ -644,7 +644,7 @@ export default function HomeTab() {
                 <TouchableOpacity onPress={() => navigation.navigate('Schedule')}>
                   <Flex>
                     <Text style={styles.cfMore}>查看详情</Text>
-                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
+                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/icon_right.png')} />
                   </Flex>
                 </TouchableOpacity>
               </Flex>
@@ -701,10 +701,13 @@ export default function HomeTab() {
                   <Image source={require('@/assets/images/home/yy.png')} style={styles.cfIcon} />
                   <Text style={styles.cfIconText}>营养处方</Text>
                 </Flex>
-                <TouchableOpacity onPress={() => navigation.navigate('Medication', { tab: 'meal' })}>
+                <TouchableOpacity onPress={() =>
+                  navigation.navigate('NutritionPage')
+                  //  navigation.navigate('Medication', { tab: 'meal' })
+                }>
                   <Flex>
                     <Text style={styles.cfMore}>查看详情</Text>
-                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/more.png')} />
+                    <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/icon_right.png')} />
                   </Flex>
                 </TouchableOpacity>
               </Flex>

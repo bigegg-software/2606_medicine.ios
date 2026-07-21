@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, ActivityIndicator, ImageSourcePropType } from 'react-native';
+import { View, Text, ScrollView, Image, ActivityIndicator, ImageSourcePropType, TouchableOpacity } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flex } from '@ant-design/react-native';
 import { useSelector } from 'react-redux';
@@ -16,6 +16,13 @@ const PODIUM_FRAMES = [
     require('@/assets/images/community/image3.png'),
 ] as const;
 const PODIUM_ORDER = [1, 0, 2] as const;
+
+type RankingTab = 'growth' | 'vitality';
+
+const RANKING_TABS: { key: RankingTab; label: string; icon: ImageSourcePropType }[] = [
+    { key: 'growth', label: '成长成果榜', icon: require('@/assets/images/community/icon_cz.png') },
+    { key: 'vitality', label: '活力打卡榜', icon: require('@/assets/images/community/icon_hl.png') },
+];
 
 const PODIUM_SCORE_COLORS: Record<number, string> = {
     0: '#FEAB27',
@@ -111,12 +118,9 @@ function RankingRow({
             <Image source={avatarSource} style={styles.listImg} />
             <View style={styles.rankingListInfo}>
                 <Text style={styles.rankingItemText}>{name}</Text>
-                <Text style={styles.rankingItemText2}>{streak}</Text>
+                <Text style={styles.rankingItemText2}>空腹血糖下降0.9</Text>
             </View>
-            <Flex>
-                <Image style={styles.avatarIcon} tintColor="#6D925E" source={require('@/assets/images/community/jf.png')} />
-                <Text style={[styles.avatarValue, { color: scoreColor }]}>{formatScore(score)}</Text>
-            </Flex>
+            <Text style={styles.avatarValue}>3个月</Text>
         </Flex>
     );
 }
@@ -163,14 +167,16 @@ function PodiumItem({
                             numberOfLines={1}>
                             {name}
                         </Text>
-                        <Flex justify='center' style={styles.rankingScoreRow}>
+                        <Text style={styles.rankingItemText3}>空腹血糖下降1.8</Text>
+                        <Text style={styles.rankingItemText4}>3个月</Text>
+                        {/* <Flex justify='center' style={styles.rankingScoreRow}>
                             <Image
                                 style={styles.avatarIcon}
                                 tintColor={scoreColor}
                                 source={require('@/assets/images/community/jf.png')}
                             />
                             <Text style={[styles.avatarValue]}>{formatScore(score)}</Text>
-                        </Flex>
+                        </Flex> */}
                     </View>
                 </View>
             </Flex>
@@ -193,6 +199,7 @@ export default function RankingPage() {
     const currentUserGender = useSelector((state: RootState) => state.user.info?.gender);
 
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<RankingTab>('growth');
     const [rankingList, setRankingList] = useState<RankingItem[]>([]);
 
     const loadRanking = useCallback(async () => {
@@ -244,6 +251,29 @@ export default function RankingPage() {
                 style={styles.rankingScroll}
                 contentContainerStyle={styles.rankingScrollContent}
                 showsVerticalScrollIndicator={false}>
+
+
+                <Flex style={styles.tabBox}>
+                    {RANKING_TABS.map(tab => {
+                        const isActive = activeTab === tab.key;
+                        return (
+                            <TouchableOpacity
+                                key={tab.key}
+                                activeOpacity={0.85}
+                                onPress={() => setActiveTab(tab.key)}
+                                style={[styles.tabItem, isActive && styles.tabItemActive]}
+                            >
+                                <Flex justify="center" style={{ flex: 1 }}>
+                                    <Image style={styles.tabItemIcon} source={tab.icon} />
+                                    <Text style={[styles.tabItemText, isActive && styles.tabItemTextActive]}>
+                                        {tab.label}
+                                    </Text>
+                                </Flex>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </Flex>
+
                 <Flex justify="center" style={styles.rankingBpx}>
                     {PODIUM_ORDER.map((rankIndex, displayIndex) => (
                         <PodiumItem
@@ -282,15 +312,9 @@ export default function RankingPage() {
                     <Image source={myAvatarSource} style={styles.listImg} />
                     <View style={styles.rankingListInfo}>
                         <Text style={styles.rankingItemText}>{myName}</Text>
-                        <Text style={styles.rankingItemText2}>{myStreak}</Text>
+                        <Text style={styles.rankingItemText2}>空腹血糖下降0.9</Text>
                     </View>
-                    <Flex>
-                        <Image
-                            style={styles.avatarIcon}
-                            tintColor="#6D925E"
-                            source={require('@/assets/images/community/jf.png')} />
-                        <Text style={[styles.avatarValue, { color: '#333', fontSize: 18 }]}>{formatScore(myScore)}</Text>
-                    </Flex>
+                    <Text style={styles.avatarValue}>3个月</Text>
                 </Flex>
             </View>
         </View>

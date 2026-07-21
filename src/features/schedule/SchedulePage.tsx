@@ -277,6 +277,39 @@ export default function SchedulePage() {
   return (
     <TabPageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+
+        <Flex style={styles.pageTitleBox}>
+          <Text style={styles.pageTitle}>健康提升档案</Text>
+          <Flex style={styles.pageTitleSubtitle}>
+            <Text style={styles.pageTitleSubtitleText}>已坚持 279 天</Text>
+          </Flex>
+        </Flex>
+        <Text style={styles.pageTopText}>58岁 | 三高人群 | 力量平衡管理 | 自2025/10/08起</Text>
+
+        <View style={styles.pageTopBgWrap}>
+          <ImageBackground source={require('@/assets/images/schedule/daback.png')} style={styles.pageTopBg}>
+            <Flex>
+              <Image style={styles.pageTopBgIcon} source={require('@/assets/images/schedule/icon_jb.png')} />
+              <Text style={styles.pageTopBgText}>长期投入 · 成效总览</Text>
+            </Flex>
+
+            <Flex style={styles.topRowBox}>
+              <View style={styles.topRowBoxItem}>
+                <Text style={styles.topRowBoxItemValue}>149</Text>
+                <Text style={styles.topRowBoxItemText}>训练次数</Text>
+              </View>
+            </Flex>
+          </ImageBackground>
+        </View>
+
+
+
+
+
+
+
+
+
         <View style={styles.glassCardWrap}>
           <View style={styles.glassCard}>
             <Flex justify="between" align="center">

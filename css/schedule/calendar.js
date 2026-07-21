@@ -148,25 +148,25 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 16,
   },
-  cardSideBox: {
+  cardSideList: {
     flex: 1,
     marginTop: 6,
+    gap: 10,
+  },
+  cardSideBox: {
     backgroundColor: "#F6F8FB",
-    borderRadius: 12
+    borderRadius: 12,
   },
   mergedTimelineCard: {
     paddingHorizontal: 12,
     paddingVertical: 15
-  },
-  mergedTimelineCardGap: {
-    marginTop: 12,
   },
   timeText: {
     fontWeight: 400,
     fontSize: 16,
     color: '#333333',
   },
-  taskCardIcon: { width: 15, height: 15, marginRight: 3 },
+  taskCardIcon: { width: 15, height: 15, marginRight: 3, marginTop: 2 },
   taskCard: {
     width: 280,
     maxWidth: '100%',
@@ -192,12 +192,6 @@ const styles = StyleSheet.create({
   exerciseCardContent: {
     flex: 1,
     minWidth: 0,
-  },
-  dietTaskCard: {
-    width: '100%',
-    minHeight: 64,
-    paddingHorizontal: 12,
-    paddingVertical: 15,
   },
   dietCalorieInlineText: {
     marginLeft: 8,
@@ -237,12 +231,10 @@ const styles = StyleSheet.create({
   },
   activityStatusBtn: {
     maxWidth: 88,
-    height: 28,
+    height: 29,
     paddingHorizontal: 10,
-    borderRadius: 14,
+    borderRadius: 8,
     backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#3B74BD',
     alignItems: 'center',
     justifyContent: 'center',
   },

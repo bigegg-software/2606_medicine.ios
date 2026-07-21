@@ -13,9 +13,9 @@ import type { MeasureDataItem } from '@/api/measureData';
 import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
 import MainTabs from '@/src/features/home/MainTabs';
-import FamilyTabs from '@/src/features/familyPage/FamilyTabs';
+import FamilyTabs from '@/src/familyPage/FamilyTabs';
 import type { MainTabParamList } from '@/src/utils/tabNavigation';
-import type { FamilyTabParamList } from '@/src/features/familyPage/FamilyTabs';
+import type { FamilyTabParamList } from '@/src/familyPage/FamilyTabs';
 
 // 运动处方
 import ExercisePage from "@/src/features/home/exercise/exercisePage"
@@ -51,8 +51,8 @@ import TestingRecordPage from '@/src/features/schedule/testing/record';
 import QuestionnaireTestingPage from '@/src/features/schedule/testing/questionnaire';
 import QuestionnaireTestingRecordPage from '@/src/features/schedule/testing/questionnaireRecord';
 
-// 饮食运动
-import NutritionPage from '@/src/features/home/nutrition';
+// 营养处方新
+import NutritionPage from '@/src/features/nutrition';
 
 // 用药记录
 import MedicationPage from '@/src/features/profile/medication';
@@ -113,6 +113,8 @@ import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 
 //设置 
 import SettingsPage from '@/src/features/profile/settings';
+
+
 
 export type RootStackParamList = {
   Login: undefined;
@@ -352,7 +354,6 @@ export default function RootStack() {
         options={{ title: '首页', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
       />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
-      <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "饮食运动" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: '活动详情' }} />
       <Stack.Screen name="CourseDetail" component={CourseDetailPage} options={{ title: '课程详情' }} />
       <Stack.Screen name="LiveDetail" component={LiveDetailPage} options={{ title: '直播详情' }} />
@@ -375,7 +376,7 @@ export default function RootStack() {
       <Stack.Screen name="ChronicDisease" component={ChronicDiseasePage} options={{ title: "慢病管理" }} />
       <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
       <Stack.Screen name="ChronicDiseaseDetailPage" component={ChronicDiseaseDetailPage} options={{ title: "慢病详情" }} />
-      <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "体征监测" }} />
+      <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "健康数据" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
       <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
       <Stack.Screen name="BloodPressurePage" component={BloodPressurePage} options={{ title: "血压", showHeaderBackground: false }} />
@@ -425,6 +426,8 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
       <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: "设置" }} />
+
+      <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
     </Stack.Navigator>
   );
 }

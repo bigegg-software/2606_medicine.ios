@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     },
     bottomBarButtonTextLeft: {
         fontWeight: 'bold',
-        fontSize: 18,
+        fontSize: 16,
         color: '#FFFFFF',
     },
     HValue: { marginTop: 8, fontWeight: "bold", fontSize: 25, color: "#EE9C44" },

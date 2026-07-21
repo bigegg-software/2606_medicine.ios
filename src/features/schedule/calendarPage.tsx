@@ -28,6 +28,7 @@ import {
   mapTodayMedicationGroupsToTimelineItems,
   type CalendarTimelineItem,
 } from './calendarHelpers';
+import { EXERCISE_TYPE_IMAGES } from './scheduleHelpers';
 import {
   applyMedicationCheckInBatchToPlanGroups,
   applyMedicationCheckInToPlanGroups,
@@ -115,6 +116,9 @@ function ExerciseTimelineSection({
 
       <ScrollView style={styles.exerciseScroll} horizontal showsHorizontalScrollIndicator={false}>
         {items.map(item => {
+          const exerciseIcon =
+            EXERCISE_TYPE_IMAGES[item.exerciseType?.trim() ?? ''] ?? EXERCISE_TYPE_IMAGES.cardio;
+
           return (
             <View key={item.key} style={styles.cardSide}>
               {isToday ? (
@@ -122,7 +126,11 @@ function ExerciseTimelineSection({
                   activeOpacity={0.7}
                   onPress={() => onPressItem(item)}>
                   <Flex style={styles.exerciseTaskCard} align="start">
-                    <Image style={styles.taskCardIcon} tintColor={"#333333"} source={TIMELINE_ICONS.ex} />
+                    <Image
+                      style={styles.taskCardIcon}
+                      tintColor="#333333"
+                      source={exerciseIcon}
+                    />
                     <View style={styles.exerciseCardContent}>
                       <Flex justify="between" align="center">
                         <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
@@ -141,7 +149,11 @@ function ExerciseTimelineSection({
                 </TouchableOpacity>
               ) : (
                 <Flex style={styles.exerciseTaskCard} align="start">
-                  <Image style={styles.taskCardIcon} source={TIMELINE_ICONS.ex} />
+                  <Image
+                    style={styles.taskCardIcon}
+                    tintColor="#333333"
+                    source={exerciseIcon}
+                  />
                   <View style={styles.exerciseCardContent}>
                     <Flex justify="between" align="center">
                       <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
@@ -181,36 +193,38 @@ function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
       : '';
 
   return (
-    <Flex justify="between" align="center" style={styles.dietTaskCard}>
-      <View style={styles.mergedMedicationContent}>
-        <Flex align="center">
-          <Image
-            style={styles.taskCardIcon}
-            source={item.mealIcon ?? TIMELINE_ICONS.diet}
-          />
-          <Text style={styles.mergedMedicationName} numberOfLines={1}>
-            {item.title}
-          </Text>
-          {calorieText ? (
-            <Text style={styles.dietCalorieInlineText} numberOfLines={1}>
-              {calorieText}
+    <View style={styles.mergedTimelineCard}>
+      <Flex justify="between" align="center">
+        <View style={styles.mergedMedicationContent}>
+          <Flex align="center">
+            <Image
+              style={styles.taskCardIcon}
+              source={item.mealIcon ?? TIMELINE_ICONS.diet}
+            />
+            <Text style={styles.taskCardTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {calorieText ? (
+              <Text style={styles.dietCalorieInlineText} numberOfLines={1}>
+                {calorieText}
+              </Text>
+            ) : null}
+          </Flex>
+          {foodText ? (
+            <Text
+              style={[styles.mergedMedicationDesc, styles.activityLocationText]}
+              numberOfLines={2}>
+              {foodText}
             </Text>
           ) : null}
-        </Flex>
-        {foodText ? (
-          <Text
-            style={[styles.mergedMedicationDesc, styles.activityLocationText]}
-            numberOfLines={2}>
-            {foodText}
+        </View>
+        <View style={styles.activityStatusBtn}>
+          <Text style={styles.activityStatusBtnText} numberOfLines={1}>
+            {isRecorded ? '已记录' : '未记录'}
           </Text>
-        ) : null}
-      </View>
-      <View style={styles.activityStatusBtn}>
-        <Text style={styles.activityStatusBtnText} numberOfLines={1}>
-          {isRecorded ? '已记录' : '未记录'}
-        </Text>
-      </View>
-    </Flex>
+        </View>
+      </Flex>
+    </View>
   );
 }
 
@@ -344,7 +358,7 @@ function LiveTimelineCard({
                     style={styles.taskCardIcon}
                     source={require('@/assets/images/schedule/zb.png')}
                   />
-                  <Text style={styles.mergedMedicationName} numberOfLines={1}>
+                  <Text style={styles.taskCardTitle} numberOfLines={1}>
                     {item.title}
                   </Text>
                 </Flex>
@@ -395,7 +409,7 @@ function ActivityTimelineCard({
                     style={styles.taskCardIcon}
                     source={require('@/assets/images/schedule/hd.png')}
                   />
-                  <Text style={styles.mergedMedicationName} numberOfLines={1}>
+                  <Text style={styles.taskCardTitle} numberOfLines={1}>
                     {item.title}
                   </Text>
                 </Flex>
@@ -537,8 +551,6 @@ function TimelineSection({
           const otherItems = group.items.filter(
             item => item.kind !== 'drug' && item.kind !== 'activity' && item.kind !== 'live',
           );
-          const hasMergedCards =
-            medicationItems.length > 0 || activityItems.length > 0 || liveItems.length > 0;
 
           return (
             <View
@@ -555,18 +567,20 @@ function TimelineSection({
               </View>
               <View style={styles.timelineContent}>
                 <Text style={styles.timeText}>{group.time}</Text>
-                <View style={styles.cardSideBox}>
+                <View style={styles.cardSideList}>
                   {medicationItems.length > 0 ? (
-                    <MedicationTimelineCard
-                      items={medicationItems}
-                      checkingInKey={checkingInKey}
-                      checkingInAll={checkingInGroupKey === group.key}
-                      onMedicationCheckIn={onMedicationCheckIn}
-                      onMedicationCheckInAll={items => onMedicationCheckInAll(items, group.key)}
-                    />
+                    <View style={styles.cardSideBox}>
+                      <MedicationTimelineCard
+                        items={medicationItems}
+                        checkingInKey={checkingInKey}
+                        checkingInAll={checkingInGroupKey === group.key}
+                        onMedicationCheckIn={onMedicationCheckIn}
+                        onMedicationCheckInAll={items => onMedicationCheckInAll(items, group.key)}
+                      />
+                    </View>
                   ) : null}
                   {activityItems.length > 0 ? (
-                    <View style={medicationItems.length > 0 ? styles.mergedTimelineCardGap : null}>
+                    <View style={styles.cardSideBox}>
                       <ActivityTimelineCard
                         items={activityItems}
                         onPressItem={onPressItem}
@@ -574,26 +588,15 @@ function TimelineSection({
                     </View>
                   ) : null}
                   {liveItems.length > 0 ? (
-                    <View
-                      style={
-                        medicationItems.length > 0 || activityItems.length > 0
-                          ? styles.mergedTimelineCardGap
-                          : null
-                      }>
+                    <View style={styles.cardSideBox}>
                       <LiveTimelineCard
                         items={liveItems}
                         onPressItem={onPressItem}
                       />
                     </View>
                   ) : null}
-                  {otherItems.map((item, itemIndex) => (
-                    <View
-                      key={item.key}
-                      style={
-                        hasMergedCards || itemIndex > 0
-                          ? styles.mergedTimelineCardGap
-                          : null
-                      }>
+                  {otherItems.map(item => (
+                    <View key={item.key} style={styles.cardSideBox}>
                       <TimelineCardItem
                         item={item}
                         onPressItem={onPressItem}
@@ -702,7 +705,6 @@ export default function ScheduleCalendarPage() {
   const [checkingInGroupKey, setCheckingInGroupKey] = useState<string | null>(null);
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
-  const selectedStatus = statusMap.get(selectedDate);
   const isToday = selectedDate === moment().format('YYYY-MM-DD');
   const displayTimelineItems = useMemo(() => {
     if (!isToday) return timelineItems;
@@ -756,10 +758,21 @@ export default function ScheduleCalendarPage() {
     void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
 
+  // 仅随选中日期请求当日详情，避免 statusMap 回填导致进入页面重复请求
   useEffect(() => {
-    void loadDayTimeline(selectedDate, selectedStatus);
+    void loadDayTimeline(selectedDate, statusMap.get(selectedDate));
     void loadTodayMedication(selectedDate);
-  }, [loadDayTimeline, loadTodayMedication, selectedDate, selectedStatus]);
+    // statusMap 有意不作为依赖：今日时间轴不依赖 status；历史日在下方补拉
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
+  }, [selectedDate, loadDayTimeline, loadTodayMedication]);
+
+  // 月度 status 返回后，仅历史日且需要运动/用药时再补一次（今日跳过）
+  useEffect(() => {
+    if (selectedDate === moment().format('YYYY-MM-DD')) return;
+    const status = statusMap.get(selectedDate);
+    if (!status?.isEx && !status?.isDrug) return;
+    void loadDayTimeline(selectedDate, status);
+  }, [statusMap, selectedDate, loadDayTimeline]);
 
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
     if (item.kind === 'diet') {

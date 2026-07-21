@@ -92,8 +92,8 @@ const styles = StyleSheet.create({
         color: "#FFFFFF"
     },
     blurCardMoreIcon: {
-        width: 5,
-        height: 9,
+        width: 12,
+        height: 12,
         marginLeft: 6,
         marginRight: 4
     },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     cfIcon: { width: 20, height: 20 },
     cfIconText: { marginLeft: 4, fontWeight: "bold", fontSize: 15, color: "#131141", },
     cfMore: { fontWeight: 500, fontSize: 13, color: "#666666" },
-    cfMoreIcon: { width: 5, height: 9, marginLeft: 6 },
+    cfMoreIcon: { width: 12, height: 12, marginLeft: 6 },
     cfContent: { paddingHorizontal: 3, marginTop: 18 },
     cfItem: { alignItems: 'center' },
     cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 18, color: '#333333', },

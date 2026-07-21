@@ -46,7 +46,7 @@ export default function MedicationPage() {
                     <TouchableOpacity
                         style={{ marginRight: 16 }}
                         onPress={() => navigation.navigate('MedicationAllPage')}>
-                        <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>所有用药</Text>
+                        <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>全部记录</Text>
                     </TouchableOpacity>
                 ) : (
                     <TouchableOpacity
@@ -60,7 +60,7 @@ export default function MedicationPage() {
 
     return (
         <PageLayout style={styles.container} contentStyle={styles.pageBody}>
-            <Flex style={styles.navBox}>
+            {/* <Flex style={styles.navBox}>
                 {MEDICATION_NAV_LIST.map(item => (
                     <TouchableOpacity
                         style={styles.navCol}
@@ -81,7 +81,7 @@ export default function MedicationPage() {
                         </View>
                     </TouchableOpacity>
                 ))}
-            </Flex>
+            </Flex> */}
 
             {activeNav === 'medication' ? <MedicationTab /> : <MealTab resetToken={mealInputResetToken} />}
         </PageLayout>
