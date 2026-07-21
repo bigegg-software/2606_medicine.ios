@@ -27,7 +27,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 //   },
 //   {
 //     img: require('@/assets/images/user/img3.png'),
-//     label: '体征数据',
+//     label: '健康数据',
 //     route: 'VitalsPage'
 //   },
 //   {
@@ -54,7 +54,7 @@ const navList = [
   },
   {
     img: require('@/assets/images/user/img3.png'),
-    label: '体征数据',
+    label: '健康数据',
     route: 'VitalsPage' as const,
   },
   {

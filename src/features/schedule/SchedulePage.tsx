@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, ImageBackground } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { GlassView } from 'expo-glass-effect';
 import { Flex } from '@ant-design/react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
@@ -46,6 +47,14 @@ import {
 } from './scheduleHelpers';
 
 const HISTORY_PREVIEW_SIZE = 5;
+
+const NAV_TABS = [
+  { key: 'vitals', label: '三高指标', icon: require('@/assets/images/schedule/icon_tj.png') },
+  { key: 'strength', label: '力量平衡', icon: require('@/assets/images/schedule/icon_ll.png') },
+  { key: 'rehab', label: '术后康复', icon: require('@/assets/images/schedule/icon_mx.png') },
+] as const;
+
+type NavTabKey = (typeof NAV_TABS)[number]['key'];
 
 const EMPTY_WEEK_STATS: ScheduleWeekStats = {
   trainingCount: '--',
@@ -131,6 +140,7 @@ export default function SchedulePage() {
   const [todayTaskProgressMap, setTodayTaskProgressMap] = useState<Record<string, number>>({});
   const [ringProgress, setRingProgress] = useState<[number, number, number, number]>([0, 0, 0, 0]);
   const [weekStats, setWeekStats] = useState<ScheduleWeekStats>(EMPTY_WEEK_STATS);
+  const [activeNavTab, setActiveNavTab] = useState<NavTabKey>('vitals');
 
   const prescriptionProgress = normalizeProgress(prescription?.progress ?? prescription?.progressInfo?.complateRatio);
   const todayTasks = useMemo(
@@ -276,30 +286,412 @@ export default function SchedulePage() {
 
   return (
     <TabPageLayout style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scrollNew}>
 
-        <Flex style={styles.pageTitleBox}>
-          <Text style={styles.pageTitle}>健康提升档案</Text>
-          <Flex style={styles.pageTitleSubtitle}>
-            <Text style={styles.pageTitleSubtitleText}>已坚持 279 天</Text>
-          </Flex>
-        </Flex>
-        <Text style={styles.pageTopText}>58岁 | 三高人群 | 力量平衡管理 | 自2025/10/08起</Text>
-
-        <View style={styles.pageTopBgWrap}>
-          <ImageBackground source={require('@/assets/images/schedule/daback.png')} style={styles.pageTopBg}>
-            <Flex>
-              <Image style={styles.pageTopBgIcon} source={require('@/assets/images/schedule/icon_jb.png')} />
-              <Text style={styles.pageTopBgText}>长期投入 · 成效总览</Text>
+        <View style={styles.mH12}>
+          <Flex style={styles.pageTitleBox}>
+            <Text style={styles.pageTitle}>健康提升档案</Text>
+            <Flex style={styles.pageTitleSubtitle}>
+              <Text style={styles.pageTitleSubtitleText}>已坚持 279 天</Text>
             </Flex>
+          </Flex>
+          <Text style={styles.pageTopText}>58岁 | 三高人群 | 力量平衡管理 | 自2025/10/08起</Text>
 
-            <Flex style={styles.topRowBox}>
-              <View style={styles.topRowBoxItem}>
-                <Text style={styles.topRowBoxItemValue}>149</Text>
-                <Text style={styles.topRowBoxItemText}>训练次数</Text>
+          <View style={styles.pageTopBgWrap}>
+            <View style={styles.pageTopBg}>
+              <Image
+                style={styles.pageTopBgImg}
+                resizeMode="cover"
+                source={require('@/assets/images/schedule/daback.png')}
+              />
+              <View style={{ padding: 12 }}>
+                <Flex>
+                  <Image style={styles.pageTopBgIcon} source={require('@/assets/images/schedule/icon_jb.png')} />
+                  <Text style={styles.pageTopBgText}>长期投入 · 成效总览</Text>
+                </Flex>
+
+                <Flex wrap='wrap' justify='between'>
+                  <View style={styles.topRowBoxItem}>
+                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back1.png')} />
+                    <Text style={styles.topRowBoxItemValue}>149</Text>
+                    <Text style={styles.topRowBoxItemText}>累计训练(小时)</Text>
+                  </View>
+                  <View style={styles.topRowBoxItem}>
+                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back2.png')} />
+                    <Text style={styles.topRowBoxItemValue}>138</Text>
+                    <Text style={styles.topRowBoxItemText}>累计课次</Text>
+                  </View>
+                  <View style={styles.topRowBoxItem}>
+                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back3.png')} />
+                    <Text style={styles.topRowBoxItemValue}>84%</Text>
+                    <Text style={styles.topRowBoxItemText}>平均完成率</Text>
+                  </View>
+                  <View style={styles.topRowBoxItem}>
+                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back4.png')} />
+                    <Text style={styles.topRowBoxItemValue}>11</Text>
+                    <Text style={styles.topRowBoxItemText}>改善指标数</Text>
+                  </View>
+                </Flex>
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
+          <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
+            <Text style={styles.backImage1Text}>目标拆解·进度</Text>
+            <Flex style={styles.tabBox}>
+              <Flex justify='center' style={[styles.tabItem, styles.tabItemActive]}><Text style={styles.tabItemText}>30天</Text></Flex>
+              <Flex justify='center' style={styles.tabItem}><Text style={styles.tabItemText}>90天</Text></Flex>
+            </Flex>
+          </Flex>
+        </ImageBackground>
+
+        <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={[styles.backImage1, { height: 66 }]}>
+          <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
+            {NAV_TABS.map(tab => {
+              const isActive = activeNavTab === tab.key;
+              return (
+                <TouchableOpacity
+                  key={tab.key}
+                  activeOpacity={0.85}
+                  onPress={() => setActiveNavTab(tab.key)}
+                >
+                  <Flex style={[styles.navTabBox, isActive && styles.navTabBoxActive]}>
+                    <Image
+                      style={styles.navTabIcon}
+                      source={tab.icon}
+                      tintColor={isActive ? '#FFFFFF' : '#333333'}
+                    />
+                    <Text style={[styles.navTabText, isActive && styles.navTabTextActive]}>
+                      {tab.label}
+                    </Text>
+                  </Flex>
+                </TouchableOpacity>
+              );
+            })}
+          </Flex>
+        </ImageBackground>
+
+        <View style={styles.commonWrap}>
+          <Flex>
+            <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={require('@/assets/images/schedule/icon_ll.png')} />
+            <View style={styles.sectionTitleWrap}>
+              <LinearGradient
+                colors={['#6D925E', 'rgba(109,146,94,0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sectionTitleUnderline}
+              />
+              <Text style={[styles.pageTopBgText, styles.sectionTitleText]}>力量平衡</Text>
+            </View>
+            <Flex style={styles.tipBox}>
+              <Text style={styles.tipText}>功能管理</Text>
+            </Flex>
+          </Flex>
+
+          <View style={styles.listBox}>
+            <View style={styles.listItem}>
+              <Flex>
+                <Text style={styles.listItemTitle}>单脚站立时长</Text>
+                <Text style={styles.listItemSubtitle}>Single-leg Stance</Text>
+              </Flex>
+              <Flex justify='between' style={styles.listItemBox}>
+                <Flex>
+                  <Text style={styles.listItemValue}>32</Text>
+                  <Text style={styles.listItemUnit}>秒</Text>
+                  <Text style={styles.listItemTarget}>目标≥35</Text>
+                </Flex>
+                <Flex>
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_gs.png")} />
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_up1.png")} />
+                  <Text style={styles.listItemValueNum}>18</Text>
+                </Flex>
+              </Flex>
+              <View style={styles.listItemLine}>
+                <View style={[styles.listItemLineFill, { width: '80%' }]} />
+              </View>
+              <Flex justify='between' style={styles.listItemBtmBox}>
+                <Text style={styles.listItemBtmText}>基线14秒·90 天周期改善</Text>
+                <Text style={styles.listItemBtmText1}>80%</Text>
+              </Flex>
+            </View>
+            <View style={styles.listItem}>
+              <Flex>
+                <Text style={styles.listItemTitle}>6米步行速度</Text>
+                <Text style={styles.listItemSubtitle}>Gait Speed 提升</Text>
+              </Flex>
+              <Flex justify='between' style={styles.listItemBox}>
+                <Flex>
+                  <Text style={styles.listItemValue}>1.28</Text>
+                  <Text style={styles.listItemUnit}>m/s</Text>
+                  <Text style={styles.listItemTarget}>目标≥1.3</Text>
+                </Flex>
+                <Flex>
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_gs.png")} />
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_up1.png")} />
+                  <Text style={styles.listItemValueNum}>18%</Text>
+                </Flex>
+              </Flex>
+              <View style={styles.listItemLine}>
+                <View style={[styles.listItemLineFill, { width: '80%' }]} />
+              </View>
+              <Flex justify='between' style={styles.listItemBtmBox}>
+                <Text style={styles.listItemBtmText}>基线0.98 m/s·90 天周期改善</Text>
+                <Text style={styles.listItemBtmText1}>84%</Text>
+              </Flex>
+            </View>
+            <View style={styles.listItem}>
+              <Flex>
+                <Text style={styles.listItemTitle}>下肢力量评分</Text>
+                <Text style={styles.listItemSubtitle}>30秒坐立测试</Text>
+              </Flex>
+              <Flex justify='between' style={styles.listItemBox}>
+                <Flex>
+                  <Text style={styles.listItemValue}>18</Text>
+                  <Text style={styles.listItemUnit}>次</Text>
+                  <Text style={styles.listItemTarget}>目标≥20</Text>
+                </Flex>
+                <Flex>
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_gs.png")} />
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_up1.png")} />
+                  <Text style={styles.listItemValueNum}>18</Text>
+                </Flex>
+              </Flex>
+              <View style={styles.listItemLine}>
+                <View style={[styles.listItemLineFill, { width: '80%' }]} />
+              </View>
+              <Flex justify='between' style={styles.listItemBtmBox}>
+                <Text style={styles.listItemBtmText}>基线14秒·90 天周期改善</Text>
+                <Text style={styles.listItemBtmText1}>80%</Text>
+              </Flex>
+            </View>
+            <View style={styles.listItem}>
+              <Flex>
+                <Text style={styles.listItemTitle}>平衡指数</Text>
+                <Text style={styles.listItemSubtitle}>Balance Index 改善</Text>
+              </Flex>
+              <Flex justify='between' style={styles.listItemBox}>
+                <Flex>
+                  <Text style={styles.listItemValue}>78</Text>
+                  <Text style={styles.listItemUnit}>分</Text>
+                  <Text style={styles.listItemTarget}>目标≥80</Text>
+                </Flex>
+                <Flex>
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_gs.png")} />
+                  <Image style={styles.listIcon} source={require("@/assets/images/schedule/icon_up1.png")} />
+                  <Text style={styles.listItemValueNum}>26</Text>
+                </Flex>
+              </Flex>
+              <View style={styles.listItemLine}>
+                <View style={[styles.listItemLineFill, { width: '80%' }]} />
+              </View>
+              <Flex justify='between' style={styles.listItemBtmBox}>
+                <Text style={styles.listItemBtmText}>基线52分·90 天周期改善</Text>
+                <Text style={styles.listItemBtmText1}>78%</Text>
+              </Flex>
+            </View>
+          </View>
+        </View>
+
+        <View style={[styles.commonWrap, { marginTop: 12 }]}>
+          <Flex justify="between" align="center">
+            <Flex>
+              <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={require('@/assets/images/schedule/icon_id.png')} />
+              <View style={styles.sectionTitleWrap}>
+                <LinearGradient
+                  colors={['#6D925E', 'rgba(109,146,94,0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.sectionTitleUnderline}
+                />
+                <Text style={styles.sectionTitleText}>周期训练复盘</Text>
               </View>
             </Flex>
-          </ImageBackground>
+            <Text style={styles.rightText}>近6周</Text>
+          </Flex>
+
+          <Flex justify='between' style={styles.listItemBtmBox}>
+            <Flex>
+              <View style={styles.leftLine}></View>
+              <Text style={styles.xlTitle}>每周总训练时长</Text>
+            </Flex>
+            <Text style={styles.xlText}>点击可查看分项</Text>
+          </Flex>
+
+          <Flex align="stretch" style={styles.weekTrainWrap}>
+            {[
+              { key: 'W1', progress: 100 },
+              { key: 'W2', progress: 100 },
+              { key: 'W3', progress: 60 },
+              { key: 'W4', progress: 0 },
+              { key: 'W5', progress: 0 },
+              { key: 'W6', progress: 0 },
+            ].map(week => (
+              <Flex direction='column' justify='end' align='stretch' key={week.key} style={styles.weekBox}>
+                <View style={styles.iconBox}>
+                  <Image style={styles.weekIcon} source={require('@/assets/images/schedule/icon_wx.png')} />
+                  <Text style={styles.weekText}>3.9h</Text>
+                </View>
+                <View style={styles.weekProgress}>
+                  <View
+                    style={[
+                      styles.weekProgressBar,
+                      { height: Math.max(0, Math.min(week.progress, 100)) / 100 * 44 },
+                      week.progress >= 100 && styles.weekProgressBarDone,
+                    ]}
+                  />
+                </View>
+                <Text style={styles.WTitle}>{week.key}</Text>
+              </Flex>
+            ))}
+          </Flex>
+
+          <Flex justify='between' style={[styles.listItemBtmBox, { marginTop: 25 }]}>
+            <Flex>
+              <View style={styles.leftLine}></View>
+              <Text style={styles.xlTitle}>W5分项完成情况</Text>
+            </Flex>
+            <Text style={styles.weekRateText}>整体完成率 <Text style={styles.weekRateTextNum}>95%</Text></Text>
+          </Flex>
+
+
+          <View style={styles.weekRateList}>
+            {[
+              { title: '有氧', progress: 95, color: '#6D925E' },
+              { title: '抗阻', progress: 95, color: '#72A1C5' },
+              { title: '平衡', progress: 95, color: '#0951AE' },
+              { title: '拉伸', progress: 95, color: '#EE9C44' },
+            ].map(item => (
+              <Flex key={item.title} align="center" style={styles.weekRateItem}>
+                <Text style={styles.weekRateItemTitle}>{item.title}</Text>
+                <View style={styles.weekRateBar}>
+                  <View
+                    style={[
+                      styles.weekRateBarFill,
+                      {
+                        width: `${Math.max(0, Math.min(item.progress, 100))}%`,
+                        backgroundColor: item.color,
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.weekRateTextNum}>{item.progress}%</Text>
+              </Flex>
+            ))}
+          </View>
+          <Flex align="start" style={styles.kcalInfoBox}>
+            <Image style={styles.kcalInfoIcon} source={require('@/assets/images/nutrition/kllInfo.png')} />
+            <Text style={styles.kcalInfoText}>训练投入持续走高，第 6 周完成率达 95%，与同期血糖、平衡指标改善曲线高度吻合。</Text>
+          </Flex>
+        </View>
+
+        <View style={[styles.commonWrap, { marginTop: 12 }]}>
+          <Flex>
+            <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={require('@/assets/images/schedule/icon_book.png')} />
+            <View style={styles.sectionTitleWrap}>
+              <LinearGradient
+                colors={['#6D925E', 'rgba(109,146,94,0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.sectionTitleUnderline}
+              />
+              <Text style={styles.sectionTitleText}>历史干预计划档案</Text>
+            </View>
+          </Flex>
+
+          <View style={styles.historyBox}>
+            <View style={styles.historyItem}>
+              <Flex justify='between'>
+                <Text style={styles.historyItemTitle}>代谢综合征运动干预·第 3 疗程</Text>
+                <Flex style={styles.historyItemStatus}>
+                  <Text style={styles.historyItemStatusText}>进行中</Text>
+                </Flex>
+              </Flex>
+              <Flex style={styles.historyItemTextWrap}>
+                <Image style={styles.historyItemIcon} source={require('@/assets/images/schedule/icon_rl.png')} />
+                <Text style={styles.historyItemText}>2026/05/01 至今</Text>
+              </Flex>
+
+              <Flex style={styles.historyRow}>
+                <View>
+                  <Flex>
+                    <View style={styles.historyLine}></View>
+                    <Text style={styles.historyTitle}>总课(次)</Text>
+                  </Flex>
+                  <Text style={styles.historyValue}>32</Text>
+                </View>
+                <View>
+                  <Flex>
+                    <View style={[styles.historyLine, { backgroundColor: "#72A1C5" }]}></View>
+                    <Text style={styles.historyTitle}>累计时长(h)</Text>
+                  </Flex>
+                  <Text style={styles.historyValue}>32</Text>
+                </View>
+                <View>
+                  <Flex>
+                    <View style={[styles.historyLine, { backgroundColor: "#FB4550" }]}></View>
+                    <Text style={styles.historyTitle}>空腹血糖(mmol/L)</Text>
+                  </Flex>
+                  <Flex>
+                    <Text style={styles.historyValue}>32</Text>
+                    <Text style={styles.historyUnit}>3.2</Text>
+                    <Image style={[styles.listIcon, { marginTop: 16, marginLeft: 4 }]} source={require("@/assets/images/schedule/icon_gs.png")} />
+                  </Flex>
+                </View>
+              </Flex>
+              <Flex style={styles.historyInfo}>
+                <Image style={styles.statusIcon} source={require("@/assets/images/schedule/wc.png")} />
+                <Text style={styles.historyInfoText}>累计训练 45 小时，血糖回落至正常高值</Text>
+              </Flex>
+            </View>
+              <View style={styles.historyItem}>
+              <Flex justify='between'>
+                <Text style={styles.historyItemTitle}>代谢综合征运动干预·第 3 疗程</Text>
+                <Flex style={[styles.historyItemStatus, styles.historyItemStatusDone]}>
+                  <Text style={[styles.historyItemStatusText, styles.historyItemStatusTextDone]}>已完成</Text>
+                </Flex>
+              </Flex>
+              <Flex style={styles.historyItemTextWrap}>
+                <Image style={styles.historyItemIcon} source={require('@/assets/images/schedule/icon_rl.png')} />
+                <Text style={styles.historyItemText}>2026/05/01 至今</Text>
+              </Flex>
+
+              <Flex style={styles.historyRow}>
+                <View>
+                  <Flex>
+                    <View style={styles.historyLine}></View>
+                    <Text style={styles.historyTitle}>总课(次)</Text>
+                  </Flex>
+                  <Text style={styles.historyValue}>32</Text>
+                </View>
+                <View>
+                  <Flex>
+                    <View style={[styles.historyLine, { backgroundColor: "#72A1C5" }]}></View>
+                    <Text style={styles.historyTitle}>累计时长(h)</Text>
+                  </Flex>
+                  <Text style={styles.historyValue}>32</Text>
+                </View>
+                <View>
+                  <Flex>
+                    <View style={[styles.historyLine, { backgroundColor: "#FB4550" }]}></View>
+                    <Text style={styles.historyTitle}>空腹血糖(mmol/L)</Text>
+                  </Flex>
+                  <Flex>
+                    <Text style={styles.historyValue}>32</Text>
+                    <Text style={styles.historyUnit}>3.2</Text>
+                    <Image style={[styles.listIcon, { marginTop: 16, marginLeft: 4 }]} source={require("@/assets/images/schedule/icon_gs.png")} />
+                  </Flex>
+                </View>
+              </Flex>
+              <Flex style={styles.historyInfo}>
+                <Image style={styles.statusIcon} source={require("@/assets/images/schedule/wc.png")} />
+                <Text style={styles.historyInfoText}>累计训练 45 小时，血糖回落至正常高值</Text>
+              </Flex>
+            </View>
+          </View>
+
+
         </View>
 
 
@@ -310,7 +702,9 @@ export default function SchedulePage() {
 
 
 
-        <View style={styles.glassCardWrap}>
+
+
+        {/* <View style={styles.glassCardWrap}>
           <View style={styles.glassCard}>
             <Flex justify="between" align="center">
               <Text style={styles.glassCardTitle} numberOfLines={1}>
@@ -573,7 +967,7 @@ export default function SchedulePage() {
 
           </View>
 
-        </View>
+        </View> */}
       </ScrollView>
     </TabPageLayout>
   );

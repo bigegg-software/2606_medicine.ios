@@ -81,7 +81,7 @@ import ChronicDiseaseDetailPage from '@/src/features/profile/chronicDisease/deta
 import Emergency from '@/src/features/profile/emergency';
 import EmergencyAdd from '@/src/features/profile/emergencyAdd';
 
-// 体征数据
+// 健康数据
 import VitalsPage from '@/src/features/profile/vitals/VitalsPage';
 import AddDataPage from '@/src/features/profile/vitals/addData';
 import AllDataPage from '@/src/features/profile/vitals/allData';
