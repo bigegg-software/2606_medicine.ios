@@ -64,6 +64,7 @@ export default function ConsumptionPage() {
     const [suggestionLabel, setSuggestionLabel] = useState(() => `目标：${defaultEnergyGoal.toLocaleString('en-US')}`);
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
     const [energyGoal, setEnergyGoal] = useState(defaultEnergyGoal);
+    const [todayActive, setTodayActive] = useState(0);
 
     const todayTotal = useMemo(
         () => chartData.reduce((sum, point) => sum + (point.value > 0 ? point.value : 0), 0),
@@ -145,6 +146,7 @@ export default function ConsumptionPage() {
                 setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setOverview(EMPTY_OVERVIEW);
                 setEnergyGoal(fallbackGoal);
+                setTodayActive(0);
                 return;
             }
 
@@ -168,8 +170,10 @@ export default function ConsumptionPage() {
                     avgActive: formatOverviewNumber(overviewStats.avgActive),
                     avgBasal: formatOverviewNumber(overviewStats.avgBasal),
                 });
+                setTodayActive(range === 'today' ? overviewStats.avgActive : 0);
             } else {
                 setOverview(EMPTY_OVERVIEW);
+                setTodayActive(0);
             }
         } catch {
             setChartData([]);
@@ -181,6 +185,7 @@ export default function ConsumptionPage() {
             setSuggestionLabel(emptyDisplay.suggestionLabel);
             setOverview(EMPTY_OVERVIEW);
             setEnergyGoal(fallbackGoal);
+            setTodayActive(0);
         }
     }, [defaultEnergyGoal]);
 
@@ -197,6 +202,19 @@ export default function ConsumptionPage() {
             void loadEnergyData(selectedType, target);
         },
     });
+
+    const todayEnergyCard = useMemo(() => {
+        const active = Math.max(0, Math.round(todayActive));
+        const goal = Math.max(0, Math.round(energyGoal));
+        const remaining = Math.max(0, goal - active);
+        const progressPercent = goal > 0 ? Math.min(100, Math.round((active / goal) * 100)) : 0;
+        return {
+            activeText: active > 0 ? formatOverviewNumber(active) : '--',
+            goalText: goal > 0 ? formatOverviewNumber(goal) : '--',
+            remainingText: formatOverviewNumber(remaining),
+            progressPercent,
+        };
+    }, [energyGoal, todayActive]);
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -242,20 +260,58 @@ export default function ConsumptionPage() {
                         />
                     </View>
 
-                    <Flex justify='between' style={[styles.rowBox, { marginTop: 30 }]}>
-                        <View>
-                            <Text style={styles.analysis1}>日均总消耗(千卡)</Text>
-                            <Text style={styles.analysis2}>{overview.avgTotal}</Text>
+                    <View style={[styles.rowBox, { marginTop: 30 }]}>
+                        <Flex justify="between">
+                            <View>
+                                <Text style={styles.analysis1}>
+                                    {selectedType === 'today' ? '总消耗(千卡)' : '日均总消耗(千卡)'}
+                                </Text>
+                                <Text style={styles.analysis2}>{overview.avgTotal}</Text>
+                            </View>
+                            <View>
+                                <Text style={styles.analysis1}>
+                                    {selectedType === 'today' ? '活动消耗(千卡)' : '日均活动消耗(千卡)'}
+                                </Text>
+                                <Text style={[styles.analysis2, { color: '#EE9C44' }]}>{overview.avgActive}</Text>
+                            </View>
+                            <View>
+                                <Text style={styles.analysis1}>
+                                    {selectedType === 'today' ? '静息消耗(千卡)' : '日均静息消耗(千卡)'}
+                                </Text>
+                                <Text style={[styles.analysis2, { color: '#6D925E' }]}>{overview.avgBasal}</Text>
+                            </View>
+                        </Flex>
+                    </View>
+                    {selectedType === 'today' ? (
+                        <View style={styles.rowBox}>
+                            <Flex justify="between">
+                                <View>
+                                    <Text style={styles.todayMetricLabel}>已达成活动消耗</Text>
+                                    <Text style={styles.todayMetricValue}>{todayEnergyCard.activeText}</Text>
+                                </View>
+                                <View style={styles.todayMetricRight}>
+                                    <Text style={styles.todayMetricLabel}>目标值</Text>
+                                    <Text style={styles.todayMetricValue}>{todayEnergyCard.goalText}</Text>
+                                </View>
+                            </Flex>
+                            <View style={styles.todayProgressTrack}>
+                                <View
+                                    style={[
+                                        styles.todayProgressFill,
+                                        { width: `${todayEnergyCard.progressPercent}%` },
+                                    ]}
+                                />
+                            </View>
+                            <Flex style={styles.todayRemainRow}>
+                                <View style={styles.todayRemainAccent} />
+                                <Text style={styles.todayRemainText}>
+                                    距离目标还差{' '}
+                                    <Text style={styles.todayRemainNum}>{todayEnergyCard.remainingText}</Text>
+                                    {' '}千卡
+                                </Text>
+                            </Flex>
                         </View>
-                        <View>
-                            <Text style={styles.analysis1}>日均活动消耗(千卡)</Text>
-                            <Text style={[styles.analysis2, { color: '#EE9C44' }]}>{overview.avgActive}</Text>
-                        </View>
-                        <View>
-                            <Text style={styles.analysis1}>日均静息消耗(千卡)</Text>
-                            <Text style={[styles.analysis2, { color: '#0951AE' }]}>{overview.avgBasal}</Text>
-                        </View>
-                    </Flex>
+                    ) : null}
                 </ScrollView>
             </View>
             {menuModals}
