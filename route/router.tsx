@@ -10,15 +10,19 @@ import { useFontSize } from '@/common/FontSizeContext';
 import type { QuestionnaireType } from '@/api/questionTemplate';
 import type { MeasureDataItem } from '@/api/measureData';
 
+
+import IndexPage from '@/src/features/auth/indexPage';
 import LoginPage from '@/src/features/auth/LoginPage';
 import RegisterPage from '@/src/features/auth/RegisterPage';
+import IdentitySelectPage from '@/src/features/auth/identitySelect';
 import MainTabs from '@/src/features/home/MainTabs';
 import FamilyTabs from '@/src/familyPage/FamilyTabs';
+import { getAuthHomeRoute } from '@/src/features/auth/utils/identityHelpers';
 import type { MainTabParamList } from '@/src/utils/tabNavigation';
 import type { FamilyTabParamList } from '@/src/familyPage/FamilyTabs';
 
 // 运动处方
-import ExercisePage from "@/src/features/home/exercise/exercisePage"
+import ExercisePage from "@/src/features/exercise/index"
 
 // 健康档案
 import HealthRecord from '@/src/features/profile/healthRecord';
@@ -119,8 +123,10 @@ import SettingsPage from '@/src/features/profile/settings';
 
 
 export type RootStackParamList = {
+  IndexPage: undefined;
   Login: undefined;
   Register: undefined;
+  IdentitySelectPage: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   FamilyTabs: NavigatorScreenParams<FamilyTabParamList> | undefined;
   ExercisePage: undefined;
@@ -329,11 +335,18 @@ const styles = StyleSheet.create({
 
 export default function RootStack() {
   const isLogin = useSelector((s: RootState) => s.login.isLogin);
+  const identityPerspective = useSelector(
+    (s: RootState) => s.user.systemUser?.identityPerspective,
+  );
   const { scaleSize } = useFontSize();
   const headerTitleStyle = useMemo(
     () => ({ color: AppTheme.textPrimary, fontWeight: '600' as const, fontSize: scaleSize(17) }),
     [scaleSize],
   );
+  const initialRouteName = useMemo(() => {
+    if (!isLogin) return 'IndexPage';
+    return getAuthHomeRoute(identityPerspective);
+  }, [identityPerspective, isLogin]);
 
   return (
     <Stack.Navigator
@@ -351,9 +364,15 @@ export default function RootStack() {
         contentStyle: { backgroundColor: 'transparent' },
         statusBarStyle: 'dark',
       }}
-      initialRouteName={isLogin ? 'MainTabs' : 'Login'}>
-      <Stack.Screen name="Login" component={LoginPage} options={{ headerShown: false, title: "登录" }} />
-      <Stack.Screen name="Register" component={RegisterPage} options={{ headerShown: false, title: "注册" }} />
+      initialRouteName={initialRouteName}>
+      <Stack.Screen name="IndexPage" component={IndexPage} options={{ headerShown: false, title: "登录" }} />
+      <Stack.Screen name="Login" component={LoginPage} options={{ title: "" }} />
+      <Stack.Screen name="Register" component={RegisterPage} options={{ title: "" }} />
+      <Stack.Screen
+        name="IdentitySelectPage"
+        component={IdentitySelectPage}
+        options={{ headerShown: false, title: '选择身份', gestureEnabled: false }}
+      />
       <Stack.Screen
         name="MainTabs"
         component={MainTabs}
@@ -371,7 +390,7 @@ export default function RootStack() {
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
-      <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false }} />
+      <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
       <Stack.Screen name="EmergencyAdd" component={EmergencyAdd} options={{ title: "添加紧急联系人" }} />

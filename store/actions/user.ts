@@ -65,6 +65,10 @@ export const fetchUserSession = () => async (dispatch: AppDispatch) => {
       systemRes ? applySystemUserInfo(dispatch, systemRes) : Promise.resolve(),
       patientRes ? applyUserBaseInfo(dispatch, patientRes) : Promise.resolve(),
     ]);
+    if (systemRes && isResourceApiOk(systemRes as { code?: number })) {
+      return (systemRes as { data?: UserInfoData }).data?.user?.identityPerspective ?? '';
+    }
+    return '';
   } finally {
     dispatch({ type: SET_USER_LOADING, payload: false });
   }

@@ -641,7 +641,7 @@ export default function HomeTab() {
                   <Image source={require('@/assets/images/home/yd.png')} style={styles.cfIcon} />
                   <Text style={styles.cfIconText}>运动处方</Text>
                 </Flex>
-                <TouchableOpacity onPress={() => navigation.navigate('Schedule')}>
+                <TouchableOpacity onPress={() => navigation.navigate('ExercisePage')}>
                   <Flex>
                     <Text style={styles.cfMore}>查看详情</Text>
                     <Image tintColor="#333333" style={styles.cfMoreIcon} source={require('@/assets/images/home/icon_right.png')} />

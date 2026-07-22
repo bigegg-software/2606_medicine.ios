@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, Image, TouchableOpacity, TouchableWithoutFeedback, ScrollView, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch } from 'react-redux';
@@ -9,16 +9,16 @@ import { Flex, Toast } from '@ant-design/react-native';
 import { sendSmsCode, login } from '@/api/auth';
 import styles from '@/css/auth/login';
 import { saveToken, saveUserId, saveRefreshToken, saveClientId } from '@/services/storage';
-import { smsClientId } from '@/utils/config';
+import { smsClientId, customerServicePhone } from '@/utils/config';
 import { SET_LOGIN } from '@/store/type/login';
 import { fetchUserSession } from '@/store/actions/user';
 import type { AppDispatch } from '@/store/store';
 import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import { AppTheme } from '@/common/theme';
-import { LinearGradient } from 'expo-linear-gradient';
+import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getAuthHomeRoute } from './utils/identityHelpers';
+
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
 const phoneInputAccessoryViewID = 'loginPhoneDoneToolbar';
@@ -42,6 +42,7 @@ export default function LoginPage() {
   const [sendingCode, setSendingCode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const switchingAuthRef = useRef(false);
 
   const phoneValid = phone.trim().length === 11;
   const codeValid = code.trim().length === 6;
@@ -85,6 +86,12 @@ export default function LoginPage() {
   const openUserAgreement = () => { };
 
   const openPrivacyPolicy = () => { };
+
+  const goRegister = useCallback(() => {
+    if (switchingAuthRef.current || submitting) return;
+    switchingAuthRef.current = true;
+    navigation.replace('Register');
+  }, [navigation, submitting]);
 
   const sendCode = useCallback(async () => {
     if (!phoneValid) {
@@ -136,8 +143,9 @@ export default function LoginPage() {
         if (data.refresh_token) await saveRefreshToken(data.refresh_token);
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
-        await dispatch(fetchUserSession());
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        const identityPerspective = (await dispatch(fetchUserSession())) as string;
+        const homeRoute = getAuthHomeRoute(identityPerspective);
+        navigation.reset({ index: 0, routes: [{ name: homeRoute }] });
       } else {
         Alert.alert('登录失败', res.msg ?? res.message ?? '请检查验证码');
       }
@@ -152,16 +160,15 @@ export default function LoginPage() {
     height: bottomOffset.value,
   }));
 
-
-  // useEffect(() => {
-  //   AsyncStorage.setItem('token',"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJhcHBfdXNlcjoyMDYxMjYyMTkzNDQyMjM4NDY2Iiwicm5TdHIiOiJidlZsRnA2aVpXMVZreEpkQk44TU13OGJJbFRiZktheSIsImNsaWVudGlkIjoiNTI4Y2ZlZDc0ODkyNDMzYjkyZjJhYzU1MTk4OTIwY3EtdXNlckFwcFNtcyIsInRlbmFudElkIjoiMDAwMDAwIiwidXNlcklkIjoyMDYxMjYyMTkzNDQyMjM4NDY2LCJ1c2VyTmFtZSI6IjE3NjAxNjM4MDIxIn0.BgYnMUWXvdXFJj_LF3hBr-PDHjfYz55Ry_PjuyJ_EDw")
-  //   AsyncStorage.setItem('clientId',"528cfed74892433b92f2ac55198920cq-userAppSms")
-  // }, []);
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />
-      <KeyboardDoneAccessory nativeID={codeInputAccessoryViewID} />
-
+    <PageLayout
+      style={styles.container}
+      keyboardAccessory={
+        <>
+          <KeyboardDoneAccessory nativeID={phoneInputAccessoryViewID} />
+          <KeyboardDoneAccessory nativeID={codeInputAccessoryViewID} />
+        </>
+      }>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <ScrollView
           style={{ flex: 1 }}
@@ -171,21 +178,15 @@ export default function LoginPage() {
           bounces={false}
           showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1 }}>
-            <LinearGradient
-              colors={['#C5D9BF', AppTheme.backgroundColor]}
-              style={styles.headerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-
             <View style={styles.body}>
               <View style={styles.content}>
-                <Image style={styles.logo} source={require('@/assets/images/login/logo.png')} />
-                <Text style={styles.title}>欢迎来到莱益昇</Text>
+                <Text style={styles.title}>手机号登录</Text>
+                <Text style={styles.titleSubTitle}>请使用已注册的手机号登录</Text>
 
+                <Text style={styles.inputTitle}>手机号</Text>
                 <TextInput
                   style={styles.inputBox}
-                  placeholder="请输入手机号"
+                  placeholder="请输入11位手机号"
                   placeholderTextColor="#999999"
                   keyboardType="phone-pad"
                   maxLength={11}
@@ -195,10 +196,11 @@ export default function LoginPage() {
                   inputAccessoryViewID={phoneInputAccessoryViewID}
                 />
 
+                <Text style={styles.inputTitle}>验证码</Text>
                 <View style={styles.codeBox}>
                   <TextInput
                     style={styles.codeInput}
-                    placeholder="验证码"
+                    placeholder="请输入6位验证码"
                     placeholderTextColor="#999999"
                     keyboardType="number-pad"
                     returnKeyType="done"
@@ -218,32 +220,8 @@ export default function LoginPage() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.agreement}>
-                  <View style={styles.agreementRow}>
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      onPress={() => setAgreed(v => !v)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                        {agreed ? <Text style={styles.checkboxMark}>✓</Text> : null}
-                      </View>
-                    </TouchableOpacity>
-                    <Text style={styles.agreementText}>
-                      已阅读并同意
-                      <Text style={styles.agreementLink} onPress={openUserAgreement}>
-                        《用户协议》
-                      </Text>
-                      和
-                      <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
-                        《隐私政策》
-                      </Text>
-                    </Text>
-                  </View>
-                </View>
-
                 <TouchableOpacity
-                  style={[styles.button, submitting && styles.buttonDisabled]}
+                  style={styles.button}
                   disabled={submitting}
                   onPress={doLogin}
                 >
@@ -251,14 +229,54 @@ export default function LoginPage() {
                     {submitting ? (
                       <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.buttonText}>立即登录</Text>
+                      <Text style={styles.buttonText}>登录</Text>
                     )}
                   </Flex>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => navigation.navigate('Register')}>
-                  <Text style={styles.registerText}>注册</Text>
+
+                <TouchableOpacity style={styles.registerTextBox} onPress={goRegister}>
+                  <Text style={styles.registerText}>还没有账号？<Text style={{ color: "#0951AE" }}>去注册</Text></Text>
                 </TouchableOpacity>
+
+                <Flex style={styles.agreementRow} justify='center'>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setAgreed(v => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Image
+                      style={styles.checkboxIcon}
+                      source={
+                        agreed
+                          ? require('@/assets/images/login/icon_select.png')
+                          : require('@/assets/images/login/icon_unselected.png')
+                      }
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.agreementText}>
+                    已阅读并同意
+                    <Text style={styles.agreementLink} onPress={openUserAgreement}>
+                      《用户协议》
+                    </Text>
+                    和
+                    <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
+                      《隐私政策》
+                    </Text>
+                  </Text>
+                </Flex>
+
+                <View style={styles.tipBox}>
+                  <Flex justify="center" align="center" style={styles.tipRow}>
+                    <Text style={styles.tipLabel}>温馨提示：</Text>
+                    <Text style={styles.tipContent}>如果您在登录过程中遇到问题，</Text>
+                  </Flex>
+                  <Flex justify="center" align="center" style={styles.tipRow}>
+                    <Text style={styles.tipContent}>可以拨打客服电话 </Text>
+                    <Text style={styles.tipPhone}>{customerServicePhone}</Text>
+                    <Text style={styles.tipContent}> 寻求帮助。</Text>
+                  </Flex>
+                </View>
               </View>
 
               <Reanimated.View style={bottomAreaStyle} />
@@ -266,6 +284,6 @@ export default function LoginPage() {
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

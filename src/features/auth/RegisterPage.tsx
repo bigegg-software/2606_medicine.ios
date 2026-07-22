@@ -1,11 +1,10 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, ScrollView, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { View, Text, TextInput, Image, TouchableOpacity, TouchableWithoutFeedback, ScrollView, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch } from 'react-redux';
-import { AppTheme } from '@/common/theme';
 import { Flex, Toast } from '@ant-design/react-native';
 import { sendSmsCode, register } from '@/api/auth';
 import styles from '@/css/auth/register';
@@ -16,8 +15,9 @@ import { fetchUserSession } from '@/store/actions/user';
 import type { AppDispatch } from '@/store/store';
 import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import { LinearGradient } from 'expo-linear-gradient';
+import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
+import { getAuthHomeRoute } from './utils/identityHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
@@ -53,6 +53,7 @@ export default function RegisterPage() {
     phone: 0,
     code: 0,
   });
+  const switchingAuthRef = useRef(false);
 
   const refreshAccessory = useCallback((field: RegisterField) => {
     setAccessoryKeys(prev => ({ ...prev, [field]: prev[field] + 1 }));
@@ -101,6 +102,12 @@ export default function RegisterPage() {
   const openUserAgreement = () => { };
 
   const openPrivacyPolicy = () => { };
+
+  const goLogin = useCallback(() => {
+    if (switchingAuthRef.current || submitting) return;
+    switchingAuthRef.current = true;
+    navigation.replace('Login');
+  }, [navigation, submitting]);
 
   const sendCode = useCallback(async () => {
     if (!phoneValid) {
@@ -157,8 +164,9 @@ export default function RegisterPage() {
         if (data.refresh_token) await saveRefreshToken(data.refresh_token);
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
-        await dispatch(fetchUserSession());
-        navigation.reset({ index: 0, routes: [{ name: 'MainTabs' }] });
+        const identityPerspective = (await dispatch(fetchUserSession())) as string;
+        const homeRoute = getAuthHomeRoute(identityPerspective);
+        navigation.reset({ index: 0, routes: [{ name: homeRoute }] });
       } else {
         Alert.alert('注册失败', res.msg ?? res.message ?? '请检查信息后重试');
       }
@@ -174,11 +182,15 @@ export default function RegisterPage() {
   }));
 
   return (
-    <SafeAreaView style={styles.container} edges={['bottom']}>
-      {(Object.entries(REGISTER_ACCESSORY) as [RegisterField, string][]).map(([field, id]) => (
-        <KeyboardDoneAccessory key={`${id}-${accessoryKeys[field]}`} nativeID={id} />
-      ))}
-
+    <PageLayout
+      style={styles.container}
+      keyboardAccessory={
+        <>
+          {(Object.entries(REGISTER_ACCESSORY) as [RegisterField, string][]).map(([field, id]) => (
+            <KeyboardDoneAccessory key={`${id}-${accessoryKeys[field]}`} nativeID={id} />
+          ))}
+        </>
+      }>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <ScrollView
           style={{ flex: 1 }}
@@ -188,17 +200,10 @@ export default function RegisterPage() {
           bounces={false}
           showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1 }}>
-            <LinearGradient
-              colors={['#C5D9BF', AppTheme.backgroundColor]}
-              style={styles.headerGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0, y: 1 }}
-            />
-
             <View style={styles.body}>
               <View style={styles.content}>
-                <Text style={styles.title}>欢迎来到莱益昇</Text>
-                <Text style={styles.subtitle}>请填写以下信息完成注册</Text>
+                <Text style={styles.title}>注册账号</Text>
+                <Text style={styles.titleSubTitle}>请填写以下信息完成注册</Text>
 
                 <Text style={styles.inputTitle}>邀请码</Text>
                 <TextInput
@@ -211,6 +216,7 @@ export default function RegisterPage() {
                   onPressIn={() => refreshAccessory('invite')}
                   inputAccessoryViewID={REGISTER_ACCESSORY.invite}
                 />
+                <Text style={styles.yinviteCodeTip}>请向您所属的养老机构或社区获取邀请码</Text>
 
                 <Text style={styles.inputTitle}>手机号</Text>
                 <TextInput
@@ -227,10 +233,10 @@ export default function RegisterPage() {
                 />
 
                 <Text style={styles.inputTitle}>验证码</Text>
-                <View style={[styles.codeBox, styles.codeBoxTight]}>
+                <View style={styles.codeBox}>
                   <TextInput
                     style={styles.codeInput}
-                    placeholder="验证码"
+                    placeholder="请输入验证码"
                     placeholderTextColor="#999999"
                     keyboardType="number-pad"
                     returnKeyType="done"
@@ -251,30 +257,6 @@ export default function RegisterPage() {
                   </TouchableOpacity>
                 </View>
 
-                <View style={styles.agreement}>
-                  <View style={styles.agreementRow}>
-                    <TouchableOpacity
-                      activeOpacity={0.8}
-                      onPress={() => setAgreed(v => !v)}
-                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    >
-                      <View style={[styles.checkbox, agreed && styles.checkboxChecked]}>
-                        {agreed ? <Text style={styles.checkboxMark}>✓</Text> : null}
-                      </View>
-                    </TouchableOpacity>
-                    <Text style={styles.agreementText}>
-                      已阅读并同意
-                      <Text style={styles.agreementLink} onPress={openUserAgreement}>
-                        《用户协议》
-                      </Text>
-                      和
-                      <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
-                        《隐私政策》
-                      </Text>
-                    </Text>
-                  </View>
-                </View>
-
                 <TouchableOpacity
                   style={[styles.button, submitting && styles.buttonDisabled]}
                   disabled={submitting}
@@ -284,19 +266,46 @@ export default function RegisterPage() {
                     {submitting ? (
                       <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.buttonText}>立即注册</Text>
+                      <Text style={styles.buttonText}>注册</Text>
                     )}
                   </Flex>
                 </TouchableOpacity>
 
-                <TouchableOpacity onPress={() => navigation.replace('Login')}>
-                  <Flex justify="center">
-                    <Text style={[styles.registerText, { color: AppTheme.textSecondary }]}>
-                      已有账号？
-                    </Text>
-                    <Text style={styles.registerText}>立即登录</Text>
-                  </Flex>
+                <TouchableOpacity
+                  style={styles.registerTextBox}
+                  onPress={goLogin}>
+                  <Text style={styles.registerText}>
+                    已有账号？
+                    <Text style={styles.registerTextLink}>去登录</Text>
+                  </Text>
                 </TouchableOpacity>
+
+                <Flex style={styles.agreementRow} justify="center">
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    onPress={() => setAgreed(v => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Image
+                      style={styles.checkboxIcon}
+                      source={
+                        agreed
+                          ? require('@/assets/images/login/icon_select.png')
+                          : require('@/assets/images/login/icon_unselected.png')
+                      }
+                    />
+                  </TouchableOpacity>
+                  <Text style={styles.agreementText}>
+                    已阅读并同意
+                    <Text style={styles.agreementLink} onPress={openUserAgreement}>
+                      《用户协议》
+                    </Text>
+                    和
+                    <Text style={styles.agreementLink} onPress={openPrivacyPolicy}>
+                      《隐私政策》
+                    </Text>
+                  </Text>
+                </Flex>
               </View>
 
               <Reanimated.View style={bottomAreaStyle} />
@@ -304,6 +313,6 @@ export default function RegisterPage() {
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
-    </SafeAreaView>
+    </PageLayout>
   );
 }

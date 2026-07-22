@@ -20,7 +20,7 @@ import {
   type HistoryPlanDetailSummary,
   type HistoryPlanTaskItem,
 } from './historyPlanHelpers';
-import { normalizeExerciseProgress } from '@/src/features/home/exercise/exerciseHelpers';
+import { normalizeExerciseProgress } from '@/src/features/exercise/utils/exerciseHelpers';
 import type { ScheduleWeekStats } from './scheduleHelpers';
 
 type HistoryDetailRoute = RouteProp<RootStackParamList, 'ScheduleHistoryDetailPage'>;

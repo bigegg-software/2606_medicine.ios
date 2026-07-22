@@ -21,6 +21,10 @@ export type SystemUser = {
   userName?: string;
   nickName?: string;
   userType?: string;
+  /** 身份视角 old.老人 child.子女，仅 user_type=app_user 时有效 */
+  identityPerspective?: string;
+  /** 用户类型 old.老人 child.子女（家属） */
+  memberType?: string;
   email?: string;
   phonenumber?: string;
   sex?: string;
@@ -37,6 +41,8 @@ export type SystemUser = {
   roleId?: number;
   realName?: string;
   pcode?: string;
+  deletedAccount?: number;
+  tokens?: number;
 };
 
 export type UserExtr = {
@@ -104,6 +110,10 @@ export type UpdateExtrInfoPayload = {
   autoSyncData?: number;
   synWdataDays?: number;
   countryCode?: string;
+  authStatus?: number;
+  wearableDeviceBound?: number;
+  /** 身份视角 old.老人 child.子女 */
+  identityPerspective?: string;
   healthIndexShowList?: string[];
 };
 

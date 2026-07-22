@@ -1,7 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
@@ -17,6 +17,10 @@ import styles from '@/css/profile/profile';
 import { getDisplayUserName, getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { useFontSize } from '@/common/FontSizeContext';
+import {
+  getIdentityLabel,
+  switchIdentityPerspective,
+} from '@/src/features/auth/utils/identityHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 // const navList = [
@@ -83,10 +87,31 @@ export default function ProfilePage() {
   const systemUser: any = useSelector((s: RootState) => s.user.systemUser);
   const loading = useSelector((s: RootState) => s.user.loading);
   const { label: fontSizeLabel } = useFontSize();
+  const [switchingIdentity, setSwitchingIdentity] = useState(false);
+  const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
 
   useEffect(() => {
     dispatch(fetchUserSession());
   }, [dispatch]);
+
+  const switchToFamilyPerspective = useCallback(async () => {
+    if (switchingIdentity) return;
+    setSwitchingIdentity(true);
+    try {
+      const result = await switchIdentityPerspective('child');
+      if (!result.ok) {
+        Toast.fail(result.msg ?? '切换失败', 1.5);
+        return;
+      }
+      await dispatch(fetchUserSession());
+      navigation.reset({
+        index: 0,
+        routes: [{ name: result.homeRoute }],
+      });
+    } finally {
+      setSwitchingIdentity(false);
+    }
+  }, [dispatch, navigation, switchingIdentity]);
 
   const logout = () => {
     Alert.alert('退出登录', '确定要退出登录吗？', [
@@ -243,18 +268,16 @@ export default function ProfilePage() {
         <Text style={styles.modelTitle}>设置</Text>
         <View style={styles.familyBox}>
           <TouchableOpacity
-            onPress={() =>
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'FamilyTabs' }],
-              })
-            }>
+            disabled={switchingIdentity}
+            onPress={switchToFamilyPerspective}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/tab.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>视角与身份</Text>
-                  <Text style={styles.familyItemRelation}>当前：用户</Text>
+                  <Text style={styles.familyItemRelation}>
+                    {switchingIdentity ? '切换中...' : `当前：${identityLabel}`}
+                  </Text>
                 </View>
               </Flex>
               <Image style={styles.tabSize} source={require('@/assets/images/user/icon_tab.png')} />

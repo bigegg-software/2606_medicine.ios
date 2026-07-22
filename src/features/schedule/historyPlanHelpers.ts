@@ -21,7 +21,7 @@ import {
   getExerciseTypeLabel,
   normalizeExPatientRuleInfo,
   normalizeExerciseProgress,
-} from '@/src/features/home/exercise/exerciseHelpers';
+} from '@/src/features/exercise/utils/exerciseHelpers';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 
 const EXERCISE_TYPE_INTROS: Record<string, string> = {

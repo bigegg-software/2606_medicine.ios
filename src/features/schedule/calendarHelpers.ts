@@ -24,7 +24,7 @@ import {
 import {
   formatExerciseChildTypes,
   getExerciseTypeLabel,
-} from '@/src/features/home/exercise/exerciseHelpers';
+} from '@/src/features/exercise/utils/exerciseHelpers';
 import {
   formatMedicationDoseText,
   getMedicationPlanTypeLabel,
