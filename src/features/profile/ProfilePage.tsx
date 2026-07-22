@@ -164,7 +164,9 @@ export default function ProfilePage() {
             <View>
               <Flex>
                 <Text style={styles.name}>{name}</Text>
-                <Image style={styles.wrzImg} source={require('@/assets/images/user/wrz.png')} />
+                <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
+                  <Image style={styles.wrzImg} source={require('@/assets/images/user/wrz.png')} />
+                </TouchableOpacity>
               </Flex>
               <Flex style={{ marginTop: 7 }}>
                 <Image style={styles.avatarIcon} source={require('@/assets/images/user/img1.png')} />
@@ -172,9 +174,11 @@ export default function ProfilePage() {
               </Flex>
             </View>
           </Flex>
-          <View style={styles.rlBox}>
-            <Image style={styles.rlImg} source={require('@/assets/images/user/smrz.png')} />
-          </View>
+          <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
+            <View style={styles.rlBox}>
+              <Image style={styles.rlImg} source={require('@/assets/images/user/smrz.png')} />
+            </View>
+          </TouchableOpacity>
         </Flex>
 
         <ImageBackground

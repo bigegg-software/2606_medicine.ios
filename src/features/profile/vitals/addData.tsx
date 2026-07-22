@@ -38,7 +38,9 @@ const MEASURE_CONFIG: Record<
   {
     title: string;
     primaryLabel: string;
+    primaryUnit: string;
     secondaryLabel?: string;
+    secondaryUnit?: string;
     showSecondary: boolean;
     showSite: boolean;
     showStatus: boolean;
@@ -50,8 +52,10 @@ const MEASURE_CONFIG: Record<
 > = {
   血压: {
     title: '新增血压记录',
-    primaryLabel: '收缩压（高压）mmHg',
-    secondaryLabel: '舒张压（低压）mmHg',
+    primaryLabel: '收缩压（高压）',
+    primaryUnit: 'mmHg',
+    secondaryLabel: '舒张压（低压）',
+    secondaryUnit: 'mmHg',
     showSecondary: true,
     showSite: true,
     showStatus: true,
@@ -62,7 +66,8 @@ const MEASURE_CONFIG: Record<
   },
   血糖: {
     title: '新增血糖记录',
-    primaryLabel: '血糖 mmol/L',
+    primaryLabel: '血糖',
+    primaryUnit: 'mmol/L',
     showSecondary: false,
     showSite: false,
     showStatus: true,
@@ -73,7 +78,8 @@ const MEASURE_CONFIG: Record<
   },
   体温: {
     title: '新增体温记录',
-    primaryLabel: '体温 ℃',
+    primaryLabel: '体温',
+    primaryUnit: '℃',
     showSecondary: false,
     showSite: false,
     showStatus: false,
@@ -89,7 +95,8 @@ const MEASURE_CONFIG: Record<
   },
   尿酸: {
     title: '新增尿酸记录',
-    primaryLabel: '尿酸 μmol/L',
+    primaryLabel: '尿酸',
+    primaryUnit: 'μmol/L',
     showSecondary: false,
     showSite: false,
     showStatus: true,
@@ -100,7 +107,8 @@ const MEASURE_CONFIG: Record<
   },
   血脂: {
     title: '新增血脂记录',
-    primaryLabel: '总胆固醇（TC）mmol/L',
+    primaryLabel: '总胆固醇（TC）',
+    primaryUnit: 'mmol/L',
     showSecondary: false,
     showSite: false,
     showStatus: false,
@@ -115,7 +123,8 @@ const MEASURE_CONFIG: Record<
   },
   体重: {
     title: '新增体重记录',
-    primaryLabel: '体重 kg',
+    primaryLabel: '体重',
+    primaryUnit: 'kg',
     showSecondary: false,
     showSite: false,
     showStatus: false,
@@ -180,6 +189,46 @@ function OptionChip({
       onPress={onPress}>
       <Text style={[styles.typeItemText, active && styles.typeItemTextActive]}>{label}</Text>
     </TouchableOpacity>
+  );
+}
+
+function FormValueRow({
+  title,
+  unit,
+  value,
+  onChangeText,
+  keyboardType,
+  maxLength,
+  showDivider = true,
+}: {
+  title: string;
+  unit: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  keyboardType: 'number-pad' | 'decimal-pad';
+  maxLength?: number;
+  showDivider?: boolean;
+}) {
+  return (
+    <>
+      <Flex justify="between" align="center" style={styles.formRow}>
+        <Text style={styles.rowTitle}>{title}</Text>
+        <Flex align="center" style={styles.formRowRight}>
+          <TextInput
+            style={styles.formInput}
+            placeholder="--"
+            placeholderTextColor="rgba(204,204,204,0.8)"
+            value={value}
+            onChangeText={onChangeText}
+            keyboardType={keyboardType}
+            maxLength={maxLength}
+            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+          />
+          <Text style={styles.formUnit}>{unit}</Text>
+        </Flex>
+      </Flex>
+      {showDivider ? <View style={styles.rowLineInHeader} /> : null}
+    </>
   );
 }
 
@@ -397,7 +446,9 @@ export default function BloodAddPage({ route }: Props) {
 
   return (
     <PageLayout
+      edges={[]}
       style={styles.container}
+      showHeaderBackground={false}
       keyboardAccessory={<KeyboardDoneAccessory />}>
       <View style={styles.keyboardAvoid}>
         <KeyboardAvoidingView
@@ -411,7 +462,7 @@ export default function BloodAddPage({ route }: Props) {
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="on-drag"
             showsVerticalScrollIndicator={false}>
-            <View style={styles.rowBox}>
+            <View style={[styles.rowBox, { paddingBottom: 0 }]}>
               <Text style={styles.sectionTitle}>测量时间</Text>
 
               <DatePicker
@@ -419,13 +470,13 @@ export default function BloodAddPage({ route }: Props) {
                 value={moment(measureDate, 'YYYY-MM-DD').toDate()}
                 onOk={date => setMeasureDate(moment(date).format('YYYY-MM-DD'))}>
                 <TouchableOpacity activeOpacity={0.7}>
-                  <Flex justify="between" align="center">
+                  <Flex justify="between" align="center" style={styles.timeRow}>
                     <Text style={styles.rowTitle}>日期</Text>
-                    <Flex align="center" style={styles.rowTitle}>
+                    <Flex align="center">
                       <Text style={styles.dateValue}>
                         {moment(measureDate).format('YYYY年M月D日')}
                       </Text>
-                      <Image source={require('@/assets/images/user/icon-rl.png')} style={styles.calendarIcon} />
+                      <Image source={require('@/assets/images/vitals/icon_rl.png')} style={styles.calendarIcon} />
                     </Flex>
                   </Flex>
                 </TouchableOpacity>
@@ -442,23 +493,21 @@ export default function BloodAddPage({ route }: Props) {
                   setMeasureTime(`${hour}:${minute}`);
                 }}>
                 <TouchableOpacity activeOpacity={0.7}>
-                  <Flex justify="between" align="center">
+                  <Flex justify="between" align="center" style={styles.timeRow}>
                     <Text style={styles.rowTitle}>时间</Text>
-                    <Flex align="center" style={styles.rowTitle}>
+                    <Flex align="center">
                       <Text style={styles.dateValue}>{measureTime}</Text>
-                      <Image source={require('@/assets/images/user/nl.png')} style={styles.calendarIcon} />
+                      <Image source={require('@/assets/images/vitals/icon_time.png')} style={styles.calendarIcon} />
                     </Flex>
                   </Flex>
                 </TouchableOpacity>
               </Picker>
             </View>
 
-            <View style={styles.rowBox}>
-              <Text style={styles.sectionTitle}>{config.primaryLabel}</Text>
-              <TextInput
-                style={styles.inputBox}
-                placeholder="--"
-                placeholderTextColor={AppTheme.textSecondary}
+            <View style={[styles.rowBox, { paddingBottom: 0 }]}>
+              <FormValueRow
+                title={config.primaryLabel}
+                unit={config.primaryUnit}
                 value={primaryValue}
                 onChangeText={text => setPrimaryValue(
                   measureType === '血压'
@@ -467,90 +516,86 @@ export default function BloodAddPage({ route }: Props) {
                 )}
                 keyboardType={measureType === '血压' ? 'decimal-pad' : config.keyboardType}
                 maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                showDivider={
+                  config.showSecondary
+                  || measureType === '血脂'
+                  || config.showSite
+                  || config.showStatus
+                }
               />
 
               {config.showSecondary ? (
-                <>
-                  <Text style={styles.sectionTitle}>{config.secondaryLabel}</Text>
-                  <TextInput
-                    style={styles.inputBox}
-                    placeholder="--"
-                    placeholderTextColor={AppTheme.textSecondary}
-                    value={secondaryValue}
-                    onChangeText={text => setSecondaryValue(
-                      measureType === '血压'
-                        ? sanitizeBloodPressureInput(text)
-                        : sanitizeNumberInput(text, false),
-                    )}
-                    keyboardType={measureType === '血压' ? 'decimal-pad' : 'number-pad'}
-                    maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
-                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-                  />
-                </>
+                <FormValueRow
+                  title={config.secondaryLabel!}
+                  unit={config.secondaryUnit!}
+                  value={secondaryValue}
+                  onChangeText={text => setSecondaryValue(
+                    measureType === '血压'
+                      ? sanitizeBloodPressureInput(text)
+                      : sanitizeNumberInput(text, false),
+                  )}
+                  keyboardType={measureType === '血压' ? 'decimal-pad' : 'number-pad'}
+                  maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
+                  showDivider={config.showSite || config.showStatus}
+                />
               ) : null}
 
               {measureType === '血脂' ? (
                 <>
-                  <Text style={styles.sectionTitle}>甘油三酯（TG）mmol/L</Text>
-                  <TextInput
-                    style={styles.inputBox}
-                    placeholder="--"
-                    placeholderTextColor={AppTheme.textSecondary}
+                  <FormValueRow
+                    title="甘油三酯（TG）"
+                    unit="mmol/L"
                     value={lipidTg}
                     onChangeText={text => setLipidTg(sanitizeNumberInput(text, true))}
                     keyboardType="decimal-pad"
-                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   />
-                  <Text style={styles.sectionTitle}>低密度脂蛋白（LDL-C）mmol/L</Text>
-                  <TextInput
-                    style={styles.inputBox}
-                    placeholder="--"
-                    placeholderTextColor={AppTheme.textSecondary}
+                  <FormValueRow
+                    title="低密度脂蛋白（LDL-C）"
+                    unit="mmol/L"
                     value={lipidLdl}
                     onChangeText={text => setLipidLdl(sanitizeNumberInput(text, true))}
                     keyboardType="decimal-pad"
-                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                   />
-                  <Text style={styles.sectionTitle}>高密度脂蛋白（HDL-C）mmol/L</Text>
-                  <TextInput
-                    style={styles.inputBox}
-                    placeholder="--"
-                    placeholderTextColor={AppTheme.textSecondary}
+                  <FormValueRow
+                    title="高密度脂蛋白（HDL-C）"
+                    unit="mmol/L"
                     value={lipidHdl}
                     onChangeText={text => setLipidHdl(sanitizeNumberInput(text, true))}
                     keyboardType="decimal-pad"
-                    inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
+                    showDivider={false}
                   />
-
                 </>
               ) : null}
 
               {config.showSite ? (
                 <>
-                  <Text style={styles.sectionTitle}>测量部位</Text>
-                  <View style={styles.siteRow}>
-                    {MEASURE_SITE_LIST.map(item => {
-                      const active = measureSite === item;
-                      return (
-                        <TouchableOpacity
-                          key={item}
-                          style={[styles.siteItem, active && styles.siteItemActive]}
-                          onPress={() => setMeasureSite(item)}>
-                          <Text style={[styles.siteItemText, active && styles.siteItemTextActive]}>{item}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <Flex justify="between" align="center" style={styles.formRow}>
+                    <Text style={styles.rowTitle}>测量部位</Text>
+                    <View style={styles.siteRowInline}>
+                      {MEASURE_SITE_LIST.map(item => {
+                        const active = measureSite === item;
+                        return (
+                          <TouchableOpacity
+                            key={item}
+                            style={[styles.siteItemInline, active && styles.siteItemActive]}
+                            onPress={() => setMeasureSite(item)}>
+                            <Text style={[styles.siteItemText, active && styles.siteItemTextActive]}>{item}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </Flex>
+                  {config.showStatus ? <View style={styles.rowLineInHeader} /> : null}
                 </>
               ) : null}
 
               {config.showStatus ? (
-                <>
-                  <Text style={styles.sectionTitle}>测量状态</Text>
+                <Flex justify="between" align="center" style={styles.formRow}>
+                  <Text style={styles.rowTitle}>测量状态</Text>
                   <ScrollView
                     horizontal
                     showsHorizontalScrollIndicator={false}
+                    style={styles.statusScroll}
                     contentContainerStyle={styles.statusRow}>
                     {config.statusList.map(item => (
                       <OptionChip
@@ -561,14 +606,16 @@ export default function BloodAddPage({ route }: Props) {
                       />
                     ))}
                   </ScrollView>
-                </>
+                </Flex>
               ) : null}
+            </View>
 
+            <View style={styles.rowBox}>
               <Text style={styles.sectionTitle}>备注（选填）</Text>
               <TextInput
                 style={styles.textareaBox}
                 placeholder="选填"
-                placeholderTextColor={AppTheme.textSecondary}
+                placeholderTextColor="rgba(204,204,204,0.8)"
                 value={remark}
                 onChangeText={setRemark}
                 multiline
@@ -578,8 +625,11 @@ export default function BloodAddPage({ route }: Props) {
               />
             </View>
 
-            <View>
-              <Text style={styles.btmTitle}>参考标准:</Text>
+            <View style={styles.btmBox}>
+              <Flex justify="center" align="center">
+                <Image style={styles.btmIcon} source={require('@/assets/images/vitals/icon_bz.png')} />
+                <Text style={styles.btmTitle}>参考标准:</Text>
+              </Flex>
               {referenceLines.map(line => (
                 <Text key={line} style={styles.btmText}>
                   {line}
@@ -588,15 +638,26 @@ export default function BloodAddPage({ route }: Props) {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-        <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting || deleting}>
-          <Flex justify="center" align="center" style={{ flex: 1 }}>
-            {submitting ? (
-              <ActivityIndicator color="#FFFFFF" />
-            ) : (
-              <Text style={styles.addText}>{isEdit ? '保存' : '添加记录'}</Text>
-            )}
-          </Flex>
-        </TouchableOpacity>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[styles.primaryBtn, (submitting || deleting) && { opacity: 0.6 }]}
+            disabled={submitting || deleting}
+            onPress={submit}>
+            <Flex style={{ flex: 1 }}>
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Image
+                    style={styles.primaryBtnIcon}
+                    source={require('@/assets/images/vitals/icon_add.png')}
+                  />
+                  <Text style={styles.primaryBtnText}>{isEdit ? '保存' : '添加记录'}</Text>
+                </>
+              )}
+            </Flex>
+          </TouchableOpacity>
+        </View>
       </View>
     </PageLayout>
   );

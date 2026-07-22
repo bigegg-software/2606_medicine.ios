@@ -2,13 +2,13 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import SwipeDeleteRow, { closeActiveSwipeRow } from '@/src/features/profile/healthRecord/components/SwipeDeleteRow';
-import { Flex, Picker } from '@ant-design/react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
-import moment, { type Moment } from 'moment';
+import moment from 'moment';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/vitals/all';
+import { buildAllDataWeekDays } from './utils/allDataCalendarHelpers';
 import {
   getMeasureDataDetailByDate,
   type MeasureDataDetailResult,
@@ -53,11 +53,6 @@ import type { RootState } from '@/store/store';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AllDataPage'>;
 
-const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
-const DASH_COUNT = 30;
-const MIN_YEAR = moment().year() - 10;
-const MAX_YEAR = moment().year() + 1;
-
 const PAGE_TITLES: Record<VitalsMeasureType, string> = {
   血压: '血压记录',
   血糖: '血糖记录',
@@ -89,53 +84,8 @@ const SWIPE_STYLE_OVERRIDES = {
   editIcon: styles.swipeDeleteIcon,
 };
 
-const MONTH_PICKER_DATA = [
-  Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, index) => {
-    const year = MIN_YEAR + index;
-    return { label: String(year), value: year };
-  }),
-  Array.from({ length: 12 }, (_, index) => ({
-    label: String(index + 1).padStart(2, '0'),
-    value: index + 1,
-  })),
-];
-
-function DashedDivider() {
-  return (
-    <View style={styles.divider}>
-      {Array.from({ length: DASH_COUNT }, (_, index) => (
-        <View key={index} style={styles.dash} />
-      ))}
-    </View>
-  );
-}
-
-type CalendarDay = {
-  date: Moment;
-  isCurrentMonth: boolean;
-};
-
-function buildCalendarDays(month: Moment): CalendarDay[] {
-  const start = moment(month).startOf('month');
-  const end = moment(month).endOf('month');
-  const calendarStart = moment(start).startOf('week');
-  const calendarEnd = moment(end).endOf('week');
-  const days: CalendarDay[] = [];
-  const cursor = moment(calendarStart);
-
-  while (!cursor.isAfter(calendarEnd, 'day')) {
-    days.push({
-      date: moment(cursor),
-      isCurrentMonth: cursor.month() === month.month(),
-    });
-    cursor.add(1, 'day');
-  }
-
-  return days;
-}
-
-function getDataSourceLabel(source?: string | null) {
-  return source?.trim() || '手动录入';
+function getDataSourceLabel(source?: string | null, emptyLabel = '手动录入') {
+  return source?.trim() || emptyLabel;
 }
 
 function formatWearableReadingDateTime(value?: string) {
@@ -598,22 +548,15 @@ function MeasureRecordCard({
   return (
     <View style={styles.mapBox}>
       <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
-        <Flex justify="between" style={styles.mapItem}>
-          <Flex>
-            <Image
-              style={styles.mapIcon}
-              tintColor={AppTheme.textPrimary}
-              source={require('@/assets/images/user/nl.png')}
-            />
-            <Text style={styles.mapTime}>{item.dataTime || '--'}</Text>
-          </Flex>
+        <Flex justify="between">
+          <Text style={styles.mapTime}>{item.dataTime || '--'}</Text>
           {type !== '血脂' ? (
             <Flex style={[styles.mapValueBox, { backgroundColor: getLevelBgColor(levelLabel) }]}>
               <Text style={[styles.mapValue, { color: levelColor }]}>{levelLabel}</Text>
             </Flex>
           ) : null}
         </Flex>
-        <Flex justify="between" align="start" style={styles.mapItem}>
+        <Flex justify="between" align="center" style={styles.mapItemMain}>
           {type === '血脂' ? (
             <View style={styles.mapItemLeft}>
               <Text style={styles.mapItemText}>{type}</Text>
@@ -654,10 +597,10 @@ function MeasureRecordCard({
                   </Text>
                 ) : null}
               </View>
-              <View style={styles.mapItemRight}>
+              <Flex align="baseline" style={styles.mapItemRight}>
                 <Text style={styles.mapItemValue}>{formatMeasureValue(item, type)}</Text>
                 <Text style={styles.mapItemUnit}>{MEASURE_UNITS[type]}</Text>
-              </View>
+              </Flex>
             </>
           )}
         </Flex>
@@ -666,20 +609,20 @@ function MeasureRecordCard({
         activeOpacity={0.7}
         style={[styles.expandBtn, expanded && styles.expandBtnExpanded]}
         onPress={onToggle}>
-        <Flex align="center" justify="center">
-          <Text style={styles.expandText}>{expanded ? '收起' : '展开'}</Text>
-          <MaterialIcons
-            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-            size={18}
-            color={AppTheme.textSecondary}
-          />
-        </Flex>
+        <Image
+          style={styles.expandIcon}
+          source={
+            expanded
+              ? require('@/assets/images/vitals/icon_sq.png')
+              : require('@/assets/images/vitals/icon_zk.png')
+          }
+        />
       </TouchableOpacity>
 
+      {expanded && <View style={styles.rowLine} />}
       {expanded ? (
         <View style={styles.expandDetail}>
-          <View style={styles.rowLine} />
-          <Flex justify="between" style={styles.mapItem}>
+          <Flex justify="between">
             <View>
               {item.measurementStatus ? <Text style={styles.mapLeftText}>记录状态</Text> : null}
               <Text style={styles.mapLeftText}>记录时间</Text>
@@ -732,48 +675,41 @@ function WearableRecordCard({
 
   return (
     <View style={[styles.mapBox, inSwipe && styles.mapBoxInSwipe]}>
-      <Flex justify="between" style={styles.mapItem}>
-        <Flex>
-          <Image
-            style={styles.mapIcon}
-            tintColor={AppTheme.textPrimary}
-            source={require('@/assets/images/user/nl.png')}
-          />
-          <Text style={styles.mapTime}>{item.time}</Text>
-        </Flex>
+      <Flex justify="between">
+        <Text style={styles.mapTime}>{item.time}</Text>
         {showLevel ? (
           <Flex style={[styles.mapValueBox, { backgroundColor: getLevelBgColor(item.level) }]}>
             <Text style={[styles.mapValue, { color: levelColor }]}>{item.level}</Text>
           </Flex>
         ) : null}
       </Flex>
-      <Flex justify="between" align="start" style={styles.mapItem}>
+      <Flex justify="between" align="center" style={styles.mapItemMain}>
         <View style={styles.mapItemLeft}>
           <Text style={styles.mapItemText}>{item.label ?? label}</Text>
         </View>
-        <View style={styles.mapItemRight}>
+        <Flex align="baseline" style={styles.mapItemRight}>
           <Text style={styles.mapItemValue}>{item.value}</Text>
           <Text style={styles.mapItemUnit}>{unit}</Text>
-        </View>
+        </Flex>
       </Flex>
       <TouchableOpacity
         activeOpacity={0.7}
         style={[styles.expandBtn, expanded && styles.expandBtnExpanded]}
         onPress={onToggle}>
-        <Flex align="center" justify="center">
-          <Text style={styles.expandText}>{expanded ? '收起' : '展开'}</Text>
-          <MaterialIcons
-            name={expanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
-            size={18}
-            color={AppTheme.textSecondary}
-          />
-        </Flex>
+        <Image
+          style={styles.expandIcon}
+          source={
+            expanded
+              ? require('@/assets/images/vitals/icon_sq.png')
+              : require('@/assets/images/vitals/icon_zk.png')
+          }
+        />
       </TouchableOpacity>
 
       {expanded ? (
         <View style={styles.expandDetail}>
           <View style={styles.rowLine} />
-          <Flex justify="between" style={styles.mapItem}>
+          <Flex justify="between">
             <View>
               <Text style={styles.mapLeftText}>记录时间</Text>
               <Text style={styles.mapLeftText}>开始时间</Text>
@@ -784,7 +720,7 @@ function WearableRecordCard({
               <Text style={styles.mapRightText}>{item.recordTime}</Text>
               <Text style={styles.mapRightText}>{item.startTime}</Text>
               <Text style={styles.mapRightText}>{item.endTime}</Text>
-              <Text style={styles.mapRightText}>{getDataSourceLabel(item.sourceName)}</Text>
+              <Text style={styles.mapRightText}>{getDataSourceLabel(item.sourceName, '--')}</Text>
             </View>
           </Flex>
         </View>
@@ -800,21 +736,21 @@ function SleepRecordCard({ item }: { item?: WearableDataItem }) {
 
   return (
     <View style={styles.mapBox}>
-      <Flex justify="between" style={styles.mapItem}>
+      <Flex justify="between">
         <Flex>
           <Image source={require('@/assets/images/vitals/sleep.png')} style={styles.mapIcon} />
           <Text style={styles.mapTime}>睡眠状态</Text>
         </Flex>
         <Text style={styles.mapTime}>{cardData.timeRange}</Text>
       </Flex>
-      <Flex justify="between" style={styles.mapItem}>
+      <Flex justify="between">
         <Text style={styles.mapItemLeftText}>{cardData.duration}</Text>
         <Flex align="end">
           <Text style={styles.mapItemLeftText}>{cardData.scoreText}</Text>
           <Text style={styles.mapItemLeftUnit}>分</Text>
         </Flex>
       </Flex>
-      <Flex justify="between" style={[styles.mapItem, { marginTop: 8 }]}>
+      <Flex justify="between" style={{ marginTop: 8 }}>
         <Text style={styles.mapItemLeftUnit}>睡眠时长</Text>
         <Text style={[styles.mapItemLeftUnit, { color: cardData.statusColor }]}>
           {cardData.statusLabel}
@@ -844,42 +780,83 @@ function SleepRecordCard({ item }: { item?: WearableDataItem }) {
 }
 
 function GoalSummaryCard({ data }: { data: AllDataGoalSummaryCardData }) {
+  const isSteps = data.variant === 'steps';
+
   return (
     <View style={styles.mapBox}>
-      <Flex justify="between" style={styles.mapItem}>
-        <Flex>
+      <Flex justify="between" align="center">
+        <Flex align="center">
           <Image source={data.icon} style={styles.mapIcon} />
-          <Text style={styles.mapTime}>{data.title}</Text>
+          <Text style={[styles.mapTime, styles.goalTitle]}>{data.title}</Text>
         </Flex>
-        <Text style={[styles.mapTime, { color: data.statusColor }]}>{data.statusLabel}</Text>
+        {data.statusLabel && data.statusLabel !== '--' ? (
+          <View style={[styles.goalStatusBadge, { borderColor: data.statusColor }]}>
+            <Text style={[styles.goalStatusText, { color: data.statusColor }]}>{data.statusLabel}</Text>
+          </View>
+        ) : null}
       </Flex>
-      <Flex justify="between" style={styles.mapItem}>
-        <Flex align="end">
-          <Text style={styles.mapItemLeftText}>{data.valueText}</Text>
-          <Text style={[styles.mapItemLeftUnit, { marginLeft: 4, marginBottom: 2 }]}>{data.unit}</Text>
-        </Flex>
-      </Flex>
-      {data.rows.length > 0 ? (
-        <View style={styles.sleepStageSection}>
-          {data.rows.map(row => (
-            <Flex key={row.key} style={styles.sleepStageRow}>
-              <Text style={[styles.sleepStageLabel, { width: 64 }]}>{row.label}</Text>
-              <View style={styles.sleepStageTrack}>
-                <View
-                  style={[
-                    styles.sleepStageFill,
-                    {
-                      width: `${row.percent}%`,
-                      backgroundColor: row.color,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.sleepStageDuration}>{row.valueText}</Text>
+
+      {isSteps ? (
+        <View style={styles.stepsBody}>
+          <Flex justify="between" align="baseline">
+            <Text style={styles.stepsMetricLabel}>{data.metricLabel}</Text>
+            <Flex align="baseline">
+              <Text style={styles.stepsMetricValue}>{data.valueText}</Text>
+              <Text style={styles.stepsMetricUnit}>{data.unit}</Text>
             </Flex>
-          ))}
+          </Flex>
+          {data.goalLabel && data.goalValueText ? (
+            <Flex justify="between" align="center" style={styles.stepsGoalRow}>
+              <Text style={styles.goalRowLabel}>{data.goalLabel}</Text>
+              <Text style={styles.goalRowValue}>{data.goalValueText}</Text>
+            </Flex>
+          ) : null}
+          {data.progressPercent != null ? (
+            <View style={styles.goalRowTrack}>
+              <View
+                style={[
+                  styles.goalRowFill,
+                  {
+                    width: `${data.progressPercent}%`,
+                    backgroundColor: data.progressColor ?? data.statusColor,
+                  },
+                ]}
+              />
+            </View>
+          ) : null}
         </View>
-      ) : null}
+      ) : (
+        <Flex style={styles.goalBody}>
+          <View style={styles.goalLeft}>
+            <Text style={styles.goalMetricLabel}>{data.metricLabel}</Text>
+            <Text style={styles.goalMetricValue}>{data.valueText}</Text>
+            <Text style={styles.goalMetricUnit}>{data.unit}</Text>
+          </View>
+          {data.rows.length > 0 ? (
+            <View style={styles.goalRight}>
+              {data.rows.map((row, index) => (
+                <View key={row.key} style={index > 0 ? styles.goalRowSpaced : undefined}>
+                  <Flex justify="between" align="center">
+                    <Text style={styles.goalRowLabel}>{row.label}</Text>
+                    <Text style={styles.goalRowValue}>{row.valueText}</Text>
+                  </Flex>
+                  <View style={styles.goalRowTrack}>
+                    <View
+                      style={[
+                        styles.goalRowFill,
+                        {
+                          width: `${row.percent}%`,
+                          backgroundColor: row.color,
+                        },
+                      ]}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </Flex>
+      )}
     </View>
   );
 }
@@ -896,15 +873,30 @@ export default function AllDataPage({ route }: Props) {
   const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率' | '步数'];
   const isWearableType = Boolean(wearableConfig) || isEnergyType || isSleepType;
   const navigation = useNavigation<Nav>();
-  const [currentMonth, setCurrentMonth] = useState(moment());
-  const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+  const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
   const [records, setRecords] = useState<MeasureDataItem[]>([]);
   const [wearableRecords, setWearableRecords] = useState<WearableReadingRecord[]>([]);
   const [sleepRecord, setSleepRecord] = useState<WearableDataItem | undefined>();
   const [goalSummary, setGoalSummary] = useState<AllDataGoalSummaryCardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
-  const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
+  const weekDays = useMemo(() => buildAllDataWeekDays(selectedDate), [selectedDate]);
+  const monthLabel = useMemo(
+    () => moment(selectedDate, 'YYYY-MM-DD').format('YYYY年M月'),
+    [selectedDate],
+  );
+
+  const goToday = useCallback(() => {
+    setSelectedDate(moment().format('YYYY-MM-DD'));
+  }, []);
+
+  const goPrevWeek = useCallback(() => {
+    setSelectedDate(prev => moment(prev, 'YYYY-MM-DD').subtract(1, 'week').format('YYYY-MM-DD'));
+  }, []);
+
+  const goNextWeek = useCallback(() => {
+    setSelectedDate(prev => moment(prev, 'YYYY-MM-DD').add(1, 'week').format('YYYY-MM-DD'));
+  }, []);
 
   useEffect(() => {
     navigation.setOptions({
@@ -1088,76 +1080,60 @@ export default function AllDataPage({ route }: Props) {
   }, []);
 
   return (
-    <PageLayout style={styles.container}>
+    <PageLayout style={styles.container} showHeaderBackground={false}>
       <ScrollView
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={handleScrollBegin}>
-        <View style={styles.rowBox}>
-          <Flex justify="between" align="center">
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setCurrentMonth(m => moment(m).subtract(1, 'month'))}>
-              <Image source={require('@/assets/images/user/left.png')} style={styles.navIcon} />
+        <View style={styles.calendarBox}>
+          <Flex justify="between" align="center" style={styles.calendarHeader}>
+            <TouchableOpacity activeOpacity={0.7} onPress={goToday} style={styles.calendarTodayBtn}>
+              <Text style={styles.calendarTodayText}>回今天</Text>
             </TouchableOpacity>
-            <Picker
-              data={MONTH_PICKER_DATA}
-              cols={2}
-              cascade={false}
-              value={[currentMonth.year(), currentMonth.month() + 1]}
-              onOk={values => {
-                setCurrentMonth(
-                  moment({
-                    year: Number(values[0]),
-                    month: Number(values[1]) - 1,
-                    date: 1,
-                  }),
-                );
-              }}>
-              <TouchableOpacity activeOpacity={0.7} style={styles.dayTitleBtn}>
-                <Text style={styles.dayTitle}>{currentMonth.format('YYYY-MM')}</Text>
+            <Flex align="center" justify="center" style={styles.calendarMonthNav}>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={goPrevWeek}
+                style={styles.calendarArrowBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Image
+                  style={styles.calendarArrow}
+                  source={require('@/assets/images/vitals/icon_left.png')}
+                />
               </TouchableOpacity>
-            </Picker>
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setCurrentMonth(m => moment(m).add(1, 'month'))}>
-              <Image source={require('@/assets/images/user/left.png')} style={styles.navIconRight} />
-            </TouchableOpacity>
+              <Text style={styles.calendarMonthText}>{monthLabel}</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={goNextWeek}
+                style={styles.calendarArrowBtn}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Image
+                  style={styles.calendarArrow}
+                  source={require('@/assets/images/vitals/icon_right.png')}
+                />
+              </TouchableOpacity>
+            </Flex>
+            <View style={styles.calendarTodayBtn} />
           </Flex>
-
-          <View style={styles.weekHead}>
-            {WEEK_LABELS.map(label => (
-              <Text key={label} style={styles.weekCell}>
-                {label}
-              </Text>
-            ))}
-          </View>
-
-          <DashedDivider />
-
-          <View style={styles.calendarGrid}>
-            {calendarDays.map(day => {
-              const dateKey = day.date.format('YYYY-MM-DD');
-              const isSelected = selectedDate === dateKey;
-              const isToday = day.date.isSame(moment(), 'day');
+          <Flex justify="between" style={styles.calendarWeekRow}>
+            {weekDays.map(item => {
+              const isActive = item.key === selectedDate;
               return (
                 <TouchableOpacity
-                  key={dateKey}
+                  key={item.key}
                   activeOpacity={0.7}
-                  style={styles.dayCell}
-                  onPress={() => setSelectedDate(dateKey)}>
-                  <View style={[styles.dayInner, isSelected && styles.daySelected]}>
-                    <Text
-                      style={
-                        isSelected
-                          ? styles.dayTextSelected
-                          : day.isCurrentMonth
-                            ? styles.dayText
-                            : styles.dayTextOther
-                      }>
-                      {isToday ? '今' : day.date.date()}
-                    </Text>
-                  </View>
+                  style={[styles.calendarCol, isActive && styles.calendarColActive]}
+                  onPress={() => setSelectedDate(item.key)}>
+                  <Text style={isActive ? styles.calendarTitleActive : styles.calendarTitle}>
+                    {item.label}
+                  </Text>
+                  <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
+                    {item.day}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </Flex>
         </View>
 
         {loading ? (

@@ -193,6 +193,19 @@ export default function StepsPage() {
         },
     });
 
+    const todayCard = useMemo(() => {
+        const steps = Math.max(0, Math.round(todayDaySteps));
+        const goal = Math.max(0, Math.round(stepGoal));
+        const remaining = Math.max(0, goal - steps);
+        const progressPercent = goal > 0 ? Math.min(100, Math.round((steps / goal) * 100)) : 0;
+        return {
+            stepsText: steps > 0 ? formatOverviewNumber(steps) : '--',
+            goalText: goal > 0 ? formatOverviewNumber(goal) : '--',
+            remainingText: formatOverviewNumber(remaining),
+            progressPercent,
+        };
+    }, [stepGoal, todayDaySteps]);
+
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <View style={styles.pageContent}>
@@ -212,7 +225,7 @@ export default function StepsPage() {
                     contentContainerStyle={{ paddingBottom: insets.bottom }}
                 >
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
-                        <Flex justify='between'>
+                        <Flex justify="between">
                             <Text style={styles.rowTitle}>步数</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
@@ -221,7 +234,7 @@ export default function StepsPage() {
                             </Flex>
                         </Flex>
                         <Text style={styles.rowLeftValue}>{displayValue}</Text>
-                        <Flex justify='between'>
+                        <Flex justify="between">
                             <Text style={styles.rowTitle}>{suggestionLabel}</Text>
                             <Flex style={styles.dayBox}>
                                 <Text style={styles.dayText}>{currentLabel}</Text>
@@ -237,21 +250,54 @@ export default function StepsPage() {
                     </View>
 
                     <View style={[styles.rowBox, { marginTop: 30 }]}>
-                        <Text style={styles.analysisTitle}>步数总览</Text>
-                        <Flex justify='between' style={styles.analysisContent}>
-                            <View>
-                                <Text style={styles.analysis1}>总步数</Text>
-                                <Text style={styles.analysis2}>{overview.totalSteps}</Text>
-                            </View>
-                            <View>
-                                <Text style={styles.analysis1}>日均步数</Text>
-                                <Text style={styles.analysis2}>{overview.dailyAverage}</Text>
-                            </View>
-                            <View>
-                                <Text style={styles.analysis1}>达标天数 (天)</Text>
-                                <Text style={styles.analysis2}>{overview.compliantDays}</Text>
-                            </View>
-                        </Flex>
+                        {selectedType === 'today' ? (
+                            <>
+                                <Flex justify="between">
+                                    <View>
+                                        <Text style={styles.todayMetricLabel}>今日步数</Text>
+                                        <Text style={styles.todayMetricValue}>{todayCard.stepsText}</Text>
+                                    </View>
+                                    <View style={styles.todayMetricRight}>
+                                        <Text style={styles.todayMetricLabel}>目标步数</Text>
+                                        <Text style={styles.todayMetricValue}>{todayCard.goalText}</Text>
+                                    </View>
+                                </Flex>
+                                <View style={styles.todayProgressTrack}>
+                                    <View
+                                        style={[
+                                            styles.todayProgressFill,
+                                            { width: `${todayCard.progressPercent}%` },
+                                        ]}
+                                    />
+                                </View>
+                                <Flex style={styles.todayRemainRow}>
+                                    <View style={styles.todayRemainAccent} />
+                                    <Text style={styles.todayRemainText}>
+                                        距离目标还差{' '}
+                                        <Text style={styles.todayRemainNum}>{todayCard.remainingText}</Text>
+                                        {' '}步
+                                    </Text>
+                                </Flex>
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.analysisTitle}>步数总览</Text>
+                                <Flex justify="between" style={styles.analysisContent}>
+                                    <View>
+                                        <Text style={styles.analysis1}>总步数</Text>
+                                        <Text style={styles.analysis2}>{overview.totalSteps}</Text>
+                                    </View>
+                                    <View>
+                                        <Text style={styles.analysis1}>日均步数</Text>
+                                        <Text style={styles.analysis2}>{overview.dailyAverage}</Text>
+                                    </View>
+                                    <View>
+                                        <Text style={styles.analysis1}>达标天数 (天)</Text>
+                                        <Text style={styles.analysis2}>{overview.compliantDays}</Text>
+                                    </View>
+                                </Flex>
+                            </>
+                        )}
                     </View>
 
                 </ScrollView>

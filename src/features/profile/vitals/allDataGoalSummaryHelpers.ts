@@ -19,9 +19,15 @@ export type AllDataGoalSummaryCardData = {
   statusLabel: string;
   statusColor: string;
   rows: AllDataGoalSummaryRow[];
+  /** 步数卡：左标签右数值，进度条在下；消耗卡默认左右分栏 */
+  variant?: 'energy' | 'steps';
+  progressPercent?: number;
+  progressColor?: string;
+  goalLabel?: string;
+  goalValueText?: string;
 };
 
-const STATUS_COLOR_ACHIEVED = '#00C950';
+const STATUS_COLOR_ACHIEVED = '#6D925E';
 const STATUS_COLOR_MISS = '#EE9C44';
 const STATUS_COLOR_EMPTY = '#999999';
 
@@ -54,6 +60,8 @@ export function buildStepsGoalSummaryCardData(params: {
   if (steps <= 0) return null;
 
   const { statusLabel, statusColor } = getGoalAchievedStatus(steps, goal);
+  const hasGoal = goal != null && goal > 0;
+
   return {
     title: '步数状态',
     icon: require('@/assets/images/vitals/icon_bs.png'),
@@ -64,6 +72,15 @@ export function buildStepsGoalSummaryCardData(params: {
     statusLabel,
     statusColor,
     rows: [],
+    variant: 'steps',
+    goalLabel: hasGoal ? '目标步数' : undefined,
+    goalValueText: hasGoal ? `${goal.toLocaleString('en-US')}步` : undefined,
+    progressPercent: hasGoal ? Math.min(100, Math.round((steps / goal) * 100)) : undefined,
+    progressColor: hasGoal
+      ? steps >= goal
+        ? STATUS_COLOR_ACHIEVED
+        : STATUS_COLOR_MISS
+      : undefined,
   };
 }
 

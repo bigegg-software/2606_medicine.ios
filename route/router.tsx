@@ -120,6 +120,8 @@ import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 //设置 
 import SettingsPage from '@/src/features/profile/settings';
 
+//实名认证
+import AuthenticationPage from "@/src/features/authentication/index"
 
 
 export type RootStackParamList = {
@@ -149,6 +151,7 @@ export type RootStackParamList = {
   QuestionnaireResult: { id: string; type: QuestionnaireType };
   QuestionnaireHistory: undefined;
   SettingsPage: undefined;
+  AuthenticationPage: undefined;
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };
   FamilyHistory: undefined;
@@ -407,8 +410,8 @@ export default function RootStack() {
       <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
       <Stack.Screen name="ChronicDiseaseDetailPage" component={ChronicDiseaseDetailPage} options={{ title: "慢病详情" }} />
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "健康数据" }} />
-      <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录" }} />
-      <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录" }} />
+      <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="AllDataPage" component={AllDataPage} options={{ title: "血压记录", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="BloodPressurePage" component={BloodPressurePage} options={{ title: "血压", showHeaderBackground: false }} />
       <Stack.Screen name="BloodSugarPage" component={BloodSugarPage} options={{ title: "血糖", showHeaderBackground: false }} />
       <Stack.Screen name="HeartRatePage" component={HeartRatePage} options={{ title: "心率", showHeaderBackground: false }} />
@@ -457,6 +460,7 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
       <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: "设置" }} />
+      <Stack.Screen name="AuthenticationPage" component={AuthenticationPage} options={{ title: "实名认证" }} />
 
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
     </Stack.Navigator>
