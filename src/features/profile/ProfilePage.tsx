@@ -21,6 +21,7 @@ import {
   getIdentityLabel,
   switchIdentityPerspective,
 } from '@/src/features/auth/utils/identityHelpers';
+import SignInModal from './components/SignInModal';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 // const navList = [
@@ -88,6 +89,7 @@ export default function ProfilePage() {
   const loading = useSelector((s: RootState) => s.user.loading);
   const { label: fontSizeLabel } = useFontSize();
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
+  const [signInVisible, setSignInVisible] = useState(false);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
 
   useEffect(() => {
@@ -191,7 +193,7 @@ export default function ProfilePage() {
                   <Image style={styles.diamondsImg} source={require('@/assets/images/user/diamonds.png')} />
                   <Text style={styles.diamondsTitle}>积分商城</Text>
                 </Flex>
-                <TouchableOpacity>
+                <TouchableOpacity onPress={() => setSignInVisible(true)}>
                   <Flex style={styles.diamondsSignIn}>
                     <Text style={styles.diamondsSignInText}>签到+10</Text>
                     <Image style={styles.diamondsSignInImg} tintColor={"#804A15"} source={require('@/assets/images/user/img1.png')} />
@@ -386,6 +388,7 @@ export default function ProfilePage() {
           </Flex>
         </TouchableOpacity>
       </ScrollView>
+      <SignInModal visible={signInVisible} onClose={() => setSignInVisible(false)} />
     </TabPageLayout>
   );
 }
