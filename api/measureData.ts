@@ -150,6 +150,16 @@ export const getMeasureDataDetailByDate = (params: {
 export const getMeasureDataLatestByType = (type: MeasureDataType) =>
   request.get<MeasureDataLatestResult>('/patient/measureData/latestByType', { params: { type } });
 
+export type MeasureDataLatestTwoResult = {
+  code?: number;
+  msg?: string;
+  data?: MeasureDataItem[];
+};
+
+/** 指定类型最近两条测量数据 */
+export const getMeasureDataLatestTwoByType = (type: MeasureDataType) =>
+  request.get<MeasureDataLatestTwoResult>('/patient/measureData/latestTwoByType', { params: { type } });
+
 export const getMeasureDataDetailByDateRange = (params: {
   startDate: string;
   endDate: string;

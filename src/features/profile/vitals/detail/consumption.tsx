@@ -64,7 +64,7 @@ export default function ConsumptionPage() {
     const [suggestionLabel, setSuggestionLabel] = useState(() => `目标：${defaultEnergyGoal.toLocaleString('en-US')}`);
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
     const [energyGoal, setEnergyGoal] = useState(defaultEnergyGoal);
-    const [todayActive, setTodayActive] = useState(0);
+    const [todayTotalEnergy, setTodayTotalEnergy] = useState(0);
 
     const todayTotal = useMemo(
         () => chartData.reduce((sum, point) => sum + (point.value > 0 ? point.value : 0), 0),
@@ -146,7 +146,7 @@ export default function ConsumptionPage() {
                 setSuggestionLabel(emptyDisplay.suggestionLabel);
                 setOverview(EMPTY_OVERVIEW);
                 setEnergyGoal(fallbackGoal);
-                setTodayActive(0);
+                setTodayTotalEnergy(0);
                 return;
             }
 
@@ -170,10 +170,10 @@ export default function ConsumptionPage() {
                     avgActive: formatOverviewNumber(overviewStats.avgActive),
                     avgBasal: formatOverviewNumber(overviewStats.avgBasal),
                 });
-                setTodayActive(range === 'today' ? overviewStats.avgActive : 0);
+                setTodayTotalEnergy(range === 'today' ? overviewStats.avgTotal : 0);
             } else {
                 setOverview(EMPTY_OVERVIEW);
-                setTodayActive(0);
+                setTodayTotalEnergy(0);
             }
         } catch {
             setChartData([]);
@@ -185,7 +185,7 @@ export default function ConsumptionPage() {
             setSuggestionLabel(emptyDisplay.suggestionLabel);
             setOverview(EMPTY_OVERVIEW);
             setEnergyGoal(fallbackGoal);
-            setTodayActive(0);
+            setTodayTotalEnergy(0);
         }
     }, [defaultEnergyGoal]);
 
@@ -204,17 +204,17 @@ export default function ConsumptionPage() {
     });
 
     const todayEnergyCard = useMemo(() => {
-        const active = Math.max(0, Math.round(todayActive));
+        const total = Math.max(0, Math.round(todayTotalEnergy));
         const goal = Math.max(0, Math.round(energyGoal));
-        const remaining = Math.max(0, goal - active);
-        const progressPercent = goal > 0 ? Math.min(100, Math.round((active / goal) * 100)) : 0;
+        const remaining = Math.max(0, goal - total);
+        const progressPercent = goal > 0 ? Math.min(100, Math.round((total / goal) * 100)) : 0;
         return {
-            activeText: active > 0 ? formatOverviewNumber(active) : '--',
+            activeText: total > 0 ? formatOverviewNumber(total) : '--',
             goalText: goal > 0 ? formatOverviewNumber(goal) : '--',
             remainingText: formatOverviewNumber(remaining),
             progressPercent,
         };
-    }, [energyGoal, todayActive]);
+    }, [energyGoal, todayTotalEnergy]);
 
     return (
         <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -286,7 +286,7 @@ export default function ConsumptionPage() {
                         <View style={styles.rowBox}>
                             <Flex justify="between">
                                 <View>
-                                    <Text style={styles.todayMetricLabel}>已达成活动消耗</Text>
+                                    <Text style={styles.todayMetricLabel}>已达成消耗</Text>
                                     <Text style={styles.todayMetricValue}>{todayEnergyCard.activeText}</Text>
                                 </View>
                                 <View style={styles.todayMetricRight}>

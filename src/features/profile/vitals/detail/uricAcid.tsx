@@ -207,7 +207,7 @@ export default function UricAcidPage() {
                     justify="between"
                     style={[
                         styles.bottomBar,
-                        { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+                        { height: 100, paddingBottom: insets.bottom },
                     ]}
                 >
                     <TouchableOpacity

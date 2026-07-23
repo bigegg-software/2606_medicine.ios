@@ -4,6 +4,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
+import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
@@ -22,6 +23,7 @@ import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedu
 import {
   getMeasureDataDetailByDate,
   getMeasureDataLatestByType,
+  getMeasureDataLatestTwoByType,
   getMeasureDataStatisByDateRange,
   type MeasureDataItem,
   type MeasureDataStatisDayGroup,
@@ -32,6 +34,7 @@ import {
   buildWeightChartFromStatisGroups,
   buildWeightDetailTodaySeries,
   buildWeightGoalSummary,
+  calcTodayWeightOverview,
   calcWeightDetailStats,
   calcWeightTrendFromPoints,
   findWeightHealthGoal,
@@ -39,10 +42,13 @@ import {
   formatWeightDetailPointDisplay,
   getInitialWeightFromPoints,
   getEarliestWeightFromItems,
+  getBmiCategory,
+  BMI_CATEGORY_COLORS,
   hasWeightHealthGoal,
   resolvePersonalWeightGoalDisplay,
   resolveWeightDetailBmi,
   resolveWeightGoalDisplay,
+  type TodayWeightOverview,
   type WeightGoalSummary,
   type WeightTrendSummary,
 } from './helpers/weight';
@@ -67,7 +73,23 @@ type WeightRangeSnapshot = {
   latestItem?: MeasureDataItem;
   displayBmi: number | null;
   stats: typeof EMPTY_STATS;
+  todayOverview: TodayWeightOverview;
 };
+
+const EMPTY_TODAY_OVERVIEW: TodayWeightOverview = {
+  changeText: '--',
+  avgText: '--',
+};
+
+function buildEmptyWeightRangeSnapshot(): WeightRangeSnapshot {
+  return {
+    chartData: [],
+    latestItem: undefined,
+    displayBmi: null,
+    stats: EMPTY_STATS,
+    todayOverview: EMPTY_TODAY_OVERVIEW,
+  };
+}
 
 const WEIGHT_CHART_RANGES: WeightChartRange[] = ['today', 'week', 'month'];
 
@@ -79,23 +101,31 @@ function resetHeaderDisplay(range: WeightChartRange, heightCm?: number | null) {
   return formatWeightDetailPointDisplay(range, undefined, undefined, heightCm);
 }
 
-function buildEmptyWeightRangeSnapshot(): WeightRangeSnapshot {
-  return {
-    chartData: [],
-    latestItem: undefined,
-    displayBmi: null,
-    stats: EMPTY_STATS,
-  };
-}
-
 async function fetchWeightRangeSnapshot(
   range: WeightChartRange,
   heightCm?: number | null,
 ): Promise<WeightRangeSnapshot | null> {
   if (range === 'today') {
-    const latestRes = (await getMeasureDataLatestByType('体重')) as unknown as {
+    const todayDate = moment().format('YYYY-MM-DD');
+    const [latestRawRes, latestTwoRawRes, todayDetailRawRes] = await Promise.all([
+      getMeasureDataLatestByType('体重'),
+      getMeasureDataLatestTwoByType('体重'),
+      getMeasureDataDetailByDate({
+        customerLocalDate: todayDate,
+        type: '体重',
+      }),
+    ]);
+    const latestRes = latestRawRes as unknown as {
       code?: number;
       data?: MeasureDataItem;
+    };
+    const latestTwoRes = latestTwoRawRes as unknown as {
+      code?: number;
+      data?: MeasureDataItem[];
+    };
+    const todayDetailRes = todayDetailRawRes as unknown as {
+      code?: number;
+      data?: MeasureDataItem[];
     };
 
     if (!isResourceApiOk(latestRes)) return null;
@@ -104,7 +134,10 @@ async function fetchWeightRangeSnapshot(
     const latestDate = latest?.customerLocalDate?.trim();
     let items: MeasureDataItem[] = latest ? [latest] : [];
 
-    if (latestDate) {
+    if (latestDate && latestDate === todayDate && isResourceApiOk(todayDetailRes)) {
+      const dayItems = flattenMeasureItems(apiResourceData<MeasureDataItem[]>(todayDetailRes));
+      items = dayItems.length ? dayItems : items;
+    } else if (latestDate && latestDate !== todayDate) {
       const detailRes = (await getMeasureDataDetailByDate({
         customerLocalDate: latestDate,
         type: '体重',
@@ -116,6 +149,13 @@ async function fetchWeightRangeSnapshot(
       }
     }
 
+    const calendarTodayItems = isResourceApiOk(todayDetailRes)
+      ? flattenMeasureItems(apiResourceData<MeasureDataItem[]>(todayDetailRes))
+      : [];
+    const latestTwoItems = isResourceApiOk(latestTwoRes)
+      ? (apiResourceData<MeasureDataItem[]>(latestTwoRes) ?? [])
+      : [];
+
     const periodStats = calcWeightDetailStats(items, range, [], heightCm);
     return {
       chartData: buildWeightDetailTodaySeries(items, heightCm),
@@ -126,6 +166,7 @@ async function fetchWeightRangeSnapshot(
         recordCount: periodStats.recordCount,
         bmiText: periodStats.bmiText,
       } : EMPTY_STATS,
+      todayOverview: calcTodayWeightOverview(calendarTodayItems, latestTwoItems),
     };
   }
 
@@ -149,6 +190,7 @@ async function fetchWeightRangeSnapshot(
       recordCount: periodStats.recordCount,
       bmiText: periodStats.bmiText,
     } : EMPTY_STATS,
+    todayOverview: EMPTY_TODAY_OVERVIEW,
   };
 }
 
@@ -198,6 +240,7 @@ export default function WeightPage() {
   const [currentLabel, setCurrentLabel] = useState('当前：今天');
   const [displayBmi, setDisplayBmi] = useState<number | null>(null);
   const [stats, setStats] = useState(EMPTY_STATS);
+  const [todayOverview, setTodayOverview] = useState<TodayWeightOverview>(EMPTY_TODAY_OVERVIEW);
   const [showWeightGoal, setShowWeightGoal] = useState(false);
   const [weightGoalSummary, setWeightGoalSummary] = useState<WeightGoalSummary | null>(null);
   const [initialWeightKg, setInitialWeightKg] = useState<number | null>(null);
@@ -272,6 +315,21 @@ export default function WeightPage() {
     setLatestItem(snapshot.latestItem);
     setDisplayBmi(snapshot.displayBmi);
     setStats(snapshot.stats);
+    setTodayOverview(snapshot.todayOverview);
+
+    const lastPoint = [...snapshot.chartData]
+      .reverse()
+      .find(point => point.min > 0 && point.max > 0);
+    const display = formatWeightDetailPointDisplay(
+      range,
+      lastPoint,
+      snapshot.latestItem,
+      userHeightRef.current,
+    );
+    setDisplayValue(display.value);
+    setDisplayStatus(formatStatusText(display.status));
+    setDisplayStatusColor(display.statusColor);
+    setCurrentLabel(display.currentLabel);
   }, []);
 
   const applyEmptyRangeState = useCallback((range: WeightChartRange) => {
@@ -435,6 +493,19 @@ export default function WeightPage() {
   );
 
   const showProfileTip = !(Number(userHeight) > 0) || !(Number(userWeight) > 0);
+  const isToday = selectedType === 'today';
+  const heightText = Number(userHeight) > 0
+    ? `(身高${Math.round(Number(userHeight))}cm)`
+    : '(身高--)';
+  const todayBmiText = displayBmi != null && displayBmi > 0
+    ? String(Number(displayBmi.toFixed(1)))
+    : '--';
+  const todayBmiStatus = displayBmi != null && displayBmi > 0
+    ? getBmiCategory(displayBmi)
+    : (displayStatus !== '--' ? displayStatus : '--');
+  const todayBmiStatusColor = todayBmiStatus !== '--' && todayBmiStatus in BMI_CATEGORY_COLORS
+    ? BMI_CATEGORY_COLORS[todayBmiStatus as keyof typeof BMI_CATEGORY_COLORS]
+    : displayStatusColor;
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -454,7 +525,7 @@ export default function WeightPage() {
 
         <ScrollView
           style={styles.body}
-          contentContainerStyle={{ paddingBottom: insets.bottom }}
+          contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
         >
           {activeGoalDisplay ? (
             <Flex style={[styles.colRow, { marginTop: 10 }]}>
@@ -490,44 +561,94 @@ export default function WeightPage() {
             </Flex>
           ) : null}
 
-          <View style={[styles.rowBox, { marginTop: 10 }]}>
-            <Flex justify='between'>
-              <Text style={styles.rowTitle}>体重(kg)</Text>
-              <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
-                <Text style={[styles.statusText, { color: displayStatusColor }]}>
-                  {displayStatus}
-                </Text>
+          {!isToday ? (
+            <View style={[styles.rowBox, { marginTop: 10 }]}>
+              <Flex justify='between'>
+                <Text style={styles.rowTitle}>体重(kg)</Text>
+                <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
+                  <Text style={[styles.statusText, { color: displayStatusColor }]}>
+                    {displayStatus}
+                  </Text>
+                </Flex>
               </Flex>
-            </Flex>
-            <Text style={styles.rowLeftValue}>{displayValue}</Text>
-            <Flex justify='between'>
-              <Text style={styles.rowTitle}>正常范围：BMI 18.5-23.9</Text>
-            </Flex>
+              <Text style={styles.rowLeftValue}>{displayValue}</Text>
+              <Flex justify='between'>
+                <Text style={styles.rowTitle}>正常范围：BMI 18.5-23.9</Text>
+              </Flex>
 
-            <WeightDetailChart
-              range={loadedRange}
-              data={chartData}
-              onPointChange={handleChartPointChange}
-            />
-          </View>
-
-          <Flex style={[styles.colRow, { marginTop: 30 }]}>
-            <View style={styles.colBox}>
-              <Text style={styles.analysisTitle}>最新体重</Text>
-              <Text style={styles.rValue}>{displayValue}kg</Text>
-              <BmiProgressBar bmi={displayBmi} />
+              <WeightDetailChart
+                range={loadedRange}
+                data={chartData}
+                onPointChange={handleChartPointChange}
+              />
             </View>
-          </Flex>
-          <Flex style={styles.colRow}>
-            <WeightTrendCard title="体重趋势（kg）" trend={weightTrend} />
-            <WeightTrendCard title="BMI趋势" trend={bmiTrend} />
-          </Flex>
+          ) : null}
+
+          {isToday ? (
+            <Flex style={[styles.colRow, { marginTop: 10 }]}>
+              <View style={styles.colBox}>
+                <Flex align="center">
+                  <Text style={styles.todayBmiTitle}>当前BMI</Text>
+                  <Text style={styles.todayBmiHeight}>{heightText}</Text>
+                </Flex>
+
+                <Flex justify="between" style={styles.todayBmiMetaRow}>
+                  <Text style={styles.todayBmiMetaLabel}>正常范围：BMI 18.5-23.9</Text>
+                  <Text style={styles.todayBmiMetaLabel}>当前体重(kg)</Text>
+                </Flex>
+
+                <Flex justify="between" align="center" style={styles.todayBmiValueRow}>
+                  <Flex align="center">
+                    <Text style={styles.todayBmiValue}>{todayBmiText}</Text>
+                    {todayBmiStatus !== '--' ? (
+                      <Flex
+                        style={[
+                          styles.todayBmiStatusBox,
+                          { borderColor: todayBmiStatusColor },
+                        ]}
+                      >
+                        <Text style={[styles.todayBmiStatusText, { color: todayBmiStatusColor }]}>
+                          {todayBmiStatus}
+                        </Text>
+                      </Flex>
+                    ) : null}
+                  </Flex>
+                  <Text style={styles.todayBmiValue}>{currentWeightText}</Text>
+                </Flex>
+
+                <BmiProgressBar bmi={displayBmi} />
+              </View>
+            </Flex>
+          ) : null}
+
+          {isToday ? (
+            <Flex style={styles.colRow}>
+              <View style={styles.colBox}>
+                <Text style={styles.todayBmiTitle}>体重总览</Text>
+                <Flex justify="between">
+                  <View style={styles.todayOverviewCol}>
+                    <Text style={styles.todayOverviewLabel}>较上次体重(kg)</Text>
+                    <Text style={styles.todayOverviewValueLeft}>{todayOverview.changeText}</Text>
+                  </View>
+                  <View style={styles.todayOverviewCol}>
+                    <Text style={styles.todayOverviewLabel}>日均体重(kg)</Text>
+                    <Text style={styles.todayOverviewValueRight}>{todayOverview.avgText}</Text>
+                  </View>
+                </Flex>
+              </View>
+            </Flex>
+          ) : (
+            <Flex style={styles.colRow}>
+              <WeightTrendCard title="体重趋势（kg）" trend={weightTrend} />
+              <WeightTrendCard title="BMI趋势" trend={bmiTrend} />
+            </Flex>
+          )}
         </ScrollView >
         <Flex
           justify="between"
           style={[
             styles.bottomBar,
-            { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+            { height: 100, paddingBottom: insets.bottom },
           ]}
         >
           <TouchableOpacity

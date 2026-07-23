@@ -24,8 +24,8 @@ export type WeightDetailPoint = {
 };
 
 function formatWeightValue(min: number, max: number) {
-  if (min === max) return min.toFixed(1);
-  return `${min.toFixed(1)}-${max.toFixed(1)}`;
+  if (min === max) return formatGoalWeightValue(min);
+  return `${formatGoalWeightValue(min)}-${formatGoalWeightValue(max)}`;
 }
 
 function normalizeWeightLevelLabel(label?: string): BmiCategory | '' {
@@ -52,8 +52,7 @@ function getWeightStatusColor(label: string) {
 }
 
 function getWeightItemLevelLabel(item: MeasureDataItem, heightCm?: number | null) {
-  const weight = parseMeasureNumber(item.val);
-  const fromBmi = getWeightStatusFromBmi(calcBmiFromWeight(weight, heightCm));
+  const fromBmi = getWeightStatusFromBmi(resolveItemBmi(item, heightCm));
   if (fromBmi) return fromBmi;
   return normalizeWeightLevelLabel(getLevelLabel(item)) || '正常';
 }
@@ -67,6 +66,14 @@ export function calcBmiFromWeight(weightKg?: number | null, heightCm?: number | 
   const bmi = weight / (heightM * heightM);
   if (!Number.isFinite(bmi) || bmi <= 0) return null;
   return Number(bmi.toFixed(1));
+}
+
+/** Prefer API-provided BMI, otherwise derive from weight + height. */
+function resolveItemBmi(item?: MeasureDataItem | null, heightCm?: number | null) {
+  if (!item) return null;
+  const fromApi = parseMeasureNumber(item.bmi);
+  if (fromApi != null && fromApi > 0) return Number(fromApi.toFixed(1));
+  return calcBmiFromWeight(parseMeasureNumber(item.val), heightCm);
 }
 
 export function formatWeightVitalsDisplay(item?: MeasureDataItem, heightCm?: number | null) {
@@ -187,25 +194,31 @@ export function resolveWeightDetailBmi(
   latestItem?: MeasureDataItem,
   heightCm?: number | null,
 ) {
+  if (isValidWeightDetailPoint(point) && point.bmi != null && point.bmi > 0) {
+    return point.bmi;
+  }
+
   if (isValidWeightDetailPoint(point)) {
     const weight = getPointWeightValue(point);
     const fromPoint = calcBmiFromWeight(weight, heightCm);
     if (fromPoint != null) return fromPoint;
   }
 
-  const latestWeight = parseMeasureNumber(latestItem?.val);
-  return calcBmiFromWeight(latestWeight, heightCm);
+  return resolveItemBmi(latestItem, heightCm);
 }
 
 function getBmiFromGroup(group?: MeasureDataStatisDayGroup, heightCm?: number | null) {
   const bmiValues = (group?.childList ?? [])
-    .map(item => calcBmiFromWeight(parseMeasureNumber(item.val), heightCm))
+    .map(item => resolveItemBmi(item, heightCm))
     .filter((value): value is number => value != null && value > 0);
 
-  if (!bmiValues.length) return undefined;
+  if (bmiValues.length) {
+    const total = bmiValues.reduce((sum, value) => sum + value, 0);
+    return Number((total / bmiValues.length).toFixed(1));
+  }
 
-  const total = bmiValues.reduce((sum, value) => sum + value, 0);
-  return Number((total / bmiValues.length).toFixed(1));
+  // Statis groups may only carry avgVal without childList.
+  return calcBmiFromWeight(parseMeasureNumber(group?.avgVal), heightCm) ?? undefined;
 }
 
 function getWeightValuesFromGroup(group?: MeasureDataStatisDayGroup) {
@@ -240,7 +253,7 @@ export function buildWeightDetailTodaySeries(
       dataTime: item.dataTime,
       customerLocalDate: item.customerLocalDate,
       statusLabel: getWeightItemLevelLabel(item, heightCm),
-      bmi: calcBmiFromWeight(value, heightCm) ?? undefined,
+      bmi: resolveItemBmi(item, heightCm) ?? undefined,
     };
   });
 }
@@ -284,7 +297,7 @@ export function formatWeightDetailPointDisplay(
   const value = activePoint
     ? formatWeightValue(activePoint.min, activePoint.max)
     : latestValue != null && latestValue > 0
-      ? latestValue.toFixed(1)
+      ? formatGoalWeightValue(latestValue)
       : '--';
 
   const statusLabel = getWeightDetailStatusLabel(activePoint, latestItem, heightCm);
@@ -374,10 +387,73 @@ export function calcWeightTrendFromPoints(
   }
 
   return {
-    rangeText: `${first.toFixed(1)}-${last.toFixed(1)}`,
+    rangeText: `${formatGoalWeightValue(first)}-${formatGoalWeightValue(last)}`,
     changeText,
     direction,
     changeColor,
+  };
+}
+
+export type TodayWeightOverview = {
+  changeText: string;
+  avgText: string;
+};
+
+function formatWeightOverviewNumber(value: number) {
+  // 最多保留两位小数，末尾 0 不显示（45.00→45，-0.60→-0.6）
+  return String(Number(value.toFixed(2)));
+}
+
+function formatSignedWeightDiff(diff: number) {
+  const fixed = formatWeightOverviewNumber(Math.abs(diff));
+  if (diff === 0) return formatWeightOverviewNumber(0);
+  return diff > 0 ? `+${fixed}` : `-${fixed}`;
+}
+
+/** 今日体重总览：较上次体重（最近两条）+ 日均体重（仅日历今天，无数据为 --） */
+export function calcTodayWeightOverview(
+  todayItems: MeasureDataItem[],
+  latestTwoItems: MeasureDataItem[] = [],
+): TodayWeightOverview {
+  const empty: TodayWeightOverview = { changeText: '--', avgText: '--' };
+  const todayDate = moment().format('YYYY-MM-DD');
+
+  const toEntries = (items: MeasureDataItem[]) => items
+    .map(item => ({
+      value: parseMeasureNumber(item.val),
+      timestamp: getItemTimestamp(item).valueOf(),
+    }))
+    .filter((entry): entry is { value: number; timestamp: number } => (
+      entry.value != null && entry.value > 0
+    ))
+    .sort((left, right) => left.timestamp - right.timestamp);
+
+  const calendarTodayItems = todayItems.filter(item => {
+    const date = item.customerLocalDate?.trim();
+    if (date) return date === todayDate;
+    return getItemTimestamp(item).format('YYYY-MM-DD') === todayDate;
+  });
+
+  const todayEntries = toEntries(calendarTodayItems);
+  const avgText = todayEntries.length
+    ? formatWeightOverviewNumber(
+      todayEntries.reduce((sum, entry) => sum + entry.value, 0) / todayEntries.length,
+    )
+    : '--';
+
+  const latestTwo = toEntries(latestTwoItems);
+  let changeText = '--';
+  if (latestTwo.length >= 2) {
+    const latest = latestTwo[latestTwo.length - 1].value;
+    const previous = latestTwo[latestTwo.length - 2].value;
+    changeText = formatSignedWeightDiff(Number((latest - previous).toFixed(2)));
+  }
+
+  if (avgText === '--' && changeText === '--') return empty;
+
+  return {
+    changeText,
+    avgText,
   };
 }
 
@@ -601,18 +677,20 @@ export function calcWeightDetailStats(
   const min = Math.min(...values);
   const max = Math.max(...values);
   const bmiValues = sourceItems
-    .map(item => calcBmiFromWeight(parseMeasureNumber(item.val), heightCm))
+    .map(item => resolveItemBmi(item, heightCm))
     .filter((value): value is number => value != null && value > 0);
 
   return {
-    rangeText: min === max ? min.toFixed(1) : `${min.toFixed(1)}-${max.toFixed(1)}`,
+    rangeText: min === max ? formatGoalWeightValue(min) : `${formatGoalWeightValue(min)}-${formatGoalWeightValue(max)}`,
     recordCount: sourceItems.length,
     bmiText: bmiValues.length
       ? (() => {
-          const bmiMin = Math.min(...bmiValues);
-          const bmiMax = Math.max(...bmiValues);
-          return bmiMin === bmiMax ? bmiMin.toFixed(1) : `${bmiMin.toFixed(1)}-${bmiMax.toFixed(1)}`;
-        })()
+        const bmiMin = Math.min(...bmiValues);
+        const bmiMax = Math.max(...bmiValues);
+        return bmiMin === bmiMax
+          ? String(Number(bmiMin.toFixed(1)))
+          : `${String(Number(bmiMin.toFixed(1)))}-${String(Number(bmiMax.toFixed(1)))}`;
+      })()
       : '--',
   };
 }
