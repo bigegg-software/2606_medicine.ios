@@ -81,17 +81,115 @@ const styles = StyleSheet.create({
     color: "#999",
   },
   tabSize: { width: 58, height: 22 },
-  logout: { marginTop: 10, backgroundColor: "#FFFFFF", shadowColor: "#0C3D9A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, borderRadius: 8, height: 51, borderRadius: 30, alignItems: 'center' },
+  logout: { marginTop: 10, backgroundColor: "#FFFFFF", shadowColor: "#0C3D9A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, height: 51, borderRadius: 30, alignItems: 'center' },
   logoutText: { color: '#333333', fontSize: 17, fontWeight: '600' },
-
-
-
-
-
-
-
-
-
+  signInOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 48,
+  },
+  signInWrap: {
+    width: 278,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  imgModel: {
+    width: 120,
+    height: 130,
+    position: 'absolute',
+    top: -65,
+    left: '50%',
+    marginLeft: -60,
+    zIndex: 2,
+  },
+  imgModel1: {
+    width: 230,
+    height: 13
+  },
+  signInBox: {
+    width: 278,
+    borderRadius: 15,
+    alignItems: 'center',
+    paddingTop: 28,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    overflow: 'visible',
+  },
+  signInIcon: {
+    width: 48,
+    height: 48,
+    marginTop: 12,
+  },
+  signInTitleMask: {
+    marginTop: 35,
+    width: 206,
+    height: 25,
+  },
+  signInTitleGradient: {
+    flex: 1,
+  },
+  signInTitle: {
+    width: 206,
+    height: 25,
+    fontFamily: 'Douyin Sans',
+    fontWeight: 'bold',
+    fontSize: 22,
+    lineHeight: 25,
+    textAlign: 'center',
+    color: '#000000',
+  },
+  signInTitleHidden: {
+    opacity: 0,
+  },
+  signInReward: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+  },
+  signInRewardNum: {
+    fontWeight: 'bold',
+    fontSize: 28,
+    color: '#6D925E',
+  },
+  signInRewardUnit: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#6D925E',
+  },
+  signInTip: {
+    marginTop: 10,
+    paddingHorizontal:10,
+    lineHeight:20,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#333333',
+    textAlign: 'center',
+  },
+  signInConfirmBtnWrap: {
+    marginTop: 15,
+    width: 217,
+    height: 44,
+    borderRadius: 25,
+    shadowColor: '#6D925E',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.4,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  signInConfirmBtn: {
+    width: 217,
+    height: 44,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  signInConfirmText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
 
   card: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 16, padding: 16, borderWidth: 1, borderColor: AppTheme.borderColor, marginBottom: 16 },
   phone: { fontSize: 14, color: AppTheme.textSecondary, marginTop: 4 },
