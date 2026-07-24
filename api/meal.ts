@@ -29,17 +29,21 @@ export type MealRecordDetail = {
 export type MealExecutionTrendItem = {
   date?: string;
   energyRate?: number;
-  waterRate?: number;
   proteinRate?: number;
+  carbsRate?: number;
+  fatRate?: number;
+  waterRate?: number;
 };
 
 export type MealExecutionStatistics = {
-  trendList?: MealExecutionTrendItem[];
-  waterComplianceRate?: number;
-  statDayCount?: number;
-  proteinComplianceRate?: number;
   executionRate?: number;
   calorieComplianceRate?: number;
+  proteinComplianceRate?: number;
+  carbsComplianceRate?: number;
+  fatComplianceRate?: number;
+  waterComplianceRate?: number;
+  statDayCount?: number;
+  trendList?: MealExecutionTrendItem[];
 };
 
 export type MealAllRecordDayItem = {

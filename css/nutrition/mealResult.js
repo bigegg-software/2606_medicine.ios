@@ -181,6 +181,7 @@ const styles = StyleSheet.create({
         color: '#666666',
     },
     macroValue: {
+        width: 60,
         fontWeight: 'bold',
         fontSize: 14,
         color: '#333333',
@@ -194,6 +195,24 @@ const styles = StyleSheet.create({
     iconImageBack: {
         width: 75,
         height: 75,
+    },
+    headerTimeBtn: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 25,
+        borderWidth: 1,
+        borderColor: '#E7EAEB',
+        paddingHorizontal: 16,
+        paddingVertical: 6,
+    },
+    headerTimeText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#333333',
+    },
+    headerTimeIcon: {
+        width: 12,
+        height: 12,
+        marginLeft: 8
     },
     image: { width: 60, height: 60 },
     title: {
@@ -265,7 +284,7 @@ const styles = StyleSheet.create({
     },
     foodDetailDivider: {
         marginVertical: 20,
-        width:"100%",
+        width: "100%",
         height: 1,
         backgroundColor: 'rgba(23,63,125,0.08)',
     },
@@ -317,7 +336,7 @@ const styles = StyleSheet.create({
     csText: {
         fontWeight: '500',
         fontSize: 13,
-        marginLeft: 4,
+        marginLeft: 8,
         color: '#000000',
     },
     mealPeriodRow: {
@@ -326,7 +345,7 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     mealPeriodChip: {
-        paddingHorizontal: 8,
+        paddingHorizontal: 16,
         paddingVertical: 4,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -336,7 +355,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     mealPeriodChipActive: {
-        borderColor: '#4F86EE',
+        borderColor: '#6D925E',
     },
     primaryBtn: {
         marginTop: 4,

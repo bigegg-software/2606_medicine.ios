@@ -69,9 +69,10 @@ const navList = [
   },
   {
     img: require('@/assets/images/user/img5.png'),
-    label: '营养处方',
-    route: 'Medication' as const,
-    params: { tab: 'meal' as const },
+    label: '饮食列表',
+    // route: 'Medication' as const,
+    route: 'FoodRecordingPage' as const,
+    // params: { tab: 'meal' as const },
   },
   {
     img: require('@/assets/images/user/img4.png'),

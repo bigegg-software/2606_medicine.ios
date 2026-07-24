@@ -11,6 +11,16 @@ export type DietRestriction = {
     limitValue?: string;
 };
 
+export type DietMealFoodItem = {
+    foodName?: string;
+    calories?: number;
+    protein?: number;
+    carbs?: number;
+    fat?: number;
+    amount?: number;
+    unit?: string;
+};
+
 export type DietMealItem = {
     day?: number | string;
     mealCategory?: number | string;
@@ -20,15 +30,83 @@ export type DietMealItem = {
     carbs?: number;
     fat?: number;
     remark?: string;
+    foodList?: DietMealFoodItem[];
+};
+
+export type DietPatientUserBaseInfo = {
+    userId?: number | string;
+    avatarOssId?: number;
+    avatarOssUrl?: string;
+    name?: string;
+    gender?: string;
+    age?: number;
+    birthDate?: string;
+    height?: number;
+    weight?: number;
+    primaryDiagnosis?: string;
+    diagnosticLabel?: string;
+    riskLevel?: number;
+    dailyActivityLevel?: string;
+};
+
+export type NutritionMacronutrientRatios = {
+    carbohydrates?: string;
+    protein?: string;
+    fat?: string;
+};
+
+export type NutritionIntakeResult = {
+    base_total_calories?: number;
+    diet_calories?: number;
+    carbs_g?: number;
+    protein_g?: number;
+    fat_g?: number;
+    diet_mode_code?: string;
+    recommended_diet_applied?: string;
+    macronutrient_ratios?: NutritionMacronutrientRatios;
+};
+
+export type NutritionMedicalReport = {
+    risk_monitoring_plan?: string;
+    medication_regimen_analysis?: string;
+};
+
+export type NutritionDietaryAdviceItem = {
+    category?: string;
+    advice_points?: string;
+};
+
+export type NutritionMacronutrientRecommendation = {
+    nutrient_name?: string;
+    recommended_remark?: string;
+    recommended_foods?: string;
+};
+
+export type NutritionLifestyleReport = {
+    strategy_and_goals?: string;
+    energy_paragraph?: string;
+    exercise_advice?: string;
+    detailed_dietary_advice?: NutritionDietaryAdviceItem[];
+    macronutrient_recommendations?: NutritionMacronutrientRecommendation[];
+};
+
+export type NutritionPersonReportResult = {
+    medical_report?: NutritionMedicalReport;
+    lifestyle_report?: NutritionLifestyleReport;
+    nutrition_intake?: NutritionIntakeResult;
+    recommended_diet?: string;
+    diet_selection_reasoning?: string;
 };
 
 export type DietPatientRuleInfo = {
     dietPatientRuleId?: number;
     patientUserId?: number | string;
     patientUserName?: string;
-    patientUserBaseInfo?: Record<string, unknown>;
+    patientUserBaseInfo?: DietPatientUserBaseInfo;
     prescriptionName?: string;
     diagnosis?: string;
+    diagnosticLabel?: string;
+    dailyActivityLevel?: string;
     startDate?: string;
     endDate?: string;
     dietTemplateId?: number;
@@ -36,11 +114,16 @@ export type DietPatientRuleInfo = {
     proteinPerKg?: number;
     waterPerKg?: number;
     fatPercent?: number;
+    proteinPercent?: number;
     carbsPercent?: number;
     recommendedIntake?: DietRecommendedIntake[];
     restrictions?: DietRestriction[];
     mealList?: DietMealItem[];
     precautions?: string;
+    primaryHealthGoal?: string;
+    secondaryHealthGoal?: string;
+    dietaryPreferences?: string;
+    nutritionPersonReportResult?: NutritionPersonReportResult;
     status?: number;
     stopReason?: string;
     targetCalories?: number;
@@ -48,6 +131,7 @@ export type DietPatientRuleInfo = {
     targetWater?: number;
     targetCarbs?: number;
     targetFat?: number;
+    version?: number;
     createBy?: number;
     createByName?: string;
     createTime?: string;
@@ -57,6 +141,12 @@ export type DietPatientRuleInfoResult = ApiResult<DietPatientRuleInfo>;
 
 export const getInUseDietPatientRuleInfo = () =>
     request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getInUseInfo');
+
+/** 按指定日期查询用餐处方快照 */
+export const getDietPatientRuleSnapshotByDate = (params: { customerLocalDate: string }) =>
+    request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getSnapshotByDate', {
+        params,
+    });
 
 export type DietAiAdviceData = {
     aiAdvice?: string[];
@@ -93,3 +183,14 @@ export type DietAiMakeMealListResult = ApiResult<DietAiMakeMealListData>;
 /** AI 一键生成周一到周日的餐食安排 */
 export const postDietPatientRuleAiMakeMealList = (payload: DietAiMakeMealListPayload) =>
     request.post<DietAiMakeMealListResult>('/patient/dietPatientRule/aiMakeMealList', payload);
+
+export type DietAiMakeOneDayMealResult = ApiResult<DietMealItem[]>;
+
+/** AI 换一换：仅生成并更新指定星期（day）的餐食安排 */
+export const getDietPatientRuleAiMakeOneDayMeal = (params: {
+    dietPatientRuleId: string;
+    day: number;
+}) =>
+    request.get<DietAiMakeOneDayMealResult>('/patient/dietPatientRule/aiMakeOneDayMeal', {
+        params,
+    });

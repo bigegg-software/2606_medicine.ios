@@ -81,3 +81,11 @@ export const getMealDetailInfo = (mealDetailId: number) =>
 
 export const addMealDetailList = (payload: AddMealDetailListPayload) =>
     request.post<ApiResult>('/patient/fitpulse/mealDetail/addMealDetailList', payload);
+
+export type CaloriesToFoodEquivResult = ApiResult<string>;
+
+/** 根据卡路里换算约等于多少常见食物（AI） */
+export const getCaloriesToFoodEquiv = (params: { calories: number }) =>
+    request.get<CaloriesToFoodEquivResult>('/patient/fitpulse/mealDetail/caloriesToFoodEquiv', {
+        params,
+    });

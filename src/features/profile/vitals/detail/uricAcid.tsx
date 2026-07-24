@@ -203,26 +203,21 @@ export default function UricAcidPage() {
                         <Text style={styles.btmText}>最近10次测量</Text>
                     </View>
                 </ScrollView>
-                <Flex
-                    justify="between"
-                    style={[
-                        styles.bottomBar,
-                        { height: 100, paddingBottom: insets.bottom },
-                    ]}
-                >
+                <View style={styles.bottomBar}>
                     <TouchableOpacity
-                        style={[styles.bottomBarButtonLeft, { flex: 1 }]}
+                        style={styles.bottomBarButtonLeft}
+                        activeOpacity={0.7}
                         onPress={navigateToAddData}
                     >
-                        <Flex justify="center" style={{ flex: 1 }}>
+                        <Flex style={{ flex: 1 }}>
                             <Image
                                 style={styles.bottomBarButtonImg}
-                                source={require('@/assets/images/vitals/add.png')}
+                                source={require('@/assets/images/vitals/icon_add.png')}
                             />
                             <Text style={styles.bottomBarButtonTextLeft}>添加记录</Text>
                         </Flex>
                     </TouchableOpacity>
-                </Flex>
+                </View>
             </View>
             {menuModals}
         </PageLayout>

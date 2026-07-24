@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import styles from '@/css/nutrition/recognition';
 import type { RootStackParamList } from '@/route/router';
+import { pickMealImageFromLibrary } from './utils/recognitionHelpers';
 
 export default function MealRecognitionPage() {
     const navigation = useNavigation<any>();
@@ -19,6 +20,7 @@ export default function MealRecognitionPage() {
     const [isCapturing, setIsCapturing] = useState(false);
     const [tipVisible, setTipVisible] = useState(false);
     const [alertVisible, setAlertVisible] = useState(false);
+    const [pickingAlbum, setPickingAlbum] = useState(false);
 
     const initCamera = useCallback(async () => {
         try {
@@ -55,7 +57,9 @@ export default function MealRecognitionPage() {
     }, [initCamera, isFocused]);
 
     const takePicture = async () => {
-        if (!cameraRef.current || isCapturing || !cameraReady || !permission?.granted) return;
+        if (!cameraRef.current || isCapturing || pickingAlbum || !cameraReady || !permission?.granted) {
+            return;
+        }
 
         try {
             setIsCapturing(true);
@@ -68,6 +72,28 @@ export default function MealRecognitionPage() {
         } catch {
             setIsCapturing(false);
             Toast.fail('拍照失败');
+        }
+    };
+
+    const pickFromAlbum = async () => {
+        if (isCapturing || pickingAlbum) return;
+
+        setPickingAlbum(true);
+        try {
+            const file = await pickMealImageFromLibrary();
+            if (!file) return;
+
+            setIsCapturing(true);
+            navigation.replace('MealRecognizingPage', {
+                mode: 'image',
+                imageUri: file.uri,
+                text: recognizeText,
+            });
+        } catch {
+            setIsCapturing(false);
+            Toast.fail('选择图片失败');
+        } finally {
+            setPickingAlbum(false);
         }
     };
 
@@ -137,7 +163,12 @@ export default function MealRecognitionPage() {
                 >
                     <Image style={styles.shutterBtn} source={require('@/assets/images/camara/camara.png')} />
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.albumBtn} onPress={() => { }}>
+                <TouchableOpacity
+                    style={styles.albumBtn}
+                    onPress={pickFromAlbum}
+                    disabled={isCapturing || pickingAlbum}
+                    activeOpacity={0.8}
+                >
                     <Image
                         style={styles.albumIcon}
                         source={require('@/assets/images/camara/image.png')}

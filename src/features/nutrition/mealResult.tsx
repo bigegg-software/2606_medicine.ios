@@ -68,8 +68,29 @@ export default function MealResultPage() {
     }, []);
 
     useEffect(() => {
-        navigation.setOptions({ gestureEnabled: false });
-    }, [navigation]);
+        navigation.setOptions({
+            gestureEnabled: false,
+            headerTitle: () => (
+                <Picker
+                    data={TIME_PICKER_DATA}
+                    cols={2}
+                    cascade={false}
+                    value={parseTimeValue(recordTime)}
+                    onOk={values => {
+                        const hour = String(Number(values[0])).padStart(2, '0');
+                        const minute = String(Number(values[1])).padStart(2, '0');
+                        setRecordTime(`${hour}:${minute}`);
+                    }}>
+                    <TouchableOpacity activeOpacity={0.7} style={styles.headerTimeBtn}>
+                        <Flex>
+                            <Text style={styles.headerTimeText}>添加记录:{recordTime}</Text>
+                            <Image style={styles.headerTimeIcon} source={require('@/assets/images/vitals/icon_sj.png')} />
+                        </Flex>
+                    </TouchableOpacity>
+                </Picker>
+            ),
+        });
+    }, [navigation, recordTime]);
 
     // 图片识别：补充其他营养元素；文字识别不请求
     useEffect(() => {
@@ -280,7 +301,7 @@ export default function MealResultPage() {
                                                     state,
                                                     recordTime,
                                                     onSave: applyCorrection,
-                                                onDelete: deleteFood,
+                                                    onDelete: deleteFood,
                                                 });
                                             }}>
                                             <Flex

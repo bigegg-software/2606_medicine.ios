@@ -2,13 +2,18 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, View, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import SwipeDeleteRow, { closeActiveSwipeRow } from '@/src/features/profile/healthRecord/components/SwipeDeleteRow';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Picker } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import moment from 'moment';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/vitals/all';
 import { buildAllDataWeekDays } from './utils/allDataCalendarHelpers';
+import {
+  buildWearableStatusFilterPickerData,
+  filterWearableRecordsByStatus,
+  WEARABLE_STATUS_FILTER_ALL,
+} from './utils/allDataFilterHelpers';
 import {
   getMeasureDataDetailByDate,
   type MeasureDataDetailResult,
@@ -42,6 +47,7 @@ import {
   resolveStepTarget,
 } from './detail/helpers/vitalsGoalTargets';
 import { buildAllDataSleepCardData } from './allDataSleepHelpers';
+import SleepPieChart from '@/src/features/profile/components/SleepPieChart';
 import {
   buildEnergyGoalSummaryCardData,
   buildStepsGoalSummaryCardData,
@@ -559,7 +565,6 @@ function MeasureRecordCard({
         <Flex justify="between" align="center" style={styles.mapItemMain}>
           {type === '血脂' ? (
             <View style={styles.mapItemLeft}>
-              <Text style={styles.mapItemText}>{type}</Text>
               {LIPID_METRIC_ROWS.map(row => {
                 const raw = Number(row.getValue(item));
                 const hasValue = Number.isFinite(raw);
@@ -567,16 +572,26 @@ function MeasureRecordCard({
                 return (
                   <Flex key={row.key} justify="between" align="center" style={styles.lipidMetricRow}>
                     <Text style={styles.lipidMetricLabel}>{row.label}</Text>
-                    <Flex align="center">
-                      <Flex align="baseline">
+                    <Flex align="center" justify="end" style={styles.lipidMetricRight}>
+                      <Flex align="baseline" justify="end">
                         <Text style={styles.lipidMetricValue}>{formatLipidValue(row.getValue(item))}</Text>
                         <Text style={styles.lipidMetricUnit}>{MEASURE_UNITS[type]}</Text>
                       </Flex>
-                      {statusLabel ? (
-                        <Text style={[styles.lipidMetricStatus, { color: getLevelColor(statusLabel) }]}>
-                          {statusLabel}
-                        </Text>
-                      ) : null}
+                      <View style={styles.lipidMetricStatusWrap}>
+                        {statusLabel ? (
+                          <Text
+                            style={[
+                              styles.lipidMetricStatus,
+                              {
+                                color: getLevelColor(statusLabel),
+                                borderColor: getLevelColor(statusLabel),
+                              },
+                            ]}
+                          >
+                            {statusLabel}
+                          </Text>
+                        ) : null}
+                      </View>
                     </Flex>
                   </Flex>
                 );
@@ -735,46 +750,74 @@ function SleepRecordCard({ item }: { item?: WearableDataItem }) {
   if (!cardData) return null;
 
   return (
-    <View style={styles.mapBox}>
-      <Flex justify="between">
-        <Flex>
-          <Image source={require('@/assets/images/vitals/sleep.png')} style={styles.mapIcon} />
-          <Text style={styles.mapTime}>睡眠状态</Text>
-        </Flex>
-        <Text style={styles.mapTime}>{cardData.timeRange}</Text>
+    <View>
+      <Flex style={styles.sleepSummaryRow}>
+        <View style={[styles.sleepSummaryCard, styles.sleepSummaryCardFlex]}>
+          <Text style={styles.sleepSummaryTitle}>睡眠时长</Text>
+          <Text style={styles.sleepSummaryValue}>{cardData.duration}</Text>
+        </View>
+        <View style={[styles.sleepSummaryCard, styles.sleepSummaryCardFlex, styles.sleepSummaryCardGap]}>
+          <Text style={styles.sleepSummaryTitle}>睡眠区间</Text>
+          <Text style={styles.sleepSummaryValue}>{cardData.timeRange}</Text>
+        </View>
       </Flex>
-      <Flex justify="between">
-        <Text style={styles.mapItemLeftText}>{cardData.duration}</Text>
-        <Flex align="end">
-          <Text style={styles.mapItemLeftText}>{cardData.scoreText}</Text>
-          <Text style={styles.mapItemLeftUnit}>分</Text>
-        </Flex>
-      </Flex>
-      <Flex justify="between" style={{ marginTop: 8 }}>
-        <Text style={styles.mapItemLeftUnit}>睡眠时长</Text>
-        <Text style={[styles.mapItemLeftUnit, { color: cardData.statusColor }]}>
-          {cardData.statusLabel}
-        </Text>
-      </Flex>
-      <View style={styles.sleepStageSection}>
-        {cardData.stages.map(stage => (
-          <Flex key={stage.key} style={styles.sleepStageRow}>
-            <Text style={styles.sleepStageLabel}>{stage.label}</Text>
-            <View style={styles.sleepStageTrack}>
+
+      {cardData.stages.length > 0 ? (
+        <View style={styles.sleepStageCard}>
+          <Flex justify="between" align="center" style={styles.sleepStageHeader}>
+            <Flex align="center">
+              <Image
+                style={styles.sleepStageHeaderIcon}
+                source={require('@/assets/images/vitals/icon_sleep.png')}
+              />
+              <Text style={styles.sleepStageHeaderTitle}>睡眠状态</Text>
+            </Flex>
+
+            {cardData.statusLabel && cardData.statusLabel !== '--' ? (
               <View
                 style={[
-                  styles.sleepStageFill,
-                  {
-                    width: `${stage.percent}%`,
-                    backgroundColor: stage.color,
-                  },
+                  styles.sleepStageStatusBadge,
+                  { borderColor: cardData.statusColor },
                 ]}
-              />
-            </View>
-            <Text style={styles.sleepStageDuration}>{stage.duration}</Text>
+              >
+                <Text style={[styles.sleepStageStatusText, { color: cardData.statusColor }]}>
+                  {cardData.statusLabel}
+                </Text>
+              </View>
+            ) : null}
           </Flex>
-        ))}
-      </View>
+
+          <Flex style={{ marginTop: 21 }} align="end">
+            <Text style={styles.sleepStageDurationValue}>{cardData.scoreText}</Text>
+            <Text style={styles.sleepStageDurationUnit}>分</Text>
+          </Flex>
+          <View style={styles.lineBox} />
+          <Flex style={styles.sleepAnalysisBody}>
+            <View style={styles.sleepPieWrap}>
+              <SleepPieChart
+                data={cardData.pieSegments}
+                size={90}
+                ringWidth={12}
+                showCenterLabel
+              />
+              <View style={styles.sleepPieCenterLabelWrap} pointerEvents="none">
+                <Text style={styles.sleepPieCenterLabel}>睡眠{'\n'}分布</Text>
+              </View>
+            </View>
+            <View style={styles.sleepAnalysisLegend}>
+              {cardData.stages.map((stage, index) => (
+                <Flex key={stage.key} style={[styles.sleepAnalysisLegendRow, index == 0 && { marginTop: 0 }]}>
+                  <Flex style={styles.sleepAnalysisLegendLabel}>
+                    <View style={[styles.sleepStageDot, { backgroundColor: stage.color }]} />
+                    <Text style={styles.sleepAnalysisLegendLabelText}>{stage.label}</Text>
+                  </Flex>
+                  <Text style={styles.sleepAnalysisLegendValue}>{stage.duration}</Text>
+                </Flex>
+              ))}
+            </View>
+          </Flex>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -870,8 +913,10 @@ export default function AllDataPage({ route }: Props) {
   const isSleepType = measureType === '睡眠';
   const isGoalSummaryType = isEnergyType || measureType === '步数';
   const canDeleteWearableRecord = measureType === '心率' || measureType === '血氧';
+  const showFilterButton = measureType === '血氧' || measureType === '心率';
   const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率' | '步数'];
   const isWearableType = Boolean(wearableConfig) || isEnergyType || isSleepType;
+  const showAddButton = !isWearableType;
   const navigation = useNavigation<Nav>();
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
   const [records, setRecords] = useState<MeasureDataItem[]>([]);
@@ -880,11 +925,28 @@ export default function AllDataPage({ route }: Props) {
   const [goalSummary, setGoalSummary] = useState<AllDataGoalSummaryCardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState(WEARABLE_STATUS_FILTER_ALL);
   const weekDays = useMemo(() => buildAllDataWeekDays(selectedDate), [selectedDate]);
   const monthLabel = useMemo(
     () => moment(selectedDate, 'YYYY-MM-DD').format('YYYY年M月'),
     [selectedDate],
   );
+
+  const filteredWearableRecords = useMemo(
+    () => (showFilterButton ? filterWearableRecordsByStatus(wearableRecords, statusFilter) : wearableRecords),
+    [showFilterButton, statusFilter, wearableRecords],
+  );
+
+  const filterPickerData = useMemo(
+    () => (showFilterButton
+      ? buildWearableStatusFilterPickerData(measureType as '血氧' | '心率', wearableRecords)
+      : []),
+    [measureType, showFilterButton, wearableRecords],
+  );
+
+  useEffect(() => {
+    setStatusFilter(WEARABLE_STATUS_FILTER_ALL);
+  }, [measureType, selectedDate]);
 
   const goToday = useCallback(() => {
     setSelectedDate(moment().format('YYYY-MM-DD'));
@@ -898,21 +960,37 @@ export default function AllDataPage({ route }: Props) {
     setSelectedDate(prev => moment(prev, 'YYYY-MM-DD').add(1, 'week').format('YYYY-MM-DD'));
   }, []);
 
+  const onPressAdd = useCallback(() => {
+    navigation.navigate('AddDataPage', { type: measureType as MeasureDataType });
+  }, [measureType, navigation]);
+
   useEffect(() => {
     navigation.setOptions({
       title: PAGE_TITLES[measureType],
-      headerRight: isWearableType
-        ? undefined
-        : () => (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={{ marginRight: 16 }}
-            onPress={() => navigation.navigate('AddDataPage', { type: measureType as MeasureDataType })}>
-            <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>新增记录</Text>
-          </TouchableOpacity>
-        ),
+      headerRight: showFilterButton
+        ? () => (
+          <Picker
+            data={filterPickerData}
+            cols={1}
+            value={[statusFilter]}
+            onOk={values => {
+              const next = String(values[0] ?? WEARABLE_STATUS_FILTER_ALL);
+              setStatusFilter(next || WEARABLE_STATUS_FILTER_ALL);
+            }}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={{ marginRight: 16 }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Image
+                style={{ width: 24, height: 24 }}
+                source={require('@/assets/images/vitals/icon_filtering.png')}
+              />
+            </TouchableOpacity>
+          </Picker>
+        )
+        : undefined,
     });
-  }, [isWearableType, measureType, navigation]);
+  }, [filterPickerData, measureType, navigation, showFilterButton, statusFilter]);
 
   const loadRecords = useCallback(async () => {
     setLoading(true);
@@ -1080,9 +1158,9 @@ export default function AllDataPage({ route }: Props) {
   }, []);
 
   return (
-    <PageLayout style={styles.container} showHeaderBackground={false}>
+    <PageLayout style={styles.container} showHeaderBackground={false} edges={showAddButton ? [] : undefined}>
       <ScrollView
-        contentContainerStyle={styles.body}
+        contentContainerStyle={[styles.body, showAddButton && styles.bodyWithBottomBar]}
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={handleScrollBegin}>
         <View style={styles.calendarBox}>
@@ -1147,10 +1225,16 @@ export default function AllDataPage({ route }: Props) {
           : isGoalSummaryType
             ? !goalSummary && wearableRecords.length === 0
             : isWearableType
-              ? wearableRecords.length === 0
+              ? (showFilterButton ? filteredWearableRecords : wearableRecords).length === 0
               : records.length === 0) ? (
           <View style={styles.emptyBox}>
-            <Text style={styles.emptyText}>暂无记录</Text>
+            <Text style={styles.emptyText}>
+              {showFilterButton
+                && wearableRecords.length > 0
+                && filteredWearableRecords.length === 0
+                ? '暂无符合筛选的记录'
+                : '暂无记录'}
+            </Text>
           </View>
         ) : null}
 
@@ -1159,7 +1243,7 @@ export default function AllDataPage({ route }: Props) {
         ) : isWearableType ? (
           <>
             {goalSummary ? <GoalSummaryCard data={goalSummary} /> : null}
-            {wearableRecords.map(item => {
+            {(showFilterButton ? filteredWearableRecords : wearableRecords).map(item => {
               const card = (
                 <WearableRecordCard
                   item={item}
@@ -1203,6 +1287,20 @@ export default function AllDataPage({ route }: Props) {
           })
         )}
       </ScrollView>
+
+      {showAddButton ? (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.primaryBtn} activeOpacity={0.7} onPress={onPressAdd}>
+            <Flex style={{ flex: 1 }}>
+              <Image
+                style={styles.primaryBtnIcon}
+                source={require('@/assets/images/vitals/icon_add.png')}
+              />
+              <Text style={styles.primaryBtnText}>添加记录</Text>
+            </Flex>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </PageLayout>
   );
 }

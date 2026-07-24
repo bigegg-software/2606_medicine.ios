@@ -53,7 +53,7 @@ export const MEAL_PERIOD_OPTIONS: ReadonlyArray<{
     { category: 1, label: '早餐', icon: require('@/assets/images/meal/zc.png') },
     { category: 2, label: '中餐', icon: require('@/assets/images/meal/zzc.png') },
     { category: 3, label: '晚餐', icon: require('@/assets/images/meal/wc.png') },
-    { category: 4, label: '加餐', icon: require('@/assets/images/meal/jc.png') },
+    // { category: 4, label: '加餐', icon: require('@/assets/images/meal/jc.png') },
 ];
 
 export const TIME_PICKER_DATA = [

@@ -321,7 +321,7 @@ export default function MedicationAllPage() {
 
     return (
         <PageLayout style={styles.container} contentStyle={styles.pageBody}>
-            <Flex justify="center" style={styles.navBox}>
+            {/* <Flex justify="center" style={styles.navBox}>
                 {ALL_MEDICATION_TABS.map(item => (
                     <TouchableOpacity
                         style={styles.navCol}
@@ -339,7 +339,7 @@ export default function MedicationAllPage() {
                         </View>
                     </TouchableOpacity>
                 ))}
-            </Flex>
+            </Flex> */}
 
             {isInitialLoading ? (
                 <View style={styles.center}>

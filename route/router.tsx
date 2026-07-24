@@ -58,6 +58,7 @@ import QuestionnaireTestingRecordPage from '@/src/features/schedule/testing/ques
 // 营养处方新
 import NutritionPage from '@/src/features/nutrition';
 import MealRecognizingPage from '@/src/features/nutrition/mealRecognizing';
+import FoodRecordingPage from '@/src/features/nutrition/foodRecording';
 
 
 // 用药记录
@@ -209,6 +210,7 @@ export type RootStackParamList = {
   MealRecognizingPage:
   | { mode: 'text'; text: string }
   | { mode: 'image'; imageUri: string; text?: string };
+  FoodRecordingPage: undefined;
   ManualCorrectionPage: {
     itemIndex: number;
     item: import('@/api/mealRecognition').FoodIdentifyItem;
@@ -450,7 +452,8 @@ export default function RootStack() {
       <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
       <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', headerShown: false, statusBarStyle: 'light' }} />
       <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别', showHeaderBackground: false }} />
-      <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '记录饮食', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="FoodRecordingPage" component={FoodRecordingPage} options={{ title: '饮食记录', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="AssistantPage" component={AssistantPage} options={{ title: 'AI健康管家' }} />

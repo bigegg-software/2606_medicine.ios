@@ -10,6 +10,12 @@ export type DietWeekDayItem = {
   day: number;
 };
 
+export type DietCalendarDayCell = {
+  key: string;
+  day: number;
+  inCurrentMonth: boolean;
+};
+
 export function buildDietWeekDays(anchor: Moment | string = moment()): DietWeekDayItem[] {
   const start = moment(anchor).startOf('isoWeek');
   return Array.from({ length: 7 }, (_, index) => {
@@ -21,4 +27,70 @@ export function buildDietWeekDays(anchor: Moment | string = moment()): DietWeekD
       day: date.date(),
     };
   });
+}
+
+/** 当月实际周数（周一开头，4~6） */
+export function getDietMonthWeekCount(month: string): number {
+  const [yearText, monthText] = month.split('-');
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const firstWeekday = new Date(year, monthIndex, 1).getDay();
+  const startPad = (firstWeekday + 6) % 7;
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  return Math.ceil((startPad + daysInMonth) / 7);
+}
+
+/** 周一开头的月历网格（仅当月日期，按实际周数） */
+export function buildDietMonthCells(month: string): DietCalendarDayCell[] {
+  const [yearText, monthText] = month.split('-');
+  const year = Number(yearText);
+  const monthIndex = Number(monthText) - 1;
+  const firstWeekday = new Date(year, monthIndex, 1).getDay();
+  const startPad = (firstWeekday + 6) % 7;
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const weekCount = Math.ceil((startPad + daysInMonth) / 7);
+  const cells: DietCalendarDayCell[] = [];
+
+  for (let index = 0; index < weekCount * 7; index += 1) {
+    const dayNum = index - startPad + 1;
+    if (dayNum < 1 || dayNum > daysInMonth) {
+      cells.push({
+        key: `pad-${month}-${index}`,
+        day: 0,
+        inCurrentMonth: false,
+      });
+      continue;
+    }
+    const dayText = dayNum < 10 ? `0${dayNum}` : String(dayNum);
+    cells.push({
+      key: `${month}-${dayText}`,
+      day: dayNum,
+      inCurrentMonth: true,
+    });
+  }
+
+  return cells;
+}
+
+export function buildDietMonthKeys(center: Moment | string, before = 6, after = 6): string[] {
+  const base = moment(center).startOf('month');
+  return Array.from({ length: before + after + 1 }, (_, index) =>
+    moment(base).add(index - before, 'month').format('YYYY-MM'),
+  );
+}
+
+export function shiftDietMonthKeys(keys: string[], direction: 'before' | 'after', count = 6): string[] {
+  if (keys.length === 0) return keys;
+  if (direction === 'before') {
+    const first = moment(keys[0], 'YYYY-MM');
+    const prepend = Array.from({ length: count }, (_, index) =>
+      moment(first).subtract(count - index, 'month').format('YYYY-MM'),
+    );
+    return [...prepend, ...keys];
+  }
+  const last = moment(keys[keys.length - 1], 'YYYY-MM');
+  const append = Array.from({ length: count }, (_, index) =>
+    moment(last).add(index + 1, 'month').format('YYYY-MM'),
+  );
+  return [...keys, ...append];
 }

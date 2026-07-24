@@ -19,6 +19,7 @@ import MiniSparkline from './components/MiniSparkline';
 import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
 import { fetchUserInfo } from '@/store/actions/user';
+// import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppDispatch, RootState } from '@/store/store';
 import { getInUseDietPatientRuleInfo, type DietMealItem, type DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
@@ -462,6 +463,10 @@ export default function HomeTab() {
     }, [loadExercisePrescription, loadMealData, loadVitalsData]),
   );
 
+  // useEffect(()=>{
+  //   AsyncStorage.setItem('token','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJhcHBfdXNlcjoyMDYxMjYyMTkzNDQyMjM4NDY2Iiwicm5TdHIiOiJidlZsRnA2aVpXMVZreEpkQk44TU13OGJJbFRiZktheSIsImNsaWVudGlkIjoiNTI4Y2ZlZDc0ODkyNDMzYjkyZjJhYzU1MTk4OTIwY3EtdXNlckFwcFNtcyIsInRlbmFudElkIjoiMDAwMDAwIiwidXNlcklkIjoyMDYxMjYyMTkzNDQyMjM4NDY2LCJ1c2VyTmFtZSI6IjE3NjAxNjM4MDIxIn0.BgYnMUWXvdXFJj_LF3hBr-PDHjfYz55Ry_PjuyJ_EDw');
+  //   AsyncStorage.setItem('clientId','528cfed74892433b92f2ac55198920cq-userAppSms');
+  // },[])
   const content = (
     <ScrollView style={[styles.scrollView, styles.scroll]}>
       <Image

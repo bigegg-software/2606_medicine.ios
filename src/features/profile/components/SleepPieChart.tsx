@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { View, Text, StyleSheet, type TextStyle } from 'react-native';
+import { View } from 'react-native';
 import * as echarts from 'echarts/core';
 import { PieChart } from 'echarts/charts';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
@@ -16,8 +16,8 @@ type Props = {
   data?: SleepPieSegment[];
   size?: number;
   ringWidth?: number;
+  /** 是否填充环心白色底 */
   showCenterLabel?: boolean;
-  centerLabelStyle?: TextStyle;
 };
 
 function getRingRadius(chartSize: number, ringWidth: number) {
@@ -77,7 +77,6 @@ export default function SleepPieChart({
   size = CHART_SIZE,
   ringWidth = DEFAULT_RING_WIDTH,
   showCenterLabel = false,
-  centerLabelStyle,
 }: Props) {
   const skiaRef = useRef<any>(null);
   const option = useMemo(
@@ -111,28 +110,6 @@ export default function SleepPieChart({
         style={{ width: size, height: size }}
         handleGesture={false}
       />
-      {showCenterLabel ? (
-        <View style={styles.centerLabelWrap} pointerEvents="none">
-          <Text style={[styles.centerLabelText, centerLabelStyle]}>
-            睡眠{'\n'}分布
-          </Text>
-        </View>
-      ) : null}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  centerLabelWrap: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  centerLabelText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-    color: '#999999',
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-});

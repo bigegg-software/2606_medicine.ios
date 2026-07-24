@@ -1,5 +1,6 @@
 import moment from 'moment';
 import type { WearableDataItem } from '@/api/wearableData';
+import type { SleepPieSegment } from '@/src/features/profile/components/SleepPieChart';
 import {
   formatSleepDuration,
   getSleepDurationMinutes,
@@ -10,10 +11,10 @@ import {
 import { buildSleepScoreSummary } from './detail/helpers/sleep';
 
 const ALL_DATA_SLEEP_STAGE_ROWS = [
-  { key: 'coreSleepTime', label: '浅睡', color: '#4F87EE' },
-  { key: 'deepSleepTime', label: '深睡', color: '#053A93' },
-  { key: 'remSleepTime', label: '快速眼动', color: '#FF8B07' },
-  { key: 'awakeSleepTime', label: '清醒', color: '#FECB4A' },
+  { key: 'awakeSleepTime', label: '清醒', color: '#CFC9FF' },
+  { key: 'remSleepTime', label: '快速眼动', color: '#C4B5FD' },
+  { key: 'coreSleepTime', label: '浅睡', color: '#8F85F5' },
+  { key: 'deepSleepTime', label: '深睡', color: '#5430C8' },
 ] as const;
 
 function parseClockHm(value?: string) {
@@ -47,6 +48,7 @@ export type AllDataSleepCardData = {
   statusLabel: string;
   statusColor: string;
   stages: AllDataSleepStageRow[];
+  pieSegments: SleepPieSegment[];
 };
 
 function formatSleepStageDuration(minutes: number) {
@@ -75,6 +77,7 @@ export function buildAllDataSleepCardData(item?: WearableDataItem): AllDataSleep
 
   const quality = getSleepQuality(item);
   const scoreSummary = buildSleepScoreSummary(item);
+  const colorByKey = new Map(ALL_DATA_SLEEP_STAGE_ROWS.map(row => [row.key, row.color]));
 
   return {
     timeRange: formatSleepTimeRange(item),
@@ -82,6 +85,13 @@ export function buildAllDataSleepCardData(item?: WearableDataItem): AllDataSleep
     scoreText: scoreSummary.scoreText,
     statusLabel: quality.label ? `状态${quality.label}` : '--',
     statusColor: quality.color,
+    pieSegments: segments.map((segment, index) => {
+      const stageKey = SLEEP_STAGE_CONFIG[index]?.key;
+      return {
+        ...segment,
+        color: (stageKey && colorByKey.get(stageKey)) || segment.color,
+      };
+    }),
     stages: ALL_DATA_SLEEP_STAGE_ROWS.map(row => {
       const minutes = minutesByKey.get(row.key) ?? 0;
       return {

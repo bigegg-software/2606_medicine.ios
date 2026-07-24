@@ -8,6 +8,9 @@ import {
   StyleSheet,
   TouchableOpacity,
   View,
+  type ImageSourcePropType,
+  type StyleProp,
+  type ViewStyle,
 } from 'react-native';
 import Reanimated, {
   type SharedValue,
@@ -18,6 +21,7 @@ import Reanimated, {
 import Voice from 'react-native-voice';
 import * as RNLocalize from 'react-native-localize';
 import { getRecordingPermissionsAsync, requestRecordingPermissionsAsync } from 'expo-audio';
+import { AppTheme } from '@/common/theme';
 
 export interface SpeechToTextRef {
   stopListening: () => Promise<void>;
@@ -29,14 +33,19 @@ interface SpeechToTextProps {
   onMicPress?: () => void;
   onListeningChange?: (listening: boolean) => void;
   disabled?: boolean;
+  idleIcon?: ImageSourcePropType;
+  activeIcon?: ImageSourcePropType;
+  iconSize?: number;
+  style?: StyleProp<ViewStyle>;
 }
 
 const SPEECH_ICON = require('@/assets/images/assistant/speech.png');
 const SPEECH_ACTIVE_ICON = require('@/assets/images/assistant/speech1.png');
-const RIPPLE_DURATION = 1800;
-const RIPPLE_DELAYS = [0, 600, 1200];
-const RIPPLE_MIN_SCALE = 0.55;
-const RIPPLE_MAX_SCALE = 1.85;
+const RIPPLE_COLOR = AppTheme.primaryColor;
+const RIPPLE_DURATION = 1600;
+const RIPPLE_DELAYS = [0, 520, 1040];
+const RIPPLE_MIN_SCALE = 0.9;
+const RIPPLE_MAX_SCALE = 2.35;
 const RIPPLE_SCALE_RANGE = RIPPLE_MAX_SCALE - RIPPLE_MIN_SCALE;
 
 const BENIGN_SPEECH_ERROR_CODES = new Set(['1110', '7', '216']);
@@ -52,7 +61,28 @@ function isBenignSpeechError(error: unknown): boolean {
   return BENIGN_SPEECH_ERROR_KEYWORDS.some(keyword => message.includes(keyword));
 }
 
-function RippleRings({ active }: { active: boolean }) {
+function hexToRgba(hex: string, alpha: number) {
+  const cleaned = hex.replace('#', '').trim();
+  const full = cleaned.length === 3
+    ? cleaned.split('').map(char => `${char}${char}`).join('')
+    : cleaned;
+  if (full.length !== 6) return `rgba(109,146,94,${alpha})`;
+  const value = Number.parseInt(full, 16);
+  const r = (value >> 16) & 255;
+  const g = (value >> 8) & 255;
+  const b = value & 255;
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function RippleRings({
+  active,
+  color,
+  size,
+}: {
+  active: boolean;
+  color: string;
+  size: number;
+}) {
   const elapsed = useSharedValue(0);
   const running = useSharedValue(false);
 
@@ -83,7 +113,13 @@ function RippleRings({ active }: { active: boolean }) {
   return (
     <>
       {RIPPLE_DELAYS.map(delay => (
-        <RippleRing key={delay} elapsed={elapsed} delay={delay} />
+        <RippleRing
+          key={delay}
+          elapsed={elapsed}
+          delay={delay}
+          color={color}
+          size={size}
+        />
       ))}
     </>
   );
@@ -92,20 +128,38 @@ function RippleRings({ active }: { active: boolean }) {
 function RippleRing({
   elapsed,
   delay,
+  color,
+  size,
 }: {
   elapsed: SharedValue<number>;
   delay: number;
+  color: string;
+  size: number;
 }) {
   const animatedStyle = useAnimatedStyle(() => {
     const phase = ((elapsed.value + delay) % RIPPLE_DURATION) / RIPPLE_DURATION;
+    const fade = 1 - phase;
     return {
-      opacity: (1 - phase) * 0.45,
+      opacity: fade * fade * 0.42,
       transform: [{ scale: RIPPLE_MIN_SCALE + phase * RIPPLE_SCALE_RANGE }],
     };
   });
 
   return (
-    <Reanimated.View pointerEvents="none" style={[styles.ripple, animatedStyle]} />
+    <Reanimated.View
+      pointerEvents="none"
+      style={[
+        styles.ripple,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderColor: color,
+          backgroundColor: hexToRgba(color, 0.1),
+        },
+        animatedStyle,
+      ]}
+    />
   );
 }
 
@@ -122,7 +176,20 @@ async function resetVoiceSession() {
 }
 
 const SpeechToText = forwardRef<SpeechToTextRef, SpeechToTextProps>(
-  ({ onTextChange, onStart, onMicPress, onListeningChange, disabled }, ref) => {
+  (
+    {
+      onTextChange,
+      onStart,
+      onMicPress,
+      onListeningChange,
+      disabled,
+      idleIcon = SPEECH_ICON,
+      activeIcon = SPEECH_ACTIVE_ICON,
+      iconSize = 28,
+      style,
+    },
+    ref,
+  ) => {
     const [isListening, setIsListening] = useState(false);
     const [language, setLanguage] = useState('zh-CN');
     const onTextChangeRef = useRef(onTextChange);
@@ -288,16 +355,26 @@ const SpeechToText = forwardRef<SpeechToTextRef, SpeechToTextProps>(
     };
 
     return (
-      <View style={styles.controls}>
-        {isListening && <RippleRings active={isListening} />}
+      <View style={[styles.controls, { width: Math.max(40, iconSize + 12), height: Math.max(40, iconSize + 12) }, style]}>
+        {isListening && (
+          <RippleRings
+            active={isListening}
+            color={RIPPLE_COLOR}
+            size={iconSize}
+          />
+        )}
         <TouchableOpacity
           onPress={handleMicPress}
           disabled={disabled}
           hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          style={styles.micButton}>
+          style={[styles.micButton, { width: iconSize, height: iconSize }]}>
           <Image
-            source={isListening ? SPEECH_ACTIVE_ICON : SPEECH_ICON}
-            style={[styles.micIcon, disabled && styles.micIconDisabled]}
+            source={isListening ? activeIcon : idleIcon}
+            style={[
+              styles.micIcon,
+              { width: iconSize, height: iconSize },
+              disabled && styles.micIconDisabled,
+            ]}
           />
         </TouchableOpacity>
       </View>
@@ -330,12 +407,7 @@ const styles = StyleSheet.create({
   },
   ripple: {
     position: 'absolute',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: '#053A93',
-    backgroundColor: 'rgba(5, 58, 147, 0.08)',
+    borderWidth: 1.2,
   },
 });
 
