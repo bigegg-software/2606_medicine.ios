@@ -73,6 +73,7 @@ export function getGoalTargetModalConfig(kind: VitalsGoalKind) {
       min: 1,
       max: 10,
       step: 0.5,
+      patternUnitSize: 1,
     };
   }
 

@@ -104,16 +104,16 @@ const styles = StyleSheet.create({
     },
     leftText: {
         marginTop: 16,
-        fontWeight: 500,
+        fontWeight: 300,
         fontSize: 14,
-        color: AppTheme.textPrimary,
+        color: AppTheme.textSecondary,
     },
     sliderValueBox: {
         margin: "auto",
         marginTop: 18,
         paddingVertical: 8,
         paddingHorizontal: 11,
-        backgroundColor: "rgba(23,63,125,0.14)",
+        backgroundColor: "rgba(109,146,94,0.14)",
         borderRadius: 8,
     },
     sliderValueDisplay: {
@@ -123,13 +123,13 @@ const styles = StyleSheet.create({
         color: AppTheme.textPrimary,
     },
     sliderSection: {
-        marginTop: 24,
+        marginTop: 16,
         width: '100%',
         overflow: 'visible',
         alignItems: 'stretch',
     },
     modalButtonsContainer: {
-        marginTop: 24,
+        marginTop: 16,
         flexDirection: 'row',
         justifyContent: 'center',
         gap: 12,
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
     modalCancelBtn: {
         width: 121,
         height: 40,
-        backgroundColor: 'rgba(79,134,238,0.14)',
+        backgroundColor: 'rgba(109,146,94,0.14)',
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
@@ -145,12 +145,12 @@ const styles = StyleSheet.create({
     modalCancelText: {
         fontWeight: 500,
         fontSize: 14,
-        color: '#173F7D',
+        color: AppTheme.primaryColor,
     },
     modalConfirmBtn: {
         width: 121,
         height: 40,
-        backgroundColor: '#173F7D',
+        backgroundColor: AppTheme.primaryColor,
         borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',

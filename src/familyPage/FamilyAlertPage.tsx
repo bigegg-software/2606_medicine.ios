@@ -1,16 +1,15 @@
-import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, ImageBackground } from 'react-native';
+import React from 'react';
+import { View } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
+import NoData from '@/src/components/noData';
 import styles from '@/css/family/home';
 
-export default function SchedulePage() {
-
-
+export default function FamilyAlertPage() {
   return (
     <TabPageLayout style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <Text>1231</Text>
-      </ScrollView>
+      <View style={styles.developingWrap}>
+        <NoData text="功能开发中" />
+      </View>
     </TabPageLayout>
   );
 }

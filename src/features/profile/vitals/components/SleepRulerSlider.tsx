@@ -11,12 +11,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const RULER_WIDTH = 277;
 const RULER_TRACK_WIDTH = RULER_WIDTH;
-const TRACK_COLOR = 'rgba(79,134,238,0.14)';
+const TICK_COLOR = '#E4E4E4';
+const ACCENT_COLOR = '#6D925E';
 const EDGE_FADE_WIDTH = 30;
 const EDGE_FADE_COLOR = '#FAF9FA';
 const EDGE_FADE_TRANSPARENT = 'rgba(250, 249, 250, 0)';
-const TICK_TRACK_HEIGHT = 30;
-const LABEL_ROW_HEIGHT = 20;
+const TICK_TRACK_HEIGHT = 24;
+const LABEL_ROW_HEIGHT = 24;
 const VISUAL_TICK_WIDTH = 10;
 const SUBDIVISIONS_PER_UNIT = 6;
 const VISUAL_TICKS_PER_SNAP = SUBDIVISIONS_PER_UNIT / 2;
@@ -25,28 +26,29 @@ const TICK_KINDS = ['major', 'minor', 'minor', 'medium', 'minor', 'minor'] as co
 type TickKind = (typeof TICK_KINDS)[number];
 
 const TICK_HEIGHT: Record<TickKind, number> = {
-  major: 16,
-  medium: 10,
-  minor: 7,
+  major: 24,
+  medium: 18,
+  minor: 14,
 };
 
 const CENTER_LINE_WIDTH = 3;
-const CENTER_LINE_HEIGHT = 20;
+const CENTER_TRIANGLE_WIDTH = 10;
+const CENTER_TRIANGLE_HEIGHT = 6;
+const TRIANGLE_TO_TICK_GAP = 8;
 
-const TICK_GRADIENT = {
-  colors: ['rgba(79,134,238,0)', '#FFFFFF', '#FFFFFF', '#FFFFFF', 'rgba(79,134,238,0)'] as const,
-  locations: [0, 0.1, 0.5, 0.9, 1] as const,
-};
-
-interface SleepRulerSliderProps {
+export type SleepRulerSliderProps = {
   min?: number;
   max?: number;
   step?: number;
   initialValue?: number;
+  unit?: string;
   formatLabel?: (value: number) => string;
+  formatDisplay?: (value: number) => string;
   patternUnitSize?: number;
+  /** 是否展示顶部大数字，目标设置弹窗开启 */
+  showValue?: boolean;
   onValueChange?: (value: number) => void;
-}
+};
 
 function getDecimalPlaces(n: number) {
   const match = `${n}`.match(/(?:\.(\d+))?(?:[eE]([+-]?\d+))?$/);
@@ -90,17 +92,27 @@ function getMajorLabelWidth(
   for (let value = min; value <= max + 1e-9; value += patternUnitSize) {
     maxLabelLen = Math.max(maxLabelLen, getMajorLabelText(value, formatLabel).length);
   }
-  return Math.max(32, maxLabelLen * 8 + 6);
+  // fontSize 15 下数字约 9–10px，需给足宽度避免「20000」被裁成「200..」
+  return Math.max(48, maxLabelLen * 10 + 12);
+}
+
+function formatValueText(
+  value: number,
+  step: number,
+  formatDisplay?: (value: number) => string,
+) {
+  if (formatDisplay) return formatDisplay(value);
+  const decimals = getDecimalPlaces(step);
+  return decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
 }
 
 function TickMark({ kind }: { kind: TickKind }) {
   return (
-    <LinearGradient
-      colors={[...TICK_GRADIENT.colors]}
-      locations={[...TICK_GRADIENT.locations]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 0 }}
-      style={[styles.tickGradient, { height: TICK_HEIGHT[kind] }]}
+    <View
+      style={[
+        styles.tickMark,
+        { height: TICK_HEIGHT[kind] },
+      ]}
     />
   );
 }
@@ -121,12 +133,10 @@ function MajorTickLabel({
         styles.labelSlot,
         {
           width: labelWidth,
-          marginLeft: (VISUAL_TICK_WIDTH - labelWidth) / 2,
+          left: (VISUAL_TICK_WIDTH - labelWidth) / 2,
         },
       ]}>
-      <Text style={styles.tickLabel} numberOfLines={1}>
-        {label}
-      </Text>
+      <Text style={styles.tickLabel}>{label}</Text>
     </View>
   );
 }
@@ -136,8 +146,11 @@ const SleepRulerSlider: React.FC<SleepRulerSliderProps> = ({
   max = 3,
   step = 0.5,
   initialValue = 2,
+  unit,
   formatLabel,
+  formatDisplay,
   patternUnitSize: patternUnitSizeProp,
+  showValue = false,
   onValueChange,
 }) => {
   const scrollRef = useRef<ScrollView | null>(null);
@@ -220,6 +233,12 @@ const SleepRulerSlider: React.FC<SleepRulerSliderProps> = ({
     const tickValue = parseFloat((min + visualIndex * visualStep).toFixed(getDecimalPlaces(visualStep)));
     const kind = getTickKind(visualIndex);
     const isMajor = kind === 'major';
+    // 靠近尺左右边缘的大刻度数字易被 overflow 裁切，直接不渲染
+    const labelCenterX =
+      (visualIndex - centerVisualIndex) * VISUAL_TICK_WIDTH + RULER_TRACK_WIDTH / 2;
+    const labelHalf = majorLabelWidth / 2;
+    const labelVisible =
+      labelCenterX - labelHalf >= -4 && labelCenterX + labelHalf <= RULER_TRACK_WIDTH + 4;
 
     return (
       <View key={visualIndex} style={styles.tickColumn}>
@@ -227,7 +246,7 @@ const SleepRulerSlider: React.FC<SleepRulerSliderProps> = ({
           <TickMark kind={kind} />
         </View>
         <View style={styles.labelRowSlot}>
-          {isMajor ? (
+          {isMajor && labelVisible ? (
             <MajorTickLabel value={tickValue} formatLabel={formatLabel} labelWidth={majorLabelWidth} />
           ) : null}
         </View>
@@ -235,14 +254,25 @@ const SleepRulerSlider: React.FC<SleepRulerSliderProps> = ({
     );
   };
 
+  const displayValue = formatValueText(value, step, formatDisplay);
+
   return (
     <View style={styles.container}>
+      {showValue ? (
+        <Text style={styles.valueText}>
+          {displayValue}
+          {unit ? <Text style={styles.unitText}> {unit}</Text> : null}
+        </Text>
+      ) : null}
+      <View style={styles.triangleRow}>
+        <View style={styles.centerTriangle} />
+      </View>
       <View style={styles.rulerContainer}>
-        <View style={styles.trackFrame} pointerEvents="none" />
         <ScrollView
           ref={scrollRef}
           horizontal
           showsHorizontalScrollIndicator={false}
+          removeClippedSubviews={false}
           onScroll={handleScroll}
           onMomentumScrollEnd={handleScrollEnd}
           scrollEventThrottle={16}
@@ -281,21 +311,42 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: RULER_WIDTH,
     alignSelf: 'center',
+    alignItems: 'center',
     overflow: 'visible',
+  },
+  valueText: {
+    fontWeight: 'bold',
+    fontSize: 32,
+    color: '#333333',
+    lineHeight: 40,
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  unitText: {
+    fontWeight: '500',
+    fontSize: 16,
+    color: '#666666',
+  },
+  triangleRow: {
+    width: RULER_WIDTH,
+    alignItems: 'center',
+    marginBottom: TRIANGLE_TO_TICK_GAP,
+  },
+  centerTriangle: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: CENTER_TRIANGLE_WIDTH / 2,
+    borderRightWidth: CENTER_TRIANGLE_WIDTH / 2,
+    borderTopWidth: CENTER_TRIANGLE_HEIGHT,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: ACCENT_COLOR,
   },
   rulerContainer: {
     width: '100%',
     maxWidth: RULER_WIDTH,
     position: 'relative',
-    overflow: 'hidden',
-  },
-  trackFrame: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: RULER_TRACK_WIDTH,
-    height: TICK_TRACK_HEIGHT,
-    backgroundColor: TRACK_COLOR,
+    overflow: 'visible',
   },
   scrollView: {
     width: RULER_TRACK_WIDTH,
@@ -336,37 +387,41 @@ const styles = StyleSheet.create({
     width: VISUAL_TICK_WIDTH,
     height: TICK_TRACK_HEIGHT,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
-  tickGradient: {
+  tickMark: {
     width: 1,
+    backgroundColor: TICK_COLOR,
   },
   labelRowSlot: {
     width: VISUAL_TICK_WIDTH,
     height: LABEL_ROW_HEIGHT,
     marginTop: 8,
     overflow: 'visible',
-    alignItems: 'center',
     zIndex: 2,
   },
   labelSlot: {
+    position: 'absolute',
+    top: 0,
+    height: LABEL_ROW_HEIGHT,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
   },
   tickLabel: {
-    fontSize: 12,
-    color: '#333333',
+    fontSize: 15,
+    color: '#999999',
     fontWeight: '500',
     textAlign: 'center',
     includeFontPadding: false,
   },
   centerLine: {
     position: 'absolute',
-    top: TICK_TRACK_HEIGHT / 2 - CENTER_LINE_HEIGHT / 2,
+    top: 0,
     left: RULER_TRACK_WIDTH / 2 - CENTER_LINE_WIDTH / 2,
     width: CENTER_LINE_WIDTH,
-    height: CENTER_LINE_HEIGHT,
-    backgroundColor: '#4F86EE',
+    height: TICK_HEIGHT.major,
+    backgroundColor: ACCENT_COLOR,
     borderRadius: 1,
     zIndex: 4,
   },
