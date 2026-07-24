@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
@@ -48,6 +48,20 @@ function resetHeaderDisplay(range: StepsChartRange, goal: number) {
     return formatEnergyDetailPointDisplay(range, undefined, goal);
 }
 
+function applyTodayGoalStatus(dayTotal: number, goal: number) {
+    return formatEnergyDetailPointDisplay(
+        'today',
+        dayTotal > 0
+            ? {
+                hour: '',
+                value: dayTotal,
+                energyGoals: goal,
+            }
+            : undefined,
+        goal,
+    );
+}
+
 export default function ConsumptionPage() {
     const insets = useSafeAreaInsets();
     const storeEnergyGoal = useSelector((state: RootState) => state.user.userExtr?.energyGoals);
@@ -65,43 +79,42 @@ export default function ConsumptionPage() {
     const [overview, setOverview] = useState(EMPTY_OVERVIEW);
     const [energyGoal, setEnergyGoal] = useState(defaultEnergyGoal);
     const [todayTotalEnergy, setTodayTotalEnergy] = useState(0);
-
-    const todayTotal = useMemo(
-        () => chartData.reduce((sum, point) => sum + (point.value > 0 ? point.value : 0), 0),
-        [chartData],
-    );
+    const loadingRef = useRef(false);
+    const loadSeqRef = useRef(0);
+    const selectedTypeRef = useRef(selectedType);
+    selectedTypeRef.current = selectedType;
 
     const handleChartPointChange = useCallback((point: StepsPoint | undefined) => {
+        // 切换区间加载中时忽略图表回调，避免目标状态闪成 --
+        if (loadingRef.current) return;
+
+        const range = selectedTypeRef.current;
         const pointDisplay = formatEnergyDetailPointDisplay(
-            selectedType,
+            range,
             point as EnergyDetailPoint | undefined,
             energyGoal,
         );
 
-        if (selectedType === 'today') {
-            setDisplayValue(pointDisplay.value);
-            const dayStatusDisplay = formatEnergyDetailPointDisplay(
-                'today',
-                todayTotal > 0
-                    ? {
-                        hour: '',
-                        value: todayTotal,
-                        energyGoals: energyGoal,
-                    }
-                    : undefined,
-                energyGoal,
-            );
+        if (range === 'today') {
+            // 今日数值跟图表选中点；目标状态始终用「全天总消耗」
+            if (point != null) {
+                setDisplayValue(pointDisplay.value);
+            }
+            const dayStatusDisplay = applyTodayGoalStatus(todayTotalEnergy, energyGoal);
             setDisplayStatus(dayStatusDisplay.status);
             setDisplayStatusColor(dayStatusDisplay.statusColor);
             return;
         }
+
+        // 周/月无选中点时保留当前展示，勿刷成空态
+        if (point == null) return;
 
         setDisplayValue(pointDisplay.value);
         setDisplayStatus(pointDisplay.status);
         setDisplayStatusColor(pointDisplay.statusColor);
         setCurrentLabel(pointDisplay.currentLabel);
         setSuggestionLabel(pointDisplay.suggestionLabel);
-    }, [selectedType, energyGoal, todayTotal]);
+    }, [energyGoal, todayTotalEnergy]);
 
     const energyYAxisBuilder = useCallback<StepsYAxisBuilder>(
         points => buildEnergyDetailYAxis(points as EnergyDetailPoint[], selectedType),
@@ -110,6 +123,8 @@ export default function ConsumptionPage() {
 
     const loadEnergyData = useCallback(async (range: StepsChartRange, goalOverride?: number) => {
         const fallbackGoal = goalOverride ?? defaultEnergyGoal;
+        const seq = ++loadSeqRef.current;
+        loadingRef.current = true;
         try {
             const { startDate, endDate } = getDateRange(mapDetailChartRangeToVitalsRange(range));
             const [activeRawRes, basalRawRes] = await Promise.all([
@@ -126,6 +141,8 @@ export default function ConsumptionPage() {
                     ...getWearableReturnOriginalDataParam(range),
                 }),
             ]);
+            if (seq !== loadSeqRef.current) return;
+
             const activeRes = activeRawRes as unknown as { code?: number; data?: WearableDataItem[] };
             const basalRes = basalRawRes as unknown as { code?: number; data?: WearableDataItem[] };
 
@@ -151,31 +168,52 @@ export default function ConsumptionPage() {
             }
 
             const goal = getEnergyDetailGoal(activeItems, basalItems, fallbackGoal);
-            setEnergyGoal(goal);
-            setSuggestionLabel(`目标：${Math.round(goal).toLocaleString('en-US')}`);
-            if (range === 'today') {
-                setCurrentLabel('当前：今天');
-            }
-
-            if (range === 'today') {
-                setChartData(buildEnergyDetailTodaySeries(activeItems, basalItems, goal));
-            } else {
-                setChartData(buildEnergyDetailPeriodSeries(activeItems, basalItems, range, goal));
-            }
-
+            const nextChartData =
+                range === 'today'
+                    ? buildEnergyDetailTodaySeries(activeItems, basalItems, goal)
+                    : buildEnergyDetailPeriodSeries(activeItems, basalItems, range, goal);
             const overviewStats = calcEnergyDetailOverview(activeItems, basalItems, range, goal);
+            const dayTotal = overviewStats?.avgTotal ?? 0;
+
+            setEnergyGoal(goal);
+            setChartData(nextChartData);
+            setSuggestionLabel(`目标：${Math.round(goal).toLocaleString('en-US')}`);
+
             if (overviewStats) {
                 setOverview({
                     avgTotal: formatOverviewNumber(overviewStats.avgTotal),
                     avgActive: formatOverviewNumber(overviewStats.avgActive),
                     avgBasal: formatOverviewNumber(overviewStats.avgBasal),
                 });
-                setTodayTotalEnergy(range === 'today' ? overviewStats.avgTotal : 0);
+                setTodayTotalEnergy(range === 'today' ? dayTotal : 0);
             } else {
                 setOverview(EMPTY_OVERVIEW);
                 setTodayTotalEnergy(0);
             }
+
+            // 数据就绪后一次性写入头部，避免切换时先闪 --/旧状态
+            if (range === 'today') {
+                const dayDisplay = applyTodayGoalStatus(dayTotal, goal);
+                setDisplayValue(dayDisplay.value);
+                setDisplayStatus(dayDisplay.status);
+                setDisplayStatusColor(dayDisplay.statusColor);
+                setCurrentLabel('当前：今天');
+                setSuggestionLabel(dayDisplay.suggestionLabel);
+            } else {
+                const lastValid = [...nextChartData].reverse().find(point => point.value > 0);
+                const periodDisplay = formatEnergyDetailPointDisplay(
+                    range,
+                    lastValid as EnergyDetailPoint | undefined,
+                    goal,
+                );
+                setDisplayValue(periodDisplay.value);
+                setDisplayStatus(periodDisplay.status);
+                setDisplayStatusColor(periodDisplay.statusColor);
+                setCurrentLabel(periodDisplay.currentLabel);
+                setSuggestionLabel(periodDisplay.suggestionLabel);
+            }
         } catch {
+            if (seq !== loadSeqRef.current) return;
             setChartData([]);
             const emptyDisplay = resetHeaderDisplay(range, fallbackGoal);
             setDisplayValue(emptyDisplay.value);
@@ -186,8 +224,19 @@ export default function ConsumptionPage() {
             setOverview(EMPTY_OVERVIEW);
             setEnergyGoal(fallbackGoal);
             setTodayTotalEnergy(0);
+        } finally {
+            if (seq === loadSeqRef.current) {
+                loadingRef.current = false;
+            }
         }
     }, [defaultEnergyGoal]);
+
+    const handleSelectedTypeChange = useCallback((type: StepsChartRange) => {
+        if (type === selectedTypeRef.current) return;
+        // 立刻挡住图表回调，防止旧数据/空选中把目标状态刷掉
+        loadingRef.current = true;
+        setSelectedType(type);
+    }, []);
 
     useFocusEffect(
         useCallback(() => {
@@ -227,7 +276,7 @@ export default function ConsumptionPage() {
                     style={styles.typeListFade}
                 />
                 <View style={styles.pageHeader}>
-                    <PageHeader selectedType={selectedType} onSelectedTypeChange={setSelectedType} />
+                    <PageHeader selectedType={selectedType} onSelectedTypeChange={handleSelectedTypeChange} />
                 </View>
 
                 <ScrollView

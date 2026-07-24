@@ -20,10 +20,12 @@ export type BodyTemperatureChartRange = 'today' | 'week' | 'month';
 
 const LOW_THRESHOLD = 36.0;
 const HIGH_THRESHOLD = 37.2;
+const FEVER_THRESHOLD = 38.0;
 const LINE_COLOR_HIGH = '#FB4550';
 const LINE_COLOR_LOW = '#6D925E';
-const BAR_COLOR_LOW = '#0951AE';
+const BAR_COLOR_LOW = '#72A1C5';
 const BAR_COLOR_NORMAL = '#6D925E';
+const BAR_COLOR_HIGH = '#EE9C44';
 const BAR_COLOR_FEVER = '#FB4550';
 const THRESHOLD_LINE_OPACITY = 0.6;
 const BAR_WIDTH = 10;
@@ -202,7 +204,8 @@ function isTodayPointSelected(point: BodyTemperatureRangePoint, selectedDataX: n
 }
 
 function getBarColor(min: number, max: number) {
-    if (max > HIGH_THRESHOLD) return BAR_COLOR_FEVER;
+    if (max >= FEVER_THRESHOLD) return BAR_COLOR_FEVER;
+    if (max > HIGH_THRESHOLD) return BAR_COLOR_HIGH;
     if (min < LOW_THRESHOLD) return BAR_COLOR_LOW;
     return BAR_COLOR_NORMAL;
 }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     View,
     Image,
@@ -12,18 +12,60 @@ import {
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
+import RegionCascader from '@/src/components/RegionCascader';
 import styles from '@/css/auth/auth';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
+import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
+import { submitIdentityAudit } from '@/api/identityAudit';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import { regionSelectionFromParts } from '@/src/utils/regionData';
+import {
+    buildPersonalAuditPayload,
+    formatRegionLabel,
+    pickIdCardImageFromLibrary,
+    uploadIdCardImage,
+    validatePersonalAuthForm,
+    type PersonalAuthForm,
+} from './utils/identityAuditHelpers';
 
 const DESIGN_RATIO = 335 / 90;
 const nameInputAccessoryViewID = 'authNameDoneToolbar';
 const idNumberInputAccessoryViewID = 'authIdNumberDoneToolbar';
+const detailInputAccessoryViewID = 'authDetailDoneToolbar';
+
+const EMPTY_FORM: PersonalAuthForm = {
+    name: '',
+    idCard: '',
+    residentialProvince: '',
+    residentialCity: '',
+    residentialDistrict: '',
+    residentialStreet: '',
+    residentialDetail: '',
+};
 
 export default function AuthPage() {
+    const navigation = useNavigation();
+    const phonenumber = useSelector((s: RootState) => s.user.systemUser?.phonenumber);
     const [imgWidth, setImgWidth] = useState(0);
     const [submitting, setSubmitting] = useState(false);
-    const [name, setName] = useState('');
-    const [idNumber, setIdNumber] = useState('');
+    const [uploadingSide, setUploadingSide] = useState<'front' | 'back' | null>(null);
+    const [form, setForm] = useState<PersonalAuthForm>(EMPTY_FORM);
+    const [frontPreviewUri, setFrontPreviewUri] = useState('');
+    const [backPreviewUri, setBackPreviewUri] = useState('');
+
+    const regionLabel = useMemo(() => formatRegionLabel(form), [form]);
+    const regionValue = useMemo(
+        () =>
+            regionSelectionFromParts(
+                form.residentialProvince,
+                form.residentialCity,
+                form.residentialDistrict,
+                form.residentialStreet,
+            ),
+        [form.residentialProvince, form.residentialCity, form.residentialDistrict, form.residentialStreet],
+    );
 
     const onBoxLayout = (e: LayoutChangeEvent) => {
         const nextWidth = Math.floor(e.nativeEvent.layout.width);
@@ -32,12 +74,80 @@ export default function AuthPage() {
         }
     };
 
-    const handleSubmit = async () => {
-        if (submitting) return;
-        setSubmitting(true);
+    const patchForm = <K extends keyof PersonalAuthForm>(key: K, value: PersonalAuthForm[K]) => {
+        setForm(prev => ({ ...prev, [key]: value }));
+    };
+
+    const handlePickIdCard = async (side: 'front' | 'back') => {
+        if (uploadingSide || submitting) return;
+        const file = await pickIdCardImageFromLibrary(side);
+        if (!file) return;
+
+        if (side === 'front') {
+            setFrontPreviewUri(file.uri);
+        } else {
+            setBackPreviewUri(file.uri);
+        }
+
+        setUploadingSide(side);
+        const loadingKey = Toast.loading('上传中', 0);
         try {
-            // TODO: 提交审核
+            const uploaded = await uploadIdCardImage(file);
+            if (!uploaded) {
+                Toast.show('上传失败，请稍后重试');
+                if (side === 'front') {
+                    setFrontPreviewUri('');
+                    patchForm('idCardFrontOssId', undefined);
+                } else {
+                    setBackPreviewUri('');
+                    patchForm('idCardBackOssId', undefined);
+                }
+                return;
+            }
+            if (side === 'front') {
+                setFrontPreviewUri(uploaded.url);
+                patchForm('idCardFrontOssId', uploaded.ossId);
+            } else {
+                setBackPreviewUri(uploaded.url);
+                patchForm('idCardBackOssId', uploaded.ossId);
+            }
+        } catch {
+            Toast.show('上传失败，请稍后重试');
+            if (side === 'front') {
+                setFrontPreviewUri('');
+                patchForm('idCardFrontOssId', undefined);
+            } else {
+                setBackPreviewUri('');
+                patchForm('idCardBackOssId', undefined);
+            }
         } finally {
+            Toast.remove(loadingKey);
+            setUploadingSide(null);
+        }
+    };
+
+    const handleSubmit = async () => {
+        if (submitting || uploadingSide) return;
+        const error = validatePersonalAuthForm(form, phonenumber);
+        if (error) {
+            Toast.show(error);
+            return;
+        }
+        setSubmitting(true);
+        const loadingKey = Toast.loading('提交中', 0);
+        try {
+            const payload = buildPersonalAuditPayload(form, phonenumber!);
+            const res = await submitIdentityAudit(payload);
+            if (!isResourceApiOk(res)) {
+                Toast.show((res as { msg?: string })?.msg || '提交失败');
+                return;
+            }
+            Toast.success('提交成功');
+            navigation.goBack();
+        } catch {
+            Toast.show('提交失败，请稍后重试');
+        } finally {
+            Toast.remove(loadingKey);
             setSubmitting(false);
         }
     };
@@ -50,6 +160,7 @@ export default function AuthPage() {
                 <>
                     <KeyboardDoneAccessory nativeID={nameInputAccessoryViewID} />
                     <KeyboardDoneAccessory nativeID={idNumberInputAccessoryViewID} />
+                    <KeyboardDoneAccessory nativeID={detailInputAccessoryViewID} />
                 </>
             }>
             <View style={styles.page}>
@@ -80,16 +191,32 @@ export default function AuthPage() {
                                     上传证件照片进行身份验证，全程保证隐私安全
                                 </Text>
                                 <Flex style={styles.authContentImgBox} justify="between">
-                                    <TouchableOpacity style={styles.authContentImgItem}>
+                                    <TouchableOpacity
+                                        style={styles.authContentImgItem}
+                                        activeOpacity={0.7}
+                                        disabled={!!uploadingSide}
+                                        onPress={() => handlePickIdCard('front')}>
                                         <Image
                                             style={styles.authContentImgItemImg}
-                                            source={require('@/assets/images/auth/sfz_z.png')}
+                                            source={
+                                                frontPreviewUri
+                                                    ? { uri: frontPreviewUri }
+                                                    : require('@/assets/images/auth/sfz_z.png')
+                                            }
                                         />
                                     </TouchableOpacity>
-                                    <TouchableOpacity style={styles.authContentImgItem}>
+                                    <TouchableOpacity
+                                        style={styles.authContentImgItem}
+                                        activeOpacity={0.7}
+                                        disabled={!!uploadingSide}
+                                        onPress={() => handlePickIdCard('back')}>
                                         <Image
                                             style={styles.authContentImgItemImg}
-                                            source={require('@/assets/images/auth/sfz_f.png')}
+                                            source={
+                                                backPreviewUri
+                                                    ? { uri: backPreviewUri }
+                                                    : require('@/assets/images/auth/sfz_f.png')
+                                            }
                                         />
                                     </TouchableOpacity>
                                 </Flex>
@@ -101,8 +228,8 @@ export default function AuthPage() {
                                         <Text style={styles.formLabel}>姓名</Text>
                                         <TextInput
                                             style={styles.formInput}
-                                            value={name}
-                                            onChangeText={setName}
+                                            value={form.name}
+                                            onChangeText={text => patchForm('name', text)}
                                             placeholder="请输入姓名"
                                             placeholderTextColor="#999999"
                                             returnKeyType="done"
@@ -110,12 +237,58 @@ export default function AuthPage() {
                                         />
                                     </Flex>
                                     <View style={styles.formDivider} />
+                                    <RegionCascader
+                                        value={regionValue}
+                                        onChange={next => {
+                                            setForm(prev => ({
+                                                ...prev,
+                                                residentialProvince: next.province,
+                                                residentialCity: next.city,
+                                                residentialDistrict: next.district,
+                                                residentialStreet: next.street,
+                                            }));
+                                        }}>
+                                        <TouchableOpacity activeOpacity={0.7} style={styles.formRow}>
+                                            <Flex justify="between" align="center" style={{ flex: 1 }}>
+                                                <Text style={styles.formLabel}>居住地区</Text>
+                                                <Flex style={styles.formValueWrap} align="center">
+                                                    <Text
+                                                        style={[
+                                                            styles.formValueText,
+                                                            !regionLabel && styles.formPlaceholder,
+                                                        ]}
+                                                        numberOfLines={1}>
+                                                        {regionLabel || '请选择省/市/区县/街道'}
+                                                    </Text>
+                                                    <Image
+                                                        style={styles.formInputIcon}
+                                                        source={require('@/assets/images/family/icon_right.png')}
+                                                    />
+                                                </Flex>
+                                            </Flex>
+                                        </TouchableOpacity>
+                                    </RegionCascader>
+                                    <View style={styles.formDivider} />
+                                    <Flex justify="between" align="center" style={styles.formRow}>
+                                        <Text style={styles.formLabel}>详细地址</Text>
+                                        <TextInput
+                                            style={styles.formInput}
+                                            value={form.residentialDetail}
+                                            onChangeText={text => patchForm('residentialDetail', text)}
+                                            placeholder="小区/门牌号，最多50字"
+                                            placeholderTextColor="#999999"
+                                            maxLength={50}
+                                            returnKeyType="done"
+                                            inputAccessoryViewID={detailInputAccessoryViewID}
+                                        />
+                                    </Flex>
+                                    <View style={styles.formDivider} />
                                     <Flex justify="between" align="center" style={styles.formRow}>
                                         <Text style={styles.formLabel}>身份证号</Text>
                                         <TextInput
                                             style={styles.formInput}
-                                            value={idNumber}
-                                            onChangeText={setIdNumber}
+                                            value={form.idCard}
+                                            onChangeText={text => patchForm('idCard', text)}
                                             placeholder="请输入18位身份证号"
                                             placeholderTextColor="#999999"
                                             maxLength={18}
@@ -132,8 +305,8 @@ export default function AuthPage() {
 
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
-                        style={[styles.primaryBtn, submitting && { opacity: 0.6 }]}
-                        disabled={submitting}
+                        style={[styles.primaryBtn, (submitting || uploadingSide) && { opacity: 0.6 }]}
+                        disabled={submitting || !!uploadingSide}
                         onPress={handleSubmit}>
                         <Flex style={{ flex: 1 }}>
                             <Image

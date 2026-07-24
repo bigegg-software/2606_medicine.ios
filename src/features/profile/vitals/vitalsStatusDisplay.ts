@@ -4,7 +4,7 @@ import { getLevelColor } from './vitalLevelColors';
 
 export const BLOOD_OXYGEN_LEVEL_COLORS = {
   normal: '#6D925E',
-  slightlyLow: '#0951AE',
+  slightlyLow: '#72A1C5',
   low: '#EE9C44',
   severeLow: '#FB4550',
 } as const;
@@ -60,7 +60,7 @@ export function formatHeartRateValueStatus(value: number) {
 const BODY_TEMPERATURE_LOW_THRESHOLD = 36.0;
 const BODY_TEMPERATURE_HIGH_THRESHOLD = 37.2;
 const BODY_TEMPERATURE_FEVER_THRESHOLD = 38.0;
-const BODY_TEMPERATURE_COLOR_LOW = '#0951AE';
+const BODY_TEMPERATURE_COLOR_LOW = '#72A1C5';
 const BODY_TEMPERATURE_COLOR_NORMAL = '#6D925E';
 const BODY_TEMPERATURE_COLOR_HIGH = '#EE9C44';
 const BODY_TEMPERATURE_COLOR_FEVER = '#FB4550';

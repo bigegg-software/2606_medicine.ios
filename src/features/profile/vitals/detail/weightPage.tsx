@@ -546,7 +546,7 @@ export default function WeightPage() {
                     </View>
                     <View>
                       <Text style={styles.targetBoxText}>{activeGoalDisplay.remainingLabel}</Text>
-                      <Text style={[styles.targetBoxValue, { color: '#0951AE' }]}>
+                      <Text style={[styles.targetBoxValue, { color: '#72A1C5' }]}>
                         {activeGoalDisplay.remainingText}
                       </Text>
                     </View>
@@ -554,7 +554,7 @@ export default function WeightPage() {
                   <VitalsProgressRing
                     progress={activeGoalDisplay.progressPercent}
                     trackColor="rgba(131,174,255,0.14)"
-                    progressColor="#0951AE"
+                    progressColor="#72A1C5"
                   />
                 </Flex>
               </View>

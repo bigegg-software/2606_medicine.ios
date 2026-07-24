@@ -27,13 +27,29 @@ export function formatActivityDetailDateTime(time?: string | null) {
   return target.format('YYYY年M月D日 HH:mm');
 }
 
-export function getActivityStatusText(status?: number, statusName?: string) {
-  if (statusName?.trim()) return statusName.trim();
-  if (status === 0) return '报名中';
-  if (status === 1) return '进行中';
+export function getActivityStatusText(status?: number, statusName?: string, isBm?: boolean) {
+  // 生命周期优先，避免后端 statusName 仍为「去报名」等 CTA
   if (status === 2) return '已结束';
-  if (status === 3) return '已取消';
-  if (status === 4) return '已下架';
+  if (status === 3 || status === 4) return '已取消';
+  if (status === 1) return '进行中';
+
+  if (status === 0) {
+    if (isBm === true) return '已报名';
+    if (isBm === false) return '未报名';
+  }
+
+  const name = statusName?.trim();
+  if (name) {
+    if (/去报名|立即报名|报名中/.test(name)) return isBm ? '已报名' : '未报名';
+    if (/已报名/.test(name)) return '已报名';
+    if (/进行中/.test(name)) return '进行中';
+    if (/已结束/.test(name)) return '已结束';
+    if (/已取消|已下架/.test(name)) return '已取消';
+    return name;
+  }
+
+  if (isBm === true) return '已报名';
+  if (isBm === false) return '未报名';
   return '--';
 }
 

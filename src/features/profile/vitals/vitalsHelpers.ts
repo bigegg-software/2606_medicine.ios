@@ -823,8 +823,8 @@ export function formatSleepDuration(minutes?: number | null) {
 
 export const SLEEP_SCORE_QUALITY_TIERS = [
   { min: 85, label: '极佳', color: '#6D925E', description: '睡眠质量 极佳' },
-  { min: 75, label: '良好', color: '#4F87EE', description: '睡眠质量 良好' },
-  { min: 65, label: '一般', color: '#FFBA1D', description: '睡眠质量 一般' },
+  { min: 75, label: '良好', color: '#6D925E', description: '睡眠质量 良好' },
+  { min: 65, label: '一般', color: '#EE9C44', description: '睡眠质量 一般' },
   { min: 55, label: '较差', color: '#EE9C44', description: '睡眠质量 较差' },
   { min: 0, label: '差', color: '#FB4550', description: '睡眠质量 差' },
 ] as const;
@@ -847,8 +847,8 @@ export function getSleepScoreQuality(score?: number | null) {
 
 export function getSleepQuality(item?: WearableDataItem) {
   if (!item) return { label: '', color: '#999999' };
-  if (item.isHigh === 1) return { label: '偏高', color: '#FFBA1D' };
-  if (item.isLow === 1) return { label: '偏低', color: '#FFBA1D' };
+  if (item.isHigh === 1) return { label: '偏高', color: '#EE9C44' };
+  if (item.isLow === 1) return { label: '偏低', color: '#72A1C5' };
   const score = parseMeasureNumber(item.sqsScore);
   if (score != null) {
     const quality = getSleepScoreQuality(score);
@@ -960,7 +960,7 @@ function getStepsCardStatus(steps: number, goal: number) {
     return { status: '暂无数据', statusColor: '#999999' };
   }
   if (goal > 0 && steps >= goal) {
-    return { status: '达标', statusColor: '#00C950' };
+    return { status: '达标', statusColor: '#6D925E' };
   }
   return { status: '未达标', statusColor: '#EE9C44' };
 }
@@ -1256,7 +1256,7 @@ function getEnergyCardStatus(total: number, goal: number) {
     return { status: '暂无数据', statusColor: '#999999' };
   }
   if (goal > 0 && total >= goal) {
-    return { status: '达标', statusColor: '#00C950' };
+    return { status: '达标', statusColor: '#6D925E' };
   }
   return { status: '未达标', statusColor: '#EE9C44' };
 }

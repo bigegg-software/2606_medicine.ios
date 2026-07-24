@@ -91,7 +91,7 @@ function MedicationPlanCard({
             <Flex>
                 <Flex style={{ flex: 1 }}>
                     <Text style={styles.medicationTitle}>{plan.name?.trim() || '--'}</Text>
-                    <PlanTypeBadge isPrescription={isPrescription} />
+                    {/* <PlanTypeBadge isPrescription={isPrescription} /> */}
                 </Flex>
                 <Text style={styles.medicationTimeText}>{dateText}</Text>
             </Flex>

@@ -84,9 +84,48 @@ function buildScatterData(points: BloodGlucosePoint[]) {
     .filter(item => item != null);
 }
 
+/** 上下留白，避免 scale 贴边时散点圆被裁切显示不全 */
+function buildYAxis(points: BloodGlucosePoint[]) {
+  const values = points.filter(point => point.value > 0).map(point => point.value);
+  if (!values.length) {
+    return {
+      type: 'value' as const,
+      min: 0,
+      max: 10,
+      scale: false,
+      axisTick: { show: false },
+      axisLine: { show: false },
+      axisLabel: { show: false },
+      splitLine: { show: false },
+    };
+  }
+
+  const floor = Math.min(...values);
+  const peak = Math.max(...values);
+  const span = Math.max(peak - floor, 1);
+  const pad = Math.max(span * 0.3, 0.8);
+  let min = Math.max(0, floor - pad);
+  let max = peak + pad;
+  if (max - min < 2) {
+    const mid = (min + max) / 2;
+    min = Math.max(0, mid - 1);
+    max = mid + 1;
+  }
+
+  return {
+    type: 'value' as const,
+    min,
+    max,
+    scale: false,
+    axisTick: { show: false },
+    axisLine: { show: false },
+    axisLabel: { show: false },
+    splitLine: { show: false },
+  };
+}
+
 function buildOption(points: BloodGlucosePoint[], labels: string[], hideXAxis = false) {
   const scatterData = buildScatterData(points);
-  const validValues = points.filter(point => point.value > 0).map(point => point.value);
   const xAxis = buildChartXAxis(points, labels, false);
 
   return {
@@ -109,27 +148,21 @@ function buildOption(points: BloodGlucosePoint[], labels: string[], hideXAxis = 
       },
     },
     grid: {
-      top: 4,
-      right: 0,
-      bottom: 0,
-      left: 0,
+      top: 6,
+      right: 4,
+      bottom: 6,
+      left: 4,
     },
     xAxis: hideXAxis
       ? { ...xAxis, axisLabel: { show: false } }
       : xAxis,
-    yAxis: {
-      type: 'value',
-      scale: validValues.length > 0,
-      axisTick: { show: false },
-      axisLine: { show: false },
-      axisLabel: { show: false },
-      splitLine: { show: false },
-    },
+    yAxis: buildYAxis(points),
     series: [
       {
         type: 'scatter',
         data: scatterData,
         symbol: 'circle',
+        clip: false,
         z: 10,
       },
     ],

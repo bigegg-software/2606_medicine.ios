@@ -2,15 +2,16 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialIcons } from '@expo/vector-icons';
 import { logout as logoutApi } from '@/api/auth';
+import { getUserSignTip, postUserSign } from '@/api/userSignInfo';
 import { clearAll } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
 import { fetchUserSession, clearUser } from '@/store/actions/user';
-import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
@@ -22,34 +23,8 @@ import {
   switchIdentityPerspective,
 } from '@/src/features/auth/utils/identityHelpers';
 import SignInModal from './components/SignInModal';
+import { buildSignButtonLabel } from './utils/signInHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-// const navList = [
-//   {
-//     img: require('@/assets/images/user/img2.png'),
-//     label: '健康档案',
-//     route: 'HealthRecord'
-//   },
-//   {
-//     img: require('@/assets/images/user/img3.png'),
-//     label: '健康数据',
-//     route: 'VitalsPage'
-//   },
-//   {
-//     img: require('@/assets/images/user/img6.png'),
-//     label: '用药记录',
-//     route: 'Medication'
-//   },
-//   {
-//     img: require('@/assets/images/user/img5.png'),
-//     label: '慢病管理',
-//     route: 'ChronicDisease'
-//   },
-//   {
-//     img: require('@/assets/images/user/img4.png'),
-//     label: '评估问卷',
-//     route: 'QuestionnaireList'
-//   }]
 
 const navList = [
   {
@@ -70,9 +45,7 @@ const navList = [
   {
     img: require('@/assets/images/user/img5.png'),
     label: '饮食列表',
-    // route: 'Medication' as const,
     route: 'FoodRecordingPage' as const,
-    // params: { tab: 'meal' as const },
   },
   {
     img: require('@/assets/images/user/img4.png'),
@@ -91,11 +64,84 @@ export default function ProfilePage() {
   const { label: fontSizeLabel } = useFontSize();
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
   const [signInVisible, setSignInVisible] = useState(false);
+  const [signing, setSigning] = useState(false);
+  const [signedToday, setSignedToday] = useState(false);
+  const [signTip, setSignTip] = useState('');
+  const [signRewardTokens, setSignRewardTokens] = useState<string | number>('10');
+  const [signModalTip, setSignModalTip] = useState('');
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
+
+  const loadSignTip = useCallback(async () => {
+    try {
+      const res = await getUserSignTip();
+      const tip = apiResourceData<string>(
+        res as unknown as { code?: number; data?: string },
+      );
+      if (typeof tip === 'string') {
+        setSignTip(tip);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   useEffect(() => {
     dispatch(fetchUserSession());
   }, [dispatch]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadSignTip();
+    }, [loadSignTip]),
+  );
+
+  const handleSignIn = useCallback(async () => {
+    if (signing) return;
+    if (signedToday) {
+      Toast.show('今日已签到', 1.5);
+      return;
+    }
+    setSigning(true);
+    const loadingKey = Toast.loading('签到中', 0);
+    try {
+      const res = await postUserSign();
+      if (!isResourceApiOk(res as unknown as { code?: number })) {
+        const msg = (res as { msg?: string })?.msg || '签到失败';
+        if (msg.includes('已签到') || msg.includes('重复')) {
+          setSignedToday(true);
+        }
+        Toast.show(msg, 1.5);
+        return;
+      }
+      const data = apiResourceData<{
+        rewardsTokens?: string | number;
+        tipMsg?: string;
+      }>(
+        res as unknown as {
+          code?: number;
+          data?: { rewardsTokens?: string | number; tipMsg?: string };
+        },
+      );
+      if (!data) {
+        Toast.show((res as { msg?: string })?.msg || '签到失败', 1.5);
+        return;
+      }
+      setSignedToday(true);
+      setSignRewardTokens(data.rewardsTokens ?? 10);
+      setSignModalTip(data.tipMsg ?? '');
+      if (data.tipMsg) {
+        setSignTip(data.tipMsg);
+      }
+      setSignInVisible(true);
+      await dispatch(fetchUserSession());
+      void loadSignTip();
+    } catch {
+      Toast.show('签到失败，请稍后重试', 1.5);
+    } finally {
+      Toast.remove(loadingKey);
+      setSigning(false);
+    }
+  }, [dispatch, loadSignTip, signedToday, signing]);
 
   const switchToFamilyPerspective = useCallback(async () => {
     if (switchingIdentity) return;
@@ -194,14 +240,19 @@ export default function ProfilePage() {
                   <Image style={styles.diamondsImg} source={require('@/assets/images/user/diamonds.png')} />
                   <Text style={styles.diamondsTitle}>积分商城</Text>
                 </Flex>
-                <TouchableOpacity onPress={() => setSignInVisible(true)}>
+                <TouchableOpacity
+                  disabled={signing || signedToday}
+                  onPress={handleSignIn}
+                  style={signedToday || signing ? { opacity: 0.6 } : undefined}>
                   <Flex style={styles.diamondsSignIn}>
-                    <Text style={styles.diamondsSignInText}>签到+10</Text>
+                    <Text style={styles.diamondsSignInText}>
+                      {buildSignButtonLabel(10, signedToday)}
+                    </Text>
                     <Image style={styles.diamondsSignInImg} tintColor={"#804A15"} source={require('@/assets/images/user/img1.png')} />
                   </Flex>
                 </TouchableOpacity>
               </Flex>
-              <Text style={styles.diamondsDesc}>已连续签到15天，再签到5天可额外得100积分</Text>
+              {signTip ? <Text style={styles.diamondsDesc}>{signTip}</Text> : null}
             </View>
           </Flex>
         </ImageBackground>
@@ -223,27 +274,6 @@ export default function ProfilePage() {
         <Text style={[styles.modelTitle, { marginTop: 24 }]}>我的家人</Text>
 
         <View style={[styles.familyBox, { paddingVertical: 10 }]}>
-          {/* <Flex justify='between' style={styles.familyItem}>
-            <Flex>
-              <Image style={styles.familyItemImg} source={require('@/assets/images/home/head.png')} />
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>张小红（女儿）</Text>
-                <Text style={styles.familyItemRelation}>已授权4项权限</Text>
-              </View>
-            </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
-          </Flex>
-          <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-            <Flex>
-              <Image style={styles.familyItemImg} source={require('@/assets/images/home/head.png')} />
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>张小红（女儿）</Text>
-                <Text style={styles.familyItemRelation}>已授权4项权限</Text>
-              </View>
-            </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
-          </Flex> */}
-
           <TouchableOpacity onPress={() => navigation.navigate('MyFamily')}>
             <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
               <Flex>
@@ -389,7 +419,12 @@ export default function ProfilePage() {
           </Flex>
         </TouchableOpacity>
       </ScrollView>
-      <SignInModal visible={signInVisible} onClose={() => setSignInVisible(false)} />
+      <SignInModal
+        visible={signInVisible}
+        rewardsTokens={signRewardTokens}
+        tipMsg={signModalTip}
+        onClose={() => setSignInVisible(false)}
+      />
     </TabPageLayout>
   );
 }

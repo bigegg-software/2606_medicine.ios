@@ -392,7 +392,11 @@ function ActivityTimelineCard({
     <View style={styles.mergedTimelineCard}>
       {items.map((item, itemIndex) => {
         const location = item.activityLocation || item.desc;
-        const statusText = getActivityStatusText(item.activityStatus, item.activityStatusName);
+        const statusText = getActivityStatusText(
+          item.activityStatus,
+          item.activityStatusName,
+          item.activityIsBm,
+        );
 
         return (
           <TouchableOpacity

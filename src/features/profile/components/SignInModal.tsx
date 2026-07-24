@@ -3,13 +3,23 @@ import { View, Text, TouchableOpacity, Modal, Image } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaskedView from '@react-native-masked-view/masked-view';
 import styles from '@/css/profile/profile';
+import { formatSignRewardsTokens } from '../utils/signInHelpers';
 
 export type SignInModalProps = {
   visible: boolean;
   onClose: () => void;
+  rewardsTokens?: string | number | null;
+  tipMsg?: string;
 };
 
-export default function SignInModal({ visible, onClose }: SignInModalProps) {
+export default function SignInModal({
+  visible,
+  onClose,
+  rewardsTokens,
+  tipMsg,
+}: SignInModalProps) {
+  const rewardText = formatSignRewardsTokens(rewardsTokens ?? 0);
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.signInOverlay}>
@@ -23,7 +33,8 @@ export default function SignInModal({ visible, onClose }: SignInModalProps) {
             style={styles.signInBox}
           >
             <Image style={styles.imgModel1} source={require('@/assets/images/user/icon_title.png')} />
-            <MaskedView style={styles.signInTitleMask}
+            <MaskedView
+              style={styles.signInTitleMask}
               maskElement={<Text style={styles.signInTitle}>签到成功</Text>}
             >
               <LinearGradient
@@ -37,10 +48,10 @@ export default function SignInModal({ visible, onClose }: SignInModalProps) {
               </LinearGradient>
             </MaskedView>
             <Text style={styles.signInReward}>
-              <Text style={styles.signInRewardNum}>+10</Text>
+              <Text style={styles.signInRewardNum}>+{rewardText}</Text>
               <Text style={styles.signInRewardUnit}> 积分</Text>
             </Text>
-            <Text style={styles.signInTip}>已连续签到5天，再连续签到2天可获得额外积分</Text>
+            {tipMsg ? <Text style={styles.signInTip}>{tipMsg}</Text> : null}
             <TouchableOpacity onPress={onClose} activeOpacity={0.8} style={styles.signInConfirmBtnWrap}>
               <LinearGradient
                 colors={['#9BBD8E', '#6D925E']}

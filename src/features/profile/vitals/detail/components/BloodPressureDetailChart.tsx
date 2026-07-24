@@ -167,7 +167,7 @@ const Y_AXIS = {
     splitLine: GRID_SPLIT_LINE,
 };
 
-const LOW_COLOR = '#0951AE';
+const LOW_COLOR = '#72A1C5';
 const HIGH_COLOR = '#EE9C44';
 
 const POINT_SHADOW = {

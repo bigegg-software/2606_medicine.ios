@@ -312,8 +312,8 @@ function isValidSleepDetailPoint(point?: SleepDetailPoint) {
 
 function getSleepQualityForHours(hours: number, goalHours: number) {
   if (hours >= goalHours) return { label: '良好', color: '#6D925E' };
-  if (hours >= goalHours * 0.75) return { label: '一般', color: '#FFBA1D' };
-  return { label: '偏低', color: '#FFBA1D' };
+  if (hours >= goalHours * 0.75) return { label: '一般', color: '#EE9C44' };
+  return { label: '偏低', color: '#72A1C5' };
 }
 
 export function resolveStoreSleepGoal(sleepGoalsMinutes?: number) {

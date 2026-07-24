@@ -200,7 +200,7 @@ export default function ActivityDetailPage() {
   }
 
   const coverSource = data.coverOssUrl?.trim() ? { uri: data.coverOssUrl } : DEFAULT_COVER;
-  const statusText = getActivityStatusText(data.status, data.statusName);
+  const statusText = getActivityStatusText(data.status, data.statusName, data.isBm);
   const statusTone = getActivityStatusTone(data.status);
   const typeLabel = data.activityType ? typeLabelMap[data.activityType] ?? data.activityType : '';
   const location = data.activityLocation?.trim() || '待定';

@@ -21,7 +21,7 @@ export { flattenStatisChildItems } from './bloodPressure';
 export type BloodSugarStatus = 'low' | 'normal' | 'high' | 'highRisk';
 
 export const BLOOD_SUGAR_STATUS_COLORS: Record<BloodSugarStatus, string> = {
-  low: '#0951AE',
+  low: '#72A1C5',
   normal: '#6D925E',
   high: '#EE9C44',
   highRisk: '#FB4550',

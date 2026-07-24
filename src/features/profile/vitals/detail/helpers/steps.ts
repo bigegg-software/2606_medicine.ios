@@ -88,13 +88,12 @@ function getStepsStatusDisplay(steps: number, goal: number) {
     return { status: '--', statusColor: '#999999' };
   }
   if (steps >= goal) {
-    return { status: '达标', statusColor: '#00C950' };
+    return { status: '达标', statusColor: '#6D925E' };
   }
   const remaining = Math.max(0, Math.round(goal - steps));
-  const ratio = goal > 0 ? steps / goal : 0;
   return {
     status: `距目标还有${remaining.toLocaleString('en-US')}步`,
-    statusColor: ratio >= 0.6 ? '#00C950' : '#FFBA1D',
+    statusColor: '#EE9C44',
   };
 }
 

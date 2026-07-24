@@ -73,13 +73,12 @@ function getEnergyStatusDisplay(total: number, goal: number) {
     return { status: '正常', statusColor: '#6D925E' };
   }
   if (total >= goal) {
-    return { status: '达标', statusColor: '#00C950' };
+    return { status: '达标', statusColor: '#6D925E' };
   }
   const remaining = Math.max(0, Math.round(goal - total));
-  const ratio = total / goal;
   return {
     status: `距目标还差${remaining.toLocaleString('en-US')}千卡`,
-    statusColor: ratio >= 0.6 ? '#00C950' : '#FFBA1D',
+    statusColor: '#EE9C44',
   };
 }
 

@@ -70,6 +70,26 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#333333',
     },
+    formInputIcon: {
+        width: 8,
+        height: 13,
+        marginLeft: 6,
+    },
+    formValueWrap: {
+        flex: 1,
+        marginLeft: 12,
+        justifyContent: 'flex-end',
+    },
+    formValueText: {
+        flexShrink: 1,
+        textAlign: 'right',
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#333333',
+    },
+    formPlaceholder: {
+        color: '#999999',
+    },
     formDivider: {
         height: 1,
         backgroundColor: 'rgba(23,63,125,0.08)',

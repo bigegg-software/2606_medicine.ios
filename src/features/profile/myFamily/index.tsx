@@ -30,50 +30,54 @@ export default function ProfileEditPage() {
                     </Flex>
                 </ImageBackground>
                 <View style={styles.familyList}>
-                    <Flex style={styles.familyItem}>
-                        <Image style={styles.familyItemIcon} source={require('@/assets/images/family/family.png')} />
-                        <View style={styles.familyItemWrap}>
-                            <Flex justify="between">
-                                <Flex>
-                                    <Text style={styles.familyItemName}>王剑虹</Text>
-                                    <Text style={styles.familyItemRelation}>儿子</Text>
+                    <TouchableOpacity onPress={()=>navigation.navigate('FamilyDetail')}>
+                        <Flex style={styles.familyItem}>
+                            <Image style={styles.familyItemIcon} source={require('@/assets/images/family/family.png')} />
+                            <View style={styles.familyItemWrap}>
+                                <Flex justify="between">
+                                    <Flex>
+                                        <Text style={styles.familyItemName}>王剑虹</Text>
+                                        <Text style={styles.familyItemRelation}>儿子</Text>
+                                    </Flex>
+                                    <Flex>
+                                        <View style={styles.familyItemStatusBox}></View>
+                                        <Text style={styles.familyItemStatus}>已授权</Text>
+                                    </Flex>
                                 </Flex>
-                                <Flex>
-                                    <View style={styles.familyItemStatusBox}></View>
-                                    <Text style={styles.familyItemStatus}>已授权</Text>
+                                <Flex justify="between" style={styles.familyItemPhoneWrap}>
+                                    <View>
+                                        <Text style={styles.phoneNumber}>138****8888</Text>
+                                        <Text style={styles.familyItemStatusText}>已授权6项·健康 用药 运动 饮食 评估 预警</Text>
+                                    </View>
+                                    <Image style={styles.familyItemRightIcon} source={require("@/assets/images/family/icon_right.png")} />
                                 </Flex>
-                            </Flex>
-                            <Flex justify="between" style={styles.familyItemPhoneWrap}>
-                                <View>
-                                    <Text style={styles.phoneNumber}>138****8888</Text>
-                                    <Text style={styles.familyItemStatusText}>已授权6项·健康 用药 运动 饮食 评估 预警</Text>
-                                </View>
-                                <Image style={styles.familyItemRightIcon} source={require("@/assets/images/family/icon_right.png")} />
-                            </Flex>
-                        </View>
-                    </Flex>
-                    <Flex style={styles.familyItem}>
-                        <Image style={styles.familyItemIcon} source={require('@/assets/images/family/family.png')} />
-                        <View style={styles.familyItemWrap}>
-                            <Flex justify="between">
-                                <Flex>
-                                    <Text style={styles.familyItemName}>王剑虹</Text>
-                                    <Text style={styles.familyItemRelation}>儿子</Text>
+                            </View>
+                        </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity>
+                        <Flex style={styles.familyItem}>
+                            <Image style={styles.familyItemIcon} source={require('@/assets/images/family/family.png')} />
+                            <View style={styles.familyItemWrap}>
+                                <Flex justify="between">
+                                    <Flex>
+                                        <Text style={styles.familyItemName}>王剑虹</Text>
+                                        <Text style={styles.familyItemRelation}>儿子</Text>
+                                    </Flex>
+                                    <Flex>
+                                        <View style={styles.familyItemStatusBox1}></View>
+                                        <Text style={styles.familyItemStatus1}>未授权</Text>
+                                    </Flex>
                                 </Flex>
-                                <Flex>
-                                    <View style={styles.familyItemStatusBox1}></View>
-                                    <Text style={styles.familyItemStatus1}>未授权</Text>
+                                <Flex justify="between" style={styles.familyItemPhoneWrap}>
+                                    <View>
+                                        <Text style={styles.phoneNumber}>138****8888</Text>
+                                        <Text style={styles.familyItemStatusText}>等待确认中...</Text>
+                                    </View>
+                                    <Image style={styles.familyItemRightIcon} source={require("@/assets/images/family/icon_right.png")} />
                                 </Flex>
-                            </Flex>
-                            <Flex justify="between" style={styles.familyItemPhoneWrap}>
-                                <View>
-                                    <Text style={styles.phoneNumber}>138****8888</Text>
-                                    <Text style={styles.familyItemStatusText}>等待确认中...</Text>
-                                </View>
-                                <Image style={styles.familyItemRightIcon} source={require("@/assets/images/family/icon_right.png")} />
-                            </Flex>
-                        </View>
-                    </Flex>
+                            </View>
+                        </Flex>
+                    </TouchableOpacity>
                 </View>
 
             </ScrollView>

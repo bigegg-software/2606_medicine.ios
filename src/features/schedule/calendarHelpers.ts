@@ -67,6 +67,7 @@ export type CalendarTimelineItem = {
   activityLocation?: string;
   activityStatus?: number;
   activityStatusName?: string;
+  activityIsBm?: boolean;
   liveId?: string;
   liveAnchorName?: string;
   livePlatform?: string;
@@ -369,6 +370,7 @@ function mapActivityTimelineItem(item: DailyActivityItem, index: number): Calend
     activityLocation: location,
     activityStatus: item.status,
     activityStatusName: item.statusName?.trim(),
+    activityIsBm: item.isBm,
     sortValue: sortValue || index + 100,
     period: resolvePeriod(sortValue || 540),
   };

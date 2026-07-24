@@ -38,9 +38,9 @@ const GRID_SPLIT_LINE = {
     lineStyle: { color: GRID_LINE_COLOR, width: 1, type: 'dashed' as const },
 };
 const CHART_GRID = {
-    top: 16,
+    top: 28,
     right: 36,
-    bottom: 40,
+    bottom: 44,
     left: 8,
     show: true,
     borderColor: GRID_BORDER_COLOR,
@@ -146,14 +146,37 @@ function ChartSelectionSlider({
 
 function buildYAxis(points: BloodSugarPoint[]) {
     const values = points.map(point => point.value).filter(value => value > 0);
-    const peak = values.length ? Math.max(...values) : 7;
-    const max = Math.max(
-        Y_AXIS_INTERVAL * 4,
-        Math.ceil((peak + 1) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL,
-    );
+    if (!values.length) {
+        return {
+            ...Y_AXIS,
+            min: 0,
+            max: Y_AXIS_INTERVAL * 4,
+        };
+    }
+
+    const floor = Math.min(...values);
+    const peak = Math.max(...values);
+    // 上下至少各留 1 整格，避免小数值贴底/贴顶时散点圆被裁切显示不全
+    const pad = Y_AXIS_INTERVAL;
+    let min = Math.max(0, Math.floor((floor - pad) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL);
+    let max = Math.ceil((peak + pad) / Y_AXIS_INTERVAL) * Y_AXIS_INTERVAL;
+
+    // 刚好落在刻度线上时再扩一格（floor-1 取整后常与 floor 同刻度）
+    if (floor - min < pad * 0.5) {
+        min = Math.max(0, min - Y_AXIS_INTERVAL);
+    }
+    if (max - peak < pad * 0.5) {
+        max += Y_AXIS_INTERVAL;
+    }
+
+    const minSpan = Y_AXIS_INTERVAL * 4;
+    if (max - min < minSpan) {
+        max = min + minSpan;
+    }
 
     return {
         ...Y_AXIS,
+        min,
         max,
     };
 }
