@@ -383,6 +383,23 @@ export function mapMedicationProgress(data?: { takeCount?: number; notTakeCount?
   return { rate, takeCount, notTakeCount };
 }
 
+/** 按今日用药列表统计进度（已服用 / 全部条目） */
+export function buildMedicationProgressFromPlanGroups(
+  groups: MedicationPlanGroupView[],
+): MedicationProgressView {
+  let takeCount = 0;
+  let total = 0;
+  for (const group of groups) {
+    for (const item of group.items) {
+      total += 1;
+      if (item.taken) takeCount += 1;
+    }
+  }
+  const notTakeCount = Math.max(0, total - takeCount);
+  const rate = total > 0 ? Math.min(100, Math.max(0, Math.round((takeCount / total) * 100))) : 0;
+  return { rate, takeCount, notTakeCount };
+}
+
 export function applyMedicationCheckInToPlanGroups(
   groups: MedicationPlanGroupView[],
   itemKey: string,

@@ -38,7 +38,7 @@ import {
 export default function MealResultPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'MealResultPage'>>();
-    const result = (route.params ?? {}) as FoodIdentifyData & { hasFood?: boolean };
+    const result = (route.params ?? {}) as FoodIdentifyData & { hasFood?: boolean; mealCategory?: number };
     const initialAnalysisResult = result.analysisResult ?? [];
     const [foods, setFoods] = useState<FoodIdentifyItem[]>(initialAnalysisResult);
     const [recordTime, setRecordTime] = useState(() => moment().format('HH:mm'));
@@ -46,7 +46,11 @@ export default function MealResultPage() {
     const [foodItemStates, setFoodItemStates] = useState<FoodItemEditState[]>(() =>
         initialAnalysisResult.map(createFoodItemState),
     );
-    const [mealCategory, setMealCategory] = useState(() => getMealCategoryByTime());
+    const [mealCategory, setMealCategory] = useState(() => {
+        const fromRoute = result.mealCategory;
+        if (fromRoute === 1 || fromRoute === 2 || fromRoute === 3) return fromRoute;
+        return getMealCategoryByTime();
+    });
     const [saving, setSaving] = useState(false);
     const [othersLoading, setOthersLoading] = useState(false);
 
@@ -170,9 +174,9 @@ export default function MealResultPage() {
                 navigation.goBack();
                 return;
             }
-            Toast.fail(res?.msg || res?.message || '保存失败');
+            Toast.show(res?.msg || res?.message || '保存失败');
         } catch {
-            Toast.fail('保存失败');
+            Toast.show('保存失败');
         } finally {
             setSaving(false);
         }

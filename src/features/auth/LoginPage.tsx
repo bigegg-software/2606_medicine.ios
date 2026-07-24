@@ -106,10 +106,10 @@ export default function LoginPage() {
         Toast.success('验证码已发送', 1.5);
       } else {
         const r = res as { msg?: string; message?: string };
-        Toast.fail(r.msg ?? r.message ?? '请稍后重试', 1.5);
+        Toast.show(r.msg ?? r.message ?? '请稍后重试', 1.5);
       }
     } catch {
-      Toast.fail('网络错误，请稍后重试', 1.5);
+      Toast.show('网络错误，请稍后重试', 1.5);
     } finally {
       setSendingCode(false);
     }

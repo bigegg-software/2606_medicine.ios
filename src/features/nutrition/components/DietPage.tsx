@@ -21,7 +21,7 @@ import {
     type RecommendedMealSection,
 } from './utils/dietMealHelpers';
 import type { RootStackParamList } from '@/route/router';
-import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
+import { deleteMealDetail, getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type MealRecordItem } from '@/api/meal';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -31,6 +31,7 @@ import {
     sumProtein,
     toNumber,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import { getMealCategoryByTime } from '@/src/features/nutrition/utils/mealResultHelpers';
 import {
     getDietUserSignInfo,
     postDietUserSign,
@@ -259,7 +260,11 @@ function RecommendedMealCard({
             <TouchableOpacity
                 style={styles.btnBox}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate('MealRecognitionPage')}
+                onPress={() =>
+                    navigation.navigate('MealRecognitionPage', {
+                        mealCategory: getMealCategoryByTime(),
+                    })
+                }
             >
                 <Flex style={{ flex: 1 }} justify="center">
                     <Image style={styles.btnImg} source={require('@/assets/images/nutrition/camera.png')} />
@@ -377,14 +382,29 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                 text: '删除',
                 style: 'destructive',
                 onPress: () => {
-                    setMealDetailList(prev =>
-                        prev.filter(food => {
+                    void (async () => {
+                        try {
                             if (item.mealDetailId != null) {
-                                return food.mealDetailId !== item.mealDetailId;
+                                const res = await deleteMealDetail(item.mealDetailId);
+                                if (!isResourceApiOk(res as { code?: number })) {
+                                    const r = res as { msg?: string; message?: string };
+                                    Toast.info(r.msg ?? r.message ?? '删除失败');
+                                    return;
+                                }
                             }
-                            return food !== item;
-                        }),
-                    );
+                            setMealDetailList(prev =>
+                                prev.filter(food => {
+                                    if (item.mealDetailId != null) {
+                                        return food.mealDetailId !== item.mealDetailId;
+                                    }
+                                    return food !== item;
+                                }),
+                            );
+                            Toast.success('已删除', 1.5);
+                        } catch {
+                            Toast.info('网络错误，请稍后重试');
+                        }
+                    })();
                 },
             },
         ]);
@@ -411,7 +431,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         try {
             const res = await postDietUserSign();
             if (!isResourceApiOk(res as unknown as { code?: number })) {
-                Toast.fail(
+                Toast.show(
                     (res as { msg?: string; message?: string })?.msg
                     || (res as { msg?: string; message?: string })?.message
                     || '打卡失败',
@@ -427,7 +447,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                 days != null && days > 0 ? `打卡成功，已连续${days}天` : '打卡成功',
             );
         } catch {
-            Toast.fail('打卡失败');
+            Toast.show('打卡失败');
         } finally {
             Toast.remove(loadingKey);
             setSigning(false);
@@ -437,7 +457,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
     const onPressRefresh = useCallback(async () => {
         const ruleId = dayRule?.dietPatientRuleId ?? dietRule?.dietPatientRuleId;
         if (ruleId == null || String(ruleId).trim() === '') {
-            Toast.fail('暂无可用处方');
+            Toast.show('暂无可用处方');
             return;
         }
         if (refreshing) return;
@@ -452,20 +472,20 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
             });
             if (!isResourceApiOk(res as unknown as { code?: number })) {
                 const failRes = res as unknown as { msg?: string; message?: string };
-                Toast.fail(failRes?.msg || failRes?.message || '换一换失败');
+                Toast.show(failRes?.msg || failRes?.message || '换一换失败');
                 return;
             }
 
             const nextRule = await fetchDietRuleForDate(selectedDate);
             if (!nextRule) {
-                Toast.fail('获取处方失败');
+                Toast.show('获取处方失败');
                 return;
             }
             setDayRule(nextRule);
             onDietRuleChange?.(nextRule);
             Toast.success('已更新推荐餐食');
         } catch {
-            Toast.fail('换一换失败');
+            Toast.show('换一换失败');
         } finally {
             Toast.remove(loadingKey);
             setRefreshing(false);

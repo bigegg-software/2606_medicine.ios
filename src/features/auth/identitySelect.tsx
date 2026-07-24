@@ -3,14 +3,13 @@ import { Alert, Image, ImageSourcePropType, Text, TouchableOpacity, View } from 
 import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
-import { updateExtrInfo } from '@/api/user';
 import styles from '@/css/auth/identitySelect';
 import PageLayout from '@/src/components/PageLayout';
 import { fetchUserSession } from '@/store/actions/user';
 import type { AppDispatch } from '@/store/store';
-import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   getAuthHomeRoute,
+  submitInitMemberType,
   type IdentityPerspective,
 } from './utils/identityHelpers';
 
@@ -46,14 +45,13 @@ export default function IdentitySelectPage() {
       submittingRef.current = true;
       setSubmitting(true);
       try {
-        const res = await updateExtrInfo({ identityPerspective: value });
-        if (!isResourceApiOk(res as { code?: number; msg?: string })) {
-          const r = res as { msg?: string; message?: string };
-          Alert.alert('提交失败', r.msg ?? r.message ?? '请稍后重试');
+        const result = await submitInitMemberType(value);
+        if (!result.ok) {
+          Alert.alert('提交失败', result.msg ?? '请稍后重试');
           return;
         }
         await dispatch(fetchUserSession());
-        const homeRoute = getAuthHomeRoute(value);
+        const homeRoute = result.homeRoute || getAuthHomeRoute(value);
         navigation.reset({
           index: 0,
           routes: [{ name: homeRoute }],

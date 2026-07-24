@@ -96,12 +96,12 @@ export default function SyncReminderWatcher() {
     try {
       const res = (await updateHealthKit(null)) as { code?: number; msg?: string } | undefined;
       if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
-        Toast.fail(res.msg ?? '同步失败，请稍后重试', 1.5);
+        Toast.show(res.msg ?? '同步失败，请稍后重试', 1.5);
         return;
       }
       Toast.success('同步成功，签到完成', 1.5);
     } catch {
-      Toast.fail('健康数据同步失败，请稍后重试', 1.5);
+      Toast.show('健康数据同步失败，请稍后重试', 1.5);
     } finally {
       setSyncing(false);
     }

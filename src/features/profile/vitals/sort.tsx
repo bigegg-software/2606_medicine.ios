@@ -116,7 +116,7 @@ function SortRow({
     }, [rowHeight, rowHeightShared]);
 
     const gesture = Gesture.Pan()
-        .activateAfterLongPress(200)
+        .activateAfterLongPress(350)
         .activeOffsetY([-4, 4])
         .failOffsetX([-16, 16])
         .onStart(() => {
@@ -165,6 +165,7 @@ function SortRow({
     const animatedStyle = useAnimatedStyle(() => {
         const fromIndex = dragFromIndex.value;
         const isActive = dragItemKey.value === item.key;
+        const dragging = dragItemKey.value != null;
         const hoverIndex = dragHoverIndex.value >= 0
             ? dragHoverIndex.value
             : getHoverIndex(fromIndex, dragTranslateY.value, rowHeightShared.value, itemCount);
@@ -174,25 +175,31 @@ function SortRow({
             return {
                 transform: [
                     { translateY: dragTranslateY.value },
-                    { scale: 1.02 },
+                    { scale: 1.06 },
                 ],
-                zIndex: 20,
-                opacity: 0.98,
+                zIndex: 30,
+                opacity: 1,
             };
         }
 
         return {
             transform: [{ translateY: rowOffset }],
             zIndex: 1,
-            opacity: 1,
+            opacity: dragging ? 0.45 : 1,
         };
     }, [index, item.key, itemCount]);
 
     const cardAnimatedStyle = useAnimatedStyle(() => {
         const isActive = dragItemKey.value === item.key;
         return {
-            shadowOpacity: isActive ? 0.18 : 0.1,
-            elevation: isActive ? 6 : 2,
+            shadowOpacity: isActive ? 0.28 : 0.1,
+            shadowRadius: isActive ? 12 : 4,
+            shadowOffset: {
+                width: 0,
+                height: isActive ? 8 : 2,
+            },
+            elevation: isActive ? 12 : 2,
+            borderColor: isActive ? 'rgba(109,146,94,0.55)' : 'transparent',
         };
     });
 

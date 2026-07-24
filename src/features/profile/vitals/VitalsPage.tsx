@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type ImageSourcePropType } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import GoalTargetModal from './components/GoalTargetModal';
 import SyncDaysPickerModal from './components/SyncDaysPickerModal';
@@ -648,15 +648,15 @@ export default function VitalsPage() {
             </TouchableOpacity>
           ) : null}
         </Flex>
-        <TouchableOpacity onPress={onPress} disabled={!onPress}>
-          <Flex style={styles.vValueBox} justify="between" align="center">
-            <View>
-              <Text style={styles.vValue}>{value}</Text>
-              <Text style={styles.vUnit}>{unit}</Text>
-            </View>
-            {chart}
-          </Flex>
-        </TouchableOpacity>
+        {/* <TouchableOpacity onPress={onPress} disabled={!onPress}> */}
+        <Flex style={styles.vValueBox} justify="between" align="center">
+          <View>
+            <Text style={styles.vValue}>{value}</Text>
+            <Text style={styles.vUnit}>{unit}</Text>
+          </View>
+          {chart}
+        </Flex>
+        {/* </TouchableOpacity> */}
       </View>
     );
   }
@@ -926,7 +926,7 @@ export default function VitalsPage() {
     try {
       const res = (await updateHealthKit(days)) as { code?: number; msg?: string } | undefined;
       if (res?.code == 500) {
-        Alert.alert('同步完成', res.msg ?? '请稍后重试');
+        Toast.show(res.msg ?? '同步失败');
         return
       } else if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
         Alert.alert('同步失败', res.msg ?? '请稍后重试');

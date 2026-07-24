@@ -234,7 +234,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
     if (showSendAction) {
       const text = mealNote.trim();
       if (!text) {
-        Toast.fail('请输入或录入食物描述');
+        Toast.show('请输入或录入食物描述');
         return;
       }
       void speechToTextRef.current?.stopListening();
@@ -263,7 +263,8 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
 
   const bottomBarBottom = useMemo(() => {
     if (keyboardHeight <= 0) return Math.max(insets.bottom, 16);
-    return Math.max(0, keyboardHeight - insets.bottom) + 8;
+    // 键盘高度已含底部安全区，再减 insets 会压进键盘导致抬升不够
+    return keyboardHeight + 8;
   }, [insets.bottom, keyboardHeight]);
 
   return (

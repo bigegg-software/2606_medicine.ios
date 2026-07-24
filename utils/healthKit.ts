@@ -4,10 +4,20 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppleHealthKit from 'react-native-health';
 import { getUserBaseInfo } from '@/api/patient';
 import { uploadWearableData, type WearableUploadPayload } from '@/api/wearableData';
+import {
+  batchAddDeviceMeasureData,
+  type BatchDeviceMeasureDataItem,
+} from '@/api/measureData';
 import store from '@/store/store';
 import { SET_UPLOADING, SET_UPLOAD_PROGRESS } from '@/store/type/upload';
 import filterData from '@/utils/filterData';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+  mapBloodGlucoseSamplesToDeviceItems,
+  mapBloodPressureSamplesToDeviceItems,
+  mapBodyTemperatureSamplesToDeviceItems,
+  mapWeightSamplesToDeviceItems,
+} from '@/utils/healthKitMeasureHelpers';
 
 /** 自动/手动健康同步成功完成后发出，首页等可监听刷新展示数据 */
 export const HEALTH_KIT_SYNC_COMPLETED = 'healthKitSyncCompleted';
@@ -48,6 +58,18 @@ async function postBatch(item: HealthBatchItem, last = false) {
   return uploadWearableData(toUploadPayload(item, last));
 }
 
+async function uploadDeviceMeasureItems(items: BatchDeviceMeasureDataItem[]) {
+  if (items.length === 0) return;
+  const batches = chunkArray(items, 50);
+  for (const batch of batches) {
+    const res = await batchAddDeviceMeasureData(batch);
+    if (!isResourceApiOk(res as { code?: number })) {
+      const r = res as { msg?: string };
+      console.error('[HealthKit] 测量数据上传失败:', r.msg ?? res);
+    }
+  }
+}
+
 export default async function updateHealthKit(syncDays: number | null = null) {
   if (Platform.OS !== 'ios') {
     Alert.alert('提示', '当前仅支持 iOS 健康数据同步');
@@ -67,6 +89,7 @@ export default async function updateHealthKit(syncDays: number | null = null) {
   dispatch({ type: SET_UPLOAD_PROGRESS, payload: 0 });
 
   const allResults: HealthBatchItem[] = [];
+  const deviceMeasureItems: BatchDeviceMeasureDataItem[] = [];
   const userRes = await getUserBaseInfo();
   const userId =
     (isResourceApiOk(userRes as { code?: number }) ? (userRes as { data?: { userId?: number } }).data?.userId : undefined) ??
@@ -98,6 +121,11 @@ export default async function updateHealthKit(syncDays: number | null = null) {
           AppleHealthKit.Constants.Permissions.ActiveEnergyBurned,
           AppleHealthKit.Constants.Permissions.AppleExerciseTime,
           AppleHealthKit.Constants.Permissions.HeartRate,
+          AppleHealthKit.Constants.Permissions.BloodGlucose,
+          AppleHealthKit.Constants.Permissions.BloodPressureSystolic,
+          AppleHealthKit.Constants.Permissions.BloodPressureDiastolic,
+          AppleHealthKit.Constants.Permissions.Weight,
+          AppleHealthKit.Constants.Permissions.BodyTemperature,
         ],
         write: [],
       },
@@ -106,7 +134,7 @@ export default async function updateHealthKit(syncDays: number | null = null) {
     const startTime = new Date(moment().format('YYYY-MM-DD')).getTime() - synWdataDays * 24 * 60 * 60 * 1000;
     const endTime = new Date(moment().format('YYYY-MM-DD')).getTime();
     const dayCount = Math.ceil((endTime - startTime) / (24 * 60 * 60 * 1000));
-    const totalRequests = (dayCount + 1) * 11;
+    const totalRequests = (dayCount + 1) * 15;
     let completedRequests = 0;
     let uploadedCount = 0;
 
@@ -117,6 +145,8 @@ export default async function updateHealthKit(syncDays: number | null = null) {
       }
 
       try {
+        await uploadDeviceMeasureItems(deviceMeasureItems);
+
         const startData = allResults.slice(0, -1);
         const endData = allResults.at(-1);
         const batches = chunkArray(startData, 5);
@@ -180,10 +210,26 @@ export default async function updateHealthKit(syncDays: number | null = null) {
         return;
       }
       if (completedRequests === totalRequests) {
-        if (allResults.length === 0) {
+        if (allResults.length === 0 && deviceMeasureItems.length === 0) {
           dispatch({ type: SET_UPLOADING, payload: false });
           Alert.alert('提示', '暂无可同步的健康数据');
           resolve({ code: 0, msg: 'no data' });
+          return;
+        }
+        if (allResults.length === 0) {
+          void (async () => {
+            try {
+              await uploadDeviceMeasureItems(deviceMeasureItems);
+              dispatch({ type: SET_UPLOAD_PROGRESS, payload: 100 });
+              DeviceEventEmitter.emit(HEALTH_KIT_SYNC_COMPLETED);
+              resolve({ code: 1, msg: '' });
+            } catch (error) {
+              console.error('Device measure upload failed:', error);
+              reject(error);
+            } finally {
+              dispatch({ type: SET_UPLOADING, payload: false });
+            }
+          })();
           return;
         }
         void processResults();
@@ -382,6 +428,43 @@ export default async function updateHealthKit(syncDays: number | null = null) {
               },
             });
           }
+          completedRequests += 1;
+          checkAllCompleted();
+        });
+
+        const glucoseOptions = {
+          ...baseOptions,
+          unit: AppleHealthKit.Constants.Units.mmolPerL,
+        };
+        const weightOptions = {
+          ...baseOptions,
+          unit: 'kg' as const,
+        };
+        const temperatureOptions = {
+          ...baseOptions,
+          unit: AppleHealthKit.Constants.Units.celsius,
+        };
+
+        AppleHealthKit.getBloodGlucoseSamples(glucoseOptions, (_err, results) => {
+          deviceMeasureItems.push(...mapBloodGlucoseSamplesToDeviceItems(results));
+          completedRequests += 1;
+          checkAllCompleted();
+        });
+
+        AppleHealthKit.getBloodPressureSamples(baseOptions, (_err, results) => {
+          deviceMeasureItems.push(...mapBloodPressureSamplesToDeviceItems(results));
+          completedRequests += 1;
+          checkAllCompleted();
+        });
+
+        AppleHealthKit.getWeightSamples(weightOptions, (_err, results) => {
+          deviceMeasureItems.push(...mapWeightSamplesToDeviceItems(results));
+          completedRequests += 1;
+          checkAllCompleted();
+        });
+
+        AppleHealthKit.getBodyTemperatureSamples(temperatureOptions, (_err, results) => {
+          deviceMeasureItems.push(...mapBodyTemperatureSamplesToDeviceItems(results));
           completedRequests += 1;
           checkAllCompleted();
         });

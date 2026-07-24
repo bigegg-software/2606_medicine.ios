@@ -29,7 +29,7 @@ export default function FamilyProfilePage() {
     try {
       const result = await switchIdentityPerspective('old');
       if (!result.ok) {
-        Toast.fail(result.msg ?? '切换失败', 1.5);
+        Toast.show(result.msg ?? '切换失败', 1.5);
         return;
       }
       await dispatch(fetchUserSession());

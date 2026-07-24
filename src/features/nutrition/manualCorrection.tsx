@@ -212,14 +212,14 @@ export default function ManualCorrectionPage() {
 
     const handleConfirm = useCallback(() => {
         if (!form.mealName.trim()) {
-            Toast.fail('请输入食物名称');
+            Toast.show('请输入食物名称');
             return;
         }
 
         const hasMacro =
             form.protein !== '' || form.fat !== '' || form.carbs !== '' || form.calorie !== '';
         if (!hasMacro) {
-            Toast.fail('请至少填写一项营养成分');
+            Toast.show('请至少填写一项营养成分');
             return;
         }
 
@@ -234,7 +234,7 @@ export default function ManualCorrectionPage() {
                     error: !nutrient.name.trim(),
                 })),
             }));
-            Toast.fail('请填写自定义营养成分名称');
+            Toast.show('请填写自定义营养成分名称');
             return;
         }
 

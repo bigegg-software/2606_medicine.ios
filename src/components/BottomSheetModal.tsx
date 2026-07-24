@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN = Dimensions.get('screen');
+const SCREEN_HEIGHT = SCREEN.height;
 
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {
@@ -148,7 +149,6 @@ export default function BottomSheetModal({
         <Animated.View
           pointerEvents="none"
           style={[
-            StyleSheet.absoluteFill,
             styles.backdrop,
             {
               opacity: backdropAnim.interpolate({
@@ -159,7 +159,7 @@ export default function BottomSheetModal({
           ]}
         />
         {dismissOnBackdropPress ? (
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Pressable style={styles.backdropDismiss} onPress={onClose} />
         ) : null}
         <Animated.View
           style={[
@@ -182,6 +182,8 @@ export default function BottomSheetModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
+    width: SCREEN.width,
+    height: SCREEN.height,
     justifyContent: 'flex-end',
   },
   keyboardAccessoryHost: {
@@ -190,9 +192,32 @@ const styles = StyleSheet.create({
     elevation: 200,
   },
   backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN.width,
+    height: SCREEN.height,
     backgroundColor: '#000000',
+    zIndex: 0,
+  },
+  backdropDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN.width,
+    height: SCREEN.height,
+    zIndex: 1,
   },
   sheet: {
     width: '100%',
+    zIndex: 2,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 24,
   },
 });

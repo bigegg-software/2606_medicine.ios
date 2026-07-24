@@ -145,7 +145,7 @@ export default function MedicationAddPage({ route }: Props) {
                 if (isEdit && medicationPlanId != null) {
                     const plan = await loadMedicationPlanForEdit(medicationPlanId);
                     if (!plan) {
-                        Toast.fail('加载用药计划失败', 1.5);
+                        Toast.show('加载用药计划失败', 1.5);
                         navigation.goBack();
                         return;
                     }
@@ -167,7 +167,7 @@ export default function MedicationAddPage({ route }: Props) {
                     setMealRelation(maps.eventBasedOptions[0]?.value ?? '');
                 }
             } catch {
-                Toast.fail('加载数据失败', 1.5);
+                Toast.show('加载数据失败', 1.5);
                 if (isEdit) {
                     navigation.goBack();
                 }
@@ -214,32 +214,32 @@ export default function MedicationAddPage({ route }: Props) {
 
     const submit = async () => {
         if (!drugName.trim()) {
-            Toast.fail('请输入药品名称', 1.5);
+            Toast.show('请输入药品名称', 1.5);
             return;
         }
         if (!doseAmount.trim()) {
-            Toast.fail('请输入每次服用剂量', 1.5);
+            Toast.show('请输入每次服用剂量', 1.5);
             return;
         }
         if (!doseUnit) {
-            Toast.fail('请选择剂量单位', 1.5);
+            Toast.show('请选择剂量单位', 1.5);
             return;
         }
         if (!mealRelation) {
-            Toast.fail('请选择与进餐关系', 1.5);
+            Toast.show('请选择与进餐关系', 1.5);
             return;
         }
         if (weekDays.length === 0) {
-            Toast.fail('请选择每周用药时间', 1.5);
+            Toast.show('请选择每周用药时间', 1.5);
             return;
         }
         if (!continuousMedication) {
             if (!cycleEndDate) {
-                Toast.fail('请选择结束时间', 1.5);
+                Toast.show('请选择结束时间', 1.5);
                 return;
             }
             if (moment(cycleEndDate).isBefore(moment(cycleStartDate), 'day')) {
-                Toast.fail('结束时间不能早于开始时间', 1.5);
+                Toast.show('结束时间不能早于开始时间', 1.5);
                 return;
             }
         }
@@ -265,13 +265,13 @@ export default function MedicationAddPage({ route }: Props) {
                 ? await updateMedicationPlan({ ...payload, medicationPlanId: medicationPlanId! })
                 : await addMedicationPlan(payload);
             if (!isResourceApiOk(res as any)) {
-                Toast.fail((res as any)?.msg || (isEdit ? '保存失败' : '添加失败'), 1.5);
+                Toast.show((res as any)?.msg || (isEdit ? '保存失败' : '添加失败'), 1.5);
                 return;
             }
             Toast.success(isEdit ? '保存成功' : '添加成功', 1.5);
             navigation.goBack();
         } catch {
-            Toast.fail(isEdit ? '保存失败' : '添加失败', 1.5);
+            Toast.show(isEdit ? '保存失败' : '添加失败', 1.5);
         } finally {
             setSubmitting(false);
         }

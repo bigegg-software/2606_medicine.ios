@@ -8,12 +8,12 @@ import {
     type FoodItemEditState,
 } from '@/src/features/profile/medication/meal/components/FoodDetailCard';
 
+/** 03:00-11:00 早餐；11:00-16:00 午餐；16:00-02:00 晚餐 */
 export function getMealCategoryByTime() {
     const hour = new Date().getHours();
-    if (hour >= 6 && hour < 9) return 1;
-    if (hour >= 11 && hour < 14) return 2;
-    if (hour >= 17 && hour < 20) return 3;
-    return 4;
+    if (hour >= 3 && hour < 11) return 1;
+    if (hour >= 11 && hour < 16) return 2;
+    return 3;
 }
 
 export function buildMealDetailItems(

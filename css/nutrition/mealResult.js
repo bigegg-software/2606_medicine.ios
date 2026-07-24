@@ -399,6 +399,30 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#173F7D',
     },
+    recordHeaderTextWrap: {
+        flex: 1,
+        minWidth: 0,
+        marginLeft: 16,
+        marginRight: 8,
+    },
+    recordDetailContent: {
+        paddingBottom: 32,
+    },
+    recordFoodList: {
+        gap: 12,
+        paddingBottom: 8,
+    },
+    emptyState: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingHorizontal: 24,
+    },
+    emptyStateText: {
+        fontSize: 14,
+        fontWeight: '400',
+        color: '#999999',
+    },
     recordImg: {
         width: 17,
         height: 17,

@@ -85,7 +85,7 @@ function UserUploadPreview({
   const handlePress = useCallback(() => {
     if (isDocumentUpload) {
       if (!firstFile?.url) {
-        Toast.fail('文件地址无效', 1.5);
+        Toast.show('文件地址无效', 1.5);
         return;
       }
       const loadingKey = Toast.loading('加载中', 0);
@@ -466,13 +466,13 @@ export default function AssistantPage() {
         uploadType: 'file',
       });
       if (!uploaded) {
-        Toast.fail('上传失败', 1.5);
+        Toast.show('上传失败', 1.5);
         return;
       }
 
       const sent = await sendAttachments([uploaded], input);
       if (!sent) {
-        Toast.fail('发送失败，请稍后重试', 1.5);
+        Toast.show('发送失败，请稍后重试', 1.5);
       }
     } catch {
       Alert.alert('错误', '选择文件失败');
@@ -485,7 +485,7 @@ export default function AssistantPage() {
         void (async () => {
           const ok = await runTodayScheduleQuickAction();
           if (!ok) {
-            Toast.fail('今日安排加载失败', 1.5);
+            Toast.show('今日安排加载失败', 1.5);
           }
         })();
         return;
@@ -494,7 +494,7 @@ export default function AssistantPage() {
         void (async () => {
           const ok = await runMedicationReminder();
           if (!ok) {
-            Toast.fail('用药提醒加载失败', 1.5);
+            Toast.show('用药提醒加载失败', 1.5);
           }
         })();
         return;
@@ -503,7 +503,7 @@ export default function AssistantPage() {
         void (async () => {
           const ok = await runQuestionnaireQuickAction();
           if (!ok) {
-            Toast.fail('评估量表加载失败', 1.5);
+            Toast.show('评估量表加载失败', 1.5);
           }
         })();
         return;
@@ -512,7 +512,7 @@ export default function AssistantPage() {
         void (async () => {
           const ok = await runHealthStatusQuickAction();
           if (!ok) {
-            Toast.fail('健康状况加载失败', 1.5);
+            Toast.show('健康状况加载失败', 1.5);
           }
         })();
         return;

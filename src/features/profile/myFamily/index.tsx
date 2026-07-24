@@ -1,79 +1,98 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ImageBackground, ScrollView } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { MaterialIcons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { getUserBaseInfo, updateUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { AppTheme } from '@/common/theme';
-import styles from '@/css/profile/healthRecord';
-import { useDispatch, useSelector } from 'react-redux';
-import type { RootState, AppDispatch } from '@/store/store';
-import NoData from '@/src/components/noData';
+import styles from '@/css/profile/myFamily';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
 
 export default function ProfileEditPage() {
-    const navigation:any = useNavigation();
+    const navigation: any = useNavigation();
     const user: any = useSelector((state: RootState) => state.user.info);
     const [emergencyList, setEmergencyList] = useState<any[]>([{}]);
     return (
-        <PageLayout style={styles.container}>
-
-            {emergencyList.length > 0 ?
-
-                <ScrollView style={styles.body}>
-                    <TouchableOpacity style={[styles.infoBox, { marginTop: 6 }]} onPress={()=>{
-                        navigation.navigate('FamilyDetail');
-                    }}>
-                        <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                            <Flex>
-                                <Flex justify='center' align='center' style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
-                                </Flex>
-                                <View style={styles.familyItemContent}>
-                                    <Text style={styles.familyItemName}>张小红（女儿）</Text>
-                                    <Text style={styles.familyItemRelation}>13912344123</Text>
-                                </View>
-                            </Flex>
-                            <Flex>
-                                <Text style={styles.familyAuthText}>已授权4项权限</Text>
-                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
-                            </Flex>
-                        </Flex>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.infoBox, { marginTop: 6 }]} onPress={()=>{
-  navigation.navigate('FamilyDetail');
-                    }}>
-                        <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                            <Flex>
-                                <Flex justify='center' align='center' style={styles.imgBox}>
-                                    <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
-                                </Flex>
-                                <View style={styles.familyItemContent}>
-                                    <Text style={styles.familyItemName}>张小红（女儿）</Text>
-                                    <Text style={styles.familyItemRelation}>13912344123</Text>
-                                </View>
-                            </Flex>
-                            <Flex>
-                                <Text style={styles.familyAuthText}>已授权4项权限</Text>
-                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.primaryColor} />
-                            </Flex>
-                        </Flex>
-                    </TouchableOpacity>
-                    <Text style={styles.emergencyText}>授权家人可以查看您的健康数据、接收健康预警等，让家人随时了解您的健康状况。</Text>
-                </ScrollView>
-                : <View style={[styles.body, { flex: 1 }]}>
-                    <Flex style={{ flex: 1 }}>
-                        <NoData />
-                    </Flex>
-                    <Text style={styles.emergencyText}>授权家人可以查看您的健康数据、接收健康预警等，让家人随时了解您的健康状况。</Text>
-                </View>
-            }
-
-            <TouchableOpacity style={styles.addBtn}>
-                <Flex justify='center' align='center' style={{ flex: 1 }}>
-                    <Text style={styles.addText}>邀请家人加入</Text>
+        <PageLayout style={styles.container} edges={[]}>
+            <ScrollView style={styles.body}>
+                <Flex style={styles.rowBox} align="start">
+                    <View style={styles.rowBoxTextWrap}>
+                        <Text style={styles.rowBoxText}>
+                            <Text style={styles.rowBoxTextHighlight}>授权家人</Text>
+                            可以查看您的健康数据、接收健康预警等，让家人随时了解您的健康状况。
+                        </Text>
+                    </View>
+                    <Image style={styles.familyIcon} source={require('@/assets/images/family/family.png')} />
                 </Flex>
-            </TouchableOpacity>
+                <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
+                    <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
+                        <Text style={styles.backImage1Text}>已绑定家人</Text>
+                    </Flex>
+                </ImageBackground>
+                <View style={styles.familyList}>
+                    <Flex style={styles.familyItem}>
+                        <Image style={styles.familyItemIcon} source={require('@/assets/images/family/family.png')} />
+                        <View style={styles.familyItemWrap}>
+                            <Flex justify="between">
+                                <Flex>
+                                    <Text style={styles.familyItemName}>王剑虹</Text>
+                                    <Text style={styles.familyItemRelation}>儿子</Text>
+                                </Flex>
+                                <Flex>
+                                    <View style={styles.familyItemStatusBox}></View>
+                                    <Text style={styles.familyItemStatus}>已授权</Text>
+                                </Flex>
+                            </Flex>
+                            <Flex justify="between" style={styles.familyItemPhoneWrap}>
+                                <View>
+                                    <Text style={styles.phoneNumber}>138****8888</Text>
+                                    <Text style={styles.familyItemStatusText}>已授权6项·健康 用药 运动 饮食 评估 预警</Text>
+                                </View>
+                                <Image style={styles.familyItemRightIcon} source={require("@/assets/images/family/icon_right.png")} />
+                            </Flex>
+                        </View>
+                    </Flex>
+                    <Flex style={styles.familyItem}>
+                        <Image style={styles.familyItemIcon} source={require('@/assets/images/family/family.png')} />
+                        <View style={styles.familyItemWrap}>
+                            <Flex justify="between">
+                                <Flex>
+                                    <Text style={styles.familyItemName}>王剑虹</Text>
+                                    <Text style={styles.familyItemRelation}>儿子</Text>
+                                </Flex>
+                                <Flex>
+                                    <View style={styles.familyItemStatusBox1}></View>
+                                    <Text style={styles.familyItemStatus1}>未授权</Text>
+                                </Flex>
+                            </Flex>
+                            <Flex justify="between" style={styles.familyItemPhoneWrap}>
+                                <View>
+                                    <Text style={styles.phoneNumber}>138****8888</Text>
+                                    <Text style={styles.familyItemStatusText}>等待确认中...</Text>
+                                </View>
+                                <Image style={styles.familyItemRightIcon} source={require("@/assets/images/family/icon_right.png")} />
+                            </Flex>
+                        </View>
+                    </Flex>
+                </View>
+
+            </ScrollView>
+
+            <View style={styles.bottomBar}>
+                <TouchableOpacity
+                    style={styles.bottomBarButtonLeft}
+                    activeOpacity={0.7}
+                    onPress={() => { navigation.navigate('MyFamilyAdd') }}
+                >
+                    <Flex style={{ flex: 1 }}>
+                        <Image
+                            style={styles.bottomBarButtonImg}
+                            source={require('@/assets/images/vitals/icon_add.png')}
+                        />
+                        <Text style={styles.bottomBarButtonTextLeft}>邀请家人加入</Text>
+                    </Flex>
+                </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }

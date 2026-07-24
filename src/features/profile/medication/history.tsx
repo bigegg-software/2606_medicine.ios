@@ -377,7 +377,7 @@ export default function MedicationAllPage() {
                                                 <View>
                                                     <Flex>
                                                         <Text style={styles.listItemText}>{record.snapshotRule?.name}</Text>
-                                                        <PlanTypeBadge isPrescription={record.snapshotRule?.planType === 1} />
+                                                        {/* <PlanTypeBadge isPrescription={record.snapshotRule?.planType === 1} /> */}
                                                     </Flex>
                                                     <Text style={styles.listItemDw}>{record.snapshotRule?.amount}{resolveDictLabel(dictMaps?.amountUnit ?? {}, record.snapshotRule?.amountUnit)}</Text>
                                                 </View>

@@ -65,11 +65,11 @@ export type TodaySchedulePayload = {
   isEmpty: boolean;
 };
 
+/** 03:00-11:00 早餐；11:00-16:00 午餐；16:00-02:00 晚餐（跨日用 26h 表示） */
 const MEAL_WINDOW_BY_KEY: Record<string, { start: number; end: number }> = {
-  breakfast: { start: 6 * 60, end: 9 * 60 },
-  lunch: { start: 11 * 60, end: 13 * 60 },
-  dinner: { start: 17 * 60, end: 19 * 60 },
-  snack: { start: 15 * 60, end: 24 * 60 },
+  breakfast: { start: 3 * 60, end: 11 * 60 },
+  lunch: { start: 11 * 60, end: 16 * 60 },
+  dinner: { start: 16 * 60, end: 26 * 60 },
 };
 
 const TIMELINE_ICONS: Record<TodayScheduleItem['kind'], number> = {
@@ -105,13 +105,13 @@ function getMealMetaKey(mealCard: MealCardData) {
 
 function getMealWindow(mealCard: MealCardData) {
   const key = getMealMetaKey(mealCard);
-  return MEAL_WINDOW_BY_KEY[key] ?? { start: 15 * 60, end: 24 * 60 };
+  return MEAL_WINDOW_BY_KEY[key] ?? MEAL_WINDOW_BY_KEY.dinner;
 }
 
 function getCurrentMealKey() {
   const hour = moment().hours();
-  if (hour < 10) return 'breakfast';
-  if (hour < 16) return 'lunch';
+  if (hour >= 3 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 16) return 'lunch';
   return 'dinner';
 }
 

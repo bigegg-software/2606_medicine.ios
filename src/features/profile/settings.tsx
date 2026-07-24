@@ -80,7 +80,7 @@ export default function SettingsPage() {
         try {
             const res = await updateExtrInfo(payload);
             if (!isResourceApiOk(res as { code?: number })) {
-                Toast.fail((res as { msg?: string })?.msg || '保存同步设置失败', 1.5);
+                Toast.show((res as { msg?: string })?.msg || '保存同步设置失败', 1.5);
                 return false;
             }
 
@@ -95,7 +95,7 @@ export default function SettingsPage() {
             }
             return true;
         } catch {
-            Toast.fail('保存同步设置失败', 1.5);
+            Toast.show('保存同步设置失败', 1.5);
             return false;
         } finally {
             setSavingSync(false);
@@ -130,7 +130,7 @@ export default function SettingsPage() {
             const payload = buildNotificationSettingsPayload(next, userExtr?.params);
             const res = await updateExtrInfo(payload);
             if (!isResourceApiOk(res as { code?: number })) {
-                Toast.fail((res as { msg?: string })?.msg || '保存通知设置失败', 1.5);
+                Toast.show((res as { msg?: string })?.msg || '保存通知设置失败', 1.5);
                 return false;
             }
 
@@ -147,7 +147,7 @@ export default function SettingsPage() {
             }
             return true;
         } catch {
-            Toast.fail('保存通知设置失败', 1.5);
+            Toast.show('保存通知设置失败', 1.5);
             return false;
         } finally {
             setSavingNotification(false);

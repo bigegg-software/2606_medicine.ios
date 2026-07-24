@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  InteractionManager,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -14,9 +15,8 @@ import PageLayout from '@/src/components/PageLayout';
 import MiniProgressRing from '@/src/features/home/components/MiniProgressRing';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
-import { getMealDetailByMealId, getMealListByDate, type MealRecordItem } from '@/api/meal';
+import type { MealRecordItem } from '@/api/meal';
 import type { MealDetailItem } from '@/api/mealDetail';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import styles from '@/css/medication/mealHistory';
 import mealStyles from '@/css/medication/meal';
 import { NUTRITION_COLOR } from './utils/dietRuleHelpers';
@@ -27,9 +27,22 @@ import {
   formatMealHistoryDate,
 } from './utils/mealHistoryHelpers';
 import { formatNutritionInteger } from './utils/mealDetailHelpers';
+import { loadMealDayDetailPayload } from './utils/mealDayDetailHelpers';
 
 type Route = RouteProp<RootStackParamList, 'MealDayDetailPage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+type DayDetailState = {
+  meals: MealRecordItem[];
+  foodDetails: MealDetailItem[];
+  detailsByMealId: Record<string, MealDetailItem[]>;
+};
+
+const EMPTY_DAY_STATE: DayDetailState = {
+  meals: [],
+  foodDetails: [],
+  detailsByMealId: {},
+};
 
 function NutritionStatusTag({
   display,
@@ -60,46 +73,22 @@ export default function MealDayDetailPage() {
   const { customerLocalDate } = route.params;
 
   const [loading, setLoading] = useState(true);
-  const [meals, setMeals] = useState<MealRecordItem[]>([]);
-  const [foodDetails, setFoodDetails] = useState<MealDetailItem[]>([]);
-  const [detailsByMealId, setDetailsByMealId] = useState<Record<string, MealDetailItem[]>>({});
+  const [dayState, setDayState] = useState<DayDetailState>(EMPTY_DAY_STATE);
 
   const loadDetail = useCallback(async () => {
     setLoading(true);
-    try {
-      const listRes = await getMealListByDate({ customerLocalDate });
-      const mealList = isResourceApiOk(listRes)
-        ? apiResourceData<MealRecordItem[]>(listRes as any) ?? []
-        : [];
-      setMeals(mealList);
+    setDayState(EMPTY_DAY_STATE);
 
-      const detailGroups = await Promise.all(
-        mealList.map(async meal => {
-          if (meal.mealId == null || meal.mealId === '') {
-            return { mealId: '', list: [] as MealDetailItem[] };
-          }
-          try {
-            const detailRes = await getMealDetailByMealId(String(meal.mealId));
-            if (!isResourceApiOk(detailRes)) {
-              return { mealId: String(meal.mealId), list: [] as MealDetailItem[] };
-            }
-            const detail = apiResourceData(detailRes as any);
-            return { mealId: String(meal.mealId), list: detail?.mealDetailList ?? [] };
-          } catch {
-            return { mealId: String(meal.mealId), list: [] as MealDetailItem[] };
-          }
-        }),
-      );
-      const detailMap: Record<string, MealDetailItem[]> = {};
-      detailGroups.forEach(group => {
-        if (group.mealId) detailMap[group.mealId] = group.list;
-      });
-      setDetailsByMealId(detailMap);
-      setFoodDetails(detailGroups.flatMap(group => group.list));
+    // 等转场动画结束再拉数，避免打开时主线程卡顿
+    await new Promise<void>(resolve => {
+      InteractionManager.runAfterInteractions(() => resolve());
+    });
+
+    try {
+      const payload = await loadMealDayDetailPayload(customerLocalDate);
+      setDayState(payload);
     } catch {
-      setMeals([]);
-      setFoodDetails([]);
-      setDetailsByMealId({});
+      setDayState(EMPTY_DAY_STATE);
     } finally {
       setLoading(false);
     }
@@ -112,156 +101,164 @@ export default function MealDayDetailPage() {
   );
 
   const snapshot = useMemo(
-    () => meals.find(item => item.dietRuleSnapshot)?.dietRuleSnapshot,
-    [meals],
+    () => dayState.meals.find(item => item.dietRuleSnapshot)?.dietRuleSnapshot,
+    [dayState.meals],
   );
 
   const summary = useMemo(
-    () => buildDayNutritionSummary(meals, foodDetails, snapshot),
-    [meals, foodDetails, snapshot],
+    () => buildDayNutritionSummary(dayState.meals, dayState.foodDetails, snapshot),
+    [dayState.foodDetails, dayState.meals, snapshot],
   );
 
   const mealSections = useMemo(
-    () => buildMealSections(meals, detailsByMealId, snapshot, customerLocalDate),
-    [customerLocalDate, detailsByMealId, meals, snapshot],
+    () =>
+      buildMealSections(
+        dayState.meals,
+        dayState.detailsByMealId,
+        snapshot,
+        customerLocalDate,
+      ),
+    [customerLocalDate, dayState.detailsByMealId, dayState.meals, snapshot],
   );
 
-  const waterTimeline = useMemo(() => buildWaterTimeline(foodDetails), [foodDetails]);
+  const waterTimeline = useMemo(
+    () => buildWaterTimeline(dayState.foodDetails),
+    [dayState.foodDetails],
+  );
 
-  if (loading) {
-    return (
-      <PageLayout>
+  return (
+    <PageLayout style={styles.container} showHeaderBackground={false} contentStyle={styles.pageBody}>
+      {loading ? (
         <View style={styles.center}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      </PageLayout>
-    );
-  }
+      ) : (
+        <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
+          <Text style={styles.dateText}>{formatMealHistoryDate(customerLocalDate)}</Text>
 
-  return (
-    <PageLayout style={styles.container} contentStyle={styles.pageBody}>
-      <ScrollView contentContainerStyle={styles.body} showsVerticalScrollIndicator={false}>
-        <Text style={styles.dateText}>{formatMealHistoryDate(customerLocalDate)}</Text>
-
-        <View style={[styles.card, styles.nutritionCard]}>
-          <View style={mealStyles.yyContent}>
-            <View style={mealStyles.yyItem}>
-              <Flex align="center">
-                <Text style={mealStyles.yyTitle}>热量</Text>
-                <MiniProgressRing
-                  size={30}
-                  progress={summary.calorieProgress}
-                  trackColor="rgba(131,174,255,0.14)"
-                  color="#6D925E"
-                />
-              </Flex>
-              <Flex align="center" style={{ marginTop: 6 }}>
-                <Text style={mealStyles.yyValue}>{formatNutritionInteger(summary.calories)}</Text>
-                <Text style={mealStyles.yyUnit}> /{summary.targetCalories ?? '--'}千卡</Text>
-              </Flex>
-              <NutritionStatusTag display={summary.calorieDisplay} />
-              <Text style={[styles.cardSubTitle, { marginTop: 4 }]}>{summary.caloriePercent}%</Text>
-            </View>
-
-            <View style={mealStyles.yyItem}>
-              <Flex align="center">
-                <Text style={mealStyles.yyTitle}>蛋白质</Text>
-                <MiniProgressRing
-                  size={30}
-                  progress={summary.proteinProgress}
-                  trackColor="rgba(131,174,255,0.14)"
-                  color="#0951AE"
-                />
-              </Flex>
-              <Flex align="center" style={{ marginTop: 6 }}>
-                <Text style={mealStyles.yyValue}>{formatNutritionInteger(summary.protein)}</Text>
-                <Text style={mealStyles.yyUnit}> /{summary.targetProtein ?? '--'}g</Text>
-              </Flex>
-              <NutritionStatusTag display={summary.proteinDisplay} />
-              <Text style={[styles.cardSubTitle, { marginTop: 4 }]}>{summary.proteinPercent}%</Text>
-            </View>
-
-            <View style={mealStyles.yyItem}>
-              <Flex align="center">
-                <Text style={mealStyles.yyTitle}>饮水</Text>
-                <MiniProgressRing
-                  size={30}
-                  progress={summary.waterProgress}
-                  trackColor="rgba(131,174,255,0.14)"
-                  color="#4F86EE"
-                />
-              </Flex>
-              <Flex align="center" style={{ marginTop: 6 }}>
-                <Text style={mealStyles.yyValue}>{formatNutritionInteger(summary.water)}</Text>
-                <Text style={mealStyles.yyUnit}> /{summary.targetWater ?? '--'}ml</Text>
-              </Flex>
-              <NutritionStatusTag display={summary.waterDisplay} />
-              <Text style={[styles.cardSubTitle, { marginTop: 4 }]}>{summary.waterPercent}%</Text>
-            </View>
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { marginVertical: 12 }]}>用餐详情</Text>
-        {mealSections.length === 0 ? (
-          <View style={[styles.card, { paddingVertical: 24 }]}>
-            <Text style={styles.daySubtitle}>暂无用餐记录</Text>
-          </View>
-        ) : (
-          mealSections.map(section => (
-            <View key={section.key} style={[styles.card, styles.mealSection]}>
-              <Text style={styles.mealSectionHeader}>
-                {section.title}
-                {section.currentCalories}
-                {section.targetCalories != null ? `/${section.targetCalories}` : ''}
-                千卡
-              </Text>
-              {section.foods.length === 0 ? (
-                <Text style={styles.daySubtitle}>暂无食物明细</Text>
-              ) : (
-                section.foods.map(food => (
-                  <TouchableOpacity
-                    key={food.key}
-                    style={styles.foodCard}
-                    activeOpacity={food.mealDetailId ? 0.7 : 1}
-                    onPress={() => {
-                      if (!food.mealDetailId) return;
-                      navigation.navigate('MealRecordDetailPage', { mealDetailId: food.mealDetailId });
-                    }}>
-                    {food.ossUrl ? (
-                      <Image source={{ uri: food.ossUrl }} style={styles.foodImage} />
-                    ) : (
-                      <Image
-                        source={require('@/assets/images/medication/default2.png')}
-                        style={styles.foodImagePlaceholder}
-                      />
-                    )}
-                    <View style={styles.foodInfo}>
-                      <Text style={styles.foodName}>{food.name}</Text>
-                      <Text style={styles.foodServing}>{food.servingText}</Text>
-                    </View>
-                    <Text style={styles.foodCalorie}>{food.calories}千卡</Text>
-                  </TouchableOpacity>
-                ))
-              )}
-            </View>
-          ))
-        )}
-
-        {waterTimeline.length > 0 ? (
-          <View style={[styles.card, styles.mealSection]}>
-            <Text style={styles.waterHeader}>
-              饮水{formatNutritionInteger(summary.water)}
-              /{summary.targetWater ?? '--'}ml
-            </Text>
-            {waterTimeline.map(item => (
-              <View key={item.key} style={styles.waterRow}>
-                <Text style={styles.waterTime}>{item.time}</Text>
-                <Text style={styles.waterAmount}>{item.amount}ml</Text>
+          <View style={[styles.card, styles.nutritionCard]}>
+            <View style={mealStyles.yyContent}>
+              <View style={mealStyles.yyItem}>
+                <Flex align="center">
+                  <Text style={mealStyles.yyTitle}>热量</Text>
+                  <MiniProgressRing
+                    size={30}
+                    progress={summary.calorieProgress}
+                    trackColor="rgba(131,174,255,0.14)"
+                    color="#6D925E"
+                  />
+                </Flex>
+                <Flex align="center" style={{ marginTop: 6 }}>
+                  <Text style={mealStyles.yyValue}>{formatNutritionInteger(summary.calories)}</Text>
+                  <Text style={mealStyles.yyUnit}> /{summary.targetCalories ?? '--'}千卡</Text>
+                </Flex>
+                <NutritionStatusTag display={summary.calorieDisplay} />
+                <Text style={[styles.cardSubTitle, { marginTop: 4 }]}>{summary.caloriePercent}%</Text>
               </View>
-            ))}
+
+              <View style={mealStyles.yyItem}>
+                <Flex align="center">
+                  <Text style={mealStyles.yyTitle}>蛋白质</Text>
+                  <MiniProgressRing
+                    size={30}
+                    progress={summary.proteinProgress}
+                    trackColor="rgba(131,174,255,0.14)"
+                    color="#0951AE"
+                  />
+                </Flex>
+                <Flex align="center" style={{ marginTop: 6 }}>
+                  <Text style={mealStyles.yyValue}>{formatNutritionInteger(summary.protein)}</Text>
+                  <Text style={mealStyles.yyUnit}> /{summary.targetProtein ?? '--'}g</Text>
+                </Flex>
+                <NutritionStatusTag display={summary.proteinDisplay} />
+                <Text style={[styles.cardSubTitle, { marginTop: 4 }]}>{summary.proteinPercent}%</Text>
+              </View>
+
+              <View style={mealStyles.yyItem}>
+                <Flex align="center">
+                  <Text style={mealStyles.yyTitle}>饮水</Text>
+                  <MiniProgressRing
+                    size={30}
+                    progress={summary.waterProgress}
+                    trackColor="rgba(131,174,255,0.14)"
+                    color="#4F86EE"
+                  />
+                </Flex>
+                <Flex align="center" style={{ marginTop: 6 }}>
+                  <Text style={mealStyles.yyValue}>{formatNutritionInteger(summary.water)}</Text>
+                  <Text style={mealStyles.yyUnit}> /{summary.targetWater ?? '--'}ml</Text>
+                </Flex>
+                <NutritionStatusTag display={summary.waterDisplay} />
+                <Text style={[styles.cardSubTitle, { marginTop: 4 }]}>{summary.waterPercent}%</Text>
+              </View>
+            </View>
           </View>
-        ) : null}
-      </ScrollView>
+
+          <Text style={[styles.sectionTitle, { marginVertical: 12 }]}>用餐详情</Text>
+          {mealSections.length === 0 ? (
+            <View style={[styles.card, { paddingVertical: 24 }]}>
+              <Text style={styles.daySubtitle}>暂无用餐记录</Text>
+            </View>
+          ) : (
+            mealSections.map(section => (
+              <View key={section.key} style={[styles.card, styles.mealSection]}>
+                <Text style={styles.mealSectionHeader}>
+                  {section.title}
+                  {section.currentCalories}
+                  {section.targetCalories != null ? `/${section.targetCalories}` : ''}
+                  千卡
+                </Text>
+                {section.foods.length === 0 ? (
+                  <Text style={styles.daySubtitle}>暂无食物明细</Text>
+                ) : (
+                  section.foods.map(food => (
+                    <TouchableOpacity
+                      key={food.key}
+                      style={styles.foodCard}
+                      activeOpacity={food.mealDetailId ? 0.7 : 1}
+                      onPress={() => {
+                        if (!food.mealDetailId) return;
+                        navigation.navigate('MealRecordDetailPage', {
+                          mealDetailId: food.mealDetailId,
+                        });
+                      }}
+                    >
+                      {food.ossUrl ? (
+                        <Image source={{ uri: food.ossUrl }} style={styles.foodImage} />
+                      ) : (
+                        <Image
+                          source={require('@/assets/images/medication/default2.png')}
+                          style={styles.foodImagePlaceholder}
+                        />
+                      )}
+                      <View style={styles.foodInfo}>
+                        <Text style={styles.foodName}>{food.name}</Text>
+                        <Text style={styles.foodServing}>{food.servingText}</Text>
+                      </View>
+                      <Text style={styles.foodCalorie}>{food.calories}千卡</Text>
+                    </TouchableOpacity>
+                  ))
+                )}
+              </View>
+            ))
+          )}
+
+          {waterTimeline.length > 0 ? (
+            <View style={[styles.card, styles.mealSection]}>
+              <Text style={styles.waterHeader}>
+                饮水{formatNutritionInteger(summary.water)}
+                /{summary.targetWater ?? '--'}ml
+              </Text>
+              {waterTimeline.map(item => (
+                <View key={item.key} style={styles.waterRow}>
+                  <Text style={styles.waterTime}>{item.time}</Text>
+                  <Text style={styles.waterAmount}>{item.amount}ml</Text>
+                </View>
+              ))}
+            </View>
+          ) : null}
+        </ScrollView>
+      )}
     </PageLayout>
   );
 }

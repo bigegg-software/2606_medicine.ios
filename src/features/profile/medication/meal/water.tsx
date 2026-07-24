@@ -170,7 +170,7 @@ export default function MealWaterPage() {
     const submitWaterIntake = useCallback(
         async (amount: number) => {
             if (!Number.isFinite(amount) || amount <= 0) {
-                Toast.fail('请输入有效饮水量', 1.5);
+                Toast.show('请输入有效饮水量', 1.5);
                 return;
             }
 
@@ -178,13 +178,13 @@ export default function MealWaterPage() {
             try {
                 const res = await addMealDetailList(buildWaterMealPayload(amount, recordTime));
                 if (!isResourceApiOk(res as { code?: number; msg?: string })) {
-                    Toast.fail((res as { code?: number; msg?: string })?.msg || '保存失败', 1.5);
+                    Toast.show((res as { code?: number; msg?: string })?.msg || '保存失败', 1.5);
                     return;
                 }
                 Toast.success('保存成功', 1.5);
                 navigation.goBack();
             } catch {
-                Toast.fail('保存失败', 1.5);
+                Toast.show('保存失败', 1.5);
             } finally {
                 setSubmitting(false);
             }

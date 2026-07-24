@@ -13,6 +13,7 @@ export default function MealRecognitionPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'MealRecognitionPage'>>();
     const recognizeText = route.params?.text?.trim() ?? '';
+    const mealCategory = route.params?.mealCategory;
     const isFocused = useIsFocused();
     const [permission, requestPermission] = useCameraPermissions();
     const cameraRef = useRef<CameraView>(null);
@@ -68,10 +69,11 @@ export default function MealRecognitionPage() {
                 mode: 'image',
                 imageUri: result.uri,
                 text: recognizeText,
+                mealCategory,
             });
         } catch {
             setIsCapturing(false);
-            Toast.fail('拍照失败');
+            Toast.show('拍照失败');
         }
     };
 
@@ -88,10 +90,11 @@ export default function MealRecognitionPage() {
                 mode: 'image',
                 imageUri: file.uri,
                 text: recognizeText,
+                mealCategory,
             });
         } catch {
             setIsCapturing(false);
-            Toast.fail('选择图片失败');
+            Toast.show('选择图片失败');
         } finally {
             setPickingAlbum(false);
         }

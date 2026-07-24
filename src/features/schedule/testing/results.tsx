@@ -85,7 +85,7 @@ export default function TestingResultsPage() {
 
     const submitRecord = useCallback(async (testValue: number) => {
         if (!exPatientRuleId || !healthTestItemId) {
-            Toast.fail('缺少处方信息，无法保存');
+            Toast.show('缺少处方信息，无法保存');
             return false;
         }
 
@@ -103,12 +103,12 @@ export default function TestingResultsPage() {
                 navigation.goBack();
                 return true;
             }
-            Toast.fail((res as { msg?: string })?.msg || '保存失败');
+            Toast.show((res as { msg?: string })?.msg || '保存失败');
             setPhase(recordOnly ? 'idle' : 'running');
             setRecordModalVisible(true);
             return false;
         } catch {
-            Toast.fail('保存失败');
+            Toast.show('保存失败');
             setPhase(recordOnly ? 'idle' : 'running');
             setRecordModalVisible(true);
             return false;

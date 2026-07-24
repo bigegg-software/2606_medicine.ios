@@ -112,17 +112,21 @@ export default function MealRecognizingPage() {
                 if (isResourceApiOk(res) && res.data) {
                     const hasFood =
                         Array.isArray(res.data.analysisResult) && res.data.analysisResult.length > 0;
-                    navigation.replace('MealResultPage', { ...res.data, hasFood });
+                    navigation.replace('MealResultPage', {
+                        ...res.data,
+                        hasFood,
+                        mealCategory: params.mealCategory,
+                    });
                     return;
                 }
 
-                Toast.fail(res?.msg || res?.message || '识别失败');
+                Toast.show(res?.msg || res?.message || '识别失败');
                 if (!cancelled) {
                     navigation.goBack();
                 }
             } catch {
                 if (cancelled) return;
-                Toast.fail('识别失败');
+                Toast.show('识别失败');
                 navigation.goBack();
             }
         };

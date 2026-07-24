@@ -53,6 +53,7 @@ import {
     getFoodRecordsByCategory,
     getMealNotePlaceholder,
     getWaterRecords,
+    MEAL_CATEGORY_BY_KEY,
     sumCalories,
     sumProtein,
     sumWaterIntake,
@@ -269,15 +270,15 @@ const MEAL_LABELS: Record<string, string> = {
     breakfast: '早餐',
     lunch: '中餐',
     dinner: '晚餐',
-    snack: '加餐',
 };
 
 type CurrentMealKey = 'breakfast' | 'lunch' | 'dinner';
 
+/** 03:00-11:00 早餐；11:00-16:00 午餐；16:00-02:00 晚餐 */
 function getCurrentMealKey(date = new Date()): CurrentMealKey {
     const hour = date.getHours();
-    if (hour < 10) return 'breakfast';
-    if (hour < 16) return 'lunch';
+    if (hour >= 3 && hour < 11) return 'breakfast';
+    if (hour >= 11 && hour < 16) return 'lunch';
     return 'dinner';
 }
 
@@ -531,7 +532,7 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const handleOpenMealRecord = useCallback(
         (item: MealDetailItem) => {
             if (!item.mealDetailId) {
-                Toast.fail('无法查看详情');
+                Toast.show('无法查看详情');
                 return;
             }
             navigation.navigate('MealRecordDetailPage', { mealDetailId: item.mealDetailId });
@@ -569,15 +570,19 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
     const handleTextRecognize = useCallback(() => {
         const text = dinnerNote.trim();
         if (!text) {
-            Toast.fail('请输入或录入食物描述');
+            Toast.show('请输入或录入食物描述');
             return;
         }
 
         void speechToTextRef.current?.stopListening();
         Keyboard.dismiss();
         resetMealInputState();
-        navigation.navigate('MealRecognizingPage', { mode: 'text', text });
-    }, [dinnerNote, navigation, resetMealInputState]);
+        navigation.navigate('MealRecognizingPage', {
+            mode: 'text',
+            text,
+            mealCategory: MEAL_CATEGORY_BY_KEY[selectedMeal],
+        });
+    }, [dinnerNote, navigation, resetMealInputState, selectedMeal]);
 
     return (
         <View style={styles.mealTabContainer}>
@@ -851,7 +856,14 @@ export default function MealTab({ resetToken = 0 }: { resetToken?: number }) {
                                     <Image style={styles.btmIcon} source={require('@/assets/images/medication/meal/shui.png')} />
                                 </Flex>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => navigation.navigate('MealRecognitionPage', { text: dinnerNote })}>
+                            <TouchableOpacity
+                                onPress={() =>
+                                    navigation.navigate('MealRecognitionPage', {
+                                        text: dinnerNote,
+                                        mealCategory: MEAL_CATEGORY_BY_KEY[selectedMeal],
+                                    })
+                                }
+                            >
                                 <Flex justify='center' style={[styles.btmIconBox, { marginLeft: 6 }]}>
                                     <Image style={styles.btmIcon} source={require('@/assets/images/medication/meal/camera.png')} />
                                 </Flex>

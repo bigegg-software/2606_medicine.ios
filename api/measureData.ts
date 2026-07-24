@@ -47,6 +47,26 @@ export type AddMeasureDataPayload = {
   measurementStatus?: string;
   measuringSite?: string;
   remark?: string;
+  thirdPartyDataId?: string;
+  sourceName?: string;
+  xuezhiTc?: number;
+  xuezhiTg?: number;
+  xuezhiHdlC?: number;
+  xuezhiLdlC?: number;
+};
+
+export type BatchDeviceMeasureDataItem = {
+  id?: number;
+  type: MeasureDataType;
+  customerLocalDate: string;
+  dataTime: string;
+  val?: number;
+  val2?: number;
+  measurementStatus?: string;
+  measuringSite?: string;
+  remark?: string;
+  thirdPartyDataId?: string;
+  sourceName?: string;
   xuezhiTc?: number;
   xuezhiTg?: number;
   xuezhiHdlC?: number;
@@ -134,6 +154,10 @@ export type MeasureDataAllRecordsResult = {
 
 export const addMeasureData = (data: AddMeasureDataPayload) =>
   request.post<AddMeasureDataResult>('/patient/measureData/add', data);
+
+/** 批量新增测量数据（同步设备数据） */
+export const batchAddDeviceMeasureData = (data: BatchDeviceMeasureDataItem[]) =>
+  request.post<AddMeasureDataResult>('/patient/measureData/batchAddDeviceData', data);
 
 export const updateMeasureData = (data: UpdateMeasureDataPayload) =>
   request.put<AddMeasureDataResult>('/patient/measureData/update', data);

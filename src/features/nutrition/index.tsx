@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ActivityIndicator } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -19,7 +19,6 @@ export default function NutritionPage() {
   const loadDietRule = useCallback(async () => {
     try {
       const res = await getInUseDietPatientRuleInfo();
-      console.log(res)
       if (!isResourceApiOk(res as unknown as { code?: number })) {
         setDietRule(null);
         return;

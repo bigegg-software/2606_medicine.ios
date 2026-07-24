@@ -48,6 +48,7 @@ import {
 } from './detail/helpers/vitalsGoalTargets';
 import { buildAllDataSleepCardData } from './allDataSleepHelpers';
 import SleepPieChart from '@/src/features/profile/components/SleepPieChart';
+import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import {
   buildEnergyGoalSummaryCardData,
   buildStepsGoalSummaryCardData,
@@ -140,16 +141,16 @@ const LIPID_METRIC_ROWS = [
     getValue: (item: MeasureDataItem) => item.xuezhiTg,
   },
   {
-    key: 'hdl',
-    metricKey: 'HDL-C' as BloodLipidMetricKey,
-    label: 'HDL-C',
-    getValue: (item: MeasureDataItem) => item.xuezhiHdlC,
-  },
-  {
     key: 'ldl',
     metricKey: 'LDL-C' as BloodLipidMetricKey,
     label: 'LDL-C',
     getValue: (item: MeasureDataItem) => item.xuezhiLdlC,
+  },
+  {
+    key: 'hdl',
+    metricKey: 'HDL-C' as BloodLipidMetricKey,
+    label: 'HDL-C',
+    getValue: (item: MeasureDataItem) => item.xuezhiHdlC,
   },
 ] as const;
 
@@ -919,6 +920,7 @@ export default function AllDataPage({ route }: Props) {
   const showAddButton = !isWearableType;
   const navigation = useNavigation<Nav>();
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [records, setRecords] = useState<MeasureDataItem[]>([]);
   const [wearableRecords, setWearableRecords] = useState<WearableReadingRecord[]>([]);
   const [sleepRecord, setSleepRecord] = useState<WearableDataItem | undefined>();
@@ -1179,7 +1181,12 @@ export default function AllDataPage({ route }: Props) {
                   source={require('@/assets/images/vitals/icon_left.png')}
                 />
               </TouchableOpacity>
-              <Text style={styles.calendarMonthText}>{monthLabel}</Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                onPress={() => setDatePickerVisible(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}>
+                <Text style={styles.calendarMonthText}>{monthLabel}</Text>
+              </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={goNextWeek}
@@ -1287,6 +1294,13 @@ export default function AllDataPage({ route }: Props) {
           })
         )}
       </ScrollView>
+
+      <DietDatePickerModal
+        visible={datePickerVisible}
+        selectedDate={selectedDate}
+        onClose={() => setDatePickerVisible(false)}
+        onSelect={setSelectedDate}
+      />
 
       {showAddButton ? (
         <View style={styles.bottomBar}>

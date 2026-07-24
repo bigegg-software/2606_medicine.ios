@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { Flex, Modal, Switch, Toast } from '@ant-design/react-native';
@@ -16,20 +16,17 @@ import {
     buildUpdateDrugTipInfoPayload,
     applyMedicationCheckInToPlanGroups,
     applyMedicationCheckInBatchToPlanGroups,
-    applyMedicationCheckInToProgress,
-    applyMedicationCheckInBatchToProgress,
     buildMedicationCheckInConfirmMessage,
+    buildMedicationProgressFromPlanGroups,
     loadMedicationDictMaps,
     loadMedicationHistory,
     loadMedicationPlanGroups,
-    loadMedicationProgress,
     submitMedicationCheckIn,
     type DrugTipSettings,
     type MedicationDictMaps,
     type MedicationHistoryDayView,
     type MedicationPlanGroupView,
     type MedicationPlanItemView,
-    type MedicationProgressView,
 } from '../medicationHelpers';
 import moment from 'moment';
 
@@ -114,12 +111,16 @@ export default function MedicationTab() {
     const [loading, setLoading] = useState(true);
     const dictMapsRef = useRef<MedicationDictMaps | null>(null);
     const [planGroups, setPlanGroups] = useState<MedicationPlanGroupView[]>([]);
-    const [progress, setProgress] = useState<MedicationProgressView>({ rate: 0, takeCount: 0, notTakeCount: 0 });
     const [historyDays, setHistoryDays] = useState<MedicationHistoryDayView[]>([]);
     const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
     const [checkingInGroupTime, setCheckingInGroupTime] = useState<string | null>(null);
     const [tipSettings, setTipSettings] = useState<DrugTipSettings>(() => buildDrugTipSettingsFromUserExtr(null));
     const [savingTip, setSavingTip] = useState(false);
+
+    const progress = useMemo(
+        () => buildMedicationProgressFromPlanGroups(planGroups),
+        [planGroups],
+    );
 
     useEffect(() => {
         setTipSettings(buildDrugTipSettingsFromUserExtr(userExtr));
@@ -143,7 +144,7 @@ export default function MedicationTab() {
             const payload = buildUpdateDrugTipInfoPayload(merged);
             const res = await updateDrugTipInfo(payload);
             if (!isResourceApiOk(res as any)) {
-                Toast.fail((res as any)?.msg || '保存提醒设置失败', 1.5);
+                Toast.show((res as any)?.msg || '保存提醒设置失败', 1.5);
                 return;
             }
 
@@ -160,7 +161,7 @@ export default function MedicationTab() {
                 });
             }
         } catch {
-            Toast.fail('保存提醒设置失败', 1.5);
+            Toast.show('保存提醒设置失败', 1.5);
         } finally {
             setSavingTip(false);
         }
@@ -211,18 +212,15 @@ export default function MedicationTab() {
                 dictMapsRef.current = maps;
             }
 
-            const [groups, progressData, history] = await Promise.all([
+            const [groups, history] = await Promise.all([
                 loadMedicationPlanGroups(maps),
-                loadMedicationProgress(),
                 loadMedicationHistory(),
             ]);
 
             setPlanGroups(groups);
-            setProgress(progressData);
             setHistoryDays(history);
         } catch {
             setPlanGroups([]);
-            setProgress({ rate: 0, takeCount: 0, notTakeCount: 0 });
             setHistoryDays([]);
         } finally {
             setLoading(false);
@@ -254,16 +252,15 @@ export default function MedicationTab() {
         try {
             const res = await submitMedicationCheckIn(item);
             if (!isResourceApiOk(res as any)) {
-                Toast.fail((res as any)?.msg || '打卡失败', 1.5);
+                Toast.show((res as any)?.msg || '打卡失败', 1.5);
                 return;
             }
             Toast.success('已记录服用', 1.5);
             setPlanGroups(prev => applyMedicationCheckInToPlanGroups(prev, item.key));
-            setProgress(prev => applyMedicationCheckInToProgress(prev));
             const history = await loadMedicationHistory();
             setHistoryDays(history);
         } catch {
-            Toast.fail('打卡失败', 1.5);
+            Toast.show('打卡失败', 1.5);
         } finally {
             setCheckingInKey(null);
         }
@@ -277,18 +274,17 @@ export default function MedicationTab() {
             const results = await Promise.all(items.map(item => submitMedicationCheckIn(item)));
             const failedCount = results.filter(res => !isResourceApiOk(res as any)).length;
             if (failedCount > 0) {
-                Toast.fail(failedCount === items.length ? '打卡失败' : '部分打卡失败', 1.5);
+                Toast.show(failedCount === items.length ? '打卡失败' : '部分打卡失败', 1.5);
                 await loadPageDataRef.current();
                 return;
             }
 
             Toast.success('已全部标记为已服用', 1.5);
             setPlanGroups(prev => applyMedicationCheckInBatchToPlanGroups(prev, items.map(item => item.key)));
-            setProgress(prev => applyMedicationCheckInBatchToProgress(prev, items.length));
             const history = await loadMedicationHistory();
             setHistoryDays(history);
         } catch {
-            Toast.fail('打卡失败', 1.5);
+            Toast.show('打卡失败', 1.5);
         } finally {
             setCheckingInGroupTime(null);
         }

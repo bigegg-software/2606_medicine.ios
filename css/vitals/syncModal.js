@@ -10,11 +10,6 @@ const styles = StyleSheet.create({
         paddingTop: 24,
         paddingLeft: 18,
         paddingRight: 18,
-        shadowColor: '#0C3D9A',
-        shadowOffset: { width: 0, height: -2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 8,
-        elevation: 8,
     },
     sheetTitle: {
         width: '100%',

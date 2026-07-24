@@ -40,7 +40,7 @@ export default function QuestionnaireListCards({ items }: Props) {
         Toast.info(tip, 2);
       } catch (error) {
         console.error('checkQuestionnaireStartAvailability failed:', error);
-        Toast.fail('评估状态校验失败', 1.5);
+        Toast.show('评估状态校验失败', 1.5);
       } finally {
         Toast.remove(loadingKey);
         setCheckingType(null);

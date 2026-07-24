@@ -119,3 +119,12 @@ export type UpdateExtrInfoPayload = {
 
 export const updateExtrInfo = (data: UpdateExtrInfoPayload) =>
   request.put<{ code?: number; msg?: string }>('/system/user/updateExtrInfo', data);
+
+export type InitMemberTypePayload = {
+  /** 用户类型 old.老人 child.子女（家属）；身份视角默认与 memberType 一致 */
+  memberType: 'old' | 'child';
+};
+
+/** 首次设置用户类型（老人/家属） */
+export const initMemberType = (data: InitMemberTypePayload) =>
+  request.put<{ code?: number; msg?: string }>('/system/user/initMemberType', data);

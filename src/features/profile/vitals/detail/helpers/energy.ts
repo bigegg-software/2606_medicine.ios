@@ -72,14 +72,15 @@ function getEnergyStatusDisplay(total: number, goal: number) {
   if (goal <= 0) {
     return { status: '正常', statusColor: '#6D925E' };
   }
-  const ratio = total / goal;
-  if (ratio >= 1) {
+  if (total >= goal) {
     return { status: '达标', statusColor: '#00C950' };
   }
-  if (ratio >= 0.6) {
-    return { status: '进行中', statusColor: '#00C950' };
-  }
-  return { status: '偏少', statusColor: '#FFBA1D' };
+  const remaining = Math.max(0, Math.round(goal - total));
+  const ratio = total / goal;
+  return {
+    status: `距目标还差${remaining.toLocaleString('en-US')}千卡`,
+    statusColor: ratio >= 0.6 ? '#00C950' : '#FFBA1D',
+  };
 }
 
 function isValidEnergyDetailPoint(point?: EnergyDetailPoint) {

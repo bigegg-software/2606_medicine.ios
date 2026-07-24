@@ -36,9 +36,6 @@ import AllergiesAdd from "@/src/features/profile/healthRecord/allergiesAdd"
 import FamilyHistory from "@/src/features/profile/healthRecord/familyHistory"
 import FamilyHistoryAdd from "@/src/features/profile/healthRecord/familyHistoryAdd"
 import ProfileEditPage from '@/src/features/profile/healthRecord/ProfileEditPage';
-import MyFamily from '@/src/features/profile/myFamily';
-import FamilyDetail from '@/src/features/profile/myFamily/detail';
-import AboutUs from '@/src/features/profile/aboutUs';
 
 // AI健康管家
 import AssistantPage from '@/src/features/assistant/AssistantPage';
@@ -120,6 +117,13 @@ import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 
 //设置 
 import SettingsPage from '@/src/features/profile/settings';
+import AboutUs from '@/src/features/profile/aboutUs';
+
+// 家人
+import MyFamily from '@/src/features/profile/myFamily';
+import MyFamilyAdd from '@/src/features/profile/myFamily/add';
+import FamilyDetail from '@/src/features/profile/myFamily/detail';
+
 
 //实名认证
 import AuthenticationPage from "@/src/features/authentication/index"
@@ -206,10 +210,10 @@ export type RootStackParamList = {
   MealHistoryPage: undefined;
   MealDayDetailPage: { customerLocalDate: string };
   MealWaterPage: undefined;
-  MealRecognitionPage: { text?: string } | undefined;
+  MealRecognitionPage: { text?: string; mealCategory?: number } | undefined;
   MealRecognizingPage:
-  | { mode: 'text'; text: string }
-  | { mode: 'image'; imageUri: string; text?: string };
+  | { mode: 'text'; text: string; mealCategory?: number }
+  | { mode: 'image'; imageUri: string; text?: string; mealCategory?: number };
   FoodRecordingPage: undefined;
   ManualCorrectionPage: {
     itemIndex: number;
@@ -232,9 +236,11 @@ export type RootStackParamList = {
     foodIdentifyId?: number;
     analysisResult?: import('@/api/mealRecognition').FoodIdentifyItem[];
     hasFood?: boolean;
+    mealCategory?: number;
   } | undefined;
   AssistantPage: { chatId?: string; startNew?: boolean } | undefined;
   MyFamily: undefined;
+  MyFamilyAdd: undefined;
   FamilyDetail: undefined;
 };
 
@@ -394,6 +400,7 @@ export default function RootStack() {
       <Stack.Screen name="LiveDetail" component={LiveDetailPage} options={{ title: '直播详情' }} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
+      <Stack.Screen name="MyFamilyAdd" component={MyFamilyAdd} options={{ title: "添加家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
       <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
@@ -448,7 +455,7 @@ export default function RootStack() {
       <Stack.Screen name="MealDetailPage" component={MealDetailPage} options={{ title: '营养目标详情' }} />
       <Stack.Screen name="MealRecordDetailPage" component={MealRecordDetailPage} options={{ title: '用餐详情' }} />
       <Stack.Screen name="MealHistoryPage" component={MealHistoryPage} options={{ title: '饮食记录' }} />
-      <Stack.Screen name="MealDayDetailPage" component={MealDayDetailPage} options={{ title: '饮食详情' }} />
+      <Stack.Screen name="MealDayDetailPage" component={MealDayDetailPage} options={{ title: '饮食详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
       <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', headerShown: false, statusBarStyle: 'light' }} />
       <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别', showHeaderBackground: false }} />

@@ -82,6 +82,10 @@ export const getMealDetailInfo = (mealDetailId: number) =>
 export const addMealDetailList = (payload: AddMealDetailListPayload) =>
     request.post<ApiResult>('/patient/fitpulse/mealDetail/addMealDetailList', payload);
 
+/** 删除食物记录 */
+export const deleteMealDetail = (mealDetailId: string | number) =>
+    request.delete<ApiResult>(`/patient/fitpulse/mealDetail/delete/${String(mealDetailId)}`);
+
 export type CaloriesToFoodEquivResult = ApiResult<string>;
 
 /** 根据卡路里换算约等于多少常见食物（AI） */

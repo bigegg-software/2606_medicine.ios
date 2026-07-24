@@ -18,10 +18,11 @@ export const CURRENT_MEAL_LABELS: Record<CurrentMealKey, string> = {
     dinner: '晚餐',
 };
 
+/** 03:00-11:00 早餐；11:00-16:00 午餐；16:00-02:00 晚餐 */
 export function getCurrentMealKey(date = new Date()): CurrentMealKey {
     const hour = date.getHours();
-    if (hour < 10) return 'breakfast';
-    if (hour < 16) return 'lunch';
+    if (hour >= 3 && hour < 11) return 'breakfast';
+    if (hour >= 11 && hour < 16) return 'lunch';
     return 'dinner';
 }
 
@@ -69,24 +70,18 @@ export function formatNutritionInteger(value: unknown): string {
 }
 
 export function getMealNotePlaceholder(date = new Date()): string {
-    const hour = date.getHours();
+    const key = getCurrentMealKey(date);
+    if (key === 'breakfast') return '记早餐';
+    if (key === 'lunch') return '记午餐';
+    return '记晚餐';
+}
 
-    if (hour >= 6 && hour < 10) {
-        return '记早餐';
-    }
-    if (hour >= 10 && hour < 11) {
-        return '记加餐';
-    }
-    if (hour >= 11 && hour < 14) {
-        return '记午餐';
-    }
-    if (hour >= 14 && hour < 17) {
-        return '记加餐';
-    }
-    if (hour >= 17 && hour < 20) {
-        return '记晚餐';
-    }
-    return '记加餐';
+/** 按餐次 category（1早/2中/3晚）生成记餐占位文案 */
+export function getMealNotePlaceholderByCategory(category?: number, date = new Date()): string {
+    if (category === 1) return '记早餐';
+    if (category === 2) return '记午餐';
+    if (category === 3) return '记晚餐';
+    return getMealNotePlaceholder(date);
 }
 
 export function sumWaterIntake(list: MealDetailItem[]): number {
@@ -116,6 +111,12 @@ export function sumProtein(list: MealDetailItem[]): number {
     return list
         .filter(item => !isWaterRecord(item))
         .reduce((sum, item) => sum + toNumber(item.protein), 0);
+}
+
+export function sumCarbs(list: MealDetailItem[]): number {
+    return list
+        .filter(item => !isWaterRecord(item))
+        .reduce((sum, item) => sum + toNumber(item.carbs), 0);
 }
 
 
@@ -178,8 +179,8 @@ export function mealDetailItemToFoodItem(item: MealDetailItem): FoodIdentifyItem
         typeof item.unit === 'string'
             ? item.unit
             : typeof item.servingUnit === 'string'
-              ? item.servingUnit
-              : undefined;
+                ? item.servingUnit
+                : undefined;
 
     return {
         mealName: item.mealName,

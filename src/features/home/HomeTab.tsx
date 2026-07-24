@@ -59,8 +59,8 @@ import {
   formatNutritionInteger,
   getFoodRecordsByCategory,
   sumCalories,
+  sumCarbs,
   sumProtein,
-  sumWaterIntake,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import {
   buildExercisePrescriptionMetrics,
@@ -116,10 +116,11 @@ const HOME_MEAL_META: Record<
   },
 };
 
+/** 03:00-11:00 早餐；11:00-16:00 午餐；16:00-02:00 晚餐 */
 function getCurrentMealKey(date = new Date()): HomeMealKey {
   const hour = date.getHours();
-  if (hour < 10) return 'breakfast';
-  if (hour < 16) return 'lunch';
+  if (hour >= 3 && hour < 11) return 'breakfast';
+  if (hour >= 11 && hour < 16) return 'lunch';
   return 'dinner';
 }
 
@@ -259,9 +260,9 @@ export default function HomeTab() {
   );
 
   const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
-  const todayWaterMl = useMemo(() => sumWaterIntake(todayMealList), [todayMealList]);
   const todayCalories = useMemo(() => sumCalories(todayMealList), [todayMealList]);
   const todayProtein = useMemo(() => sumProtein(todayMealList), [todayMealList]);
+  const todayCarbs = useMemo(() => sumCarbs(todayMealList), [todayMealList]);
 
   const currentMealKey = getCurrentMealKey();
   const currentMealMeta = HOME_MEAL_META[currentMealKey];
@@ -287,7 +288,7 @@ export default function HomeTab() {
 
   const calorieProgress = calcNutritionProgress(todayCalories, dietSummary.targetCalories);
   const proteinProgress = calcNutritionProgress(todayProtein, dietSummary.targetProtein);
-  const waterProgress = calcNutritionProgress(todayWaterMl, dietSummary.targetWater);
+  const carbsProgress = calcNutritionProgress(todayCarbs, dietSummary.targetCarbs);
 
   const heartRate = useMemo(() => getHeartRateDisplay(wearableHeartRate), [wearableHeartRate]);
   const heartRateSparkline = useMemo(
@@ -764,24 +765,24 @@ export default function HomeTab() {
                 </Flex>
                 <Flex style={styles.yyItem} align="center">
                   <MiniProgressRing size={30}
-                    progress={waterProgress}
+                    progress={carbsProgress}
                     trackColor="rgba(131,174,255,0.14)"
                     color="#EE9C44"
                   />
                   <View style={styles.yyItemRight}>
                     <Flex style={styles.yyValueRow}>
                       <NutritionAmountText
-                        text={formatNutritionInteger(todayWaterMl)}
+                        text={formatNutritionInteger(todayCarbs)}
                         textStyle={styles.yyValue}
                         scrollStyle={styles.yyValueScroll}
                       />
                       <NutritionAmountText
-                        text={` /${dietSummary.targetWater ?? '--'}`}
+                        text={` /${dietSummary.targetCarbs ?? '--'}`}
                         textStyle={styles.yyUnit}
                         scrollStyle={styles.yyUnitScroll}
                       />
                     </Flex>
-                    <Text style={styles.yyTitle}>饮水(毫升)</Text>
+                    <Text style={styles.yyTitle}>碳水(克)</Text>
                   </View>
                 </Flex>
               </Flex>

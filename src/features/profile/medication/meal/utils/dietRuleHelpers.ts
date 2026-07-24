@@ -165,6 +165,7 @@ export function getDietRuleSummary(rule: DietPatientRuleInfo | null) {
     return {
         targetCalories: rule?.targetCalories,
         targetProtein: rule?.targetProtein,
+        targetCarbs: rule?.targetCarbs,
         targetWater: rule?.targetWater,
         carbsPercent: rule?.carbsPercent,
         fatPercent: rule?.fatPercent,

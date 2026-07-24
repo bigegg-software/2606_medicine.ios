@@ -2,19 +2,15 @@ import { StyleSheet, Dimensions } from 'react-native';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SCREEN = Dimensions.get('screen');
 export const DIET_DATE_PICKER_SHEET_HEIGHT = SCREEN_HEIGHT * 0.72;
 
 const styles = StyleSheet.create({
   overlayRoot: {
     flex: 1,
+    width: SCREEN.width,
+    height: SCREEN.height,
     justifyContent: 'flex-end',
-  },
-  overlayBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-  },
-  overlayDismiss: {
-    ...StyleSheet.absoluteFillObject,
   },
   sheet: {
     width: SCREEN_WIDTH,
@@ -22,7 +18,35 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
+    zIndex: 2,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 24,
+  },
+  sheetInner: {
+    flex: 1,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+  },
+  overlayBg: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN.width,
+    height: SCREEN.height,
+    backgroundColor: '#000000',
+    zIndex: 0,
+  },
+  overlayDismiss: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: SCREEN.width,
+    height: SCREEN.height,
     zIndex: 1,
   },
   header: {

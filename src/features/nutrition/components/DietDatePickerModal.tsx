@@ -38,6 +38,8 @@ const MONTH_EXTEND_COUNT = 6;
 const EXTEND_EDGE = 2;
 const MONTH_LABEL_HEIGHT = 49; // 24 title + 25 gap
 const DAY_ROW_HEIGHT = 44;
+/** 与 BottomSheetModal / 右上角更多菜单一致 */
+const OVERLAY_OPACITY = 0.5;
 
 const cellCache = new Map<string, DietCalendarDayCell[]>();
 const heightCache = new Map<string, number>();
@@ -168,7 +170,7 @@ export default function DietDatePickerModal({
     sheetAnim.setValue(DIET_DATE_PICKER_SHEET_HEIGHT);
     Animated.parallel([
       Animated.timing(overlayAnim, {
-        toValue: 1,
+        toValue: OVERLAY_OPACITY,
         duration: 220,
         easing: Easing.out(Easing.quad),
         useNativeDriver: true,
@@ -322,13 +324,21 @@ export default function DietDatePickerModal({
   const keyExtractor = useCallback((item: string) => item, []);
 
   return (
-    <Modal visible={modalMounted} transparent animationType="none" onRequestClose={onClose}>
+    <Modal
+      visible={modalMounted}
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      presentationStyle="overFullScreen"
+    >
       <View style={styles.overlayRoot}>
         <Animated.View style={[styles.overlayBg, { opacity: overlayAnim }]} pointerEvents="none" />
         <Pressable style={styles.overlayDismiss} onPress={onClose} />
         <Animated.View
           style={[styles.sheet, { transform: [{ translateY: sheetAnim }] }]}
         >
+          <View style={styles.sheetInner}>
           <View style={styles.header}>
             <View style={styles.titleRow}>
               <Text style={styles.title}>日期选择</Text>
@@ -383,6 +393,7 @@ export default function DietDatePickerModal({
               contentContainerStyle={{ paddingBottom: 24 }}
             />
           ) : null}
+          </View>
         </Animated.View>
       </View>
     </Modal>

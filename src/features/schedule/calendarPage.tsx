@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Text,
   View,
@@ -11,7 +11,7 @@ import {
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Modal, Picker, Toast } from '@ant-design/react-native';
 import moment, { type Moment } from 'moment';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
@@ -220,7 +220,7 @@ function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
         </View>
         <View style={styles.activityStatusBtn}>
           <Text style={styles.activityStatusBtnText} numberOfLines={1}>
-            {isRecorded ? '已记录' : '未记录'}
+            {isRecorded ? '已记录' : '去记录'}
           </Text>
         </View>
       </Flex>
@@ -703,6 +703,10 @@ export default function ScheduleCalendarPage() {
   const [loadingMedication, setLoadingMedication] = useState(false);
   const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
   const [checkingInGroupKey, setCheckingInGroupKey] = useState<string | null>(null);
+  const statusMapRef = useRef(statusMap);
+  const skipFocusRefreshRef = useRef(true);
+
+  statusMapRef.current = statusMap;
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
   const isToday = selectedDate === moment().format('YYYY-MM-DD');
@@ -766,6 +770,19 @@ export default function ScheduleCalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [selectedDate, loadDayTimeline, loadTodayMedication]);
 
+  // 从记餐等页面返回时刷新日历点位与当日时间轴
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFocusRefreshRef.current) {
+        skipFocusRefreshRef.current = false;
+        return;
+      }
+      void loadMonthlyOverview(currentMonth);
+      void loadDayTimeline(selectedDate, statusMapRef.current.get(selectedDate));
+      void loadTodayMedication(selectedDate);
+    }, [currentMonth, selectedDate, loadMonthlyOverview, loadDayTimeline, loadTodayMedication]),
+  );
+
   // 月度 status 返回后，仅历史日且需要运动/用药时再补一次（今日跳过）
   useEffect(() => {
     if (selectedDate === moment().format('YYYY-MM-DD')) return;
@@ -776,7 +793,18 @@ export default function ScheduleCalendarPage() {
 
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
     if (item.kind === 'diet') {
-      navigation.navigate('Medication', { tab: 'meal' });
+      if (item.mealIsRecommended) {
+        navigation.navigate('MealRecognitionPage', {
+          mealCategory: item.mealCategory,
+        });
+        return;
+      }
+      // 延后一帧再跳转，减轻日历重页与转场叠在同一帧的卡顿
+      requestAnimationFrame(() => {
+        navigation.navigate('MealDayDetailPage', {
+          customerLocalDate: selectedDate,
+        });
+      });
       return;
     }
     if (
@@ -813,13 +841,13 @@ export default function ScheduleCalendarPage() {
     try {
       const res = await submitMedicationCheckIn(planItem);
       if (!isResourceApiOk(res as { code?: number })) {
-        Toast.fail((res as { msg?: string })?.msg || '打卡失败', 1.5);
+        Toast.show((res as { msg?: string })?.msg || '打卡失败', 1.5);
         return;
       }
       Toast.success('已记录服用', 1.5);
       setMedicationPlanGroups(prev => applyMedicationCheckInToPlanGroups(prev, item.key));
     } catch {
-      Toast.fail('打卡失败', 1.5);
+      Toast.show('打卡失败', 1.5);
     } finally {
       setCheckingInKey(null);
     }
@@ -841,7 +869,7 @@ export default function ScheduleCalendarPage() {
       const results = await Promise.all(planItems.map(item => submitMedicationCheckIn(item)));
       const failedCount = results.filter(res => !isResourceApiOk(res as { code?: number })).length;
       if (failedCount > 0) {
-        Toast.fail(failedCount === planItems.length ? '打卡失败' : '部分打卡失败', 1.5);
+        Toast.show(failedCount === planItems.length ? '打卡失败' : '部分打卡失败', 1.5);
         await loadTodayMedication(selectedDate);
         return;
       }
@@ -850,7 +878,7 @@ export default function ScheduleCalendarPage() {
         applyMedicationCheckInBatchToPlanGroups(prev, planItems.map(item => item.key)),
       );
     } catch {
-      Toast.fail('打卡失败', 1.5);
+      Toast.show('打卡失败', 1.5);
     } finally {
       setCheckingInGroupKey(null);
     }
