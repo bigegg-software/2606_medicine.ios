@@ -9,6 +9,7 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { getSeverityStyles } from './utils/allergiesHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -17,17 +18,6 @@ const ALLERGY_SECTIONS = [
     { type: '食物过敏', title: '食物过敏', icon: require('@/assets/images/user/icon2.png') },
     { type: '其他', title: '其他过敏', icon: require('@/assets/images/user/icon3.png') },
 ] as const;
-
-function getSeverityStyles(severity?: string) {
-    switch (severity) {
-        case '轻度':
-            return { box: styles.severityMildBox, text: styles.severityMildText };
-        case '中度':
-            return { box: styles.severityModerateBox, text: styles.severityModerateText };
-        default:
-            return { box: styles.mapItemValueBox, text: styles.mapItemValue };
-    }
-}
 
 export default function AllergiesPage() {
     const navigation = useNavigation<Nav>();
@@ -110,26 +100,26 @@ export default function AllergiesPage() {
                         .filter(({ item }) => item.allergyType === section.type);
 
                     return (
-                        <View key={section.type}>
-                            <Flex justify="between" style={styles.sectionBox}>
-                                <Flex>
-                                    <Image style={styles.imgItem} source={section.icon} />
-                                    <Text style={styles.sectionTitle}>{section.title}</Text>
+                        <View key={section.type} style={styles.sectionCard}>
+                            <Flex justify="between" align="center" style={styles.sectionHeader}>
+                                <Flex align="center">
+                                    <Image style={styles.allergySectionIcon} source={section.icon} />
+                                    <Text style={styles.allergySectionTitle}>{section.title}</Text>
                                 </Flex>
                                 <TouchableOpacity onPress={() => navigation.navigate('AllergiesAdd', { type: section.type })}>
-                                    <Text style={styles.more}>添加</Text>
+                                    <Image style={styles.more} source={require('@/assets/images/case/icon_add.png')} />
                                 </TouchableOpacity>
                             </Flex>
-                            <View style={styles.listBox}>
+                            <View style={styles.allergyListBox}>
                                 {items.length === 0 ? (
-                                    <View style={styles.infoBox}>
-                                        <Text style={styles.mapItemSubtitle}>暂无记录</Text>
+                                    <View style={styles.allergyInfoBox}>
+                                        <Text style={[styles.allergyItemSubtitle, { marginTop: 0 }]}>待补充</Text>
                                     </View>
                                 ) : (
                                     items.map(({ item, index }) => {
                                         const severityStyle = getSeverityStyles(item.severity);
                                         return (
-                                            <Flex key={`${index}-${item.allergenName}`} justify="between" style={styles.infoBox}>
+                                            <Flex key={`${index}-${item.allergenName}`} justify="between" align="center" style={styles.allergyInfoBox}>
                                                 <TouchableOpacity
                                                     style={{ flex: 1 }}
                                                     activeOpacity={0.7}
@@ -139,20 +129,22 @@ export default function AllergiesPage() {
                                                             editIndex: index,
                                                         })
                                                     }>
-                                                    <Flex>
-                                                        <Text style={[styles.mapItemName]}>{item.allergenName || '—'}</Text>
+                                                    <Flex align="center">
+                                                        <Text style={styles.allergyItemName} numberOfLines={1} ellipsizeMode="tail">
+                                                            {item.allergenName || '—'}
+                                                        </Text>
                                                         {item.severity ? (
-                                                            <Flex style={severityStyle.box}>
+                                                            <View style={severityStyle.box}>
                                                                 <Text style={severityStyle.text}>{item.severity}</Text>
-                                                            </Flex>
+                                                            </View>
                                                         ) : null}
                                                     </Flex>
-                                                    <Text style={styles.mapItemSubtitle}>
+                                                    <Text style={styles.allergyItemSubtitle}>
                                                         症状：{item.allergicSymptoms || '—'}
                                                     </Text>
                                                 </TouchableOpacity>
                                                 <TouchableOpacity onPress={() => handleDelete(index)}>
-                                                    <Image style={styles.delIcon} source={require('@/assets/images/user/del.png')} />
+                                                    <Image style={styles.delIcon} source={require('@/assets/images/case/icon_del.png')} />
                                                 </TouchableOpacity>
                                             </Flex>
                                         );

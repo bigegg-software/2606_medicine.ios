@@ -215,6 +215,7 @@ export default function ProfilePage() {
                 <Text style={styles.name}>{name}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
                   <Image style={styles.wrzImg} source={require('@/assets/images/user/wrz.png')} />
+                  {/* yrz.png */}
                 </TouchableOpacity>
               </Flex>
               <Flex style={{ marginTop: 7 }}>

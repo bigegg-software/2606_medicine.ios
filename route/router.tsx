@@ -407,10 +407,10 @@ export default function RootStack() {
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
       <Stack.Screen name="EmergencyAdd" component={EmergencyAdd} options={{ title: "添加紧急联系人" }} />
       <Stack.Screen name="CaseNotes" component={CaseNotes} options={{ title: "病例记录" }} />
-      <Stack.Screen name="CaseAdd" component={CaseAdd} options={{ title: "添加病例" }} />
+      <Stack.Screen name="CaseAdd" component={CaseAdd} options={{ title: "添加病例", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="CaseCameraPage" component={CaseCameraPage} options={{ title: '拍照', ...darkMediaScreenOptions }} />
       <Stack.Screen name="CaseAlbumPage" component={CaseAlbumPage} options={{ title: '相册', ...darkMediaScreenOptions }} />
-      <Stack.Screen name="CaseDetail" component={CaseDetail} options={{ title: "病例详情" }} />
+      <Stack.Screen name="CaseDetail" component={CaseDetail} options={{ title: "病例详情", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="Allergies" component={Allergies} options={{ title: "过敏记录" }} />
       <Stack.Screen name="AllergiesAdd" component={AllergiesAdd} options={{ title: "添加过敏史" }} />
       <Stack.Screen name="FamilyHistory" component={FamilyHistory} options={{ title: "家族病史" }} />

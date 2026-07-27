@@ -45,6 +45,7 @@ const styles = StyleSheet.create({
         height: 15,
     },
     rowBoxText: {
+        marginLeft:4,
         fontWeight: '500',
         fontSize: 13,
         color: '#333333',

@@ -1,45 +1,36 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import {
+    View,
+    Text,
+    ActivityIndicator,
+    Image,
+    TextInput,
+    TouchableOpacity,
+    ScrollView,
+    Alert,
+    Keyboard,
+    TouchableWithoutFeedback,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getAllergyInfo, updateAllergy, type AllergyItem } from '@/api/allergy';
 import { AppTheme } from '@/common/theme';
-import styles from '@/css/profile/healthRecord';
+import styles from '@/css/profile/allergiesAdd';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import {
+    ALLERGEN_NAME_MAX_LENGTH,
+    SEVERITY_OPTIONS,
+    getAllergenPlaceholder,
+    limitText,
+    normalizeSeverity,
+} from './utils/allergiesHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AllergiesAdd'>;
-
-const SEVERITY_OPTIONS = ['轻度', '中度', '严重'] as const;
-const ALLERGEN_NAME_MAX_LENGTH = 50;
-
-function limitText(value: string, maxLength: number) {
-    return value.slice(0, maxLength);
-}
-
-function getAllergenPlaceholder(allergyType: string) {
-    switch (allergyType) {
-        case '药物过敏':
-            return '如：青霉素、头孢类、阿司匹林';
-        case '食物过敏':
-            return '如：海鲜、花生、牛奶、鸡蛋';
-        case '其他':
-            return '如：花粉、尘螨、动物毛发、乳胶';
-        default:
-            return '请输入过敏原名称';
-    }
-}
-
-function normalizeSeverity(value?: string) {
-    if ((SEVERITY_OPTIONS as readonly string[]).includes(value ?? '')) {
-        return value!;
-    }
-    return SEVERITY_OPTIONS[0];
-}
 
 export default function AllergiesAddPage({ route }: Props) {
     const { type, editIndex } = route.params;
@@ -130,20 +121,30 @@ export default function AllergiesAddPage({ route }: Props) {
     }
 
     return (
-        <PageLayout style={styles.container}>
+        <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
             <KeyboardDoneAccessory />
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                 <ScrollView
                     contentContainerStyle={styles.body}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag">
-                    <View style={styles.userBox}>
-                        <Flex justify="between" align="center" style={styles.infoItem}>
-                            <Text style={styles.infoItemLabel}>过敏原名称</Text>
+                    <View style={styles.rowBox}>
+                        <Flex align="center" style={styles.tipHeader}>
+                            <Image
+                                style={styles.tipIcon}
+                                source={require('@/assets/images/case/icon_zd.png')}
+                            />
+                            <Text style={styles.tipTitle}>完善您的健康信息</Text>
+                        </Flex>
+
+                        <Flex justify="between" align="center" style={styles.formRow}>
+                            <Text style={styles.formRowLabel} numberOfLines={1}>
+                                过敏原名称
+                            </Text>
                             <TextInput
-                                style={styles.infoInput}
+                                style={styles.formRowInput}
                                 placeholder={getAllergenPlaceholder(type)}
-                                placeholderTextColor={AppTheme.textSecondary}
+                                placeholderTextColor="#999999"
                                 value={allergenName}
                                 onChangeText={value => setAllergenName(limitText(value, ALLERGEN_NAME_MAX_LENGTH))}
                                 maxLength={ALLERGEN_NAME_MAX_LENGTH}
@@ -154,33 +155,28 @@ export default function AllergiesAddPage({ route }: Props) {
                             />
                         </Flex>
 
-                        <View style={styles.fieldBlock}>
-                            <Text style={styles.infoItemLabel}>严重程度</Text>
-                            <View style={styles.chipGrid}>
-                                {SEVERITY_OPTIONS.map((item, index) => (
+                        <Flex justify="between" align="center" style={styles.severityRow}>
+                            <Text style={styles.sectionLabel}>严重程度</Text>
+                            <Flex style={styles.typeList}>
+                                {SEVERITY_OPTIONS.map(item => (
                                     <TouchableOpacity
                                         key={item}
-                                        style={[
-                                            styles.choiceChip,
-                                            styles.chipItem,
-                                            index % 3 === 2 && styles.chipItemLastInRow,
-                                            severity === item && styles.choiceChipActive,
-                                        ]}
+                                        style={[styles.typeItem, severity === item && styles.typeItemActive]}
                                         onPress={() => setSeverity(item)}>
-                                        <Text style={[styles.choiceChipText, severity === item && styles.choiceChipTextActive]}>
+                                        <Text style={[styles.typeItemText, severity === item && styles.typeItemTextActive]}>
                                             {item}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
-                            </View>
-                        </View>
+                            </Flex>
+                        </Flex>
 
-                        <View style={styles.fieldBlock}>
-                            <Text style={styles.infoItemLabel}>过敏症状</Text>
+                        <View style={styles.formSection}>
+                            <Text style={styles.sectionLabel}>过敏症状</Text>
                             <TextInput
-                                style={styles.fieldMultilineInput}
+                                style={styles.textareaBox}
                                 placeholder="如：皮疹、呼吸困难、皮肤瘙痒"
-                                placeholderTextColor={AppTheme.textSecondary}
+                                placeholderTextColor="#999999"
                                 value={allergicSymptoms}
                                 onChangeText={setAllergicSymptoms}
                                 multiline
@@ -192,15 +188,27 @@ export default function AllergiesAddPage({ route }: Props) {
                 </ScrollView>
             </TouchableWithoutFeedback>
 
-            <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    {submitting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.addText}>{isEdit ? '保存修改' : '确认添加'}</Text>
-                    )}
-                </Flex>
-            </TouchableOpacity>
+            <View style={styles.bottomBar}>
+                <TouchableOpacity
+                    style={[styles.bottomBarButton, submitting && { opacity: 0.6 }]}
+                    activeOpacity={0.7}
+                    onPress={submit}
+                    disabled={submitting}>
+                    <Flex style={{ flex: 1 }} justify="center" align="center">
+                        {submitting ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Image
+                                    style={styles.bottomBarButtonImg}
+                                    source={require('@/assets/images/schedule/save.png')}
+                                />
+                                <Text style={styles.bottomBarButtonText}>{isEdit ? '保存修改' : '确认添加'}</Text>
+                            </>
+                        )}
+                    </Flex>
+                </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }

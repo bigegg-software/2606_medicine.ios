@@ -1,14 +1,13 @@
 import React, { useCallback, useState } from 'react';
 import { Text, Image, View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { Flex, Toast, Modal, DatePicker } from '@ant-design/react-native';
+import { Flex, Toast, DatePicker } from '@ant-design/react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import moment from 'moment';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MaterialIcons } from '@expo/vector-icons';
 import styles from '@/css/profile/caseAdd';
-import DashedBorderBox from './components/DashedBorderBox';
 import { AppTheme } from '@/common/theme';
 import { addMedicalRecord, aiIdentifyMedicalRecords, type MedicalRecord, type MedicalRecordAttachment } from '@/api/medicalRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -150,29 +149,27 @@ type TextareaFieldProps = {
     title: string;
     placeholder: string;
     value: string;
+    topMargin?: boolean;
     onChangeText: (text: string) => void;
     inputAccessoryViewID: string;
     optional?: boolean;
 };
 
-function TextareaField({ title, placeholder, value, onChangeText, inputAccessoryViewID, optional }: TextareaFieldProps) {
+function TextareaField({ title, placeholder, value, onChangeText, inputAccessoryViewID, optional, topMargin = false }: TextareaFieldProps) {
     return (
-        <>
-            <View>
-                <Text style={styles.rowTitle}>{optional ? `${title}（选填）` : title}</Text>
-                <TextInput
-                    style={styles.textareaBox}
-                    placeholder={placeholder}
-                    placeholderTextColor={AppTheme.textSecondary}
-                    value={value}
-                    onChangeText={onChangeText}
-                    multiline
-                    textAlignVertical="top"
-                    inputAccessoryViewID={inputAccessoryViewID}
-                />
-            </View>
-            <View style={styles.rowLine} />
-        </>
+        <View style={[styles.formSection, topMargin && { marginTop: 0 }]}>
+            <Text style={styles.textareaTitle}>{optional ? `${title}（选填）` : title}</Text>
+            <TextInput
+                style={styles.textareaBox}
+                placeholder={placeholder}
+                placeholderTextColor="#999999"
+                value={value}
+                onChangeText={onChangeText}
+                multiline
+                textAlignVertical="top"
+                inputAccessoryViewID={inputAccessoryViewID}
+            />
+        </View>
     );
 }
 
@@ -193,7 +190,6 @@ export default function CaseAddPage() {
     const [medicalSummary, setMedicalSummary] = useState('');
     const [attachments, setAttachments] = useState<MedicalRecordAttachment[]>([]);
     const [identifying, setIdentifying] = useState(false);
-    const [uploadModalVisible, setUploadModalVisible] = useState(false);
     const [pickingDocument, setPickingDocument] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
@@ -250,7 +246,6 @@ export default function CaseAddPage() {
     };
 
     const pickDocument = async () => {
-        setUploadModalVisible(false);
         try {
             const result = await DocumentPicker.getDocumentAsync({
                 type: DOCUMENT_TYPES,
@@ -329,59 +324,75 @@ export default function CaseAddPage() {
     };
 
     return (
-        <PageLayout style={styles.container}>
+        <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
             {Object.values(CASE_ADD_ACCESSORY).map(id => (
                 <KeyboardDoneAccessory key={id} nativeID={id} />
             ))}
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-                <Text style={styles.sectionTitle}>拍照识别</Text>
-                <Flex justify="between" style={styles.cameraBoxRow}>
-                    <TouchableOpacity
-                        style={styles.cameraBox}
-                        onPress={() => navigation.navigate('CaseCameraPage', { mode: 'identify' })}
-                        disabled={identifying}>
-                        <DashedBorderBox style={{ flex: 1 }}>
-                            <Image source={require('@/assets/images/user/camera.png')} style={styles.cameraIcon} />
-                            <Text style={styles.cameraBoxText}>拍照识别</Text>
-                        </DashedBorderBox>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={styles.cameraBox}
-                        onPress={() => navigation.navigate('CaseAlbumPage', { mode: 'identify' })}
-                        disabled={identifying}>
-                        <DashedBorderBox style={{ flex: 1 }}>
-                            <Image source={require('@/assets/images/user/upload.png')} style={styles.cameraIcon} />
-                            <Text style={styles.cameraBoxText}>上传照片</Text>
-                        </DashedBorderBox>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.cameraBox} onPress={identifyFromDocuments} disabled={identifying}>
-                        <DashedBorderBox style={{ flex: 1 }}>
-                            <Image source={require('@/assets/images/user/file-upload.png')} style={styles.cameraIcon} />
-                            <Text style={styles.cameraBoxText}>上传文件</Text>
-                        </DashedBorderBox>
-                    </TouchableOpacity>
-                </Flex>
-                <Text style={styles.sectionTitle}>手动录入</Text>
+                <View style={styles.rowBox}>
+                    <Text style={styles.sectionTitle}>拍照识别</Text>
+                    <Flex justify="between" style={styles.cameraBoxRow}>
+                        <TouchableOpacity
+                            style={styles.cameraBoxItem}
+                            activeOpacity={0.8}
+                            onPress={() => navigation.navigate('CaseCameraPage', { mode: 'identify' })}
+                            disabled={identifying}>
+                            <View style={styles.cameraBoxDash}>
+                                <Image
+                                    source={require('@/assets/images/case/icon_camera.png')}
+                                    style={styles.cameraBoxIcon}
+                                />
+                                <Text style={styles.cameraBoxTitle}>拍照识别</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.cameraBoxItem}
+                            activeOpacity={0.8}
+                            onPress={() => navigation.navigate('CaseAlbumPage', { mode: 'identify' })}
+                            disabled={identifying}>
+                            <View style={styles.cameraBoxDash}>
+                                <Image
+                                    source={require('@/assets/images/case/icon_image.png')}
+                                    style={styles.cameraBoxIcon}
+                                />
+                                <Text style={styles.cameraBoxTitle}>上传照片</Text>
+                            </View>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.cameraBoxItem}
+                            activeOpacity={0.8}
+                            onPress={identifyFromDocuments}
+                            disabled={identifying}>
+                            <View style={styles.cameraBoxDash}>
+                                <Image
+                                    source={require('@/assets/images/case/icon_upload.png')}
+                                    style={styles.cameraBoxIcon}
+                                />
+                                <Text style={styles.cameraBoxTitle}>上传文件</Text>
+                            </View>
+                        </TouchableOpacity>
+                    </Flex>
+                </View>
+
 
                 <View style={styles.rowBox}>
+                    <Text style={styles.sectionTitle}>手动录入</Text>
+
                     <View>
-                        <Text style={styles.rowTitle}>就诊类型</Text>
-                        <Flex wrap="wrap" style={{ marginBottom: 12, gap: 8 }}>
+                        <Text style={styles.typeSectionTitle}>就诊类型</Text>
+                        <Flex wrap="wrap" style={styles.typeList}>
                             {MEDICAL_RECORD_TYPE_LIST.map(item => (
                                 <TouchableOpacity
                                     style={[styles.typeItem, type === item.value && styles.typeItemActive]}
                                     key={item.value}
                                     onPress={() => setType(item.value)}>
-                                    <Flex style={{ flex: 1 }}>
-                                        <Text style={[styles.typeItemText, type === item.value && styles.typeItemTextActive]}>
-                                            {item.label}
-                                        </Text>
-                                    </Flex>
+                                    <Text style={[styles.typeItemText, type === item.value && styles.typeItemTextActive]}>
+                                        {item.label}
+                                    </Text>
                                 </TouchableOpacity>
                             ))}
                         </Flex>
                     </View>
-                    <View style={styles.rowLine} />
 
                     <DatePicker
                         precision="day"
@@ -389,29 +400,26 @@ export default function CaseAddPage() {
                         maxDate={new Date()}
                         value={parseRecordDate(recordDate)}
                         onOk={date => setRecordDate(moment(date).format('YYYY-MM-DD'))}>
-                        <TouchableOpacity activeOpacity={0.7}>
-                            <Flex justify="between" align="center">
-                                <Text style={styles.rowTitle}>就诊日期</Text>
-                                <Flex align="center">
-                                    <Text style={[styles.dateValue, styles.datePlaceholder]}>
-                                        {recordDate || '请选择就诊日期'}
-                                    </Text>
-                                    <Image
-                                        source={require('@/assets/images/user/icon-rl.png')}
-                                        style={styles.dateIcon}
-                                    />
-                                </Flex>
-                            </Flex>
+                        <TouchableOpacity activeOpacity={0.7} style={[styles.formRow, styles.formRowFirst]}>
+                            <Text style={styles.formRowLabel}>就诊日期</Text>
+                            <View style={styles.formRowValue}>
+                                <Text style={styles.dateValue}>
+                                    {recordDate || '请选择就诊日期'}
+                                </Text>
+                                <Image
+                                    source={require('@/assets/images/case/icon_rl.png')}
+                                    style={styles.dateIcon}
+                                />
+                            </View>
                         </TouchableOpacity>
                     </DatePicker>
-                    <View style={styles.rowLine} />
 
-                    <View>
-                        <Text style={styles.rowTitle}>医院名称</Text>
+                    <View style={styles.formRow}>
+                        <Text style={styles.formRowLabel} numberOfLines={1}>医院名称</Text>
                         <TextInput
-                            style={styles.inputBox}
+                            style={styles.formRowInput}
                             placeholder="请输入医院名称"
-                            placeholderTextColor={AppTheme.textSecondary}
+                            placeholderTextColor="#999999"
                             value={hospital}
                             onChangeText={setHospital}
                             returnKeyType="done"
@@ -419,14 +427,13 @@ export default function CaseAddPage() {
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.hospital}
                         />
                     </View>
-                    <View style={styles.rowLine} />
 
-                    <View>
-                        <Text style={styles.rowTitle}>就诊科室</Text>
+                    <View style={styles.formRow}>
+                        <Text style={styles.formRowLabel} numberOfLines={1}>就诊科室</Text>
                         <TextInput
-                            style={styles.inputBox}
+                            style={styles.formRowInput}
                             placeholder="请输入科室"
-                            placeholderTextColor={AppTheme.textSecondary}
+                            placeholderTextColor="#999999"
                             value={department}
                             onChangeText={setDepartment}
                             returnKeyType="done"
@@ -434,27 +441,31 @@ export default function CaseAddPage() {
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.department}
                         />
                     </View>
-                    <View style={styles.rowLine} />
 
-                    <ScrollView horizontal style={styles.ksList} showsHorizontalScrollIndicator={false}>
+                    <ScrollView
+                        horizontal
+                        style={styles.ksList}
+                        contentContainerStyle={styles.ksListContent}
+                        showsHorizontalScrollIndicator={false}>
                         {KS_LIST.map(item => (
                             <TouchableOpacity
                                 style={[styles.ksItem, department === item && styles.ksItemActive]}
                                 key={item}
+                                activeOpacity={0.8}
                                 onPress={() => setDepartment(item)}>
-                                <Flex style={{ flex: 1 }}>
-                                    <Text style={[styles.ksItemText, department === item && styles.ksItemTextActive]}>{item}</Text>
-                                </Flex>
+                                <Text style={[styles.ksItemText, department === item && styles.ksItemTextActive]}>
+                                    {item}
+                                </Text>
                             </TouchableOpacity>
                         ))}
                     </ScrollView>
 
-                    <View>
-                        <Text style={styles.rowTitle}>诊断结果</Text>
+                    <View style={styles.formRow}>
+                        <Text style={styles.formRowLabel} numberOfLines={1}>诊断结果</Text>
                         <TextInput
-                            style={styles.inputBox}
+                            style={styles.formRowInput}
                             placeholder="请输入诊断结果"
-                            placeholderTextColor={AppTheme.textSecondary}
+                            placeholderTextColor="#999999"
                             value={diagnosticResult}
                             onChangeText={setDiagnosticResult}
                             returnKeyType="done"
@@ -462,14 +473,13 @@ export default function CaseAddPage() {
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.diagnosticResult}
                         />
                     </View>
-                    <View style={styles.rowLine} />
 
-                    <View>
-                        <Text style={styles.rowTitle}>主治医生（选填）</Text>
+                    <View style={styles.formRow}>
+                        <Text style={styles.formRowLabel} numberOfLines={1}>主治医生（选填）</Text>
                         <TextInput
-                            style={styles.inputBox}
+                            style={styles.formRowInput}
                             placeholder="请输入医生姓名"
-                            placeholderTextColor={AppTheme.textSecondary}
+                            placeholderTextColor="#999999"
                             value={doctor}
                             onChangeText={setDoctor}
                             returnKeyType="done"
@@ -477,12 +487,11 @@ export default function CaseAddPage() {
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.doctor}
                         />
                     </View>
-                    <View style={styles.rowLine} />
-
                     <TextareaField
                         title="主诉"
                         placeholder="请输入主诉"
                         value={chiefComplaint}
+                        topMargin={true}
                         onChangeText={setChiefComplaint}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.chiefComplaint}
                     />
@@ -530,9 +539,9 @@ export default function CaseAddPage() {
                         optional
                     />
 
-                    <View>
-                        <Text style={styles.rowTitle}>上传附件（选填）</Text>
-                        <Text style={styles.uploadHint}>点击上传检查报告、处方等</Text>
+                    <View style={styles.formSection}>
+                        <Text style={styles.textareaTitle}>上传附件（选填）</Text>
+                        <Text style={styles.uploadHint}>点击上传：<Text style={styles.uploadHintText}>检查报告、处方等</Text></Text>
                         <View style={styles.attachmentList}>
                             {attachments.map((att, index) => (
                                 <View key={`${att.ossId ?? att.ossUrl}-${index}`} style={styles.attachmentItem}>
@@ -550,77 +559,78 @@ export default function CaseAddPage() {
                                     </TouchableOpacity>
                                 </View>
                             ))}
+                        </View>
+                        <Flex justify="between" style={styles.cameraBoxRow}>
                             <TouchableOpacity
-                                style={styles.uploadIcon}
-                                onPress={() => setUploadModalVisible(true)}
-                                disabled={identifying || pickingDocument}>
-                                <Flex style={{ flex: 1 }} justify="center" align="center">
+                                style={styles.cameraBoxItem}
+                                activeOpacity={0.8}
+                                disabled={identifying || pickingDocument}
+                                onPress={() => navigation.navigate('CaseCameraPage')}>
+                                <View style={styles.cameraBoxDash}>
+                                    <Image
+                                        source={require('@/assets/images/case/icon_camera.png')}
+                                        style={styles.cameraBoxIcon}
+                                    />
+                                    <Text style={styles.cameraBoxTitle}>拍照</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.cameraBoxItem}
+                                activeOpacity={0.8}
+                                disabled={identifying || pickingDocument}
+                                onPress={() => navigation.navigate('CaseAlbumPage')}>
+                                <View style={styles.cameraBoxDash}>
+                                    <Image
+                                        source={require('@/assets/images/case/icon_image.png')}
+                                        style={styles.cameraBoxIcon}
+                                    />
+                                    <Text style={styles.cameraBoxTitle}>上传照片</Text>
+                                </View>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.cameraBoxItem}
+                                activeOpacity={0.8}
+                                disabled={identifying || pickingDocument}
+                                onPress={pickDocument}>
+                                <View style={styles.cameraBoxDash}>
                                     {pickingDocument ? (
                                         <ActivityIndicator size="small" color={AppTheme.textSecondary} />
                                     ) : (
-                                        <MaterialIcons name="add" size={24} color={AppTheme.textSecondary} />
+                                        <>
+                                            <Image
+                                                source={require('@/assets/images/case/icon_upload.png')}
+                                                style={styles.cameraBoxIcon}
+                                            />
+                                            <Text style={styles.cameraBoxTitle}>上传文件</Text>
+                                        </>
                                     )}
-                                </Flex>
+                                </View>
                             </TouchableOpacity>
-                        </View>
-                        {attachments.length > 0 ? (
-                            <Text style={styles.uploadHint}>已添加 {attachments.length} 个附件</Text>
-                        ) : null}
+                        </Flex>
                     </View>
                 </View>
             </ScrollView>
-            <Modal
-                popup
-                style={styles.uploadModal}
-                visible={uploadModalVisible}
-                maskClosable
-                animationType="slide-up"
-                onClose={() => setUploadModalVisible(false)}>
-                <View style={styles.uploadModalBox}>
-                    <Flex justify="around">
-                        <TouchableOpacity
-                            style={styles.uploadModalItem}
-                            onPress={() => {
-                                setUploadModalVisible(false);
-                                navigation.navigate('CaseAlbumPage');
-                            }}>
-                            <Image
-                                style={styles.uploadModalImg}
-                                source={require('@/assets/images/camara/type_images.png')}
-                            />
-                            <Text style={styles.uploadModalTitle}>相册</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.uploadModalItem} onPress={pickDocument}>
-                            <Image
-                                style={styles.uploadModalImg}
-                                source={require('@/assets/images/camara/type_documents.png')}
-                            />
-                            <Text style={styles.uploadModalTitle}>文件</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.uploadModalItem}
-                            onPress={() => {
-                                setUploadModalVisible(false);
-                                navigation.navigate('CaseCameraPage');
-                            }}>
-                            <Image
-                                style={styles.uploadModalImg}
-                                source={require('@/assets/images/camara/type_camara.png')}
-                            />
-                            <Text style={styles.uploadModalTitle}>拍照</Text>
-                        </TouchableOpacity>
+            <View style={styles.bottomBar}>
+                <TouchableOpacity
+                    style={[styles.bottomBarButtonLeft, (submitting || identifying || pickingDocument) && { opacity: 0.6 }]}
+                    activeOpacity={0.7}
+                    disabled={submitting || identifying || pickingDocument}
+                    onPress={submit}>
+                    <Flex style={{ flex: 1 }}>
+                        {submitting ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Image
+                                    style={styles.bottomBarButtonImg}
+                                    source={require('@/assets/images/schedule/save.png')}
+                                />
+                                <Text style={styles.bottomBarButtonTextLeft}>添加病例</Text>
+                            </>
+                        )}
                     </Flex>
-                </View>
-            </Modal>
-            <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting || identifying || pickingDocument}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    {submitting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.addText}>添加病例</Text>
-                    )}
-                </Flex>
-            </TouchableOpacity>
+                </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }

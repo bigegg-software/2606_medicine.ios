@@ -33,6 +33,12 @@ export function getAttachmentDisplayName(att: MedicalRecordAttachment) {
   return '附件';
 }
 
+export function getAttachmentExtLabel(att: MedicalRecordAttachment) {
+  const name = getAttachmentDisplayName(att);
+  const match = name.match(/\.([a-z0-9]+)$/i);
+  return match ? match[1].toUpperCase() : 'FILE';
+}
+
 export function isImageAttachment(att: MedicalRecordAttachment) {
   const candidates = [att.originalName, att.ossUrl].map(value => decodeAttachmentName(value));
   return candidates.some(name => /\.(jpe?g|png|gif|webp|heic|bmp)$/i.test(name));

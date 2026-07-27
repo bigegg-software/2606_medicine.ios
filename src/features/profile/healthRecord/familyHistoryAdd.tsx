@@ -1,38 +1,35 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import {
+    View,
+    Text,
+    ActivityIndicator,
+    Image,
+    TextInput,
+    TouchableOpacity,
+    ScrollView,
+    Alert,
+    Keyboard,
+    TouchableWithoutFeedback,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import { getFamilyMedicalInfo, updateFamilyMedical, type FamilyMedicalItem } from '@/api/familyMedical';
 import { AppTheme } from '@/common/theme';
-import styles from '@/css/profile/healthRecord';
+import styles from '@/css/profile/familyHistoryAdd';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import {
+    DISEASE_OPTIONS,
+    RELATION_OPTIONS,
+    STATUS_OPTIONS,
+    parseMedicalCondition,
+} from './utils/familyHistoryHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'FamilyHistoryAdd'>;
-
-const RELATION_OPTIONS = ['父亲', '母亲', '祖父', '祖母', '外祖父', '外祖母', '兄弟', '姐妹', '其他'] as const;
-const DISEASE_OPTIONS = ['高血压', '糖尿病', '冠心病', '癌症', '心脏病', '肺病', '肝病', '肾病', '精神疾病'] as const;
-const STATUS_OPTIONS = ['在世', '已故'] as const;
-
-function parseMedicalCondition(condition?: string) {
-    if (!condition) {
-        return { diseases: [] as string[], otherDisease: '' };
-    }
-    const known: string[] = [];
-    const other: string[] = [];
-    for (const part of condition.split(',').map(s => s.trim()).filter(Boolean)) {
-        if ((DISEASE_OPTIONS as readonly string[]).includes(part)) {
-            known.push(part);
-        } else {
-            other.push(part);
-        }
-    }
-    return { diseases: known, otherDisease: other.join(',') };
-}
 
 export default function FamilyHistoryAddPage({ route }: Props) {
     const editIndex = route.params?.editIndex;
@@ -155,28 +152,23 @@ export default function FamilyHistoryAddPage({ route }: Props) {
     }
 
     return (
-        <PageLayout style={styles.container}>
+        <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
             <KeyboardDoneAccessory />
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                 <ScrollView
                     contentContainerStyle={styles.body}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag">
-                    <View style={styles.userBox}>
-                        <View style={styles.fieldBlock}>
-                            <Text style={styles.infoItemLabel}>亲属关系</Text>
-                            <View style={styles.chipGrid}>
-                                {RELATION_OPTIONS.map((item, index) => (
+                    <View style={[styles.rowBox, { paddingBottom: 0 }]}>
+                        <View style={[styles.formSection, styles.formSectionFirst]}>
+                            <Text style={styles.sectionLabel}>亲属关系</Text>
+                            <View style={styles.typeList}>
+                                {RELATION_OPTIONS.map(item => (
                                     <TouchableOpacity
                                         key={item}
-                                        style={[
-                                            styles.choiceChip,
-                                            styles.chipItem,
-                                            index % 3 === 2 && styles.chipItemLastInRow,
-                                            relation === item && styles.choiceChipActive,
-                                        ]}
+                                        style={[styles.typeItem, relation === item && styles.typeItemActive]}
                                         onPress={() => setRelation(item)}>
-                                        <Text style={[styles.choiceChipText, relation === item && styles.choiceChipTextActive]}>
+                                        <Text style={[styles.typeItemText, relation === item && styles.typeItemTextActive]}>
                                             {item}
                                         </Text>
                                     </TouchableOpacity>
@@ -184,20 +176,19 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                             </View>
                         </View>
 
-                        <View style={styles.fieldBlock}>
-                            <Text style={styles.infoItemLabel}>患病情况（可多选）</Text>
-                            <View style={styles.chipGrid}>
-                                {DISEASE_OPTIONS.map((item, index) => (
+                        <View style={styles.formSection}>
+                            <Text style={styles.sectionLabel}>患病情况（可多选）</Text>
+                            <View style={styles.typeList}>
+                                {DISEASE_OPTIONS.map(item => (
                                     <TouchableOpacity
                                         key={item}
-                                        style={[
-                                            styles.choiceChip,
-                                            styles.chipItem,
-                                            index % 3 === 2 && styles.chipItemLastInRow,
-                                            diseases.includes(item) && styles.choiceChipActive,
-                                        ]}
+                                        style={[styles.typeItem, diseases.includes(item) && styles.typeItemActive]}
                                         onPress={() => toggleDisease(item)}>
-                                        <Text style={[styles.choiceChipText, diseases.includes(item) && styles.choiceChipTextActive]}>
+                                        <Text
+                                            style={[
+                                                styles.typeItemText,
+                                                diseases.includes(item) && styles.typeItemTextActive,
+                                            ]}>
                                             {item}
                                         </Text>
                                     </TouchableOpacity>
@@ -205,12 +196,14 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                             </View>
                         </View>
 
-                        <Flex justify="between" align="center" style={styles.infoItem}>
-                            <Text style={styles.infoItemLabel}>其他疾病</Text>
+                        <Flex justify="between" align="center" style={[styles.formRow, styles.formRowBorder]}>
+                            <Text style={styles.formRowLabel} numberOfLines={1}>
+                                其他疾病
+                            </Text>
                             <TextInput
-                                style={styles.infoInput}
+                                style={styles.formRowInput}
                                 placeholder="请输入其他疾病"
-                                placeholderTextColor={AppTheme.textSecondary}
+                                placeholderTextColor="#999999"
                                 value={otherDisease}
                                 onChangeText={setOtherDisease}
                                 returnKeyType="done"
@@ -220,12 +213,14 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                             />
                         </Flex>
 
-                        <Flex justify="between" align="center" style={styles.infoItem}>
-                            <Text style={styles.infoItemLabel}>年龄</Text>
+                        <Flex justify="between" align="center" style={[styles.formRow, styles.formRowBorder]}>
+                            <Text style={styles.formRowLabel} numberOfLines={1}>
+                                年龄
+                            </Text>
                             <TextInput
-                                style={styles.infoInput}
+                                style={styles.formRowInput}
                                 placeholder="如：65"
-                                placeholderTextColor={AppTheme.textSecondary}
+                                placeholderTextColor="#999999"
                                 value={age}
                                 onChangeText={setAge}
                                 keyboardType="number-pad"
@@ -236,38 +231,46 @@ export default function FamilyHistoryAddPage({ route }: Props) {
                             />
                         </Flex>
 
-                        <View style={styles.fieldBlock}>
-                            <Text style={styles.infoItemLabel}>状态</Text>
-                            <View style={[styles.chipGrid, { gap: 8 }]}>
+                        <Flex justify="between" align="center" style={styles.statusRow}>
+                            <Text style={styles.sectionLabel}>状态</Text>
+                            <Flex style={styles.typeListInline}>
                                 {STATUS_OPTIONS.map(item => (
                                     <TouchableOpacity
                                         key={item}
-                                        style={[
-                                            styles.choiceChip,
-                                            { width: '43%' },
-                                            status === item && styles.choiceChipActive,
-                                        ]}
+                                        style={[styles.statusItem, status === item && styles.typeItemActive]}
                                         onPress={() => setStatus(item)}>
-                                        <Text style={[styles.choiceChipText, status === item && styles.choiceChipTextActive]}>
+                                        <Text style={[styles.typeItemText, status === item && styles.typeItemTextActive]}>
                                             {item}
                                         </Text>
                                     </TouchableOpacity>
                                 ))}
-                            </View>
-                        </View>
+                            </Flex>
+                        </Flex>
                     </View>
                 </ScrollView>
             </TouchableWithoutFeedback>
 
-            <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    {submitting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.addText}>{isEdit ? '保存修改' : '确认添加'}</Text>
-                    )}
-                </Flex>
-            </TouchableOpacity>
+            <View style={styles.bottomBar}>
+                <TouchableOpacity
+                    style={[styles.bottomBarButton, submitting && { opacity: 0.6 }]}
+                    activeOpacity={0.7}
+                    onPress={submit}
+                    disabled={submitting}>
+                    <Flex style={{ flex: 1 }} justify="center" align="center">
+                        {submitting ? (
+                            <ActivityIndicator color="#FFFFFF" />
+                        ) : (
+                            <>
+                                <Image
+                                    style={styles.bottomBarButtonImg}
+                                    source={require('@/assets/images/schedule/save.png')}
+                                />
+                                <Text style={styles.bottomBarButtonText}>{isEdit ? '保存修改' : '确认添加'}</Text>
+                            </>
+                        )}
+                    </Flex>
+                </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }
