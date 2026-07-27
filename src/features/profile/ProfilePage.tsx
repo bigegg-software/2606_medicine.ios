@@ -24,6 +24,8 @@ import {
 } from '@/src/features/auth/utils/identityHelpers';
 import SignInModal from './components/SignInModal';
 import { buildSignButtonLabel } from './utils/signInHelpers';
+import { getIdentityAuditInfo } from '@/api/identityAudit';
+import { resolveIdentityAuthBadgeSource, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -44,8 +46,8 @@ const navList = [
   },
   {
     img: require('@/assets/images/user/img5.png'),
-    label: '饮食列表',
-    route: 'FoodRecordingPage' as const,
+    label: '营养处方',
+    route: 'NutritionPage' as const,
   },
   {
     img: require('@/assets/images/user/img4.png'),
@@ -69,7 +71,10 @@ export default function ProfilePage() {
   const [signTip, setSignTip] = useState('');
   const [signRewardTokens, setSignRewardTokens] = useState<string | number>('10');
   const [signModalTip, setSignModalTip] = useState('');
+  const [authStatus, setAuthStatus] = useState<number | null>(null);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
+  const authBadgeSource = resolveIdentityAuthBadgeSource(authStatus);
+  const showIdentityAuthEntry = shouldShowIdentityAuthEntry(authStatus);
 
   const loadSignTip = useCallback(async () => {
     try {
@@ -85,6 +90,23 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const loadIdentityAuthStatus = useCallback(async () => {
+    try {
+      const res = (await getIdentityAuditInfo()) as unknown as {
+        code?: number;
+        data?: { authStatus?: number | null };
+      };
+      if (!isResourceApiOk(res)) {
+        setAuthStatus(null);
+        return;
+      }
+      const status = apiResourceData<{ authStatus?: number | null }>(res)?.authStatus;
+      setAuthStatus(status == null ? null : Number(status));
+    } catch {
+      setAuthStatus(null);
+    }
+  }, []);
+
   useEffect(() => {
     dispatch(fetchUserSession());
   }, [dispatch]);
@@ -92,7 +114,8 @@ export default function ProfilePage() {
   useFocusEffect(
     useCallback(() => {
       void loadSignTip();
-    }, [loadSignTip]),
+      void loadIdentityAuthStatus();
+    }, [loadIdentityAuthStatus, loadSignTip]),
   );
 
   const handleSignIn = useCallback(async () => {
@@ -214,8 +237,7 @@ export default function ProfilePage() {
               <Flex>
                 <Text style={styles.name}>{name}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
-                  <Image style={styles.wrzImg} source={require('@/assets/images/user/wrz.png')} />
-                  {/* yrz.png */}
+                  <Image style={styles.wrzImg} source={authBadgeSource} />
                 </TouchableOpacity>
               </Flex>
               <Flex style={{ marginTop: 7 }}>
@@ -224,11 +246,13 @@ export default function ProfilePage() {
               </Flex>
             </View>
           </Flex>
-          <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
-            <View style={styles.rlBox}>
-              <Image style={styles.rlImg} source={require('@/assets/images/user/smrz.png')} />
-            </View>
-          </TouchableOpacity>
+          {showIdentityAuthEntry ? (
+            <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
+              <View style={styles.rlBox}>
+                <Image style={styles.rlImg} source={require('@/assets/images/user/smrz.png')} />
+              </View>
+            </TouchableOpacity>
+          ) : null}
         </Flex>
 
         <ImageBackground
@@ -372,15 +396,17 @@ export default function ProfilePage() {
         </View>
 
         <View style={styles.familyBox}>
-          <Flex justify='between' style={styles.familyItem}>
-            <Flex>
-              <Image style={styles.imgItem} source={require('@/assets/images/user/info.png')} />
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>帮助与反馈</Text>
-              </View>
+          <TouchableOpacity onPress={() => navigation.navigate('FeedbackPage')}>
+            <Flex justify='between' style={styles.familyItem}>
+              <Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/info.png')} />
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>帮助与反馈</Text>
+                </View>
+              </Flex>
+              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
-          </Flex>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('AboutUsPage')}>
             <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
               <Flex>

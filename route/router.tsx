@@ -118,6 +118,7 @@ import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 //设置 
 import SettingsPage from '@/src/features/profile/settings';
 import AboutUs from '@/src/features/profile/aboutUs';
+import FeedbackPage from '@/src/features/feedback/index';
 
 // 家人
 import MyFamily from '@/src/features/profile/myFamily';
@@ -128,6 +129,9 @@ import FamilyDetail from '@/src/features/profile/myFamily/detail';
 //实名认证
 import AuthenticationPage from "@/src/features/authentication/index"
 
+
+//消息
+import MessagePage from '@/src/features/message';
 
 export type RootStackParamList = {
   IndexPage: undefined;
@@ -157,6 +161,7 @@ export type RootStackParamList = {
   QuestionnaireHistory: undefined;
   SettingsPage: undefined;
   AuthenticationPage: undefined;
+  MessagePage: undefined;
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };
   FamilyHistory: undefined;
@@ -403,6 +408,7 @@ export default function RootStack() {
       <Stack.Screen name="MyFamilyAdd" component={MyFamilyAdd} options={{ title: "添加家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
       <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="FeedbackPage" component={FeedbackPage} options={{ title: "帮助与反馈" }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
       <Stack.Screen name="EmergencyAdd" component={EmergencyAdd} options={{ title: "添加紧急联系人" }} />
@@ -473,6 +479,7 @@ export default function RootStack() {
       <Stack.Screen name="AuthenticationPage" component={AuthenticationPage} options={{ title: "实名认证" }} />
 
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
+      <Stack.Screen name="MessagePage" component={MessagePage} options={{ title: "消息" }} />
     </Stack.Navigator>
   );
 }

@@ -46,8 +46,17 @@ import {
   resolveEnergyTarget,
   resolveStepTarget,
 } from './detail/helpers/vitalsGoalTargets';
+import {
+  buildSleepGoalProgress,
+  getSleepDetailHeaderSummary,
+  resolveStoreSleepGoal,
+} from './detail/helpers/sleep';
 import { buildAllDataSleepCardData } from './allDataSleepHelpers';
 import SleepPieChart from '@/src/features/profile/components/SleepPieChart';
+import SleepStageDetailChart, {
+  type SleepStageSelection,
+} from './detail/components/SleepStageDetailChart';
+import detailStyles from '@/css/vitals/bloodPage';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import {
   buildEnergyGoalSummaryCardData,
@@ -746,8 +755,21 @@ function WearableRecordCard({
 }
 
 
-function SleepRecordCard({ item }: { item?: WearableDataItem }) {
+function SleepRecordCard({ item, sleepGoalHours }: { item?: WearableDataItem; sleepGoalHours: number }) {
   const cardData = buildAllDataSleepCardData(item);
+  const goalProgress = buildSleepGoalProgress(item, sleepGoalHours);
+  const [stageSelection, setStageSelection] = useState<SleepStageSelection | null>(null);
+  const currentLabel = useMemo(
+    () => getSleepDetailHeaderSummary(item ? [item] : [], 'today').currentLabel,
+    [item],
+  );
+  const nightSleepTitle = stageSelection?.stageLabel ?? '夜间睡眠';
+  const nightSleepDuration = stageSelection?.durationText ?? cardData?.duration ?? '--';
+
+  const handleStageChange = useCallback((selection: SleepStageSelection | null) => {
+    setStageSelection(selection);
+  }, []);
+
   if (!cardData) return null;
 
   return (
@@ -762,6 +784,30 @@ function SleepRecordCard({ item }: { item?: WearableDataItem }) {
           <Text style={styles.sleepSummaryValue}>{cardData.timeRange}</Text>
         </View>
       </Flex>
+
+      <View style={styles.sleepStageCard}>
+        <Text style={detailStyles.rowTitle}>{nightSleepTitle}</Text>
+        <Text style={detailStyles.rowLeftValue}>{nightSleepDuration}</Text>
+        <Flex justify="between">
+          <Text style={detailStyles.rowTitle}>建议时长：7-9小时</Text>
+          <Flex style={detailStyles.dayBox}>
+            <Text style={detailStyles.dayText}>{currentLabel}</Text>
+          </Flex>
+        </Flex>
+        {goalProgress ? (
+          <Flex style={detailStyles.mbBox} justify="center">
+            <Flex style={[detailStyles.mbBoxContent, { borderColor: goalProgress.borderColor }]}>
+              <Text style={[detailStyles.mbBoxText, { color: goalProgress.statusColor }]}>
+                {goalProgress.statusLabel}
+              </Text>
+            </Flex>
+            <Text style={detailStyles.mbBoxMessage}>{goalProgress.message}</Text>
+          </Flex>
+        ) : null}
+        <View style={styles.sleepStageChartWrap}>
+          <SleepStageDetailChart item={item} onStageChange={handleStageChange} />
+        </View>
+      </View>
 
       {cardData.stages.length > 0 ? (
         <View style={styles.sleepStageCard}>
@@ -910,6 +956,7 @@ export default function AllDataPage({ route }: Props) {
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const storeStepGoal = userExtr?.stepGoals;
   const storeEnergyGoal = userExtr?.energyGoals;
+  const sleepGoalHours = useMemo(() => resolveStoreSleepGoal(userExtr?.sleepGoals), [userExtr?.sleepGoals]);
   const isEnergyType = measureType === '消耗';
   const isSleepType = measureType === '睡眠';
   const isGoalSummaryType = isEnergyType || measureType === '步数';
@@ -1246,7 +1293,7 @@ export default function AllDataPage({ route }: Props) {
         ) : null}
 
         {isSleepType ? (
-          <SleepRecordCard item={sleepRecord} />
+          <SleepRecordCard item={sleepRecord} sleepGoalHours={sleepGoalHours} />
         ) : isWearableType ? (
           <>
             {goalSummary ? <GoalSummaryCard data={goalSummary} /> : null}

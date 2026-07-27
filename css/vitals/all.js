@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
         color: '#333333',
     },
     sleepStageCard: {
-        marginTop: 10,
+        marginTop: 30,
         padding: 15,
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
@@ -280,6 +280,22 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 16,
         color: '#333333',
+    },
+    sleepGoalsBox: {
+        marginTop: 15,
+        height: 38,
+        backgroundColor: "#F6F8FB",
+        borderRadius: 8
+    },
+    sleepGoalsText: {
+        fontWeight: 500,
+        fontSize: 12,
+        color: "#333333"
+    },
+    sleepStageChartWrap: {
+        marginTop: 12,
+        marginHorizontal: -8,
+        overflow: 'visible',
     },
     sleepStageDurationValue: {
         fontWeight: "bold",

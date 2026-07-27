@@ -221,7 +221,7 @@ export default function AuthPage() {
                                     </TouchableOpacity>
                                 </Flex>
                             </View>
-                            <View style={styles.authContent}>
+                            <View style={[styles.authContent, { paddingBottom: 0 }]}>
                                 <Text style={styles.authContentTitle}>认证信息</Text>
                                 <View style={styles.formFields}>
                                     <Flex justify="between" align="center" style={styles.formRow}>

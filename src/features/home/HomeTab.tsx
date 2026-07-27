@@ -211,17 +211,6 @@ function NutritionAmountText({
   );
 }
 
-function HomeHeaderRight() {
-  return (
-    <TouchableOpacity style={styles.topRight} activeOpacity={0.8}>
-      <Image source={require('@/assets/images/home/tip.png')} style={styles.rightImg} />
-      <View style={styles.redDot}>
-        <Text style={styles.redDotText}>1+</Text>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 export default function HomeTab() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
@@ -852,9 +841,8 @@ export default function HomeTab() {
   return (
     <View style={styles.container}>
       <View style={[styles.floatingHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
-        <View style={styles.floatingHeaderInner}>
+        <View style={styles.floatingHeaderInner} pointerEvents="box-none">
           <Image source={require('@/assets/images/home/homeLogo.png')} style={styles.miniLogo} />
-          <HomeHeaderRight />
         </View>
       </View>
       {Platform.OS === 'android' ? (

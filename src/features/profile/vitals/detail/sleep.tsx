@@ -9,7 +9,9 @@ import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
 import SleepDetailChart, { type SleepChartRange } from './components/SleepDetailChart';
-import SleepStageDetailChart from './components/SleepStageDetailChart';
+import SleepStageDetailChart, {
+    type SleepStageSelection,
+} from './components/SleepStageDetailChart';
 import SleepScoreBar from './components/SleepScoreBar';
 import SleepPieChart from '@/src/features/profile/components/SleepPieChart';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -69,6 +71,7 @@ export default function SleepPage() {
     const [currentLabel, setCurrentLabel] = useState('当前：--');
     const [stats, setStats] = useState(EMPTY_STATS);
     const [sleepGoal, setSleepGoal] = useState(defaultSleepGoal);
+    const [stageSelection, setStageSelection] = useState<SleepStageSelection | null>(null);
 
     const analysisItem = useMemo(
         () => getSleepDetailDisplayItem(sleepItems, selectedType),
@@ -91,6 +94,8 @@ export default function SleepPage() {
         [analysisItem],
     );
     const isTodayView = selectedType === 'today';
+    const nightSleepTitle = stageSelection?.stageLabel ?? '夜间睡眠';
+    const nightSleepDuration = stageSelection?.durationText ?? displayDuration;
 
     const handleChartPointChange = useCallback((point: SleepDetailPoint | undefined) => {
         const display = formatSleepDetailPointDisplay(selectedType, point, sleepGoal);
@@ -99,6 +104,10 @@ export default function SleepPage() {
         setDisplayStatusColor(display.quality.color);
         setCurrentLabel(display.currentLabel);
     }, [selectedType, sleepGoal]);
+
+    const handleStageChange = useCallback((selection: SleepStageSelection | null) => {
+        setStageSelection(selection);
+    }, []);
 
     const loadSleepData = useCallback(async (range: SleepChartRange, goalHoursOverride?: number) => {
         const goalHours = goalHoursOverride ?? defaultSleepGoal;
@@ -191,8 +200,8 @@ export default function SleepPage() {
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         {isTodayView ? (
                             <>
-                                <Text style={styles.rowTitle}>夜间睡眠</Text>
-                                <Text style={styles.rowLeftValue}>{displayDuration}</Text>
+                                <Text style={styles.rowTitle}>{nightSleepTitle}</Text>
+                                <Text style={styles.rowLeftValue}>{nightSleepDuration}</Text>
                                 <Flex justify='between'>
                                     <Text style={styles.rowTitle}>建议时长：7-9小时</Text>
                                     <Flex style={styles.dayBox}>
@@ -209,7 +218,10 @@ export default function SleepPage() {
                                         <Text style={styles.mbBoxMessage}>{goalProgress.message}</Text>
                                     </Flex>
                                 ) : null}
-                                <SleepStageDetailChart item={analysisItem} />
+                                <SleepStageDetailChart
+                                    item={analysisItem}
+                                    onStageChange={handleStageChange}
+                                />
                             </>
                         ) : (
                             <>
@@ -261,7 +273,7 @@ export default function SleepPage() {
                             </Flex>
                         </>
                     ) : null}
-                       {isTodayView ? ( <View style={[styles.rowBox, { marginTop: 10 }]}>
+                    {isTodayView ? (<View style={[styles.rowBox, { marginTop: 30 }]}>
                         <Flex justify='between' align='center'>
                             <Text style={styles.analysisTitle}>睡眠分析</Text>
                             <Flex style={[styles.statusBox, { borderColor: sleepScoreSummary.qualityColor }]}>

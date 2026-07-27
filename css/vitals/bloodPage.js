@@ -547,6 +547,7 @@ const styles = StyleSheet.create({
     },
     sleepStageDetailWrap: {
         marginTop: 12,
+        marginBottom: 28,
         overflow: 'visible',
     },
     sleepStageDetailBody: {

@@ -10,6 +10,7 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         zIndex: 20,
+        elevation: 20,
     },
     floatingHeaderInner: {
         height: 44,

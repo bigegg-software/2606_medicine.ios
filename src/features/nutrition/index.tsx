@@ -1,8 +1,8 @@
-import React, { useCallback, useState } from 'react';
-import { View, Text, Image, ActivityIndicator } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import styles from '@/css/nutrition';
 import DietPage from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
@@ -12,6 +12,7 @@ import { formatDietHeaderInfo } from './components/utils/dietMealHelpers';
 import { AppTheme } from '@/common/theme';
 
 export default function NutritionPage() {
+  const navigation: any = useNavigation();
   const [activeNav, setActiveNav] = useState(0);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,6 +51,20 @@ export default function NutritionPage() {
       icon: require('@/assets/images/nutrition/cf.png'),
     },
   ];
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          style={{ marginRight: 18 }}
+          onPress={() => {
+            navigation.navigate('FoodRecordingPage');
+          }}>
+          <Image style={{ width: 24, height: 24 }} source={require('@/assets/images/nutrition/icon_history.png')} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [])
 
   return (
     <PageLayout style={styles.container} edges={[]}>

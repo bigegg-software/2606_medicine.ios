@@ -21,8 +21,8 @@ export type PersonalAuthForm = {
   residentialDistrict: string;
   residentialStreet: string;
   residentialDetail: string;
-  idCardFrontOssId?: number;
-  idCardBackOssId?: number;
+  idCardFrontOssId?: string;
+  idCardBackOssId?: string;
 };
 
 const ID_CARD_REG = /^[1-9]\d{5}(19|20)\d{2}(0[1-9]|1[0-2])(0[1-9]|[12]\d|3[01])\d{3}[\dXx]$/;
@@ -126,7 +126,7 @@ export async function pickIdCardImageFromLibrary(side: IdCardSide): Promise<Pick
 
 export async function uploadIdCardImage(
   file: PickedIdCardImage,
-): Promise<{ ossId: number; url: string } | null> {
+): Promise<{ ossId: string; url: string } | null> {
   const res = await uploadOss(file);
   const data = apiResourceData<{ url?: string; ossId?: string | number }>(
     res as { code?: number; data?: { url?: string; ossId?: string | number } },
@@ -134,8 +134,8 @@ export async function uploadIdCardImage(
   if (!data?.url || data.ossId == null || data.ossId === '') {
     return null;
   }
-  const ossId = Number(data.ossId);
-  if (!Number.isFinite(ossId)) {
+  const ossId = String(data.ossId);
+  if (!ossId) {
     return null;
   }
   return { ossId, url: data.url };

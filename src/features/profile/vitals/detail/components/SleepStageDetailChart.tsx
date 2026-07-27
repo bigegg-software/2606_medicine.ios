@@ -1,5 +1,7 @@
-import React, { useMemo } from 'react';
-import { View, Text, Dimensions } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, Image, Dimensions } from 'react-native';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, { runOnJS } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { WearableDataItem } from '@/api/wearableData';
 import styles from '@/css/vitals/bloodPage';
@@ -8,11 +10,19 @@ import {
     type SleepStageTimelineSegment,
 } from '@/src/features/profile/components/sleepStageChartHelpers';
 import { formatSleepStageBoundaryLabels } from '../helpers/sleep';
+import {
+    findSleepStageAtPlotX,
+    formatSleepStageSelection,
+    getSleepStageSliderThumbLeft,
+    mergeAdjacentSleepStages,
+    type SleepStageSelection,
+} from './utils/sleepStageDetailChartHelpers';
+
+export type { SleepStageSelection };
 
 const SVG_WIDTH = 645;
 const SVG_HEIGHT = 577;
 const SVG_PLOT_HEIGHT = 496;
-const SVG_TIME_HEIGHT = SVG_HEIGHT - SVG_PLOT_HEIGHT;
 const SVG_Y_LABEL_WIDTH = 97;
 const SVG_BAR_HEIGHT = 90;
 const SVG_BAND_HEIGHT = 124;
@@ -33,14 +43,24 @@ const BAR_CORNER_RADIUS = Math.min(5, BAR_HEIGHT * 0.12);
 
 const GRID_BORDER_COLOR = '#D4D5D9';
 const GRID_LINE_COLOR = 'rgba(212, 213, 217, 0.4)';
+const SELECT_LINE_COLOR = '#542FC8';
 const STAGE_Y_LABELS = ['清醒', '快速眼动', '浅睡', '深睡'];
 const STAGE_LABEL_TOP = 6;
 const TIME_LEFT_PADDING = 8;
 const TIME_RIGHT_PADDING = Math.max(8, Math.round((17 / SVG_WIDTH) * CHART_WIDTH));
 const VERTICAL_GRID_RATIOS = [0.25, 0.5, 0.75];
 
+const SLIDER_THUMB_WIDTH = 37;
+const SLIDER_THUMB_HEIGHT = 27;
+const SLIDER_THUMB_TOP = 25;
+const SLIDER_TRACK_HEIGHT = SLIDER_THUMB_TOP + SLIDER_THUMB_HEIGHT;
+const SLIDER_BOTTOM_OFFSET = -60;
+/** 两端各扩出半个拇指宽度，避免贴边时一半落在触控区外 */
+const SLIDER_EDGE_PADDING = Math.ceil(SLIDER_THUMB_WIDTH / 2) + 8;
+
 type Props = {
     item?: WearableDataItem;
+    onStageChange?: (selection: SleepStageSelection | null) => void;
 };
 
 function getBandRowTop(band: number) {
@@ -56,21 +76,6 @@ function getBarBorderRadius(width: number) {
         return Math.min(BAR_CORNER_RADIUS + 1, width / 2, BAR_HEIGHT / 2);
     }
     return BAR_CORNER_RADIUS;
-}
-
-function mergeAdjacentStages(segments: SleepStageTimelineSegment[]) {
-    const merged: SleepStageTimelineSegment[] = [];
-
-    segments.forEach(segment => {
-        const last = merged[merged.length - 1];
-        if (last && last.stage === segment.stage) {
-            last.endMs = Math.max(last.endMs, segment.endMs);
-            return;
-        }
-        merged.push({ ...segment });
-    });
-
-    return merged;
 }
 
 function msToX(ms: number, minStart: number, total: number) {
@@ -255,13 +260,119 @@ function TimeBoundaryLabels({
     );
 }
 
-export default function SleepStageDetailChart({ item }: Props) {
+function ChartSelectionSlider({
+    thumbCenterX,
+    onSelectAtX,
+}: {
+    thumbCenterX: number | null;
+    onSelectAtX: (chartX: number) => void;
+}) {
+    const handleSelectAtTrackX = useCallback((trackX: number) => {
+        onSelectAtX(trackX - SLIDER_EDGE_PADDING);
+    }, [onSelectAtX]);
+
+    const sliderGesture = useMemo(() => {
+        const tap = Gesture.Tap()
+            .onEnd(event => {
+                runOnJS(handleSelectAtTrackX)(event.x);
+            });
+
+        const pan = Gesture.Pan()
+            .activeOffsetX([-2, 2])
+            .failOffsetY([-20, 20])
+            .onStart(event => {
+                runOnJS(handleSelectAtTrackX)(event.x);
+            })
+            .onUpdate(event => {
+                runOnJS(handleSelectAtTrackX)(event.x);
+            });
+
+        return Gesture.Exclusive(pan, tap);
+    }, [handleSelectAtTrackX]);
+
+    const thumbLeft = getSleepStageSliderThumbLeft(
+        thumbCenterX,
+        Y_LABEL_WIDTH,
+        PLOT_WIDTH,
+        SLIDER_THUMB_WIDTH,
+        SLIDER_EDGE_PADDING,
+    );
+
+    return (
+        <GestureDetector gesture={sliderGesture}>
+            <Animated.View
+                style={[
+                    styles.chartSliderTrack,
+                    {
+                        left: -SLIDER_EDGE_PADDING,
+                        width: CHART_WIDTH + SLIDER_EDGE_PADDING * 2,
+                        height: SLIDER_TRACK_HEIGHT,
+                        bottom: SLIDER_BOTTOM_OFFSET,
+                    },
+                ]}
+            >
+                <View
+                    pointerEvents="none"
+                    style={[
+                        styles.chartSliderThumb,
+                        {
+                            left: thumbLeft,
+                            top: SLIDER_THUMB_TOP,
+                        },
+                    ]}
+                >
+                    <Image
+                        source={require('@/assets/images/vitals/hk.png')}
+                        style={{
+                            width: SLIDER_THUMB_WIDTH,
+                            height: SLIDER_THUMB_HEIGHT,
+                        }}
+                    />
+                </View>
+            </Animated.View>
+        </GestureDetector>
+    );
+}
+
+export default function SleepStageDetailChart({ item, onStageChange }: Props) {
     const segments = useMemo(
-        () => mergeAdjacentStages(buildSleepStageTimeline(item)),
+        () => mergeAdjacentSleepStages(buildSleepStageTimeline(item)),
         [item],
     );
     const { bars, connectors } = useMemo(() => buildChartItems(segments), [segments]);
     const boundaryLabels = useMemo(() => formatSleepStageBoundaryLabels(item), [item]);
+    const [selectedPlotX, setSelectedPlotX] = useState<number | null>(null);
+    const [hasInteracted, setHasInteracted] = useState(false);
+
+    const notifyStageChange = useCallback((selection: SleepStageSelection | null) => {
+        onStageChange?.(selection);
+    }, [onStageChange]);
+
+    useEffect(() => {
+        setSelectedPlotX(null);
+        setHasInteracted(false);
+        notifyStageChange(null);
+    }, [item, notifyStageChange]);
+
+    const selectAtChartX = useCallback((chartX: number) => {
+        if (!segments.length) {
+            notifyStageChange(null);
+            return;
+        }
+
+        const plotX = Math.max(0, Math.min(chartX - Y_LABEL_WIDTH, PLOT_WIDTH));
+        setSelectedPlotX(plotX);
+        setHasInteracted(true);
+
+        const segment = findSleepStageAtPlotX(segments, plotX, PLOT_WIDTH);
+        notifyStageChange(segment ? formatSleepStageSelection(segment) : null);
+    }, [notifyStageChange, segments]);
+
+    const thumbPlotX = selectedPlotX ?? PLOT_WIDTH;
+    const thumbCenterX = segments.length ? Y_LABEL_WIDTH + thumbPlotX : null;
+    const selectionLineLeft = hasInteracted && selectedPlotX != null
+        ? Y_LABEL_WIDTH + selectedPlotX
+        : null;
 
     return (
         <View style={[styles.sleepStageDetailWrap, { width: CHART_WIDTH, height: CHART_HEIGHT }]}>
@@ -321,6 +432,21 @@ export default function SleepStageDetailChart({ item }: Props) {
                         <View style={styles.sleepStageEmptyPlot} pointerEvents="none" />
                     ) : null}
                 </View>
+
+                {selectionLineLeft != null ? (
+                    <View
+                        pointerEvents="none"
+                        style={{
+                            position: 'absolute',
+                            left: selectionLineLeft,
+                            top: 0,
+                            width: 1,
+                            height: PLOT_HEIGHT,
+                            backgroundColor: SELECT_LINE_COLOR,
+                            zIndex: 10,
+                        }}
+                    />
+                ) : null}
             </View>
 
             <View
@@ -336,6 +462,13 @@ export default function SleepStageDetailChart({ item }: Props) {
             >
                 <TimeBoundaryLabels labels={boundaryLabels} />
             </View>
+
+            {segments.length > 0 ? (
+                <ChartSelectionSlider
+                    thumbCenterX={thumbCenterX}
+                    onSelectAtX={selectAtChartX}
+                />
+            ) : null}
         </View>
     );
 }
