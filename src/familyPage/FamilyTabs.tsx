@@ -64,11 +64,18 @@ export default function FamilyTabs() {
     [],
   );
 
-  // 只更新 title，避免每次切换重建 header 导致闪动
+  // 只更新 title，并清除非预警页可能残留的 headerRight
   const syncFamilyTabTitle = useCallback(
     (routeName: string) => {
       const title = FAMILY_TAB_TITLES[routeName as keyof FamilyTabParamList] ?? '首页';
-      navigation.setOptions({ title });
+      if (routeName === 'FamilyAlert') {
+        navigation.setOptions({ title });
+        return;
+      }
+      navigation.setOptions({
+        title,
+        headerRight: () => null,
+      });
     },
     [navigation],
   );
@@ -76,6 +83,7 @@ export default function FamilyTabs() {
   useEffect(() => {
     navigation.setOptions({
       title: FAMILY_TAB_TITLES.FamilyHome,
+      headerRight: () => null,
     });
   }, [navigation]);
 

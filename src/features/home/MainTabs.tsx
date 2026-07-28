@@ -150,35 +150,35 @@ export default function MainTabs() {
     [],
   );
 
-  const syncMainTabTitle = (routeName: string) => {
-    const title = routeName === 'Home' ? '' : getMainTabTitle(routeName);
-    setActiveMainTabTitle(title);
+  const syncMainTabTitle = useCallback(
+    (routeName: string) => {
+      const title = routeName === 'Home' ? '' : getMainTabTitle(routeName);
+      setActiveMainTabTitle(title);
 
-    if (routeName === 'Home') {
+      if (routeName === 'Home') {
+        navigation.setOptions({
+          title: '',
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTitle: () => null,
+          headerLeft: () => null,
+          headerRight: () => <MessageHeaderButton />,
+        });
+        return;
+      }
+
+      // headerRight 必须显式设为 () => null；undefined 不会清除已有按钮
       navigation.setOptions({
-        title: '',
+        title,
         headerTransparent: true,
         headerStyle: { backgroundColor: 'transparent' },
-        headerTitle: () => null,
-        headerLeft: () => null,
-        headerRight: () => <MessageHeaderButton />,
+        headerTitle: undefined,
+        headerLeft: undefined,
+        headerRight: () => null,
       });
-      return;
-    }
-
-    navigation.setOptions({
-      title,
-      headerTransparent: true,
-      headerStyle: { backgroundColor: 'transparent' },
-      headerTitle: undefined,
-      headerLeft: undefined,
-      ...(routeName !== 'Schedule' ? { headerRight: undefined } : {}),
-    });
-  };
-
-  useEffect(() => {
-    syncMainTabTitle('Home');
-  }, [navigation]);
+    },
+    [navigation],
+  );
 
   return (
     <Tab.Navigator
