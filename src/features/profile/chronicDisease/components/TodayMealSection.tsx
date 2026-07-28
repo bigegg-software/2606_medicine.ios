@@ -13,8 +13,8 @@ import {
 import {
     formatNutritionInteger,
     sumCalories,
+    sumCarbs,
     sumProtein,
-    sumWaterIntake,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/chronicDisease/detail';
@@ -51,13 +51,13 @@ export default function TodayMealSection() {
     );
 
     const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
-    const todayWaterMl = useMemo(() => sumWaterIntake(todayMealList), [todayMealList]);
     const todayCalories = useMemo(() => sumCalories(todayMealList), [todayMealList]);
     const todayProtein = useMemo(() => sumProtein(todayMealList), [todayMealList]);
+    const todayCarbs = useMemo(() => sumCarbs(todayMealList), [todayMealList]);
 
     const calorieProgress = calcNutritionProgress(todayCalories, dietSummary.targetCalories);
     const proteinProgress = calcNutritionProgress(todayProtein, dietSummary.targetProtein);
-    const waterProgress = calcNutritionProgress(todayWaterMl, dietSummary.targetWater);
+    const carbsProgress = calcNutritionProgress(todayCarbs, dietSummary.targetCarbs);
 
     return (
         <View style={styles.overviewSection}>
@@ -99,17 +99,17 @@ export default function TodayMealSection() {
                         </View>
                         <View style={styles.yyItem}>
                             <Flex justify="center" align="center">
-                                <Text style={styles.yyTitle}>饮水</Text>
+                                <Text style={styles.yyTitle}>碳水</Text>
                                 <MiniProgressRing
                                     size={30}
-                                    progress={waterProgress}
+                                    progress={carbsProgress}
                                     trackColor="rgba(131,174,255,0.14)"
                                     color="#EE9C44"
                                 />
                             </Flex>
                             <Flex justify="center" style={{ marginTop: 6 }}>
-                                <Text style={styles.yyValue}>{formatNutritionInteger(todayWaterMl)}</Text>
-                                <Text style={styles.yyUnit}> /{dietSummary.targetWater ?? '--'}毫升</Text>
+                                <Text style={styles.yyValue}>{formatNutritionInteger(todayCarbs)}</Text>
+                                <Text style={styles.yyUnit}> /{dietSummary.targetCarbs ?? '--'}克</Text>
                             </Flex>
                         </View>
                     </Flex>

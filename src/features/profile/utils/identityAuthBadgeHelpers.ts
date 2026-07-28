@@ -20,7 +20,12 @@ export function resolveIdentityAuthBadgeSource(
 
 /** 审核中文案更长，单独加宽 */
 export function resolveIdentityAuthBadgeWidth(authStatus?: number | null) {
-  return authStatus === 0 ? 80 : 68;
+  return authStatus === 2 ? 80 : 68;
+}
+
+/** 审核中 / 审核通过不可点击进入认证页 */
+export function canPressIdentityAuthBadge(authStatus?: number | null) {
+  return authStatus !== 0 && authStatus !== 1;
 }
 
 /** 仅未提交过认证时展示右侧实名认证入口 */

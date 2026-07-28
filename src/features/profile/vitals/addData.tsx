@@ -27,7 +27,8 @@ import {
 } from './addDataHelpers';
 import { getUricAcidAddDataReferenceLines } from './detail/helpers/uricAcid';
 import { syncMeasureWeightToUserBaseInfo } from './utils/weightSyncHelpers';
-import { formatWeightBmiHintText } from './utils/weightBmiHintHelpers';
+import { formatWeightBmiHintText, hasUserHeightForBmi } from './utils/weightBmiHintHelpers';
+import TopHeaderTip from './detail/components/TopHeaderTip';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AddDataPage'>;
@@ -243,6 +244,7 @@ export default function BloodAddPage({ route }: Props) {
   const headerHeight = useHeaderHeight();
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const userHeight = useSelector((state: RootState) => state.user.info?.height);
+  const showWeightHeightTip = measureType === '体重' && !hasUserHeightForBmi(userHeight);
   const scrollRef = useRef<ScrollView>(null);
   const allowDecimal = config.keyboardType === 'decimal-pad';
   const pageTitle = isEdit ? config.title.replace('新增', '编辑') : config.title;
@@ -456,6 +458,7 @@ export default function BloodAddPage({ route }: Props) {
       style={styles.container}
       showHeaderBackground={false}
       keyboardAccessory={<KeyboardDoneAccessory />}>
+      {showWeightHeightTip ? <TopHeaderTip /> : null}
       <View style={styles.keyboardAvoid}>
         <KeyboardAvoidingView
           style={{ flex: 1 }}

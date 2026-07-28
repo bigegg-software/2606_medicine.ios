@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
 
     position: "absolute",
     bottom: 10,
-    zIndex:99,
+    zIndex: 99,
     left: 0,
     right: 0,
     marginTop: 8,
@@ -231,6 +231,9 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     borderRadius: 8,
     backgroundColor: '#FFFFFF',
+  },
+  detailBoxExpanded: {
+    paddingBottom: 0,
   },
   monthTitle: {
     fontWeight: 'bold',

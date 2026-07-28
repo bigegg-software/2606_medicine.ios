@@ -14,6 +14,8 @@ import {
   formatMealServingText,
   formatNutritionInteger,
   getWaterRecords,
+  sumCarbs,
+  sumFat,
   sumWaterIntake,
   toNumber,
 } from './mealDetailHelpers';
@@ -149,18 +151,28 @@ export function getMealCategoryTargetCalories(
 export type DayNutritionSummary = {
   calories: number;
   protein: number;
+  carbs: number;
+  fat: number;
   water: number;
   targetCalories?: number;
   targetProtein?: number;
+  targetCarbs?: number;
+  targetFat?: number;
   targetWater?: number;
   caloriePercent: number;
   proteinPercent: number;
+  carbsPercent: number;
+  fatPercent: number;
   waterPercent: number;
   calorieProgress: number;
   proteinProgress: number;
+  carbsProgress: number;
+  fatProgress: number;
   waterProgress: number;
   calorieDisplay: ReturnType<typeof getCalorieNutritionDisplay>;
   proteinDisplay: ReturnType<typeof getProteinNutritionDisplay>;
+  carbsDisplay: ReturnType<typeof getProteinNutritionDisplay>;
+  fatDisplay: ReturnType<typeof getProteinNutritionDisplay>;
   waterDisplay: ReturnType<typeof getWaterNutritionDisplay>;
 };
 
@@ -171,29 +183,47 @@ export function buildDayNutritionSummary(
 ): DayNutritionSummary {
   const calories = meals.reduce((sum, item) => sum + toNumber(item.calorie), 0);
   const protein = meals.reduce((sum, item) => sum + toNumber(item.protein), 0);
+  const carbsFromMeals = meals.reduce((sum, item) => sum + toNumber(item.carbs), 0);
+  const fatFromMeals = meals.reduce((sum, item) => sum + toNumber(item.fat), 0);
+  const carbs = carbsFromMeals > 0 ? carbsFromMeals : sumCarbs(foodDetails);
+  const fat = fatFromMeals > 0 ? fatFromMeals : sumFat(foodDetails);
   const water = sumWaterIntake(foodDetails.length > 0 ? foodDetails : []);
   const targetCalories = snapshot?.targetCalories;
   const targetProtein = snapshot?.targetProtein;
+  const targetCarbs = snapshot?.targetCarbs;
+  const targetFat = snapshot?.targetFat;
   const targetWater = snapshot?.targetWater;
   const caloriePercent = calcNutritionPercent(calories, targetCalories);
   const proteinPercent = calcNutritionPercent(protein, targetProtein);
+  const carbsPercent = calcNutritionPercent(carbs, targetCarbs);
+  const fatPercent = calcNutritionPercent(fat, targetFat);
   const waterPercent = calcNutritionPercent(water, targetWater);
 
   return {
     calories,
     protein,
+    carbs,
+    fat,
     water,
     targetCalories,
     targetProtein,
+    targetCarbs,
+    targetFat,
     targetWater,
     caloriePercent,
     proteinPercent,
+    carbsPercent,
+    fatPercent,
     waterPercent,
     calorieProgress: calcNutritionProgress(calories, targetCalories),
     proteinProgress: calcNutritionProgress(protein, targetProtein),
+    carbsProgress: calcNutritionProgress(carbs, targetCarbs),
+    fatProgress: calcNutritionProgress(fat, targetFat),
     waterProgress: calcNutritionProgress(water, targetWater),
     calorieDisplay: getCalorieNutritionDisplay(caloriePercent),
     proteinDisplay: getProteinNutritionDisplay(proteinPercent),
+    carbsDisplay: getProteinNutritionDisplay(carbsPercent),
+    fatDisplay: getProteinNutritionDisplay(fatPercent),
     waterDisplay: getWaterNutritionDisplay(waterPercent),
   };
 }

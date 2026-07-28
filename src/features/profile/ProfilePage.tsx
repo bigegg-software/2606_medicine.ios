@@ -25,7 +25,7 @@ import {
 import SignInModal from './components/SignInModal';
 import { buildSignButtonLabel } from './utils/signInHelpers';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
-import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
+import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -75,6 +75,7 @@ export default function ProfilePage() {
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
   const authBadgeSource = resolveIdentityAuthBadgeSource(authStatus);
   const authBadgeWidth = resolveIdentityAuthBadgeWidth(authStatus);
+  const canPressAuthBadge = canPressIdentityAuthBadge(authStatus);
   const showIdentityAuthEntry = shouldShowIdentityAuthEntry(authStatus);
 
   const loadSignTip = useCallback(async () => {
@@ -237,9 +238,13 @@ export default function ProfilePage() {
             <View>
               <Flex>
                 <Text style={styles.name}>{name}</Text>
-                <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
+                {canPressAuthBadge ? (
+                  <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
+                    <Image style={[styles.wrzImg, { width: authBadgeWidth }]} source={authBadgeSource} />
+                  </TouchableOpacity>
+                ) : (
                   <Image style={[styles.wrzImg, { width: authBadgeWidth }]} source={authBadgeSource} />
-                </TouchableOpacity>
+                )}
               </Flex>
               <Flex style={{ marginTop: 7 }}>
                 <Image style={styles.avatarIcon} source={require('@/assets/images/user/img1.png')} />

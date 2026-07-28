@@ -251,6 +251,155 @@ const styles = StyleSheet.create({
   nutritionCard: {
     marginTop: 12,
   },
+  nutritionGoalCard: {
+    margin: 12,
+    backgroundColor: '#FEFFFF',
+    borderRadius: 12,
+    padding: 12,
+  },
+  nutritionGoalTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333333',
+  },
+  nutritionGoalGrid: {
+    marginTop: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  nutritionGoalItem: {
+    width: '47%',
+    flexGrow: 1,
+    height: 79,
+    backgroundColor: '#F6F8FB',
+    borderRadius: 12,
+    padding: 12,
+    justifyContent: 'center',
+  },
+  nutritionGoalIcon: {
+    width: 18,
+    height: 18,
+  },
+  nutritionGoalItemTitle: {
+    marginLeft: 6,
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  nutritionGoalStatusTag: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  nutritionGoalStatus: {
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  backImage1: { width: "100%", height: 50, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
+  backImage1Text: { fontWeight: "bold", fontSize: 16, color: "#333333" },
+  mealDetailCard: {
+    marginHorizontal: 12,
+    marginTop: 12,
+    padding: 15,
+    borderRadius: 12,
+    backgroundColor: '#FEFFFF',
+  },
+  mealDetailCardFirst: {
+    marginTop: 0,
+  },
+  mealDetailHeaderIcon: {
+    width: 15,
+    height: 15,
+  },
+  mealDetailHeaderTitle: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333333',
+  },
+  mealDetailHeaderValue: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+    fontSize: 13,
+    color: '#333333',
+  },
+  mealDetailHeaderTarget: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    color: '#999999',
+  },
+  mealDetailHeaderUnit: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  mealDetailFoodRow: {
+    height: 45,
+    marginTop:20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  mealDetailFoodImage: {
+    width: 45,
+    height: 45,
+    borderRadius: 30,
+    backgroundColor: '#F3F6FB',
+  },
+  mealDetailFoodInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  mealDetailFoodName: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#333333',
+  },
+  mealDetailFoodServing: {
+    marginTop: 4,
+    fontWeight: '500',
+    fontSize: 12,
+    color: '#999999',
+  },
+  mealDetailFoodCalorie: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  mealDetailFoodArrow: {
+    width: 5,
+    height: 9,
+    marginLeft: 5,
+  },
+  nutritionGoalValueRow: {
+    marginTop: 8,
+  },
+  nutritionGoalValue: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    color: '#333333',
+  },
+  nutritionGoalTarget: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    color: '#999999',
+  },
+  nutritionGoalUnit: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  nutritionGoalBarTrack: {
+    marginTop: 8,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#FFFFFF',
+    overflow: 'hidden',
+  },
+  nutritionGoalBarFill: {
+    height: 5,
+    borderRadius: 3,
+  },
   nutritionRow: {
     marginTop: 16,
     flexDirection: 'row',

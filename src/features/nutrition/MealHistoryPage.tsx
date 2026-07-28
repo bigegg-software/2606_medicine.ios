@@ -28,7 +28,7 @@ import {
 } from '@/api/meal';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import styles from '@/css/medication/mealHistory';
-import MealTrendChart from './components/MealTrendChart';
+import MealTrendChart from '@/src/features/profile/medication/meal/components/MealTrendChart';
 import {
   flattenMealHistoryDays,
   formatDayListSubtitle,
@@ -40,7 +40,7 @@ import {
   getPrescriptionPeriodDayCount,
   formatMealHistoryRate,
   normalizeComplianceRate,
-} from './utils/mealHistoryHelpers';
+} from '@/src/features/profile/medication/meal/utils/mealHistoryHelpers';
 
 const PAGE_SIZE = 20;
 const HISTORY_TABS = [

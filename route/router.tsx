@@ -73,8 +73,8 @@ import MealResultPage from '@/src/features/nutrition/mealResult';
 import FoodDetailPage from '@/src/features/nutrition/foodDetail';
 import ManualCorrectionPage from '@/src/features/nutrition/manualCorrection';
 import MealRecordDetailPage from '@/src/features/nutrition/mealRecordDetail';
-import MealHistoryPage from '@/src/features/profile/medication/meal/MealHistoryPage';
-import MealDayDetailPage from '@/src/features/profile/medication/meal/MealDayDetailPage';
+import MealHistoryPage from '@/src/features/nutrition/MealHistoryPage';
+import MealDayDetailPage from '@/src/features/nutrition/MealDayDetailPage';
 
 // 慢病管理
 import ChronicDiseasePage from '@/src/features/profile/chronicDisease';
@@ -459,9 +459,13 @@ export default function RootStack() {
       <Stack.Screen name="MedicationHistoryPage" component={MedicationHistoryPage} options={{ title: '用药历史' }} />
       <Stack.Screen name="MedicationDetailPage" component={MedicationDetailPage} options={{ title: '处方详情' }} />
       <Stack.Screen name="MealDetailPage" component={MealDetailPage} options={{ title: '营养目标详情' }} />
-      <Stack.Screen name="MealRecordDetailPage" component={MealRecordDetailPage} options={{ title: '用餐详情' }} />
+      <Stack.Screen
+        name="MealRecordDetailPage"
+        component={MealRecordDetailPage}
+        options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }}
+      />
       <Stack.Screen name="MealHistoryPage" component={MealHistoryPage} options={{ title: '饮食记录' }} />
-      <Stack.Screen name="MealDayDetailPage" component={MealDayDetailPage} options={{ title: '饮食详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="MealDayDetailPage" component={MealDayDetailPage} options={{ title: '饮食详情' }} />
       <Stack.Screen name="MealWaterPage" component={MealWaterPage} options={{ title: '记录饮水' }} />
       <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', headerShown: false, statusBarStyle: 'light' }} />
       <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别', showHeaderBackground: false }} />

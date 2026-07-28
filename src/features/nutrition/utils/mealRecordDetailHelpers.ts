@@ -1,48 +1,42 @@
 import type { MealDetailInfo, MealDetailItem } from '@/api/mealDetail';
 import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import {
+  FOOD_UNIT,
+  isGramUnit,
+  resolveFoodUnitValue,
+} from '@/src/features/profile/medication/meal/utils/foodUnitHelpers';
 
-const CATEGORY_LABELS: Record<number, string> = {
-  1: '早餐',
-  2: '午餐',
-  3: '晚餐',
-  4: '加餐',
-};
-
-export type MealRecordTotals = {
-  calorie: number;
-  protein: number;
-  fat: number;
-  carbs: number;
-};
-
-export function buildMealRecordTotals(info: MealDetailInfo | null): MealRecordTotals {
-  const main = info?.mainInfo;
-  if (main) {
-    return {
-      calorie: toNumber(main.calorie),
-      protein: toNumber(main.protein),
-      fat: toNumber(main.fat),
-      carbs: toNumber(main.carbs),
-    };
-  }
-  const list = info?.mealDetailList ?? [];
-  return list.reduce<MealRecordTotals>(
-    (acc, item) => ({
-      calorie: acc.calorie + toNumber(item.calorie),
-      protein: acc.protein + toNumber(item.protein),
-      fat: acc.fat + toNumber(item.fat),
-      carbs: acc.carbs + toNumber(item.carbs),
-    }),
-    { calorie: 0, protein: 0, fat: 0, carbs: 0 },
+export function pickMealRecordDetailItem(
+  info: MealDetailInfo | null,
+  mealDetailId: number,
+): MealDetailItem | null {
+  if (!info?.mealDetailList?.length) return null;
+  const matched = info.mealDetailList.find(
+    item => item.mealDetailId != null && Number(item.mealDetailId) === Number(mealDetailId),
   );
+  return matched ?? info.mealDetailList[0] ?? null;
 }
 
-export function getMealRecordCategoryLabel(list: MealDetailItem[] = []): string {
-  const category = list.find(item => item.mealCategory != null)?.mealCategory;
-  if (category == null) return '用餐';
-  return CATEGORY_LABELS[Number(category)] ?? '用餐';
+export function resolveMealRecordFoodImageUrl(
+  info: MealDetailInfo | null,
+  item: MealDetailItem | null,
+): string | undefined {
+  const fromItem = item?.ossUrl?.trim();
+  if (fromItem) return fromItem;
+  const fromInfo = info?.ossUrl?.trim();
+  return fromInfo || undefined;
 }
 
-export function getMealRecordTime(info: MealDetailInfo | null): string {
-  return info?.timeStr || info?.mealDetailList?.[0]?.timeStr || '--';
+export function buildMealRecordFoodMeta(item: MealDetailItem): string {
+  const amount = toNumber(item.servingAmount ?? 1) || 1;
+  const unitValue = resolveFoodUnitValue(item.servingUnit, item.unit);
+  const weight = toNumber(item.weight);
+
+  if (isGramUnit(unitValue)) {
+    return `${Math.round(amount)}克`;
+  }
+  if (weight > 0) {
+    return `${amount}${unitValue}·约${weight}${FOOD_UNIT.gram}`;
+  }
+  return `${amount}${unitValue}`;
 }

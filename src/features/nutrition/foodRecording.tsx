@@ -388,7 +388,7 @@ export default function FoodRecordingPage() {
                 || `month-${days.length}`;
               const expanded = !!expandedMonths[monthKey];
               return (
-                <View key={monthKey} style={styles.detailBox}>
+                <View key={monthKey} style={[styles.detailBox, expanded && styles.detailBoxExpanded]}>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     onPress={() => toggleMonth(monthKey)}

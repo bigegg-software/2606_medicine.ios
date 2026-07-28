@@ -119,6 +119,12 @@ export function sumCarbs(list: MealDetailItem[]): number {
         .reduce((sum, item) => sum + toNumber(item.carbs), 0);
 }
 
+export function sumFat(list: MealDetailItem[]): number {
+    return list
+        .filter(item => !isWaterRecord(item))
+        .reduce((sum, item) => sum + toNumber(item.fat), 0);
+}
+
 
 export function formatServingAmount(value: unknown): string {
     const num = toNumber(value);
