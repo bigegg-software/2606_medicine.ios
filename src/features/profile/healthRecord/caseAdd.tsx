@@ -1,5 +1,17 @@
-import React, { useCallback, useState } from 'react';
-import { Text, Image, View, ScrollView, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import {
+    Text,
+    Image,
+    View,
+    ScrollView,
+    TextInput,
+    TouchableOpacity,
+    Alert,
+    ActivityIndicator,
+    Platform,
+    findNodeHandle,
+    type FocusEvent,
+} from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Toast, DatePicker } from '@ant-design/react-native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -17,7 +29,12 @@ import { consumePendingAttachments } from '@/src/utils/attachmentUploadSession';
 import { consumePendingIdentifyRecord } from '@/src/utils/medicalRecordIdentifySession';
 import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
 import { MEDICAL_RECORD_TYPE_LIST } from './caseConstants';
-import { isImageAttachment } from './medicalRecordAttachmentHelpers';
+import {
+    getAttachmentDisplayName,
+    getAttachmentExtLabel,
+    partitionAttachments,
+} from './medicalRecordAttachmentHelpers';
+import { resolveAttachmentsAfterIdentify } from './utils/identifyAttachmentHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -114,7 +131,7 @@ function applyRecordToForm(record: MedicalRecord, setters: FormSetters) {
 }
 
 async function pickDocumentForIdentify(
-    onSuccess: (record: MedicalRecord) => void,
+    onSuccess: (record: MedicalRecord, attachments: MedicalRecordAttachment[]) => void,
     onError: (message: string) => void,
 ) {
     try {
@@ -131,11 +148,14 @@ async function pickDocumentForIdentify(
             uri: asset.uri,
             name: sanitizeFileName(asset.name ?? `document_${Date.now()}_${index}`),
             type: asset.mimeType ?? 'application/octet-stream',
+            size: asset.size,
+            uploadType: 'file' as const,
         }));
         const res = await aiIdentifyMedicalRecords(files);
         const data = apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord });
         if (data) {
-            onSuccess(data);
+            const attachments = await resolveAttachmentsAfterIdentify(data, files);
+            onSuccess(data, attachments);
             return;
         }
         const r = res as { msg?: string; message?: string };
@@ -151,11 +171,21 @@ type TextareaFieldProps = {
     value: string;
     topMargin?: boolean;
     onChangeText: (text: string) => void;
+    onFocus?: (e: FocusEvent) => void;
     inputAccessoryViewID: string;
     optional?: boolean;
 };
 
-function TextareaField({ title, placeholder, value, onChangeText, inputAccessoryViewID, optional, topMargin = false }: TextareaFieldProps) {
+function TextareaField({
+    title,
+    placeholder,
+    value,
+    onChangeText,
+    onFocus,
+    inputAccessoryViewID,
+    optional,
+    topMargin = false,
+}: TextareaFieldProps) {
     return (
         <View style={[styles.formSection, topMargin && { marginTop: 0 }]}>
             <Text style={styles.textareaTitle}>{optional ? `${title}（选填）` : title}</Text>
@@ -165,6 +195,7 @@ function TextareaField({ title, placeholder, value, onChangeText, inputAccessory
                 placeholderTextColor="#999999"
                 value={value}
                 onChangeText={onChangeText}
+                onFocus={onFocus}
                 multiline
                 textAlignVertical="top"
                 inputAccessoryViewID={inputAccessoryViewID}
@@ -175,6 +206,7 @@ function TextareaField({ title, placeholder, value, onChangeText, inputAccessory
 
 export default function CaseAddPage() {
     const navigation = useNavigation<Nav>();
+    const scrollRef = useRef<ScrollView>(null);
     const [type, setType] = useState('门诊');
     const [recordDate, setRecordDate] = useState(moment().format('YYYY-MM-DD'));
     const [hospital, setHospital] = useState('');
@@ -229,8 +261,11 @@ export default function CaseAddPage() {
         const loadingKey = Toast.loading('病例识别中', 0);
         try {
             await pickDocumentForIdentify(
-                data => {
+                (data, attachments) => {
                     applyRecordToForm(data, formSetters);
+                    if (attachments.length) {
+                        setAttachments(prev => [...prev, ...attachments]);
+                    }
                     Alert.alert('识别成功', '已自动填充病例信息，请核对后保存');
                 },
                 message => Alert.alert('识别失败', message),
@@ -241,9 +276,40 @@ export default function CaseAddPage() {
         }
     };
 
-    const removeAttachment = (index: number) => {
-        setAttachments(prev => prev.filter((_, i) => i !== index));
+    const removeAttachment = (target: MedicalRecordAttachment) => {
+        setAttachments(prev => {
+            const index = prev.findIndex(item => {
+                if (target.ossId && item.ossId) return item.ossId === target.ossId;
+                return Boolean(target.ossUrl) && item.ossUrl === target.ossUrl;
+            });
+            if (index < 0) return prev;
+            return prev.filter((_, i) => i !== index);
+        });
     };
+
+    const { images: imageAttachments, files: fileAttachments } = useMemo(
+        () => partitionAttachments(attachments),
+        [attachments],
+    );
+
+    const scrollFocusedInputIntoView = useCallback((e: FocusEvent) => {
+        const targetHandle = findNodeHandle(e.target as unknown as number | React.Component);
+        if (targetHandle == null) return;
+
+        setTimeout(() => {
+            const scrollView = scrollRef.current as ScrollView & {
+                getScrollResponder?: () => {
+                    scrollResponderScrollNativeHandleToKeyboard?: (
+                        nodeHandle: number,
+                        additionalOffset: number,
+                        preventNegativeScrollOffset?: boolean,
+                    ) => void;
+                };
+            } | null;
+            const responder = scrollView?.getScrollResponder?.();
+            responder?.scrollResponderScrollNativeHandleToKeyboard?.(targetHandle, 100, true);
+        }, Platform.OS === 'ios' ? 80 : 120);
+    }, []);
 
     const pickDocument = async () => {
         try {
@@ -328,7 +394,14 @@ export default function CaseAddPage() {
             {Object.values(CASE_ADD_ACCESSORY).map(id => (
                 <KeyboardDoneAccessory key={id} nativeID={id} />
             ))}
-            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+            <ScrollView
+                ref={scrollRef}
+                style={{ flex: 1 }}
+                contentContainerStyle={styles.body}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode="on-drag"
+                automaticallyAdjustKeyboardInsets
+                showsVerticalScrollIndicator={false}>
                 <View style={styles.rowBox}>
                     <Text style={styles.sectionTitle}>拍照识别</Text>
                     <Flex justify="between" style={styles.cameraBoxRow}>
@@ -422,6 +495,7 @@ export default function CaseAddPage() {
                             placeholderTextColor="#999999"
                             value={hospital}
                             onChangeText={setHospital}
+                            onFocus={scrollFocusedInputIntoView}
                             returnKeyType="done"
                             blurOnSubmit
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.hospital}
@@ -436,13 +510,14 @@ export default function CaseAddPage() {
                             placeholderTextColor="#999999"
                             value={department}
                             onChangeText={setDepartment}
+                            onFocus={scrollFocusedInputIntoView}
                             returnKeyType="done"
                             blurOnSubmit
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.department}
                         />
                     </View>
 
-                    <ScrollView
+                    {/* <ScrollView
                         horizontal
                         style={styles.ksList}
                         contentContainerStyle={styles.ksListContent}
@@ -458,21 +533,8 @@ export default function CaseAddPage() {
                                 </Text>
                             </TouchableOpacity>
                         ))}
-                    </ScrollView>
+                    </ScrollView> */}
 
-                    <View style={styles.formRow}>
-                        <Text style={styles.formRowLabel} numberOfLines={1}>诊断结果</Text>
-                        <TextInput
-                            style={styles.formRowInput}
-                            placeholder="请输入诊断结果"
-                            placeholderTextColor="#999999"
-                            value={diagnosticResult}
-                            onChangeText={setDiagnosticResult}
-                            returnKeyType="done"
-                            blurOnSubmit
-                            inputAccessoryViewID={CASE_ADD_ACCESSORY.diagnosticResult}
-                        />
-                    </View>
 
                     <View style={styles.formRow}>
                         <Text style={styles.formRowLabel} numberOfLines={1}>主治医生（选填）</Text>
@@ -482,6 +544,7 @@ export default function CaseAddPage() {
                             placeholderTextColor="#999999"
                             value={doctor}
                             onChangeText={setDoctor}
+                            onFocus={scrollFocusedInputIntoView}
                             returnKeyType="done"
                             blurOnSubmit
                             inputAccessoryViewID={CASE_ADD_ACCESSORY.doctor}
@@ -493,6 +556,7 @@ export default function CaseAddPage() {
                         value={chiefComplaint}
                         topMargin={true}
                         onChangeText={setChiefComplaint}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.chiefComplaint}
                     />
                     <TextareaField
@@ -500,6 +564,7 @@ export default function CaseAddPage() {
                         placeholder="请输入现病史"
                         value={presentIllness}
                         onChangeText={setPresentIllness}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.presentIllness}
                     />
                     <TextareaField
@@ -507,6 +572,7 @@ export default function CaseAddPage() {
                         placeholder="请输入既往史"
                         value={pastMedicalHistory}
                         onChangeText={setPastMedicalHistory}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.pastMedicalHistory}
                     />
                     <TextareaField
@@ -514,6 +580,7 @@ export default function CaseAddPage() {
                         placeholder="请输入个人史"
                         value={personalHistory}
                         onChangeText={setPersonalHistory}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.personalHistory}
                     />
                     <TextareaField
@@ -521,6 +588,7 @@ export default function CaseAddPage() {
                         placeholder="请输入体格检查结果"
                         value={physicalExamination}
                         onChangeText={setPhysicalExamination}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.physicalExamination}
                     />
                     <TextareaField
@@ -528,13 +596,25 @@ export default function CaseAddPage() {
                         placeholder="请输入既往检查结果"
                         value={previousExaminationResults}
                         onChangeText={setPreviousExaminationResults}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.previousExaminationResults}
                     />
+
+                    <TextareaField
+                        title="诊断结果"
+                        placeholder="请输入诊断结果"
+                        value={diagnosticResult}
+                        onChangeText={setDiagnosticResult}
+                        onFocus={scrollFocusedInputIntoView}
+                        inputAccessoryViewID={CASE_ADD_ACCESSORY.diagnosticResult}
+                    />
+
                     <TextareaField
                         title="病情摘要"
                         placeholder="简要描述病情和治疗情况"
                         value={medicalSummary}
                         onChangeText={setMedicalSummary}
+                        onFocus={scrollFocusedInputIntoView}
                         inputAccessoryViewID={CASE_ADD_ACCESSORY.medicalSummary}
                         optional
                     />
@@ -542,24 +622,68 @@ export default function CaseAddPage() {
                     <View style={styles.formSection}>
                         <Text style={styles.textareaTitle}>上传附件（选填）</Text>
                         <Text style={styles.uploadHint}>点击上传：<Text style={styles.uploadHintText}>检查报告、处方等</Text></Text>
-                        <View style={styles.attachmentList}>
-                            {attachments.map((att, index) => (
-                                <View key={`${att.ossId ?? att.ossUrl}-${index}`} style={styles.attachmentItem}>
-                                    {att.ossUrl && isImageAttachment(att) ? (
-                                        <Image source={{ uri: att.ossUrl }} style={styles.attachmentImg} />
-                                    ) : (
-                                        <Flex style={styles.attachmentImg} justify="center" align="center">
-                                            <MaterialIcons name="description" size={28} color={AppTheme.textSecondary} />
-                                        </Flex>
-                                    )}
-                                    <TouchableOpacity
-                                        style={styles.attachmentRemove}
-                                        onPress={() => removeAttachment(index)}>
-                                        <MaterialIcons name="close" size={14} color="#FFFFFF" />
-                                    </TouchableOpacity>
-                                </View>
-                            ))}
-                        </View>
+                        {imageAttachments.length > 0 || fileAttachments.length > 0 ? (
+                            <View style={styles.detailAttachmentBody}>
+                                {imageAttachments.length > 0 ? (
+                                    <View style={[styles.detailAttachmentList, { marginTop: 12 }]}>
+                                        {imageAttachments.map((att, index) => (
+                                            <View
+                                                key={`img-${att.ossId ?? att.ossUrl}-${index}`}
+                                                style={{ width: '31.2%', position: 'relative' }}>
+                                                <View style={[styles.detailAttachmentImgWrap, { width: '100%' }]}>
+                                                    <Image
+                                                        source={{ uri: att.ossUrl }}
+                                                        style={styles.detailAttachmentImg}
+                                                        resizeMode="cover"
+                                                    />
+                                                </View>
+                                                <TouchableOpacity
+                                                    style={styles.attachmentRemove}
+                                                    onPress={() => removeAttachment(att)}>
+                                                    <MaterialIcons name="close" size={14} color="#FFFFFF" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : null}
+                                {fileAttachments.length > 0 ? (
+                                    <View
+                                        style={[
+                                            styles.detailAttachmentFileList,
+                                            imageAttachments.length > 0
+                                                ? styles.detailAttachmentFileListGap
+                                                : { marginTop: 12 },
+                                        ]}>
+                                        {fileAttachments.map((att, index) => (
+                                            <View
+                                                key={`file-${att.ossId ?? att.ossUrl}-${index}`}
+                                                style={styles.detailAttachmentFileItem}>
+                                                <View style={styles.detailAttachmentFileIcon}>
+                                                    <Image
+                                                        style={styles.detailAttachmentFileIconImg}
+                                                        source={require('@/assets/images/camara/type_documents.png')}
+                                                    />
+                                                </View>
+                                                <View style={styles.detailAttachmentFileInfo}>
+                                                    <Text style={styles.detailAttachmentFileName} numberOfLines={1}>
+                                                        {getAttachmentDisplayName(att)}
+                                                    </Text>
+                                                    <Text style={styles.detailAttachmentFileExt}>
+                                                        {getAttachmentExtLabel(att)}
+                                                    </Text>
+                                                </View>
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    onPress={() => removeAttachment(att)}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                                    <MaterialIcons name="close" size={18} color="#999999" />
+                                                </TouchableOpacity>
+                                            </View>
+                                        ))}
+                                    </View>
+                                ) : null}
+                            </View>
+                        ) : null}
                         <Flex justify="between" style={styles.cameraBoxRow}>
                             <TouchableOpacity
                                 style={styles.cameraBoxItem}
@@ -608,8 +732,8 @@ export default function CaseAddPage() {
                             </TouchableOpacity>
                         </Flex>
                     </View>
-                </View>
-            </ScrollView>
+                    </View>
+                </ScrollView>
             <View style={styles.bottomBar}>
                 <TouchableOpacity
                     style={[styles.bottomBarButtonLeft, (submitting || identifying || pickingDocument) && { opacity: 0.6 }]}

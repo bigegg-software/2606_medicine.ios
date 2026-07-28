@@ -477,7 +477,7 @@ export default function VitalsPage() {
     [wearableActiveEnergy, wearableBasalEnergy, activeNav],
   );
   const energyChart = useMemo(
-    () => <StepsChart data={energyBarData} hideXAxis metricLabel="消耗" valueUnit="千卡" />,
+    () => <StepsChart data={energyBarData} hideXAxis metricLabel="活动消耗" valueUnit="千卡" />,
     [energyBarData],
   );
   const sleepBarData = useMemo(
@@ -1181,7 +1181,7 @@ export default function VitalsPage() {
 
       <GoalTargetModal
         visible={showEnergyTargetModal}
-        title="设置消耗目标"
+        title="设置活动能量消耗"
         label="每日目标（千卡）"
         unit="千卡"
         initialValue={energyTarget}

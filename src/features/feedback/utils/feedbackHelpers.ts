@@ -1,38 +1,50 @@
 export type FeedbackFaqItem = {
-    id: string;
-    title: string;
-    answer: string;
+  id: string;
+  title: string;
+  answer: string;
 };
 
 export const FEEDBACK_FAQ_LIST: FeedbackFaqItem[] = [
-    {
-        id: 'bind-device',
-        title: '如何绑定智能设备?',
-        answer: '进入「我的」-「我的设备」，点击「添加新设备」，打开手机蓝牙，按照提示操作即可完成设备绑定。',
-    },
-    {
-        id: 'medication-reminder',
-        title: '如何设置用药提醒？',
-        answer: '进入用药管理页面，添加药品后可为对应药品设置提醒时间、频次和提醒方式，保存后系统会按计划提醒您按时用药。',
-    },
-    {
-        id: 'family-health-data',
-        title: '家人如何查看我的健康数据？',
-        answer: '进入家庭成员或家人管理相关页面，邀请家人加入并完成授权后，家人即可查看您开放范围内的健康数据。',
-    },
-    {
-        id: 'online-consultation',
-        title: '如何预约线上问诊？',
-        answer: '进入线上问诊或相关医疗服务入口，选择医生与可预约时间，确认信息并提交后即可完成预约。',
-    },
-    {
-        id: 'points-usage',
-        title: '积分如何获取和使用？',
-        answer: '完成签到、健康记录、设备使用或平台活动后可获得积分；积分可在支持的服务或权益页面按规则进行兑换和使用。',
-    },
-    {
-        id: 'font-size',
-        title: '如何调整字体大小？',
-        answer: '可在应用设置或跟随系统显示设置中调整字体大小；若当前页面支持，也会根据系统字体设置同步显示效果。',
-    },
+  {
+    id: 'vitals-record',
+    title: '体征数据怎么记录？',
+    answer:
+      '手动记录：点击对应卡片（如“血压”）> 点击“记录数据” > 输入数值保存。\n自动同步：穿戴设备连接后，同步的数据将自动上传至“近7天/30天”趋势图中。',
+  },
+  {
+    id: 'exercise-prescription',
+    title: '“运动处方”里的任务怎么完成？',
+    answer:
+      '点击今日要锻炼的项目（如：有氧心肺），跟随视频指导进行。系统将自动记录您的完成时长。',
+  },
+  {
+    id: 'medication-reminder',
+    title: '忘记吃药了，APP会提醒我吗？',
+    answer:
+      '会的。只要您在“用药记录”中添加了药品并设置了时间，APP会在指定时间通过通知栏消息提醒您。',
+  },
+  {
+    id: 'nutrition-restriction',
+    title: '营养处方的“限制项”是什么意思？',
+    answer:
+      '这是医生根据您的身体情况设置的饮食红线（如：限制钠摄入、限制糖分）。您在添加饮食记录时，若触及红线，系统会给予温馨提示。',
+  },
+  {
+    id: 'switch-family-view',
+    title: '怎么切换“家属视角”？',
+    answer:
+      '我的 > 视角 > 点击“家属视角”。输入您想查看的长者信息绑定，即可查看长者数据。',
+  },
+  {
+    id: 'family-view-data',
+    title: '家属视角下，能看到长者的所有数据吗？',
+    answer:
+      '是的，切换家属视角后，您可以看到长者的体征、运动、营养、用药、安排等全部数据，但无法修改长者的个人信息，确保数据安全。',
+  },
+  {
+    id: 'how-to-get-points',
+    title: '如何获得积分？',
+    answer:
+      '积分获取方式以系统当前生效的积分规则为准（由管理端配置）。规则启用或关闭后，APP中展示的积分规则也会同步更新，请以页面实际规则说明为准。',
+  },
 ];

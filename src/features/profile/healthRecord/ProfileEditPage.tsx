@@ -271,8 +271,8 @@ export default function ProfileEditPage() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag">
           <View style={styles.userBox}>
-            <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
-              <Flex direction="column" justify="center" align="center" style={styles.userInfoBox}>
+            <Flex direction="column" justify="center" align="center" style={styles.userInfoBox}>
+              <TouchableOpacity activeOpacity={0.8} onPress={pickAvatar} disabled={uploadingAvatar}>
                 <View>
                   {avatarOssUrl ? (
                     <Image source={{ uri: avatarOssUrl }} style={styles.avatarImg} />
@@ -285,10 +285,9 @@ export default function ProfileEditPage() {
                     </View>
                   ) : null}
                 </View>
-                <Text style={styles.tipText}>点击更换头像</Text>
-              </Flex>
-            </TouchableOpacity>
-
+              </TouchableOpacity>
+              <Text style={styles.tipText}>点击更换头像</Text>
+            </Flex>
             <Flex justify="between" align="center" style={styles.infoItem}>
               <Text style={styles.infoItemLabel}>姓名</Text>
               <TextInput

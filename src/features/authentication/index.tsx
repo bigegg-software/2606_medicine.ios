@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     View,
     Image,
@@ -9,6 +9,9 @@ import {
     TouchableWithoutFeedback,
     ScrollView,
     Keyboard,
+    Platform,
+    findNodeHandle,
+    type FocusEvent,
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
@@ -47,6 +50,7 @@ const EMPTY_FORM: PersonalAuthForm = {
 
 export default function AuthPage() {
     const navigation = useNavigation();
+    const scrollRef = useRef<ScrollView>(null);
     const phonenumber = useSelector((s: RootState) => s.user.systemUser?.phonenumber);
     const [imgWidth, setImgWidth] = useState(0);
     const [submitting, setSubmitting] = useState(false);
@@ -66,6 +70,29 @@ export default function AuthPage() {
             ),
         [form.residentialProvince, form.residentialCity, form.residentialDistrict, form.residentialStreet],
     );
+
+    const scrollFocusedInputIntoView = useCallback((e: FocusEvent) => {
+        const targetHandle = findNodeHandle(e.target as unknown as number | React.Component);
+        if (targetHandle == null) return;
+
+        setTimeout(() => {
+            const scrollView = scrollRef.current as ScrollView & {
+                getScrollResponder?: () => {
+                    scrollResponderScrollNativeHandleToKeyboard?: (
+                        nodeHandle: number,
+                        additionalOffset: number,
+                        preventNegativeScrollOffset?: boolean,
+                    ) => void;
+                };
+            } | null;
+            const responder = scrollView?.getScrollResponder?.();
+            if (responder?.scrollResponderScrollNativeHandleToKeyboard) {
+                responder.scrollResponderScrollNativeHandleToKeyboard(targetHandle, 100, true);
+                return;
+            }
+            scrollRef.current?.scrollToEnd({ animated: true });
+        }, Platform.OS === 'ios' ? 80 : 120);
+    }, []);
 
     const onBoxLayout = (e: LayoutChangeEvent) => {
         const nextWidth = Math.floor(e.nativeEvent.layout.width);
@@ -166,11 +193,13 @@ export default function AuthPage() {
             <View style={styles.page}>
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                     <ScrollView
+                        ref={scrollRef}
                         style={styles.scroll}
                         contentContainerStyle={styles.scrollContent}
                         showsVerticalScrollIndicator={false}
                         keyboardShouldPersistTaps="handled"
                         keyboardDismissMode="on-drag"
+                        automaticallyAdjustKeyboardInsets
                         bounces={false}>
                         <View style={styles.content}>
                             <View style={styles.topImgBox} onLayout={onBoxLayout}>
@@ -230,6 +259,7 @@ export default function AuthPage() {
                                             style={styles.formInput}
                                             value={form.name}
                                             onChangeText={text => patchForm('name', text)}
+                                            onFocus={scrollFocusedInputIntoView}
                                             placeholder="请输入姓名"
                                             placeholderTextColor="#999999"
                                             returnKeyType="done"
@@ -275,6 +305,7 @@ export default function AuthPage() {
                                             style={styles.formInput}
                                             value={form.residentialDetail}
                                             onChangeText={text => patchForm('residentialDetail', text)}
+                                            onFocus={scrollFocusedInputIntoView}
                                             placeholder="小区/门牌号，最多50字"
                                             placeholderTextColor="#999999"
                                             maxLength={50}
@@ -289,6 +320,7 @@ export default function AuthPage() {
                                             style={styles.formInput}
                                             value={form.idCard}
                                             onChangeText={text => patchForm('idCard', text)}
+                                            onFocus={scrollFocusedInputIntoView}
                                             placeholder="请输入18位身份证号"
                                             placeholderTextColor="#999999"
                                             maxLength={18}

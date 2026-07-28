@@ -1,18 +1,19 @@
 import type { ImageSourcePropType } from 'react-native';
 
+/** 授权权限英文编码（与接口 authPermissions 一致） */
 export type FamilyPermissionKey =
-  | 'health'
+  | 'health_data'
   | 'medication'
   | 'exercise'
   | 'diet'
-  | 'chronic'
+  | 'chronic_disease'
   | 'assessment'
-  | 'alert'
-  | 'emergency';
+  | 'health_alert';
 
 export type FamilyPermissionOption = {
   key: FamilyPermissionKey;
   title: string;
+  shortLabel: string;
   icon: ImageSourcePropType;
 };
 
@@ -25,49 +26,51 @@ export type FamilyPermissionDetailOption = FamilyPermissionOption & {
 
 export const FAMILY_PERMISSION_OPTIONS: FamilyPermissionOption[] = [
   {
-    key: 'health',
+    key: 'health_data',
     title: '健康数据',
+    shortLabel: '健康',
     icon: require('@/assets/images/family/icon_jk.png'),
   },
   {
     key: 'medication',
     title: '用药情况',
+    shortLabel: '用药',
     icon: require('@/assets/images/family/icon_yy.png'),
   },
   {
     key: 'exercise',
     title: '运动情况',
+    shortLabel: '运动',
     icon: require('@/assets/images/family/icon_yd.png'),
   },
   {
     key: 'diet',
     title: '饮食情况',
+    shortLabel: '饮食',
     icon: require('@/assets/images/family/icon_ys.png'),
   },
   {
-    key: 'chronic',
+    key: 'chronic_disease',
     title: '慢病管理',
+    shortLabel: '慢病',
     icon: require('@/assets/images/family/icon_mb.png'),
   },
   {
     key: 'assessment',
     title: '评估结果',
+    shortLabel: '评估',
     icon: require('@/assets/images/family/icon_pg.png'),
   },
   {
-    key: 'alert',
+    key: 'health_alert',
     title: '健康预警',
+    shortLabel: '预警',
     icon: require('@/assets/images/family/icon_yj.png'),
-  },
-  {
-    key: 'emergency',
-    title: '紧急联系',
-    icon: require('@/assets/images/family/icon_jj.png'),
   },
 ];
 
 const DETAIL_COPY: Record<FamilyPermissionKey, { detailTitle: string; detailDesc: string }> = {
-  health: {
+  health_data: {
     detailTitle: '查看健康数据',
     detailDesc: '血压/血糖/心率',
   },
@@ -83,7 +86,7 @@ const DETAIL_COPY: Record<FamilyPermissionKey, { detailTitle: string; detailDesc
     detailTitle: '查看饮食情况',
     detailDesc: '饮食记录/营养摄入',
   },
-  chronic: {
+  chronic_disease: {
     detailTitle: '查看慢病管理',
     detailDesc: '高血压 · 糖尿病 · 近期稳定',
   },
@@ -91,13 +94,9 @@ const DETAIL_COPY: Record<FamilyPermissionKey, { detailTitle: string; detailDesc
     detailTitle: '查看评估结果',
     detailDesc: '含健康问卷、心理评估、风险测评',
   },
-  alert: {
+  health_alert: {
     detailTitle: '接收健康预警',
     detailDesc: '异常指标实时推送',
-  },
-  emergency: {
-    detailTitle: '紧急联系权限',
-    detailDesc: '紧急联系人/一键呼叫',
   },
 };
 

@@ -45,6 +45,8 @@ import {
     QUESTIONNAIRE_TITLES,
     type AssessmentSummary,
 } from '@/src/features/profile/questionnaire/utils/helpers';
+import { formatMemberTitle, getStatusStyles } from './utils/familyHistoryHelpers';
+import familyHistoryStyles from '@/css/profile/familyHistory';
 import moment from 'moment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -86,19 +88,6 @@ function getAllergySectionSummary(list: AllergyItem[], type: string) {
         text: names.length ? names.join('、') : '无',
         hasAllergy: names.length > 0,
     };
-}
-
-function formatFamilyPreviewLabel(item: FamilyMedicalItem) {
-    const relation = item.familyRelationships || '—';
-    const status = item.status ? `（${item.status}）` : '';
-    return `${relation}${status}`;
-}
-
-function formatFamilyPreviewValue(item: FamilyMedicalItem) {
-    if (!item.medicalCondition) {
-        return '—';
-    }
-    return item.medicalCondition.replace(/,/g, '、');
 }
 
 export default function HealthRecordPage() {
@@ -459,37 +448,48 @@ export default function HealthRecordPage() {
                     </Flex>
 
                     <View style={{ marginTop: 10 }}>
-
-
                         {familyList.length === 0 ? (
-                            <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                                <Text style={styles.familyItemName}>暂无记录</Text>
-                                <Text style={styles.infoItemValue}>—</Text>
-                            </Flex>
+                            <View style={familyHistoryStyles.infoBox}>
+                                <Text style={[familyHistoryStyles.itemSubtitle, { marginTop: 0 }]}>待补充</Text>
+                            </View>
                         ) : (
-                            familyList.map((item, index) => (
-                                <View
-                                    key={`${index}-${item.familyRelationships}`}
-                                    style={[
-                                        styles.familyItem,
-                                        styles.familyItemRow,
-                                        index === familyList.length - 1 && { borderBottomWidth: 0 },
-                                    ]}>
-                                    <View style={styles.familyItemImgBox}>
-                                        <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_user.png')} />
-                                    </View>
-                                    <View style={styles.familyItemContent}>
-                                        <Text style={styles.familyItemName} numberOfLines={1} ellipsizeMode="tail">
-                                            {formatFamilyPreviewLabel(item)}
-                                        </Text>
-                                        <Text style={styles.infoItemValue1} numberOfLines={1} ellipsizeMode="tail">
-                                            {formatFamilyPreviewValue(item)}
-                                        </Text>
-                                    </View>
-                                </View>
-                            ))
+                            <View style={familyHistoryStyles.listBox}>
+                                {familyList.map((item, index) => {
+                                    const statusStyle = getStatusStyles(item.status);
+                                    return (
+                                        <Flex
+                                            key={`${index}-${item.familyRelationships}`}
+                                            align="center"
+                                            style={familyHistoryStyles.infoBox}>
+                                            <View style={familyHistoryStyles.itemImgBox}>
+                                                <Image
+                                                    style={familyHistoryStyles.itemImg}
+                                                    source={require('@/assets/images/user/icon_user.png')}
+                                                />
+                                            </View>
+                                            <View style={familyHistoryStyles.itemContent}>
+                                                <Flex align="center">
+                                                    <Text
+                                                        style={familyHistoryStyles.itemName}
+                                                        numberOfLines={1}
+                                                        ellipsizeMode="tail">
+                                                        {formatMemberTitle(item)}
+                                                    </Text>
+                                                    {item.status ? (
+                                                        <View style={statusStyle.box}>
+                                                            <Text style={statusStyle.text}>{item.status}</Text>
+                                                        </View>
+                                                    ) : null}
+                                                </Flex>
+                                                <Text style={familyHistoryStyles.itemSubtitle} numberOfLines={1}>
+                                                    {item.medicalCondition || '—'}
+                                                </Text>
+                                            </View>
+                                        </Flex>
+                                    );
+                                })}
+                            </View>
                         )}
-
                     </View>
                 </View>
                 <View style={styles.infoBox}>

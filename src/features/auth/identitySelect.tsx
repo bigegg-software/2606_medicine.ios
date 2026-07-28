@@ -21,14 +21,14 @@ const IDENTITY_OPTIONS: ReadonlyArray<{
 }> = [
     {
       value: 'child',
-      title: '关心家人健康',
-      desc: '查看父母的血压、血糖、用药情况',
+      title: '关爱家人健康',
+      desc: '实时查看家人的血压、血糖及用药情况，及时掌握健康动态。',
       icon: require('@/assets/images/login/icon1.png'),
     },
     {
       value: 'old',
-      title: '让家人关心我',
-      desc: '授权子女查看我的健康数据',
+      title: '安心共享健康',
+      desc: '授权家人查看我的血压、血糖和用药记录，并可随时调整或撤销授权。',
       icon: require('@/assets/images/login/icon2.png'),
     },
   ];

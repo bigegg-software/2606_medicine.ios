@@ -44,6 +44,58 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   tabSize: { width: 58, height: 22 },
+  familyListEmpty: {
+    paddingVertical: 18,
+    alignItems: 'center',
+  },
+  familyListEmptyText: {
+    fontWeight: '400',
+    fontSize: 13,
+    color: '#999999',
+  },
+  familyListItem: {
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderColor: 'rgba(5,58,147,0.06)',
+  },
+  familyListItemLast: {
+    borderBottomWidth: 0,
+  },
+  familyListAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+  },
+  familyListNameRow: {
+    flexShrink: 1,
+  },
+  familyListName: {
+    fontWeight: '500',
+    fontSize: 15,
+    color: AppTheme.textPrimary,
+  },
+  familyListRelation: {
+    marginLeft: 6,
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(109,146,94,0.12)',
+    fontWeight: 'bold',
+    fontSize: 11,
+    color: AppTheme.primaryColor,
+  },
+  familyListStatus: {
+    fontWeight: '500',
+    fontSize: 12,
+    color: '#999999',
+  },
+  familyListStatusOk: {
+    color: AppTheme.primaryColor,
+  },
+  familyListStatusFail: {
+    color: '#FB4550',
+  },
 });
 
 export default styles;

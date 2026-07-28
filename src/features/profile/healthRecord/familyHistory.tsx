@@ -130,7 +130,7 @@ export default function FamilyHistoryPage() {
                                                         ) : null}
                                                     </Flex>
                                                     <Text style={styles.itemSubtitle} numberOfLines={1}>
-                                                        疾病：{item.medicalCondition || '—'}
+                                                        {item.medicalCondition || '—'}
                                                     </Text>
                                                 </View>
                                             </Flex>

@@ -50,6 +50,8 @@ export type MessageListResult = ApiResult & {
   rows?: PatientMessageItem[];
 };
 
+export type MessageInfoResult = ApiResult<PatientMessageItem>;
+
 export type MessageUnreadCountParams = MessageScopeParams & {
   isWarning?: number | '';
   warningSeverity?: string;
@@ -85,6 +87,10 @@ export const getMessageList = (params: MessageListParams) =>
       ...buildOptionalWarningParams(params),
     },
   });
+
+/** 获取消息详细信息 */
+export const getMessageInfo = (messageId: number | string) =>
+  request.get<MessageInfoResult>(`/patient/message/${String(messageId)}`);
 
 export const getMessageUnreadCount = (params: MessageUnreadCountParams) =>
   request.get<MessageUnreadCountResult>('/patient/message/unReadCount', {

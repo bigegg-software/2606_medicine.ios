@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
         includeFontPadding: false,
         fontWeight: 'bold',
         fontSize: 14,
-        color: '#999999',
+        color: '#333333',
     },
     formSection: {
         borderTopWidth: 1,

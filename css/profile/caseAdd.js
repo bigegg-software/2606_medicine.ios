@@ -251,8 +251,10 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     detailBlock: {
+        borderRadius: 12,
         marginHorizontal: 12,
         marginBottom: 20,
+        overflow: 'hidden',
     },
     backImage1: { width: '100%', height: 50, marginTop: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12 },
     backImage1Text: { fontWeight: 'bold', fontSize: 16, color: '#333333' },

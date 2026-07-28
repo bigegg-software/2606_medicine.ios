@@ -9,6 +9,7 @@ import styles from '@/css/nutrition';
 import { buildDietWeekDays } from './utils/dietCalendarHelpers';
 import DietProgressRing from './DietProgressRing';
 import DietDatePickerModal from './DietDatePickerModal';
+import DietCheckInSuccessModal from './DietCheckInSuccessModal';
 import {
     getDietPatientRuleAiMakeOneDayMeal,
     getDietPatientRuleSnapshotByDate,
@@ -284,6 +285,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
     const [refreshing, setRefreshing] = useState(false);
     const [signing, setSigning] = useState(false);
     const [signInfo, setSignInfo] = useState<DietUserSignInfo | null>(null);
+    const [checkInSuccessVisible, setCheckInSuccessVisible] = useState(false);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
 
     const recommendedSections = useMemo(
@@ -442,10 +444,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                 res as unknown as { code?: number; data?: DietUserSignInfo },
             ) ?? null;
             setSignInfo(next);
-            const days = next?.continuousDays;
-            Toast.success(
-                days != null && days > 0 ? `打卡成功，已连续${days}天` : '打卡成功',
-            );
+            setCheckInSuccessVisible(true);
         } catch {
             Toast.show('打卡失败');
         } finally {
@@ -672,6 +671,11 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                     </Flex>
                 </TouchableOpacity>
             </Flex>
+
+            <DietCheckInSuccessModal
+                visible={checkInSuccessVisible}
+                onClose={() => setCheckInSuccessVisible(false)}
+            />
         </View>
     );
 }

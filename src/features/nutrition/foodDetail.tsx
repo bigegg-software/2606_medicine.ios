@@ -1,11 +1,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { Flex, Picker, Toast } from '@ant-design/react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
-import type { FoodIdentifyItem } from '@/api/mealRecognition';
+import {
+    fillOthersNutrition,
+    type FoodIdentifyData,
+    type FoodIdentifyItem,
+} from '@/api/mealRecognition';
+import { addMealDetailList } from '@/api/mealDetail';
 import styles from '@/css/nutrition/mealResult';
 import PageLayout from '@/src/components/PageLayout';
+import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
+import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import { toNumber } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import {
     buildFoodUnitOptions,
@@ -13,9 +20,21 @@ import {
     type FoodUnitValue,
 } from '@/src/features/profile/medication/meal/utils/foodUnitHelpers';
 import { buildItemNutritionEntries } from '@/src/features/profile/medication/meal/utils/mealNutritionHelpers';
-import type { FoodItemEditState } from '@/src/features/profile/medication/meal/components/FoodDetailCard';
+import {
+    createFoodItemState,
+    type FoodItemEditState,
+} from '@/src/features/profile/medication/meal/components/FoodDetailCard';
+import { markMealInputForReset } from '@/src/features/profile/medication/meal/utils/mealInputReset';
 import type { ManualCorrectionSavePayload } from './utils/manualCorrectionHelpers';
 import QuestionnairePercentRulerSlider from '@/src/features/profile/questionnaire/components/QuestionnairePercentRulerSlider';
+import {
+    buildFillOthersPayload,
+    buildMealDetailItems,
+    getMealCategoryByTime,
+    MEAL_PERIOD_OPTIONS,
+    parseTimeValue,
+    TIME_PICKER_DATA,
+} from './utils/mealResultHelpers';
 
 function getSliderConfig(unitValue: FoodUnitValue) {
     if (isGramUnit(unitValue)) {
@@ -27,11 +46,22 @@ function getSliderConfig(unitValue: FoodUnitValue) {
 export default function FoodDetailPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'FoodDetailPage'>>();
-    const { itemIndex, recordTime, onDelete, onSave } = route.params;
+    const { itemIndex, onDelete, onSave, ossId, ossUrl, foodIdentifyId } = route.params;
+    const isRecognizeSave = route.params.mode === 'recognizeSave';
+    const initialItem = route.params.item;
+    const isPhotoInput = Boolean(ossUrl?.trim());
 
-    const [item, setItem] = useState<FoodIdentifyItem>(route.params.item);
+    const [item, setItem] = useState<FoodIdentifyItem>(initialItem);
     const [state, setState] = useState<FoodItemEditState>(route.params.state);
     const [sliderKey, setSliderKey] = useState(0);
+    const [recordTime, setRecordTime] = useState(route.params.recordTime);
+    const [mealCategory, setMealCategory] = useState(() => {
+        const fromRoute = route.params.mealCategory;
+        if (fromRoute === 1 || fromRoute === 2 || fromRoute === 3) return fromRoute;
+        return getMealCategoryByTime();
+    });
+    const [saving, setSaving] = useState(false);
+    const [othersLoading, setOthersLoading] = useState(false);
 
     const sliderConfig = useMemo(() => getSliderConfig(state.unitValue), [state.unitValue]);
     const unitOptions = useMemo(() => buildFoodUnitOptions(item.unit), [item.unit]);
@@ -52,24 +82,66 @@ export default function FoodDetailPage() {
     const updateState = useCallback(
         (nextState: FoodItemEditState) => {
             setState(nextState);
-            syncToParent(item, nextState);
+            if (!isRecognizeSave) {
+                syncToParent(item, nextState);
+            }
         },
-        [item, syncToParent],
+        [isRecognizeSave, item, syncToParent],
     );
 
     const handleCorrected = useCallback(
         (payload: ManualCorrectionSavePayload) => {
             setItem(payload.item);
             setState(payload.state);
+            if (isRecognizeSave) {
+                setRecordTime(payload.recordTime);
+                return;
+            }
             onSave?.(payload);
         },
-        [onSave],
+        [isRecognizeSave, onSave],
     );
 
-    const handleSave = useCallback(() => {
+    const handleSave = useCallback(async () => {
+        if (isRecognizeSave) {
+            if (saving) return;
+            setSaving(true);
+            try {
+                const res = (await addMealDetailList({
+                    mealDetailList: buildMealDetailItems([item], [state], recordTime, mealCategory),
+                    ossId,
+                    foodIdentifyId,
+                    timeStr: recordTime,
+                })) as { code?: number; msg?: string; message?: string };
+                if (isResourceApiOk(res)) {
+                    Toast.success('记录成功');
+                    markMealInputForReset();
+                    navigation.goBack();
+                    return;
+                }
+                Toast.show(res?.msg || res?.message || '保存失败');
+            } catch {
+                Toast.show('保存失败');
+            } finally {
+                setSaving(false);
+            }
+            return;
+        }
+
         syncToParent(item, state);
         navigation.goBack();
-    }, [item, navigation, state, syncToParent]);
+    }, [
+        foodIdentifyId,
+        isRecognizeSave,
+        item,
+        mealCategory,
+        navigation,
+        ossId,
+        recordTime,
+        saving,
+        state,
+        syncToParent,
+    ]);
 
     const handleDelete = useCallback(() => {
         Alert.alert('删除食物', `确定删除「${item.mealName || '该食物'}」吗？`, [
@@ -107,6 +179,36 @@ export default function FoodDetailPage() {
     }, [item.weight, state.amount, state.unitValue]);
 
     useEffect(() => {
+        if (isRecognizeSave) {
+            navigation.setOptions({
+                headerRight: () => null,
+                gestureEnabled: false,
+                headerTitle: () => (
+                    <Picker
+                        data={TIME_PICKER_DATA}
+                        cols={2}
+                        cascade={false}
+                        value={parseTimeValue(recordTime)}
+                        onOk={values => {
+                            const hour = String(Number(values[0])).padStart(2, '0');
+                            const minute = String(Number(values[1])).padStart(2, '0');
+                            setRecordTime(`${hour}:${minute}`);
+                        }}>
+                        <TouchableOpacity activeOpacity={0.7} style={styles.headerTimeBtn}>
+                            <Flex>
+                                <Text style={styles.headerTimeText}>添加记录:{recordTime}</Text>
+                                <Image
+                                    style={styles.headerTimeIcon}
+                                    source={require('@/assets/images/vitals/icon_sj.png')}
+                                />
+                            </Flex>
+                        </TouchableOpacity>
+                    </Picker>
+                ),
+            });
+            return;
+        }
+
         navigation.setOptions({
             headerRight: () => (
                 <TouchableOpacity activeOpacity={0.7} onPress={handleDelete} style={styles.foodDeleteBtn}>
@@ -117,7 +219,56 @@ export default function FoodDetailPage() {
                 </TouchableOpacity>
             ),
         });
-    }, [handleDelete, navigation]);
+    }, [handleDelete, isRecognizeSave, navigation, recordTime]);
+
+    // 图片识别：补充其他营养元素；文字识别不请求
+    useEffect(() => {
+        if (!isRecognizeSave || !isPhotoInput) return;
+
+        let cancelled = false;
+        const loadOthers = async () => {
+            setOthersLoading(true);
+            try {
+                const res = (await fillOthersNutrition(
+                    buildFillOthersPayload([initialItem], ossId, ossUrl),
+                )) as unknown as ApiResult<FoodIdentifyData>;
+                if (cancelled) return;
+                if (!isResourceApiOk(res)) return;
+                const data = apiResourceData(res);
+                const nextFoods = data?.analysisResult;
+                if (!Array.isArray(nextFoods) || nextFoods.length === 0) return;
+
+                // 补充后变成多种食物时，切回结果页
+                if (nextFoods.length > 1) {
+                    navigation.replace('MealResultPage', {
+                        analysisResult: nextFoods,
+                        hasFood: true,
+                        mealCategory,
+                        ossId,
+                        ossUrl,
+                        foodIdentifyId,
+                        skipFillOthers: true,
+                    });
+                    return;
+                }
+
+                setItem(nextFoods[0]);
+                setState(createFoodItemState(nextFoods[0]));
+                setSliderKey(prev => prev + 1);
+            } catch {
+                // 补充失败不影响主流程，保留基础识别结果
+            } finally {
+                if (!cancelled) setOthersLoading(false);
+            }
+        };
+
+        void loadOthers();
+        return () => {
+            cancelled = true;
+        };
+        // 仅进入页时按初始识别结果请求一次
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isRecognizeSave, isPhotoInput]);
 
     return (
         <PageLayout>
@@ -126,8 +277,6 @@ export default function FoodDetailPage() {
                     style={styles.scrollNew}
                     contentContainerStyle={[styles.bodyContent, styles.mH12, { paddingBottom: 24 }]}
                     showsVerticalScrollIndicator={false}>
-
-
                     <View style={styles.commonWrap}>
                         <Flex justify="between" align="start" style={{ flex: 1 }}>
                             <View style={{ flex: 1, paddingRight: 12 }}>
@@ -147,7 +296,10 @@ export default function FoodDetailPage() {
                                     });
                                 }}>
                                 <Flex align="center">
-                                    <Image style={styles.foodManualIcon} source={require('@/assets/images/nutrition/icon_edit.png')} />
+                                    <Image
+                                        style={styles.foodManualIcon}
+                                        source={require('@/assets/images/nutrition/icon_edit.png')}
+                                    />
                                     <Text style={styles.foodManualText}>手动更正</Text>
                                 </Flex>
                             </TouchableOpacity>
@@ -157,7 +309,10 @@ export default function FoodDetailPage() {
                             <View style={styles.rlBox}>
                                 <Text style={styles.rlValue}>{toNumber(item.calorie).toFixed(0)}</Text>
                                 <Flex justify="center" style={styles.kllWrap}>
-                                    <Image style={styles.rlImg} source={require('@/assets/images/medication/icon_rl.png')} />
+                                    <Image
+                                        style={styles.rlImg}
+                                        source={require('@/assets/images/medication/icon_rl.png')}
+                                    />
                                     <Text style={styles.kllText}>热量 (千卡)</Text>
                                 </Flex>
                             </View>
@@ -178,9 +333,12 @@ export default function FoodDetailPage() {
                         </View>
                         <View style={styles.foodDetailDivider} />
 
-
-                        {/* 其他营养成分 */}
-                        {nutritionEntries.length > 0 ? (
+                        {isRecognizeSave && isPhotoInput && othersLoading ? (
+                            <View style={styles.nutrientLoading}>
+                                <ActivityIndicator color={AppTheme.primaryColor} />
+                                <Text style={styles.nutrientLoadingText}>正在补充营养成分...</Text>
+                            </View>
+                        ) : nutritionEntries.length > 0 ? (
                             <View style={[styles.nutrientGrid, styles.foodDetailNutrientGrid]}>
                                 {nutritionEntries.map((entry, entryIndex) => {
                                     const valueText =
@@ -248,7 +406,36 @@ export default function FoodDetailPage() {
                 </ScrollView>
 
                 <View style={[styles.bottomBar, { paddingBottom: 0 }]}>
-                    <TouchableOpacity style={styles.primaryBtn} onPress={handleSave}>
+                    {isRecognizeSave ? (
+                        <Flex align="center" style={styles.mealPeriodRow}>
+                            <Text style={styles.timeText}>选择时间段：</Text>
+                            {MEAL_PERIOD_OPTIONS.map(option => {
+                                const selected = mealCategory === option.category;
+                                return (
+                                    <TouchableOpacity
+                                        key={option.category}
+                                        activeOpacity={0.7}
+                                        style={[
+                                            styles.mealPeriodChip,
+                                            selected && styles.mealPeriodChipActive,
+                                        ]}
+                                        onPress={() => setMealCategory(option.category)}>
+                                        <Flex align="center" justify="center">
+                                            <Image style={styles.csImg} source={option.icon} />
+                                            <Text style={styles.csText}>{option.label}</Text>
+                                        </Flex>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </Flex>
+                    ) : null}
+
+                    <TouchableOpacity
+                        style={[styles.primaryBtn, saving && { opacity: 0.6 }]}
+                        disabled={saving}
+                        onPress={() => {
+                            void handleSave();
+                        }}>
                         <Flex justify="center" align="center" style={{ flex: 1 }}>
                             <Image
                                 style={styles.primaryBtnIcon}

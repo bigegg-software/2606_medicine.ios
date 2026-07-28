@@ -107,7 +107,7 @@ export function getGoalTargetModalConfig(kind: VitalsGoalKind) {
   }
 
   return {
-    title: '设置消耗目标',
+    title: '设置活动能量消耗',
     label: '每日目标（千卡）',
     unit: '千卡',
     min: 0,

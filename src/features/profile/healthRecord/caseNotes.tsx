@@ -36,8 +36,8 @@ function CaseNoteCard({ item }: { item: MedicalRecord }) {
         <TouchableOpacity style={styles.caseBox} key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
             <Flex justify="between" align="center">
                 <Flex align="center" style={styles.caseTitleWrap}>
-                    <Text style={styles.caseTitle} numberOfLines={1}>
-                        {item.diagnosticResult || '未填写诊断'}
+                    <Text style={[styles.caseTitle, { flex: 1 }]}>
+                        {item.hospital?.trim() || '—'}
                     </Text>
                     {typeLabel ? (
                         <View
@@ -60,10 +60,10 @@ function CaseNoteCard({ item }: { item: MedicalRecord }) {
                 <View style={styles.caseLine} />
             </View>
             <View style={styles.caseContentBox}>
-                <Text style={styles.caseContentText} numberOfLines={1}>
-                    <Text style={styles.caseContentLabel}>就诊医院：</Text>
+                <Text style={styles.caseContentText}>
+                    <Text style={styles.caseContentLabel}>就诊科室：</Text>
                     <Text style={styles.caseContentValue}>
-                        {[item.hospital, item.medicalDepartment].filter(Boolean).join('·') || '—'}
+                        {item.medicalDepartment?.trim() || '—'}
                     </Text>
                 </Text>
                 <Text style={[styles.caseContentText, styles.caseContentTextSecond]} numberOfLines={1}>

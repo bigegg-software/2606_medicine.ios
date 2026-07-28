@@ -28,6 +28,7 @@ import { uploadFileToAttachment } from '@/src/utils/uploadAttachment';
 import { aiIdentifyMedicalRecords, type MedicalRecord } from '@/api/medicalRecord';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { resolveAttachmentsAfterIdentify } from '@/src/features/profile/healthRecord/utils/identifyAttachmentHelpers';
 
 type ImageItem = {
   uri: string;
@@ -163,6 +164,13 @@ export default function CaseCameraPage() {
         const data = apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord });
         if (data) {
           pushPendingIdentifyRecord(data);
+          const attachments = await resolveAttachmentsAfterIdentify(
+            data,
+            files.map(file => ({ ...file, uploadType: 'image' as const })),
+          );
+          if (attachments.length) {
+            pushPendingAttachments(attachments);
+          }
           Toast.show('识别成功');
           setImgList([]);
           navigation.goBack();

@@ -1267,16 +1267,18 @@ export function getEnergySummary(
   range: VitalsRange,
   energyGoal = 2000,
 ) {
+  // 图表与主数值统一按活动消耗，不计入静息
   const barSeries = range === 'today'
-    ? buildEnergyTodayBarSeries(activeItems, basalItems)
-    : buildEnergyBarSeries(activeItems, basalItems, range);
+    ? buildEnergyTodayBarSeries(activeItems, [])
+    : buildEnergyBarSeries(activeItems, [], range);
 
   if (range === 'today') {
     const display = getEnergyDisplay(activeItems, basalItems);
-    const totalNum = display.total !== '--' ? Number(display.total) : 0;
-    const { status, statusColor } = getEnergyCardStatus(totalNum, energyGoal);
+    const activeNum = display.active !== '--' ? Number(display.active) : 0;
+    const { status, statusColor } = getEnergyCardStatus(activeNum, energyGoal);
     return {
       ...display,
+      total: display.active,
       barSeries,
       unit: '千卡' as const,
       status,
@@ -1295,7 +1297,7 @@ export function getEnergySummary(
       active: '--',
       basal: '--',
       barSeries,
-      totalLabel: '日均总消耗',
+      totalLabel: '日均活动消耗',
       unit: '千卡/日均' as const,
       status: '・暂无数据',
       statusColor: '#999999',
@@ -1304,10 +1306,10 @@ export function getEnergySummary(
 
   return {
     total: String(average),
-    active: '--',
+    active: String(average),
     basal: '--',
     barSeries,
-    totalLabel: '日均总消耗',
+    totalLabel: '日均活动消耗',
     unit: '千卡/日均' as const,
     status: '・日均',
     statusColor: '#999999',

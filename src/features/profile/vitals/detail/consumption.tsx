@@ -96,7 +96,7 @@ export default function ConsumptionPage() {
         );
 
         if (range === 'today') {
-            // 今日数值跟图表选中点；目标状态始终用「全天总消耗」
+            // 今日数值跟图表选中点；目标状态始终用「全天活动消耗」
             if (point != null) {
                 setDisplayValue(pointDisplay.value);
             }
@@ -173,7 +173,8 @@ export default function ConsumptionPage() {
                     ? buildEnergyDetailTodaySeries(activeItems, basalItems, goal)
                     : buildEnergyDetailPeriodSeries(activeItems, basalItems, range, goal);
             const overviewStats = calcEnergyDetailOverview(activeItems, basalItems, range, goal);
-            const dayTotal = overviewStats?.avgTotal ?? 0;
+            // 图表与目标进度统一按活动消耗，不含静息
+            const dayTotal = overviewStats?.avgActive ?? 0;
 
             setEnergyGoal(goal);
             setChartData(nextChartData);
@@ -285,7 +286,7 @@ export default function ConsumptionPage() {
                 >
                     <View style={[styles.rowBox, { marginTop: 10 }]}>
                         <Flex justify='between'>
-                            <Text style={styles.rowTitle}>消耗（千卡）</Text>
+                            <Text style={styles.rowTitle}>活动消耗（千卡）</Text>
                             <Flex style={[styles.statusBox, { borderColor: displayStatusColor }]}>
                                 <Text style={[styles.statusText, { color: displayStatusColor }]}>
                                     {displayStatus}

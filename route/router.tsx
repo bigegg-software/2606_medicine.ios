@@ -124,6 +124,7 @@ import FeedbackPage from '@/src/features/feedback/index';
 import MyFamily from '@/src/features/profile/myFamily';
 import MyFamilyAdd from '@/src/features/profile/myFamily/add';
 import FamilyDetail from '@/src/features/profile/myFamily/detail';
+import FamilyBindInvitePage from '@/src/familyPage/profilePage/FamilyBindInvitePage';
 
 
 //实名认证
@@ -234,6 +235,12 @@ export type RootStackParamList = {
     recordTime: string;
     onSave?: (payload: import('@/src/features/nutrition/utils/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
     onDelete?: (itemIndex: number) => void;
+    /** 识别到单种食物：独立保存，不回写父页 */
+    mode?: 'edit' | 'recognizeSave';
+    mealCategory?: number;
+    ossId?: number;
+    ossUrl?: string;
+    foodIdentifyId?: number;
   };
   MealResultPage: {
     ossUrl?: string;
@@ -242,11 +249,14 @@ export type RootStackParamList = {
     analysisResult?: import('@/api/mealRecognition').FoodIdentifyItem[];
     hasFood?: boolean;
     mealCategory?: number;
+    /** 上游已补充其他营养时跳过二次请求 */
+    skipFillOthers?: boolean;
   } | undefined;
   AssistantPage: { chatId?: string; startNew?: boolean } | undefined;
   MyFamily: undefined;
   MyFamilyAdd: undefined;
-  FamilyDetail: undefined;
+  FamilyDetail: { id: string };
+  FamilyBindInvitePage: { messageId?: string; id?: string };
 };
 
 const Stack: any = createNativeStackNavigator<RootStackParamList>();
@@ -407,6 +417,11 @@ export default function RootStack() {
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
       <Stack.Screen name="MyFamilyAdd" component={MyFamilyAdd} options={{ title: "添加家人" }} />
       <Stack.Screen name="FamilyDetail" component={FamilyDetail} options={{ title: "家人详情" }} />
+      <Stack.Screen
+        name="FamilyBindInvitePage"
+        component={FamilyBindInvitePage}
+        options={{ title: '家人邀请' }}
+      />
       <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FeedbackPage" component={FeedbackPage} options={{ title: "帮助与反馈" }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />

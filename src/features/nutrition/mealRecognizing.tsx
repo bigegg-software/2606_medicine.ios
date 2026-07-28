@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/nutrition/recognition';
+import moment from 'moment';
 import {
     uploadFoodIdentifyImage,
     uploadFoodIdentifyText,
@@ -21,6 +22,7 @@ import {
 } from '@/api/mealRecognition';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { createFoodItemState } from '@/src/features/profile/medication/meal/components/FoodDetailCard';
 
 const CYCLE_MS = 2000;
 const SEGMENT_RATIO = 0.38;
@@ -110,8 +112,26 @@ export default function MealRecognizingPage() {
                 if (cancelled) return;
         
                 if (isResourceApiOk(res) && res.data) {
-                    const hasFood =
-                        Array.isArray(res.data.analysisResult) && res.data.analysisResult.length > 0;
+                    const foods = Array.isArray(res.data.analysisResult) ? res.data.analysisResult : [];
+                    const hasFood = foods.length > 0;
+
+                    // 单种食物：进入食物详情并直接保存；多种仍走识别结果页
+                    if (foods.length === 1) {
+                        const item = foods[0];
+                        navigation.replace('FoodDetailPage', {
+                            mode: 'recognizeSave',
+                            itemIndex: 0,
+                            item,
+                            state: createFoodItemState(item),
+                            recordTime: moment().format('HH:mm'),
+                            mealCategory: params.mealCategory,
+                            ossId: res.data.ossId,
+                            ossUrl: res.data.ossUrl,
+                            foodIdentifyId: res.data.foodIdentifyId,
+                        });
+                        return;
+                    }
+
                     navigation.replace('MealResultPage', {
                         ...res.data,
                         hasFood,

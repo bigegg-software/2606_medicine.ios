@@ -128,7 +128,7 @@ export default function AllergiesAddPage({ route }: Props) {
                     style={styles.tipIcon}
                     source={require('@/assets/images/case/icon_zd.png')}
                 />
-                <Text style={styles.tipTitle}>完善您的健康信息</Text>
+                <Text style={styles.tipTitle}>添加过敏信息，方便医护查看</Text>
             </Flex>
 
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>

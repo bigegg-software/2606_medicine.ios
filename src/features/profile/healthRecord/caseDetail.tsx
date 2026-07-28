@@ -31,13 +31,15 @@ import type { RootStackParamList } from '@/route/router';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CaseDetail'>;
 
-const TEXT_SECTIONS: { key: keyof MedicalRecord; title: string }[] = [
+/** 与 caseAdd 手动录入字段内容与顺序一致 */
+const DETAIL_SECTIONS: { key: keyof MedicalRecord; title: string }[] = [
     { key: 'chiefComplaint', title: '主诉' },
     { key: 'presentIllness', title: '现病史' },
     { key: 'pastMedicalHistory', title: '既往史' },
     { key: 'personalHistory', title: '个人史' },
     { key: 'physicalExamination', title: '体格检查' },
     { key: 'previousExaminationResults', title: '既往检查结果' },
+    { key: 'diagnosticResult', title: '诊断结果' },
     { key: 'medicalSummary', title: '病情摘要' },
 ];
 
@@ -48,6 +50,13 @@ function displayValue(value?: string | number | null) {
     return String(value);
 }
 
+function formatSectionValue(key: keyof MedicalRecord, record: MedicalRecord) {
+    if (key === 'recordDate') {
+        return formatCaseNoteDate(record.recordDate) || '暂无';
+    }
+    return displayValue(record[key] as string | number | null | undefined);
+}
+
 function CaseDetailHeader({ record }: { record: MedicalRecord }) {
     const typeLabel = record.medicalRecordType?.trim();
     const tagColors = getCaseTypeTagColors(typeLabel);
@@ -56,8 +65,8 @@ function CaseDetailHeader({ record }: { record: MedicalRecord }) {
         <View style={[caseStyles.caseBox, styles.detailHeaderBox]}>
             <Flex justify="between" align="center">
                 <Flex align="center" style={caseStyles.caseTitleWrap}>
-                    <Text style={caseStyles.caseTitle} numberOfLines={1}>
-                        {record.diagnosticResult || '未填写诊断'}
+                    <Text style={[caseStyles.caseTitle, { flex: 1 }]}>
+                        {record.hospital?.trim() || '—'}
                     </Text>
                     {typeLabel ? (
                         <View
@@ -80,10 +89,10 @@ function CaseDetailHeader({ record }: { record: MedicalRecord }) {
                 <View style={caseStyles.caseLine} />
             </View>
             <View style={caseStyles.caseContentBox}>
-                <Text style={caseStyles.caseContentText} numberOfLines={1}>
-                    <Text style={caseStyles.caseContentLabel}>就诊医院：</Text>
+                <Text style={caseStyles.caseContentText}>
+                    <Text style={caseStyles.caseContentLabel}>就诊科室：</Text>
                     <Text style={caseStyles.caseContentValue}>
-                        {[record.hospital, record.medicalDepartment].filter(Boolean).join('·') || '—'}
+                        {record.medicalDepartment?.trim() || '—'}
                     </Text>
                 </Text>
                 <Text style={[caseStyles.caseContentText, caseStyles.caseContentTextSecond]} numberOfLines={1}>
@@ -242,23 +251,22 @@ export default function CaseDetailPage({ route }: Props) {
         <PageLayout style={styles.container} showHeaderBackground={false}>
             <ScrollView contentContainerStyle={[styles.body, { paddingHorizontal: 0 }]} keyboardShouldPersistTaps="handled">
                 <CaseDetailHeader record={record} />
-
+                <ImageBackground
+                    source={require('@/assets/images/schedule/calendarBack.png')}
+                    style={styles.backImage1}>
+                    <Flex align="center" style={{ flex: 1, paddingHorizontal: 27 }}>
+                        <Text style={styles.backImage1Text}>病例详情</Text>
+                    </Flex>
+                </ImageBackground>
                 <View style={styles.detailBlock}>
-                    <ImageBackground
-                        source={require('@/assets/images/schedule/calendarBack.png')}
-                        style={styles.backImage1}>
-                        <Flex align="center" style={{ flex: 1, paddingHorizontal: 27 }}>
-                            <Text style={styles.backImage1Text}>病例详情</Text>
-                        </Flex>
-                    </ImageBackground>
                     <View style={styles.detailContentCard}>
-                        {TEXT_SECTIONS.map((section, index) => (
+                        {DETAIL_SECTIONS.map((section, index) => (
                             <View
                                 key={section.key}
                                 style={index > 0 ? styles.detailSectionNext : undefined}>
                                 <DetailSection
                                     title={section.title}
-                                    content={record[section.key] as string | undefined}
+                                    content={formatSectionValue(section.key, record)}
                                     showDivider
                                 />
                             </View>

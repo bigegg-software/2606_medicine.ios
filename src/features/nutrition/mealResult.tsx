@@ -38,7 +38,11 @@ import {
 export default function MealResultPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'MealResultPage'>>();
-    const result = (route.params ?? {}) as FoodIdentifyData & { hasFood?: boolean; mealCategory?: number };
+    const result = (route.params ?? {}) as FoodIdentifyData & {
+        hasFood?: boolean;
+        mealCategory?: number;
+        skipFillOthers?: boolean;
+    };
     const initialAnalysisResult = result.analysisResult ?? [];
     const [foods, setFoods] = useState<FoodIdentifyItem[]>(initialAnalysisResult);
     const [recordTime, setRecordTime] = useState(() => moment().format('HH:mm'));
@@ -98,7 +102,7 @@ export default function MealResultPage() {
 
     // 图片识别：补充其他营养元素；文字识别不请求
     useEffect(() => {
-        if (!isPhotoInput || isError || initialAnalysisResult.length === 0) return;
+        if (!isPhotoInput || isError || initialAnalysisResult.length === 0 || result.skipFillOthers) return;
 
         let cancelled = false;
         const loadOthers = async () => {

@@ -92,7 +92,8 @@ export function buildEnergyDetailTodaySeries(
   goalOverride?: number,
 ): EnergyDetailPoint[] {
   const goal = getEnergyDetailGoal(activeItems, basalItems, goalOverride);
-  const bars = buildEnergyTodayBarSeries(activeItems, basalItems);
+  // 详情图表仅展示活动消耗，不计入静息消耗
+  const bars = buildEnergyTodayBarSeries(activeItems, []);
 
   if (bars.length) {
     return bars.map(bar => mapEnergyBarLabelToPoint(bar.label, bar.value, goal));
@@ -120,7 +121,8 @@ export function buildEnergyDetailPeriodSeries(
 
     return {
       hour: day.format('M/D'),
-      value: totals.total,
+      // 详情图表仅展示活动消耗，不计入静息消耗
+      value: totals.active,
       customerLocalDate: day.format('YYYY-MM-DD'),
       energyGoals: goal,
     };
