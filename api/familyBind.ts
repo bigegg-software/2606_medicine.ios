@@ -47,3 +47,11 @@ export const acceptFamilyBindInvite = (messageId: string | number) =>
 /** 拒绝老人邀请（按 messageId，消息 params 中存 bindVo） */
 export const rejectFamilyBindInvite = (messageId: string | number) =>
   request.put<ApiResult>(`/patient/familyBind/rejectInvite/${String(messageId)}`);
+
+/** 接受老人邀请（按绑定记录 id） */
+export const acceptFamilyBindInviteByBind = (id: string | number) =>
+  request.put<ApiResult>(`/patient/familyBind/acceptInviteByBind/${String(id)}`);
+
+/** 拒绝老人邀请（按绑定记录 id） */
+export const rejectFamilyBindInviteByBind = (id: string | number) =>
+  request.put<ApiResult>(`/patient/familyBind/rejectInviteByBind/${String(id)}`);

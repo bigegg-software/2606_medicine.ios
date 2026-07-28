@@ -666,14 +666,14 @@ export default function ChronicTrendSection({ detail }: Props) {
     return (
         <View>
             <View style={styles.statusCard}>
-                <Flex justify="between" align="center">
+            <Flex justify="between" align="center">
                     <Text style={styles.statusCardLabel}>当前状态</Text>
                     <Flex style={[styles.statusCardBadge, { borderColor: statusColor }]}>
                         <Text style={[styles.statusCardBadgeText, { color: statusColor }]}>
                             {statusLabel}
-                        </Text>
+                    </Text>
                     </Flex>
-                </Flex>
+            </Flex>
             </View>
             {renderTrendBody(detail)}
         </View>

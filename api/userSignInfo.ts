@@ -2,11 +2,12 @@ import request from '@/utils/axios';
 import type { ApiResult } from '@/src/utils/apiHelpers';
 
 export type UserSignInfoRecord = {
-  signInfoId?: string;
-  userId?: string;
+  signInfoId?: number | string;
+  userId?: number | string;
   continuousDays?: number;
   historyContinuousDays?: number;
   signTimestamp?: number;
+  /** 签到日期 (服务器记录的北京时间) */
   signDateBj?: string;
 };
 
@@ -36,6 +37,12 @@ export type UserSignApiResult = ApiResult<UserSignResult>;
 
 /** 签到提示文案（data 为字符串） */
 export type UserSignTipResult = ApiResult<string>;
+
+export type UserSignInfoResult = ApiResult<UserSignInfoRecord>;
+
+/** 获取签到信息 */
+export const getUserSignInfo = () =>
+  request.get<UserSignInfoResult>('/patient/userSignInfo/getInfo');
 
 /** 每日签到：写入记录并发放积分 */
 export const postUserSign = () =>

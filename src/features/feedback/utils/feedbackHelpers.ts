@@ -1,7 +1,9 @@
 export type FeedbackFaqItem = {
   id: string;
   title: string;
-  answer: string;
+  answer?: string;
+  /** points-rules：展开后请求积分规则并渲染表格 */
+  kind?: 'text' | 'points-rules';
 };
 
 export const FEEDBACK_FAQ_LIST: FeedbackFaqItem[] = [
@@ -44,6 +46,7 @@ export const FEEDBACK_FAQ_LIST: FeedbackFaqItem[] = [
   {
     id: 'how-to-get-points',
     title: '如何获得积分？',
+    kind: 'points-rules',
     answer:
       '积分获取方式以系统当前生效的积分规则为准（由管理端配置）。规则启用或关闭后，APP中展示的积分规则也会同步更新，请以页面实际规则说明为准。',
   },

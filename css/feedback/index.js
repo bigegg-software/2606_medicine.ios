@@ -78,6 +78,78 @@ const styles = StyleSheet.create({
         color: '#666666',
         lineHeight: 22,
     },
+    faqAnswerAboveTable: {
+        marginTop: 10,
+        marginBottom: 4,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#666666',
+        lineHeight: 22,
+    },
+    pointsWrap: {
+        marginTop: 4,
+        marginBottom: 20,
+    },
+    pointsLoading: {
+        marginTop: 12,
+        marginBottom: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: 48,
+    },
+    pointsSection: {
+        marginTop: 10,
+    },
+    pointsSectionTitle: {
+        fontWeight: '600',
+        fontSize: 14,
+        color: '#333333',
+        marginBottom: 8,
+    },
+    pointsTable: {
+        borderRadius: 8,
+        backgroundColor: '#F6F8FB',
+        overflow: 'hidden',
+    },
+    pointsRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 10,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: 'rgba(0,0,0,0.06)',
+    },
+    pointsHeaderRow: {
+        borderTopWidth: 0,
+        backgroundColor: 'rgba(109,146,94,0.08)',
+    },
+    pointsCell: {
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#666666',
+        lineHeight: 18,
+    },
+    pointsHeaderText: {
+        fontWeight: '600',
+        color: '#333333',
+    },
+    pointsName: {
+        flex: 1.4,
+        paddingRight: 6,
+        color: '#333333',
+    },
+    pointsValue: {
+        flex: 0.7,
+        textAlign: 'center',
+    },
+    pointsReward: {
+        fontWeight: '600',
+        color: '#6D925E',
+    },
+    pointsLimit: {
+        flex: 1,
+        textAlign: 'right',
+    },
     feedbackTextarea: {
         marginTop: 12,
         height: 90,

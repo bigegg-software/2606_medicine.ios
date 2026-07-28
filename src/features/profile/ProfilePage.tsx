@@ -7,11 +7,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { MaterialIcons } from '@expo/vector-icons';
 import { logout as logoutApi } from '@/api/auth';
-import { getUserSignTip, postUserSign } from '@/api/userSignInfo';
+import { getUserSignInfo, getUserSignTip, postUserSign, type UserSignInfoRecord } from '@/api/userSignInfo';
 import { clearAll } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
 import { fetchUserSession, clearUser } from '@/store/actions/user';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/profile';
@@ -23,7 +23,7 @@ import {
   switchIdentityPerspective,
 } from '@/src/features/auth/utils/identityHelpers';
 import SignInModal from './components/SignInModal';
-import { buildSignButtonLabel } from './utils/signInHelpers';
+import { buildSignButtonLabel, isSignedTodayByBjDate } from './utils/signInHelpers';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -92,6 +92,16 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const loadSignStatus = useCallback(async () => {
+    try {
+      const res = await getUserSignInfo();
+      const data = apiResourceData(res as unknown as ApiResult<UserSignInfoRecord>);
+      setSignedToday(isSignedTodayByBjDate(data?.signDateBj));
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
   const loadIdentityAuthStatus = useCallback(async () => {
     try {
       const res = (await getIdentityAuditInfo()) as unknown as {
@@ -116,8 +126,9 @@ export default function ProfilePage() {
   useFocusEffect(
     useCallback(() => {
       void loadSignTip();
+      void loadSignStatus();
       void loadIdentityAuthStatus();
-    }, [loadIdentityAuthStatus, loadSignTip]),
+    }, [loadIdentityAuthStatus, loadSignStatus, loadSignTip]),
   );
 
   const handleSignIn = useCallback(async () => {
@@ -160,13 +171,14 @@ export default function ProfilePage() {
       setSignInVisible(true);
       await dispatch(fetchUserSession());
       void loadSignTip();
+      void loadSignStatus();
     } catch {
       Toast.show('签到失败，请稍后重试', 1.5);
     } finally {
       Toast.remove(loadingKey);
       setSigning(false);
     }
-  }, [dispatch, loadSignTip, signedToday, signing]);
+  }, [dispatch, loadSignStatus, loadSignTip, signedToday, signing]);
 
   const switchToFamilyPerspective = useCallback(async () => {
     if (switchingIdentity) return;

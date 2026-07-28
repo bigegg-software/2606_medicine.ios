@@ -23,7 +23,9 @@ import {
 import { AppTheme } from '@/common/theme';
 import {
   acceptFamilyBindInvite,
+  acceptFamilyBindInviteByBind,
   rejectFamilyBindInvite,
+  rejectFamilyBindInviteByBind,
 } from '@/api/familyBind';
 import { isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import {
@@ -93,79 +95,75 @@ export default function FamilyBindInvitePage() {
     }, [loadDetail]),
   );
 
+  const resolveRespondBindId = useCallback(() => {
+    return detail?.id || bindId || '';
+  }, [bindId, detail?.id]);
+
+  const submitRespond = useCallback(
+    async (action: 'accept' | 'reject') => {
+      if (submitting) return;
+      const respondBindId = resolveRespondBindId();
+      if (!messageId && !respondBindId) {
+        Alert.alert('提示', '缺少邀请信息，无法操作');
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const res = messageId
+          ? action === 'accept'
+            ? await acceptFamilyBindInvite(messageId)
+            : await rejectFamilyBindInvite(messageId)
+          : action === 'accept'
+            ? await acceptFamilyBindInviteByBind(respondBindId)
+            : await rejectFamilyBindInviteByBind(respondBindId);
+
+        if (!isResourceApiOk(res as ApiResult)) {
+          const r = res as ApiResult;
+          Alert.alert('失败', r.msg ?? r.message ?? '请稍后重试');
+          return;
+        }
+        Alert.alert('成功', action === 'accept' ? '已接受邀请' : '已拒绝邀请', [
+          { text: '确定', onPress: () => navigation.goBack() },
+        ]);
+      } catch {
+        Alert.alert('错误', '网络错误，请稍后重试');
+      } finally {
+        setSubmitting(false);
+      }
+    },
+    [messageId, navigation, resolveRespondBindId, submitting],
+  );
+
   const handleReject = useCallback(() => {
-    if (!messageId) {
-      // 按绑定 id 拒绝接口暂未提供
-      return;
-    }
     Alert.alert('拒绝邀请', '确认拒绝该家人邀请吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确认拒绝',
         style: 'destructive',
         onPress: () => {
-          void (async () => {
-            if (submitting) return;
-            setSubmitting(true);
-            try {
-              const res = await rejectFamilyBindInvite(messageId);
-              if (!isResourceApiOk(res as ApiResult)) {
-                const r = res as ApiResult;
-                Alert.alert('失败', r.msg ?? r.message ?? '请稍后重试');
-                return;
-              }
-              Alert.alert('成功', '已拒绝邀请', [
-                { text: '确定', onPress: () => navigation.goBack() },
-              ]);
-            } catch {
-              Alert.alert('错误', '网络错误，请稍后重试');
-            } finally {
-              setSubmitting(false);
-            }
-          })();
+          void submitRespond('reject');
         },
       },
     ]);
-  }, [messageId, navigation, submitting]);
+  }, [submitRespond]);
 
   const handleAccept = useCallback(() => {
-    if (!messageId) {
-      // 按绑定 id 接受接口暂未提供
-      return;
-    }
     Alert.alert('接受邀请', '确认接受该家人邀请吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确认接受',
         onPress: () => {
-          void (async () => {
-            if (submitting) return;
-            setSubmitting(true);
-            try {
-              const res = await acceptFamilyBindInvite(messageId);
-              if (!isResourceApiOk(res as ApiResult)) {
-                const r = res as ApiResult;
-                Alert.alert('失败', r.msg ?? r.message ?? '请稍后重试');
-                return;
-              }
-              Alert.alert('成功', '已接受邀请', [
-                { text: '确定', onPress: () => navigation.goBack() },
-              ]);
-            } catch {
-              Alert.alert('错误', '网络错误，请稍后重试');
-            } finally {
-              setSubmitting(false);
-            }
-          })();
+          void submitRespond('accept');
         },
       },
     ]);
-  }, [messageId, navigation, submitting]);
+  }, [submitRespond]);
 
   const relationLabel =
     (detail && (relationLabelMap[detail.relationType] || detail.relationType)) || '--';
   const selectedPermissions: FamilyPermissionKey[] = detail?.permissions ?? [];
-  const canRespondByMessage = Boolean(messageId);
+  const canRespond = Boolean(messageId || detail?.id || bindId);
   const showActionButtons = detail?.bindStatus !== 1;
 
   if (loading) {
@@ -255,7 +253,7 @@ export default function FamilyBindInvitePage() {
             <TouchableOpacity
               style={[styles.bottomBarButton, styles.bottomBarButtonReject]}
               activeOpacity={0.7}
-              disabled={submitting || !canRespondByMessage}
+              disabled={submitting || !canRespond}
               onPress={handleReject}
             >
               {submitting ? (
@@ -267,7 +265,7 @@ export default function FamilyBindInvitePage() {
             <TouchableOpacity
               style={[styles.bottomBarButton, styles.bottomBarButtonAccept]}
               activeOpacity={0.7}
-              disabled={submitting || !canRespondByMessage}
+              disabled={submitting || !canRespond}
               onPress={handleAccept}
             >
               {submitting ? (

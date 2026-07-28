@@ -16,20 +16,48 @@ import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import styles from '@/css/feedback/index';
 import { submitUserFeedback } from '@/api/userFeedback';
-import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import { getPointsRuleList, type PointsRuleGroup } from '@/api/pointsConfig';
+import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import { FEEDBACK_FAQ_LIST } from './utils/feedbackHelpers';
+import {
+    buildPointsRuleSections,
+    type PointsRuleTableSection,
+} from './utils/pointsRulesHelpers';
+import PointsRulesTable from './components/PointsRulesTable';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 
 const FEEDBACK_KEYBOARD_ACCESSORY_ID = 'feedbackContentDoneToolbar';
+const POINTS_FAQ_ID = 'how-to-get-points';
 
 export default function FeedbackPage() {
     const scrollRef = useRef<ScrollView>(null);
     const [expandedId, setExpandedId] = useState<string | null>(FEEDBACK_FAQ_LIST[0]?.id ?? null);
     const [feedbackContent, setFeedbackContent] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [pointsLoading, setPointsLoading] = useState(false);
+    const [pointsSections, setPointsSections] = useState<PointsRuleTableSection[]>([]);
+
+    const loadPointsRules = useCallback(async () => {
+        setPointsLoading(true);
+        try {
+            const res = await getPointsRuleList();
+            const groups = apiResourceData(res as unknown as ApiResult<PointsRuleGroup[]>);
+            setPointsSections(buildPointsRuleSections(groups ?? []));
+        } catch {
+            setPointsSections([]);
+        } finally {
+            setPointsLoading(false);
+        }
+    }, []);
 
     const toggleFaq = (id: string) => {
-        setExpandedId(prev => (prev === id ? null : id));
+        setExpandedId(prev => {
+            const next = prev === id ? null : id;
+            if (next === POINTS_FAQ_ID) {
+                loadPointsRules();
+            }
+            return next;
+        });
     };
 
     const canSubmit = feedbackContent.trim().length > 0;
@@ -124,7 +152,18 @@ export default function FeedbackPage() {
                                         />
                                     </Flex>
                                 </TouchableOpacity>
-                                {expanded ? <Text style={styles.faqAnswer}>{item.answer}</Text> : null}
+                                {expanded ? (
+                                    item.kind === 'points-rules' ? (
+                                        <View>
+                                            {item.answer ? (
+                                                <Text style={styles.faqAnswerAboveTable}>{item.answer}</Text>
+                                            ) : null}
+                                            <PointsRulesTable loading={pointsLoading} sections={pointsSections} />
+                                        </View>
+                                    ) : item.answer ? (
+                                        <Text style={styles.faqAnswer}>{item.answer}</Text>
+                                    ) : null
+                                ) : null}
                             </View>
                         );
                     })}
