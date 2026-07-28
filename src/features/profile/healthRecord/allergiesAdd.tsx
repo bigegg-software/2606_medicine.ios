@@ -123,19 +123,20 @@ export default function AllergiesAddPage({ route }: Props) {
     return (
         <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
             <KeyboardDoneAccessory />
+            <Flex align="center" style={styles.tipHeader}>
+                <Image
+                    style={styles.tipIcon}
+                    source={require('@/assets/images/case/icon_zd.png')}
+                />
+                <Text style={styles.tipTitle}>完善您的健康信息</Text>
+            </Flex>
+
             <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                 <ScrollView
                     contentContainerStyle={styles.body}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode="on-drag">
                     <View style={styles.rowBox}>
-                        <Flex align="center" style={styles.tipHeader}>
-                            <Image
-                                style={styles.tipIcon}
-                                source={require('@/assets/images/case/icon_zd.png')}
-                            />
-                            <Text style={styles.tipTitle}>完善您的健康信息</Text>
-                        </Flex>
 
                         <Flex justify="between" align="center" style={styles.formRow}>
                             <Text style={styles.formRowLabel} numberOfLines={1}>
@@ -189,25 +190,38 @@ export default function AllergiesAddPage({ route }: Props) {
             </TouchableWithoutFeedback>
 
             <View style={styles.bottomBar}>
-                <TouchableOpacity
-                    style={[styles.bottomBarButton, submitting && { opacity: 0.6 }]}
-                    activeOpacity={0.7}
-                    onPress={submit}
-                    disabled={submitting}>
-                    <Flex style={{ flex: 1 }} justify="center" align="center">
-                        {submitting ? (
-                            <ActivityIndicator color="#FFFFFF" />
-                        ) : (
-                            <>
-                                <Image
-                                    style={styles.bottomBarButtonImg}
-                                    source={require('@/assets/images/schedule/save.png')}
-                                />
-                                <Text style={styles.bottomBarButtonText}>{isEdit ? '保存修改' : '确认添加'}</Text>
-                            </>
-                        )}
-                    </Flex>
-                </TouchableOpacity>
+                <Flex style={styles.bottomBarActions}>
+                    <TouchableOpacity
+                        style={[styles.bottomBarButtonCancel, submitting && { opacity: 0.6 }]}
+                        activeOpacity={0.7}
+                        disabled={submitting}
+                        onPress={() => navigation.goBack()}>
+                        <Flex style={{ flex: 1 }} justify="center" align="center">
+                            <Text style={styles.bottomBarButtonTextCancel}>取消</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.bottomBarButtonConfirm, submitting && { opacity: 0.6 }]}
+                        activeOpacity={0.7}
+                        onPress={submit}
+                        disabled={submitting}>
+                        <Flex style={{ flex: 1 }} justify="center" align="center">
+                            {submitting ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <>
+                                    <Image
+                                        style={styles.bottomBarButtonImg}
+                                        source={require('@/assets/images/schedule/save.png')}
+                                    />
+                                    <Text style={styles.bottomBarButtonTextConfirm}>
+                                        {isEdit ? '保存修改' : '确认添加'}
+                                    </Text>
+                                </>
+                            )}
+                        </Flex>
+                    </TouchableOpacity>
+                </Flex>
             </View>
         </PageLayout>
     );

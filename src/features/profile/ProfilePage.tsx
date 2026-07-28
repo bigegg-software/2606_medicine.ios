@@ -25,7 +25,7 @@ import {
 import SignInModal from './components/SignInModal';
 import { buildSignButtonLabel } from './utils/signInHelpers';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
-import { resolveIdentityAuthBadgeSource, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
+import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -74,6 +74,7 @@ export default function ProfilePage() {
   const [authStatus, setAuthStatus] = useState<number | null>(null);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
   const authBadgeSource = resolveIdentityAuthBadgeSource(authStatus);
+  const authBadgeWidth = resolveIdentityAuthBadgeWidth(authStatus);
   const showIdentityAuthEntry = shouldShowIdentityAuthEntry(authStatus);
 
   const loadSignTip = useCallback(async () => {
@@ -237,7 +238,7 @@ export default function ProfilePage() {
               <Flex>
                 <Text style={styles.name}>{name}</Text>
                 <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
-                  <Image style={styles.wrzImg} source={authBadgeSource} />
+                  <Image style={[styles.wrzImg, { width: authBadgeWidth }]} source={authBadgeSource} />
                 </TouchableOpacity>
               </Flex>
               <Flex style={{ marginTop: 7 }}>

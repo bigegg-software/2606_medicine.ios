@@ -12,9 +12,11 @@ import {
     buildWearableHeartRateSeries,
     buildWearableOxygenSeries,
     filterMeasureItemsInRange,
+    getLevelLabel,
     getWearableReturnOriginalDataParam,
     type LabeledValue,
 } from '@/src/features/profile/vitals/vitalsHelpers';
+import { getLevelColor } from '@/src/features/profile/vitals/vitalLevelColors';
 import type { BloodPressurePoint } from '../../components/BloodPressureChart';
 import type { BloodGlucosePoint } from '../../components/BloodGlucoseChart';
 import type { BloodOxygenPoint } from '../../components/BloodOxygenChart';
@@ -46,9 +48,13 @@ export type TrendStats = Partial<Record<StatColumnKey, string>>;
 
 export type TodayOverviewRecord = {
     key: string;
-    label: string;
+    /** 测量状态，如：运动后、晨起 */
+    measurementStatus: string;
     time: string;
     value: string;
+    /** 指标等级状态，如：正常、轻度高血压 */
+    status: string;
+    statusColor: string;
 };
 
 export type TodayOverviewResult = {
@@ -79,12 +85,14 @@ export const DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS: ChronicDiseaseDailyIndica
 
 export type AssociatedMedicationRow = {
     key: string;
+    medicationPlanId: string;
     name: string;
     doseText: string;
     taken: boolean;
+    canCheckIn: boolean;
     planType: number;
     planTypeLabel: string;
-    medicationPlanTime?: string;
+    medicationPlanTime: string;
 };
 
 export type ChronicDetailData = {
@@ -94,6 +102,7 @@ export type ChronicDetailData = {
     measureItems: MeasureDataItem[];
     secondaryMeasureItems: MeasureDataItem[];
     wearableItems: WearableDataItem[];
+    restingWearableItems: WearableDataItem[];
     chartLabels: string[];
     bloodPressureSeries: BloodPressurePoint[];
     singleValueSeries: LabeledValue[];
@@ -338,6 +347,24 @@ function computeStats(
     return stats;
 }
 
+function formatTodayRecordStatus(item: MeasureDataItem): { status: string; statusColor: string } {
+    const status = getLevelLabel(item) || '正常';
+    return {
+        status,
+        statusColor: getLevelColor(status),
+    };
+}
+
+function formatWearableRecordStatus(item: WearableDataItem): { status: string; statusColor: string } {
+    if (item.isHigh === 1) {
+        return { status: '偏高', statusColor: getLevelColor('偏高') };
+    }
+    if (item.isLow === 1 || item.isLow === 2 || item.isLow === 3) {
+        return { status: '偏低', statusColor: getLevelColor('偏低') };
+    }
+    return { status: '正常', statusColor: getLevelColor('正常') };
+}
+
 function formatMeasureTime(item: MeasureDataItem): string {
     const time = item.dataTime?.trim();
     if (!time) return '--';
@@ -345,16 +372,18 @@ function formatMeasureTime(item: MeasureDataItem): string {
     return parsed.isValid() ? parsed.format('HH:mm') : time;
 }
 
-function formatTodayRecordLabel(config: DiseaseTrendConfig, item: MeasureDataItem, ts: moment.Moment): string {
+function formatTodayMeasurementStatus(
+    config: DiseaseTrendConfig,
+    item: MeasureDataItem,
+    ts: moment.Moment,
+): string {
     const status = item.measurementStatus?.trim();
+    if (status) return status;
     if (config.chartKind === 'bloodPressure') {
-        if (status === '睡前') return '晚餐后血压';
-        if (status && status !== '静息') return `${status}血压`;
-        if (ts.hour() < 12) return '晨起血压';
-        if (ts.hour() >= 17) return '晚餐后血压';
-        return '血压';
+        if (ts.hour() < 12) return '晨起';
+        if (ts.hour() >= 17) return '晚餐后';
+        return '静息';
     }
-    if (status) return `${status}${config.overviewMeasureName}`;
     return config.overviewMeasureName;
 }
 
@@ -399,11 +428,14 @@ function buildTodayOverviewFromMeasure(
         .sort((a, b) => getItemTimestamp(a).valueOf() - getItemTimestamp(b).valueOf())
         .map((item, index) => {
             const ts = getItemTimestamp(item);
+            const { status, statusColor } = formatTodayRecordStatus(item);
             return {
                 key: String(item.id ?? `today-${index}`),
-                label: formatTodayRecordLabel(config, item, ts),
+                measurementStatus: formatTodayMeasurementStatus(config, item, ts),
                 time: formatMeasureTime(item),
                 value: formatTodayRecordValue(config, item),
+                status,
+                statusColor,
             };
         });
 
@@ -439,9 +471,10 @@ function buildTodayOverviewFromWearable(
         if (value == null || value <= 0) return;
         records.push({
             key: `${item.wearableDataId ?? itemIndex}`,
-            label,
+            measurementStatus: label,
             time: time.length > 5 ? moment(time).format('HH:mm') : time,
             value: formatValue(value),
+            ...formatWearableRecordStatus(item),
         });
     });
 
@@ -487,9 +520,11 @@ function buildAssociatedMedicationRows(
             const time = item.medicationPlanTime || group.time;
             rows.push({
                 key: item.key,
+                medicationPlanId: item.medicationPlanId,
                 name: item.name,
                 doseText: item.doseText,
                 taken: item.taken,
+                canCheckIn: item.canCheckIn,
                 planType: item.planType,
                 planTypeLabel: item.planTypeLabel,
                 medicationPlanTime: time,
@@ -710,6 +745,7 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
         measureItems,
         secondaryMeasureItems,
         wearableItems,
+        restingWearableItems,
         chartLabels,
         bloodPressureSeries,
         singleValueSeries,

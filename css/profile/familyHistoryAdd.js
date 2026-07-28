@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     },
     formSection: {
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
         paddingTop: 16,
         paddingBottom: 16,
     },
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     },
     formRowBorder: {
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
     },
     sectionLabel: {
         fontWeight: '500',
@@ -114,7 +114,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 54,
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

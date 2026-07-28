@@ -1,5 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Text, View, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+    Text,
+    View,
+    ScrollView,
+    Image,
+    TextInput,
+    TouchableOpacity,
+    ActivityIndicator,
+    Alert,
+    Keyboard,
+    TouchableWithoutFeedback,
+} from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, DatePicker, Picker } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -7,7 +18,6 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import moment from 'moment';
 import styles from '@/css/chronicDisease/add';
 import { AppTheme } from '@/common/theme';
-import { MaterialIcons } from '@expo/vector-icons';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import {
     addChronicDisease,
@@ -96,7 +106,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     const [initializing, setInitializing] = useState(true);
 
     useEffect(() => {
-        navigation.setOptions({ title: isEdit ? '编辑慢病' : '新增慢病' });
+        navigation.setOptions({ title: isEdit ? '编辑慢病' : '添加慢病' });
     }, [isEdit, navigation]);
 
     useEffect(() => {
@@ -143,12 +153,12 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     );
 
     const diagnosisDisplay = useMemo(() => {
-        if (!diagnosisDate) return '--年--月';
+        if (!diagnosisDate) return '';
         const [year, month] = diagnosisDate.split('-');
         if (year && month) {
             return `${year}年${Number(month)}月`;
         }
-        return '--年--月';
+        return '';
     }, [diagnosisDate]);
 
     const toggleMedicationPlan = (planId: string | number) => {
@@ -199,7 +209,7 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
 
     if (initializing) {
         return (
-            <PageLayout style={styles.container}>
+            <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
                 <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 </View>
@@ -208,104 +218,138 @@ export default function ChronicDiseaseAddPage({ route }: Props) {
     }
 
     return (
-        <PageLayout style={styles.container}>
+        <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
             <KeyboardDoneAccessory />
-            <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-                <Text style={styles.sectionTitle}>基础信息</Text>
-                <View style={styles.infoBox}>
-                    <Text style={[styles.rowTitle, { marginTop: 0 }]}>疾病类型</Text>
-                    {diseaseTypeOptions.length > 0 ? (
-                        <Picker
-                            data={diseaseTypeOptions}
-                            cols={1}
-                            value={[diseaseType]}
-                            onOk={values => setDiseaseType(String(values[0]))}>
-                            <Flex style={styles.inpitBox}>
-                                <Text style={[styles.placeholderText, diseaseType ? styles.valueText : null]}>
-                                    {diseaseType ? diseaseTypeLabel : '请选择疾病类型'}
-                                </Text>
-                                <MaterialIcons name="keyboard-arrow-down" size={24} color={AppTheme.primaryColor} />
+            <Flex align="center" style={styles.tipHeader}>
+                <Image
+                    style={styles.tipIcon}
+                    source={require('@/assets/images/case/icon_zd.png')}
+                />
+                <Text style={styles.tipTitle} numberOfLines={1}>
+                    添加您的慢性病，开始日常监测与健康管理
+                </Text>
+            </Flex>
+            <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+                <ScrollView
+                    contentContainerStyle={styles.body}
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag">
+                    <View style={[styles.rowBox, { paddingBottom: 0 }]}>
+                        <Text style={styles.sectionTitle}>基础信息 <Text style={{ color: "#FB4550" }}>（必填）</Text></Text>
+                        {diseaseTypeOptions.length > 0 ? (
+                            <Picker
+                                data={diseaseTypeOptions}
+                                cols={1}
+                                value={[diseaseType]}
+                                onOk={values => setDiseaseType(String(values[0]))}>
+                                <TouchableOpacity activeOpacity={0.7} style={[styles.formRow, styles.formRowFirst]}>
+                                    <Text style={styles.formRowLabel}>疾病类型 <Text style={{ color: "#FB4550" }}>*</Text></Text>
+                                    <View style={styles.formRowValue}>
+                                        <Text style={diseaseType ? styles.formRowValueText : styles.formRowPlaceholder}>
+                                            {diseaseType ? diseaseTypeLabel : '请选择疾病类型'}
+                                        </Text>
+                                        <Image
+                                            style={styles.formRowArrow}
+                                            source={require('@/assets/images/vitals/icon_right.png')}
+                                        />
+                                    </View>
+                                </TouchableOpacity>
+                            </Picker>
+                        ) : (
+                            <Flex justify="between" align="center" style={[styles.formRow, styles.formRowFirst]}>
+                                <Text style={styles.formRowLabel}>疾病类型</Text>
+                                <Text style={styles.formRowPlaceholder}>暂无疾病类型选项</Text>
                             </Flex>
-                        </Picker>
-                    ) : (
-                        <Flex style={styles.inpitBox}>
-                            <Text style={styles.placeholderText}>暂无疾病类型选项</Text>
-                        </Flex>
-                    )}
+                        )}
 
-                    <Text style={styles.rowTitle}>确诊日期</Text>
-                    <DatePicker
-                        precision="month"
-                        value={diagnosisDate ? moment(`${diagnosisDate}-01`).toDate() : undefined}
-                        onOk={date => setDiagnosisDate(moment(date).format('YYYY-MM'))}>
-                        <Flex style={styles.inpitBox}>
-                            <Text style={[styles.placeholderText, diagnosisDate ? styles.valueText : null]}>{diagnosisDisplay}</Text>
-                            <MaterialIcons name="keyboard-arrow-down" size={24} color={AppTheme.primaryColor} />
-                        </Flex>
-                    </DatePicker>
-                </View>
+                        <DatePicker
+                            precision="month"
+                            value={diagnosisDate ? moment(`${diagnosisDate}-01`).toDate() : undefined}
+                            onOk={date => setDiagnosisDate(moment(date).format('YYYY-MM'))}>
+                            <TouchableOpacity activeOpacity={0.7} style={styles.formRow}>
+                                <Text style={styles.formRowLabel}>确诊日期</Text>
+                                <View style={styles.formRowValue}>
+                                    <Text style={diagnosisDisplay ? styles.formRowValueText : styles.formRowPlaceholder}>
+                                        {diagnosisDisplay || '请选择确诊日期'}
+                                    </Text>
+                                    <Image
+                                        style={styles.formRowRl}
+                                        source={require('@/assets/images/case/icon_rl.png')}
+                                    />
+                                </View>
+                            </TouchableOpacity>
+                        </DatePicker>
+                    </View>
 
-                <Text style={styles.sectionTitle}>医学信息</Text>
-                <View style={styles.infoBox}>
-                    <Text style={[styles.rowTitle, { marginTop: 0 }]}>主要症状</Text>
-                    <Flex style={[styles.inpitBox, styles.symptomInputBox]}>
+                    <View style={styles.rowBox}>
+                        <Text style={styles.sectionTitle}>主要症状</Text>
                         <TextInput
-                            style={styles.symptomInput}
+                            style={styles.textareaBox}
                             placeholder="例如：头痛、耳鸣"
                             placeholderTextColor="#999999"
                             value={mainSymptoms}
                             onChangeText={setMainSymptoms}
+                            multiline
+                            textAlignVertical="top"
                             inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                         />
-                    </Flex>
-                </View>
+                    </View>
 
-                <Text style={styles.sectionTitle}>关联资源(可选)</Text>
-                <View style={styles.infoBox}>
-                    <Text style={[styles.rowTitle, { marginTop: 0 }]}>关联用药</Text>
-                    {medicationPlans.length > 0 ? (
-                        <View style={styles.chipGrid}>
-                            {medicationPlans.map(plan => {
-                                const planId = plan.medicationPlanId;
-                                if (planId == null) return null;
-                                const selected = selectedPlanIds.some(id => id == planId);
-                                return (
-                                    <TouchableOpacity
-                                        key={String(planId)}
-                                        style={[styles.chipItem, selected && styles.chipItemActive]}
-                                        onPress={() => toggleMedicationPlan(planId)}>
-                                        <Text style={[styles.chipText, selected && styles.chipTextActive]}>
-                                            {plan.name?.trim() || '未命名药品'}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    ) : (
-                        <Flex style={styles.inpitBox}>
-                            <Text style={styles.placeholderText}>暂无可关联的用药计划</Text>
+                    <View style={styles.rowBox}>
+                        <Text style={styles.sectionTitle}>关联用药 <Text style={{ color: "#999999" }}>（多选）</Text></Text>
+                        {medicationPlans.length > 0 ? (
+                            <View style={styles.chipGrid}>
+                                {medicationPlans.map(plan => {
+                                    const planId = plan.medicationPlanId;
+                                    if (planId == null) return null;
+                                    const selected = selectedPlanIds.some(id => id == planId);
+                                    return (
+                                        <TouchableOpacity
+                                            key={String(planId)}
+                                            style={[styles.chipItem, selected && styles.chipItemActive]}
+                                            onPress={() => toggleMedicationPlan(planId)}>
+                                            <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                                                {plan.name?.trim() || '未命名药品'}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        ) : (
+                            <Text style={styles.emptyHint}>暂无可关联的用药计划</Text>
+                        )}
+                    </View>
+                </ScrollView>
+            </TouchableWithoutFeedback>
+
+            <View style={styles.bottomBar}>
+                <Flex style={styles.bottomBarActions}>
+                    <TouchableOpacity
+                        style={[styles.bottomBarButtonCancel, submitting && { opacity: 0.6 }]}
+                        activeOpacity={0.7}
+                        disabled={submitting}
+                        onPress={() => navigation.goBack()}>
+                        <Flex style={{ flex: 1 }} justify="center" align="center">
+                            <Text style={styles.bottomBarButtonTextCancel}>取消</Text>
                         </Flex>
-                    )}
-                </View>
-            </ScrollView>
-
-            <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    {submitting ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                    ) : (
-                        <Text style={styles.addText}>{isEdit ? '保存修改' : '确认添加'}</Text>
-                    )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.bottomBarButtonConfirm, submitting && { opacity: 0.6 }]}
+                        activeOpacity={0.7}
+                        disabled={submitting}
+                        onPress={submit}>
+                        <Flex style={{ flex: 1 }} justify="center" align="center">
+                            {submitting ? (
+                                <ActivityIndicator color="#FFFFFF" />
+                            ) : (
+                                <Text style={styles.bottomBarButtonTextConfirm}>
+                                    {isEdit ? '保存修改' : '确认添加'}
+                                </Text>
+                            )}
+                        </Flex>
+                    </TouchableOpacity>
                 </Flex>
-            </TouchableOpacity>
-            <TouchableOpacity
-                style={styles.cancelBtn}
-                onPress={() => navigation.goBack()}
-                disabled={submitting}>
-                <Flex justify="center" align="center" style={{ flex: 1 }}>
-                    <Text style={styles.cancelText}>取消</Text>
-                </Flex>
-            </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }

@@ -422,7 +422,7 @@ export default function RootStack() {
       <Stack.Screen name="FamilyHistory" component={FamilyHistory} options={{ title: "家族病史" }} />
       <Stack.Screen name="FamilyHistoryAdd" component={FamilyHistoryAdd} options={{ title: "添加家族病史" }} />
       <Stack.Screen name="ChronicDisease" component={ChronicDiseasePage} options={{ title: "慢病管理" }} />
-      <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病" }} />
+      <Stack.Screen name="ChronicDiseaseAddPage" component={ChronicDiseaseAddPage} options={{ title: "新增慢病", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="ChronicDiseaseDetailPage" component={ChronicDiseaseDetailPage} options={{ title: "慢病详情" }} />
       <Stack.Screen name="VitalsPage" component={VitalsPage} options={{ title: "健康数据" }} />
       <Stack.Screen name="AddDataPage" component={AddDataPage} options={{ title: "新增记录", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />

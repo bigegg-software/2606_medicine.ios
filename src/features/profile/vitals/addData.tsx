@@ -27,6 +27,7 @@ import {
 } from './addDataHelpers';
 import { getUricAcidAddDataReferenceLines } from './detail/helpers/uricAcid';
 import { syncMeasureWeightToUserBaseInfo } from './utils/weightSyncHelpers';
+import { formatWeightBmiHintText } from './utils/weightBmiHintHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'AddDataPage'>;
@@ -241,6 +242,7 @@ export default function BloodAddPage({ route }: Props) {
   const dispatch = useDispatch<AppDispatch>();
   const headerHeight = useHeaderHeight();
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
+  const userHeight = useSelector((state: RootState) => state.user.info?.height);
   const scrollRef = useRef<ScrollView>(null);
   const allowDecimal = config.keyboardType === 'decimal-pad';
   const pageTitle = isEdit ? config.title.replace('新增', '编辑') : config.title;
@@ -257,6 +259,10 @@ export default function BloodAddPage({ route }: Props) {
   const [remark, setRemark] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const weightBmiHint = useMemo(
+    () => formatWeightBmiHintText(primaryValue, userHeight),
+    [primaryValue, userHeight],
+  );
 
   const scrollToRemarkInput = useCallback(() => {
     requestAnimationFrame(() => {
@@ -505,6 +511,9 @@ export default function BloodAddPage({ route }: Props) {
             </View>
 
             <View style={[styles.rowBox, { paddingBottom: 0 }]}>
+              {measureType === '体重' ? (
+                <Text style={styles.sectionTitle}>体重/BMI</Text>
+              ) : null}
               <FormValueRow
                 title={config.primaryLabel}
                 unit={config.primaryUnit}
@@ -517,13 +526,22 @@ export default function BloodAddPage({ route }: Props) {
                 keyboardType={measureType === '血压' ? 'decimal-pad' : config.keyboardType}
                 maxLength={measureType === '血压' ? BLOOD_PRESSURE_INPUT_MAX_LENGTH : undefined}
                 showDivider={
-                  config.showSecondary
+                  measureType === '体重'
+                  || config.showSecondary
                   || measureType === '血脂'
                   || config.showSite
                   || config.showStatus
                 }
               />
 
+              {measureType === '体重' ? (
+                <Flex justify="between" align="center" style={styles.formRow}>
+                  <Text style={styles.rowTitle}>BMI</Text>
+                  <Text style={styles.bmiHintText} numberOfLines={2}>
+                    {weightBmiHint}
+                  </Text>
+                </Flex>
+              ) : null}
               {config.showSecondary ? (
                 <FormValueRow
                   title={config.secondaryLabel!}
@@ -650,9 +668,9 @@ export default function BloodAddPage({ route }: Props) {
                 <>
                   <Image
                     style={styles.primaryBtnIcon}
-                    source={require('@/assets/images/vitals/icon_add.png')}
+                    source={require('@/assets/images/schedule/save.png')}
                   />
-                  <Text style={styles.primaryBtnText}>{isEdit ? '保存' : '添加记录'}</Text>
+                  <Text style={styles.primaryBtnText}>保存</Text>
                 </>
               )}
             </Flex>

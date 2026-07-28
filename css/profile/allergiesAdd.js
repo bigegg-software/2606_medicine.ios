@@ -7,6 +7,7 @@ const styles = StyleSheet.create({
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     rowBox: {
         padding: 15,
+        paddingTop: 0,
         borderRadius: 8,
         marginTop: 12,
         backgroundColor: '#FFFFFF',
@@ -15,11 +16,14 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
     },
     tipHeader: {
+        height: 44,
+        backgroundColor: "rgba(109,146,94,0.1)",
         alignItems: 'center',
     },
     tipIcon: {
         width: 15,
         height: 15,
+        marginLeft: 20
     },
     tipTitle: {
         marginLeft: 4,
@@ -54,14 +58,14 @@ const styles = StyleSheet.create({
     },
     formSection: {
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
         paddingTop: 16,
     },
     severityRow: {
         width: '100%',
         height: 54,
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -128,8 +132,23 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
-    bottomBarButton: {
+    bottomBarActions: {
         marginTop: 4,
+        width: '100%',
+    },
+    bottomBarButtonCancel: {
+        flex: 1,
+        height: 50,
+        marginRight: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: AppTheme.primaryColor,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    bottomBarButtonConfirm: {
+        flex: 1,
         height: 50,
         backgroundColor: AppTheme.primaryColor,
         borderRadius: 12,
@@ -141,7 +160,12 @@ const styles = StyleSheet.create({
         height: 20,
         marginRight: 4,
     },
-    bottomBarButtonText: {
+    bottomBarButtonTextCancel: {
+        fontWeight: '600',
+        fontSize: 16,
+        color: AppTheme.primaryColor,
+    },
+    bottomBarButtonTextConfirm: {
         fontWeight: '600',
         fontSize: 16,
         color: '#FFFFFF',

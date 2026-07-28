@@ -18,6 +18,11 @@ export function resolveIdentityAuthBadgeSource(
   return require('@/assets/images/user/wrz.png');
 }
 
+/** 审核中文案更长，单独加宽 */
+export function resolveIdentityAuthBadgeWidth(authStatus?: number | null) {
+  return authStatus === 0 ? 80 : 68;
+}
+
 /** 仅未提交过认证时展示右侧实名认证入口 */
 export function shouldShowIdentityAuthEntry(authStatus?: number | null) {
   return authStatus == null;

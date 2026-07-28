@@ -36,7 +36,7 @@ export default function ProfilePage() {
                     </Flex>
                     <Flex style={styles.urlRow} justify="between">
                         <Text style={styles.leftTitle}>联系我们</Text>
-                        <Text style={styles.rightTitle}>support@dnai.network</Text>
+                        <Text style={styles.rightTitle}>support@lifemedicine.com</Text>
                     </Flex>
                 </View>
             </ScrollView>

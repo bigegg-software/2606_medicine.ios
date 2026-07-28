@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
         width: '100%',
         height: 58,
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     formSection: {
         marginTop: 20,
         borderTopWidth: 1,
-        borderTopColor: '#E8DED2',
+        borderTopColor: 'rgba(23,63,125,0.08)',
         paddingTop: 16,
     },
     textareaTitle: {

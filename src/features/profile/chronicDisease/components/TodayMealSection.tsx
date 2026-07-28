@@ -60,11 +60,9 @@ export default function TodayMealSection() {
     const waterProgress = calcNutritionProgress(todayWaterMl, dietSummary.targetWater);
 
     return (
-        <>
-            <Flex justify="between" style={{ marginTop: 18 }}>
-                <Text style={styles.sectionTitle}>今日用餐</Text>
-            </Flex>
-            <View style={styles.infoBox}>
+        <View style={styles.overviewSection}>
+            <Text style={styles.overviewTitle}>今日用餐</Text>
+            <View style={styles.sectionBody}>
                 {loading ? (
                     <ActivityIndicator color={AppTheme.primaryColor} />
                 ) : (
@@ -117,6 +115,6 @@ export default function TodayMealSection() {
                     </Flex>
                 )}
             </View>
-        </>
+        </View>
     );
 }

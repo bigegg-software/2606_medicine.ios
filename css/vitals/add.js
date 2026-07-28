@@ -36,6 +36,14 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#999999',
     },
+    bmiHintText: {
+        flex: 1,
+        marginLeft: 12,
+        textAlign: 'right',
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#666666',
+    },
     remarkTitle: { marginTop: 12, marginBottom: 8 },
     rowLineInHeader: { height: 1, backgroundColor: '#E8DED2' },
     textareaBox: {

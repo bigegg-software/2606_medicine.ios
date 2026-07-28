@@ -92,10 +92,7 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <ChronicTrendSection detail={detail} />
                 <TodayOverviewSection overview={detail.todayOverview} />
-                <MedicationPlanSection
-                    medications={detail.associatedMedications}
-                    recordId={recordId}
-                />
+                <MedicationPlanSection medications={detail.associatedMedications} />
                 <TodayMealSection />
             </ScrollView>
         </PageLayout>
