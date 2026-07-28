@@ -246,10 +246,14 @@ export default function ProfilePage() {
                   <Image style={[styles.wrzImg, { width: authBadgeWidth }]} source={authBadgeSource} />
                 )}
               </Flex>
-              <Flex style={{ marginTop: 7 }}>
-                <Image style={styles.avatarIcon} source={require('@/assets/images/user/img1.png')} />
-                <Text style={styles.avatarValue}>{Number(systemUser?.tokens ?? 0).toFixed(2)}</Text>
-              </Flex>
+              <TouchableOpacity onPress={() => {
+                navigation.navigate('RecordPointsPage');
+              }}>
+                <Flex style={{ marginTop: 7 }}>
+                  <Image style={styles.avatarIcon} source={require('@/assets/images/user/img1.png')} />
+                  <Text style={styles.avatarValue}>{Number(systemUser?.tokens ?? 0).toFixed(2)}</Text>
+                </Flex>
+              </TouchableOpacity>
             </View>
           </Flex>
           {showIdentityAuthEntry ? (

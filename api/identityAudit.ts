@@ -112,3 +112,26 @@ export const getIdentityAuditInfo = () =>
 /** 提交身份认证 */
 export const submitIdentityAudit = (data: SubmitIdentityAuditParams) =>
   request.post<SubmitIdentityAuditResult>('/patient/identityAudit/submit', data);
+
+export type IdCardIdentifyData = {
+  name?: string;
+  idCard?: string;
+  sex?: string;
+  nation?: string;
+  birth?: string;
+  /** 住址（身份证上户籍地址） */
+  address?: string;
+  ossId?: number;
+  ossUrl?: string;
+};
+
+export type IdCardIdentifyResult = ApiResult<IdCardIdentifyData>;
+
+/** 识别身份证照片信息（不超过 5M），建议正面 */
+export const aiIdentifyIdCard = (file: { uri: string; name: string; type: string }) => {
+  const form = new FormData();
+  form.append('file', { uri: file.uri, name: file.name, type: file.type } as unknown as Blob);
+  return request.post<IdCardIdentifyResult>('/patient/identityAudit/aiIdentifyIdCard', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};

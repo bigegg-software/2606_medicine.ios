@@ -14,29 +14,33 @@ import {
     type FocusEvent,
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
+import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import RegionCascader from '@/src/components/RegionCascader';
+import BottomSheetModal from '@/src/components/BottomSheetModal';
 import styles from '@/css/auth/auth';
 import { Flex, Toast } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { submitIdentityAudit } from '@/api/identityAudit';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import { regionSelectionFromParts } from '@/src/utils/regionData';
+import { consumePendingIdCardCapture } from '@/src/utils/idCardCaptureSession';
+import type { RootStackParamList } from '@/route/router';
 import {
     buildPersonalAuditPayload,
     formatRegionLabel,
+    identifyIdCardImage,
+    normalizeIdCardIdentifyResult,
     pickIdCardImageFromLibrary,
-    uploadIdCardImage,
     validatePersonalAuthForm,
+    type IdCardSide,
     type PersonalAuthForm,
+    type PickedIdCardImage,
 } from './utils/identityAuditHelpers';
 
 const DESIGN_RATIO = 335 / 90;
-const nameInputAccessoryViewID = 'authNameDoneToolbar';
-const idNumberInputAccessoryViewID = 'authIdNumberDoneToolbar';
-const detailInputAccessoryViewID = 'authDetailDoneToolbar';
 
 const EMPTY_FORM: PersonalAuthForm = {
     name: '',
@@ -48,16 +52,19 @@ const EMPTY_FORM: PersonalAuthForm = {
     residentialDetail: '',
 };
 
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
 export default function AuthPage() {
-    const navigation = useNavigation();
+    const navigation = useNavigation<Nav>();
     const scrollRef = useRef<ScrollView>(null);
     const phonenumber = useSelector((s: RootState) => s.user.systemUser?.phonenumber);
     const [imgWidth, setImgWidth] = useState(0);
     const [submitting, setSubmitting] = useState(false);
-    const [uploadingSide, setUploadingSide] = useState<'front' | 'back' | null>(null);
+    const [uploadingSide, setUploadingSide] = useState<IdCardSide | null>(null);
     const [form, setForm] = useState<PersonalAuthForm>(EMPTY_FORM);
     const [frontPreviewUri, setFrontPreviewUri] = useState('');
     const [backPreviewUri, setBackPreviewUri] = useState('');
+    const [sourcePickerSide, setSourcePickerSide] = useState<IdCardSide | null>(null);
 
     const regionLabel = useMemo(() => formatRegionLabel(form), [form]);
     const regionValue = useMemo(
@@ -105,11 +112,17 @@ export default function AuthPage() {
         setForm(prev => ({ ...prev, [key]: value }));
     };
 
-    const handlePickIdCard = async (side: 'front' | 'back') => {
-        if (uploadingSide || submitting) return;
-        const file = await pickIdCardImageFromLibrary(side);
-        if (!file) return;
+    const clearSidePreview = useCallback((side: IdCardSide) => {
+        if (side === 'front') {
+            setFrontPreviewUri('');
+            setForm(prev => ({ ...prev, idCardFrontOssId: undefined }));
+            return;
+        }
+        setBackPreviewUri('');
+        setForm(prev => ({ ...prev, idCardBackOssId: undefined }));
+    }, []);
 
+    const processIdCardImage = useCallback(async (side: IdCardSide, file: PickedIdCardImage) => {
         if (side === 'front') {
             setFrontPreviewUri(file.uri);
         } else {
@@ -117,41 +130,85 @@ export default function AuthPage() {
         }
 
         setUploadingSide(side);
-        const loadingKey = Toast.loading('上传中', 0);
+        const loadingKey = Toast.loading('识别中', 0);
         try {
-            const uploaded = await uploadIdCardImage(file);
-            if (!uploaded) {
-                Toast.show('上传失败，请稍后重试');
-                if (side === 'front') {
-                    setFrontPreviewUri('');
-                    patchForm('idCardFrontOssId', undefined);
-                } else {
-                    setBackPreviewUri('');
-                    patchForm('idCardBackOssId', undefined);
-                }
+            const identified = await identifyIdCardImage(file);
+            const normalized = identified ? normalizeIdCardIdentifyResult(identified, file.uri) : null;
+            if (!normalized) {
+                Toast.show('识别失败，请稍后重试');
+                clearSidePreview(side);
                 return;
             }
+
             if (side === 'front') {
-                setFrontPreviewUri(uploaded.url);
-                patchForm('idCardFrontOssId', uploaded.ossId);
+                setFrontPreviewUri(normalized.previewUrl);
+                setForm(prev => {
+                    const next = { ...prev, idCardFrontOssId: normalized.ossId };
+                    if (normalized.name) next.name = normalized.name;
+                    if (normalized.idCard) next.idCard = normalized.idCard;
+                    if (normalized.address) {
+                        next.residentialDetail =
+                            normalized.address.length > 50
+                                ? normalized.address.slice(0, 50)
+                                : normalized.address;
+                    }
+                    return next;
+                });
             } else {
-                setBackPreviewUri(uploaded.url);
-                patchForm('idCardBackOssId', uploaded.ossId);
+                setBackPreviewUri(normalized.previewUrl);
+                setForm(prev => ({ ...prev, idCardBackOssId: normalized.ossId }));
             }
+            Toast.success('识别成功');
         } catch {
-            Toast.show('上传失败，请稍后重试');
-            if (side === 'front') {
-                setFrontPreviewUri('');
-                patchForm('idCardFrontOssId', undefined);
-            } else {
-                setBackPreviewUri('');
-                patchForm('idCardBackOssId', undefined);
-            }
+            Toast.show('识别失败，请稍后重试');
+            clearSidePreview(side);
         } finally {
             Toast.remove(loadingKey);
             setUploadingSide(null);
         }
-    };
+    }, [clearSidePreview]);
+
+    const handlePickFromAlbum = useCallback(async (side: IdCardSide) => {
+        if (uploadingSide || submitting) return;
+        const file = await pickIdCardImageFromLibrary(side);
+        if (!file) return;
+        await processIdCardImage(side, file);
+    }, [processIdCardImage, submitting, uploadingSide]);
+
+    const handlePickIdCard = useCallback((side: IdCardSide) => {
+        if (uploadingSide || submitting) return;
+        setSourcePickerSide(side);
+    }, [submitting, uploadingSide]);
+
+    const closeSourcePicker = useCallback(() => {
+        setSourcePickerSide(null);
+    }, []);
+
+    const handleSourceCamera = useCallback(() => {
+        if (!sourcePickerSide) return;
+        const side = sourcePickerSide;
+        setSourcePickerSide(null);
+        navigation.navigate('IdCardCameraPage', { side });
+    }, [navigation, sourcePickerSide]);
+
+    const handleSourceAlbum = useCallback(() => {
+        if (!sourcePickerSide) return;
+        const side = sourcePickerSide;
+        setSourcePickerSide(null);
+        void handlePickFromAlbum(side);
+    }, [handlePickFromAlbum, sourcePickerSide]);
+
+    useFocusEffect(
+        useCallback(() => {
+            const pending = consumePendingIdCardCapture();
+            if (!pending) return;
+            void processIdCardImage(pending.side, {
+                uri: pending.uri,
+                name: pending.name,
+                type: pending.type,
+            });
+        }, [processIdCardImage]),
+    );
 
     const handleSubmit = async () => {
         if (submitting || uploadingSide) return;
@@ -183,13 +240,7 @@ export default function AuthPage() {
         <PageLayout
             style={styles.container}
             edges={[]}
-            keyboardAccessory={
-                <>
-                    <KeyboardDoneAccessory nativeID={nameInputAccessoryViewID} />
-                    <KeyboardDoneAccessory nativeID={idNumberInputAccessoryViewID} />
-                    <KeyboardDoneAccessory nativeID={detailInputAccessoryViewID} />
-                </>
-            }>
+            keyboardAccessory={<KeyboardDoneAccessory />}>
             <View style={styles.page}>
                 <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
                     <ScrollView
@@ -263,7 +314,7 @@ export default function AuthPage() {
                                             placeholder="请输入姓名"
                                             placeholderTextColor="#999999"
                                             returnKeyType="done"
-                                            inputAccessoryViewID={nameInputAccessoryViewID}
+                                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                                         />
                                     </Flex>
                                     <View style={styles.formDivider} />
@@ -310,7 +361,7 @@ export default function AuthPage() {
                                             placeholderTextColor="#999999"
                                             maxLength={50}
                                             returnKeyType="done"
-                                            inputAccessoryViewID={detailInputAccessoryViewID}
+                                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                                         />
                                     </Flex>
                                     <View style={styles.formDivider} />
@@ -326,7 +377,7 @@ export default function AuthPage() {
                                             maxLength={18}
                                             autoCapitalize="characters"
                                             returnKeyType="done"
-                                            inputAccessoryViewID={idNumberInputAccessoryViewID}
+                                            inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
                                         />
                                     </Flex>
                                 </View>
@@ -352,6 +403,45 @@ export default function AuthPage() {
                     </TouchableOpacity>
                 </View>
             </View>
+
+            <BottomSheetModal
+                visible={sourcePickerSide != null}
+                onClose={closeSourcePicker}
+                sheetStyle={styles.sourceSheet}>
+                <Text style={styles.sourceSheetTitle}>上传身份证</Text>
+                <Flex justify="center" style={styles.sourceSheetRow}>
+                    <TouchableOpacity
+                        style={styles.sourceSheetItem}
+                        activeOpacity={0.8}
+                        onPress={handleSourceCamera}>
+                        <View style={styles.sourceSheetDash}>
+                            <Image
+                                source={require('@/assets/images/case/icon_camera.png')}
+                                style={styles.sourceSheetIcon}
+                            />
+                            <Text style={styles.sourceSheetItemTitle}>拍照识别</Text>
+                        </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.sourceSheetItem}
+                        activeOpacity={0.8}
+                        onPress={handleSourceAlbum}>
+                        <View style={styles.sourceSheetDash}>
+                            <Image
+                                source={require('@/assets/images/case/icon_image.png')}
+                                style={styles.sourceSheetIcon}
+                            />
+                            <Text style={styles.sourceSheetItemTitle}>上传照片</Text>
+                        </View>
+                    </TouchableOpacity>
+                </Flex>
+                <TouchableOpacity
+                    style={styles.sourceSheetCancel}
+                    activeOpacity={0.7}
+                    onPress={closeSourcePicker}>
+                    <Text style={styles.sourceSheetCancelText}>取消</Text>
+                </TouchableOpacity>
+            </BottomSheetModal>
         </PageLayout>
     );
 }

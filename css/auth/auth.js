@@ -125,6 +125,63 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#FFFFFF',
     },
+    sourceSheet: {
+        paddingHorizontal: 20,
+        paddingTop: 20,
+        paddingBottom: 28,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        overflow: 'hidden',
+    },
+    sourceSheetTitle: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#333333',
+        textAlign: 'center',
+    },
+    sourceSheetRow: {
+        marginTop: 20,
+        justifyContent: 'center',
+        gap: 24,
+    },
+    sourceSheetItem: {
+        width: 99,
+        height: 100,
+    },
+    sourceSheetDash: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+        borderStyle: 'dashed',
+        borderRadius: 12,
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+    },
+    sourceSheetIcon: {
+        width: 44,
+        height: 44,
+    },
+    sourceSheetItemTitle: {
+        marginTop: 10,
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#333333',
+    },
+    sourceSheetCancel: {
+        marginTop: 20,
+        height: 48,
+        borderRadius: 12,
+        backgroundColor: AppTheme.primaryColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    sourceSheetCancelText: {
+        fontWeight: '600',
+        fontSize: 15,
+        color: '#FFFFFF',
+    },
 });
 
 export default styles;

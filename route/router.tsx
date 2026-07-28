@@ -120,6 +120,8 @@ import SettingsPage from '@/src/features/profile/settings';
 import AboutUs from '@/src/features/profile/aboutUs';
 import FeedbackPage from '@/src/features/feedback/index';
 
+// 积分记录
+import RecordPointsPage from '@/src/features/profile/recordPoints';
 // 家人
 import MyFamily from '@/src/features/profile/myFamily';
 import MyFamilyAdd from '@/src/features/profile/myFamily/add';
@@ -129,6 +131,7 @@ import FamilyBindInvitePage from '@/src/familyPage/profilePage/FamilyBindInviteP
 
 //实名认证
 import AuthenticationPage from "@/src/features/authentication/index"
+import IdCardCameraPage from '@/src/features/authentication/IdCardCameraPage'
 
 
 //消息
@@ -162,6 +165,7 @@ export type RootStackParamList = {
   QuestionnaireHistory: undefined;
   SettingsPage: undefined;
   AuthenticationPage: undefined;
+  IdCardCameraPage: { side: 'front' | 'back' };
   MessagePage: undefined;
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };
@@ -496,9 +500,15 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
       <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: "设置" }} />
       <Stack.Screen name="AuthenticationPage" component={AuthenticationPage} options={{ title: "实名认证" }} />
+      <Stack.Screen
+        name="IdCardCameraPage"
+        component={IdCardCameraPage}
+        options={{ title: '拍摄身份证', ...darkMediaScreenOptions }}
+      />
 
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
       <Stack.Screen name="MessagePage" component={MessagePage} options={{ title: "消息" }} />
+      <Stack.Screen name="RecordPointsPage" component={RecordPointsPage} options={{ title: "积分记录" }} />
     </Stack.Navigator>
   );
 }

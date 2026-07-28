@@ -1,7 +1,11 @@
 import { Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { uploadOss } from '@/api/oss';
-import type { SubmitIdentityAuditParams } from '@/api/identityAudit';
+import {
+  aiIdentifyIdCard,
+  type IdCardIdentifyData,
+  type SubmitIdentityAuditParams,
+} from '@/api/identityAudit';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import { displayCityName } from '@/src/utils/regionData';
 
@@ -139,4 +143,40 @@ export async function uploadIdCardImage(
     return null;
   }
   return { ossId, url: data.url };
+}
+
+/** 识别身份证照片，返回结构化信息与 oss */
+export async function identifyIdCardImage(file: PickedIdCardImage): Promise<IdCardIdentifyData | null> {
+  const res = await aiIdentifyIdCard(file);
+  return apiResourceData<IdCardIdentifyData>(res as { code?: number; data?: IdCardIdentifyData }) ?? null;
+}
+
+export type ApplyIdCardIdentifyResult = {
+  previewUrl: string;
+  ossId: string;
+  name?: string;
+  idCard?: string;
+  address?: string;
+};
+
+/** 将识别结果整理为表单可回显字段 */
+export function normalizeIdCardIdentifyResult(
+  data: IdCardIdentifyData,
+  fallbackPreviewUri: string,
+): ApplyIdCardIdentifyResult | null {
+  const ossId = data.ossId != null ? String(data.ossId) : '';
+  if (!ossId) {
+    return null;
+  }
+  const previewUrl = data.ossUrl?.trim() || fallbackPreviewUri;
+  if (!previewUrl) {
+    return null;
+  }
+  return {
+    previewUrl,
+    ossId,
+    name: data.name?.trim() || undefined,
+    idCard: data.idCard?.trim().toUpperCase() || undefined,
+    address: data.address?.trim() || undefined,
+  };
 }
