@@ -19,26 +19,16 @@ const styles = StyleSheet.create({
     mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
     wbmBtn: { height: 19, backgroundColor: "#0951AE", borderRadius: 4, },
     wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
-    activitySignupBtn: {
+    activityStatusTag: {
         height: 22,
         paddingHorizontal: 8,
-        borderRadius: 4,
-        backgroundColor: '#6D925E',
+        borderRadius: 20,
         justifyContent: 'center',
         alignItems: 'center',
     },
-    activitySignupBtnJoined: {
-        backgroundColor: '#FFFFFF',
-        borderWidth: 1,
-        borderColor: '#EE9C44',
-    },
-    activitySignupText: {
-        fontWeight: '700',
+    activityStatusTagText: {
+        fontWeight: 'bold',
         fontSize: 12,
-        color: '#FFFFFF',
-    },
-    activitySignupTextJoined: {
-        color: '#EE9C44',
     },
     mapIntro: { marginTop: 11, fontWeight: 400, fontSize: 14, lineHeight: 20, color: AppTheme.textSecondary }, mapBox: { marginTop: 14, },
     mapBoxItem: {
@@ -73,10 +63,25 @@ const styles = StyleSheet.create({
     timeText: { marginTop: 15, height: 19, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 19, textAlign: "center", },
 
     // live
-    liveTopRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginTop: 12, },
+    liveTopScroll: {
+        marginTop: 8,
+        overflow: 'visible',
+    },
+    liveTopScrollContent: {
+        paddingTop: 4,
+        paddingBottom: 16,
+        paddingRight: 8,
+    },
     liveTopBox: {
-        width: '48%', borderRadius: 8, backgroundColor: "#FFF", shadowColor: '#053A93', shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08, shadowRadius: 14,
+        width: 156,
+        marginRight: 12,
+        borderRadius: 8,
+        backgroundColor: '#FFF',
+        shadowColor: '#053A93',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        elevation: 4,
     },
     liveTopInfo: { padding: 8, },
     liveTopText: { fontWeight: "bold", fontSize: 14, color: "#333333", marginTop: 2 },

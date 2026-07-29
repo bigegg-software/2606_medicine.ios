@@ -89,6 +89,41 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#333333',
     },
+    mealPeriodSection: {
+        marginTop: 20,
+        width: '100%',
+    },
+    mealPeriodRow: {
+        width: '100%',
+        flexDirection: 'row',
+        justifyContent: 'flex-start',
+        alignItems: 'center',
+        gap: 12,
+    },
+    mealPeriodChip: {
+        width: 71,
+        height: 70,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#E5E5E5',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    mealPeriodChipActive: {
+        backgroundColor: 'rgba(109,146,94,0.1)',
+        borderColor: '#6D925E',
+    },
+    mealPeriodIcon: {
+        width: 24,
+        height: 24,
+    },
+    mealPeriodText: {
+        marginTop: 4,
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#000000',
+    },
     mainTitle: {
         fontWeight: 500,
         fontSize: 16,

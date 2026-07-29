@@ -125,7 +125,16 @@ export function formToFoodIdentifyItem(
         fat: toNumber(form.fat),
         carbs: toNumber(form.carbs),
         fiber: form.visibleNutrients.includes('fiber') ? toNumber(form.extraNutrition.fiber) : toNumber(original.fiber),
-        weight: isGramUnit(form.servingUnit) ? form.servingAmount : toNumber(original.weight),
+        weight: isGramUnit(form.servingUnit)
+            ? form.servingAmount
+            : (() => {
+                  const baseWeight = toNumber(original.weight);
+                  const baseAmount = toNumber(original.amount) || 1;
+                  if (baseWeight > 0 && baseAmount > 0 && form.servingAmount > 0) {
+                      return parseFloat(((baseWeight / baseAmount) * form.servingAmount).toFixed(1));
+                  }
+                  return baseWeight;
+              })(),
         othersNutrition,
     };
 
@@ -158,9 +167,53 @@ export function adjustServingAmount(amount: number, unitValue: FoodUnitValue, de
     return isGramUnit(unitValue) ? Math.round(clamped) : parseFloat(clamped.toFixed(1));
 }
 
+function formatScaledNutrient(raw: number | string | undefined | null): string {
+    const n = toNumber(raw);
+    if (!Number.isFinite(n) || n === 0) return '';
+    if (Number.isInteger(n)) return String(n);
+    return String(parseFloat(n.toFixed(2)));
+}
+
+/** 将缩放后的食物营养写回手动更正表单（保留可见项与自定义项结构） */
+export function applyScaledItemToManualForm(
+    form: ManualCorrectionForm,
+    scaled: FoodIdentifyItem,
+    nextAmount: number,
+    nextUnit: FoodUnitValue,
+): ManualCorrectionForm {
+    const extraNutrition: Record<string, string> = { ...form.extraNutrition };
+    form.visibleNutrients.forEach(key => {
+        if (key === 'fiber') {
+            extraNutrition.fiber = formatScaledNutrient(scaled.fiber);
+            return;
+        }
+        extraNutrition[key] = formatScaledNutrient(scaled.othersNutrition?.[key] as number | string | undefined);
+    });
+
+    return {
+        ...form,
+        servingAmount: nextAmount,
+        servingUnit: nextUnit,
+        calorie: formatScaledNutrient(scaled.calorie),
+        protein: formatScaledNutrient(scaled.protein),
+        fat: formatScaledNutrient(scaled.fat),
+        carbs: formatScaledNutrient(scaled.carbs),
+        extraNutrition,
+        customNutrients: form.customNutrients.map(nutrient => {
+            const name = nutrient.name.trim();
+            if (!name) return nutrient;
+            return {
+                ...nutrient,
+                amount: formatScaledNutrient(scaled.othersNutrition?.[name] as number | string | undefined),
+            };
+        }),
+    };
+}
+
 export type ManualCorrectionSavePayload = {
     index: number;
     item: FoodIdentifyItem;
     state: FoodItemEditState;
     recordTime: string;
+    mealCategory?: number;
 };

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Flex, Picker, Toast } from '@ant-design/react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -35,6 +35,11 @@ import {
     parseTimeValue,
     TIME_PICKER_DATA,
 } from './utils/mealResultHelpers';
+import {
+    resolveAmountAfterUnitChange,
+    scaleFoodItemByServing,
+    type FoodServingBaseline,
+} from './utils/foodServingScaleHelpers';
 
 function getSliderConfig(unitValue: FoodUnitValue) {
     if (isGramUnit(unitValue)) {
@@ -63,9 +68,25 @@ export default function FoodDetailPage() {
     const [saving, setSaving] = useState(false);
     const [othersLoading, setOthersLoading] = useState(false);
 
+    const baselineRef = useRef<FoodServingBaseline>({
+        item: initialItem,
+        amount: route.params.state.amount,
+        unitValue: route.params.state.unitValue,
+    });
+    const stateRef = useRef(state);
+    stateRef.current = state;
+
     const sliderConfig = useMemo(() => getSliderConfig(state.unitValue), [state.unitValue]);
     const unitOptions = useMemo(() => buildFoodUnitOptions(item.unit), [item.unit]);
     const nutritionEntries = useMemo(() => buildItemNutritionEntries(item, false), [item]);
+
+    const resetBaseline = useCallback((nextItem: FoodIdentifyItem, nextState: FoodItemEditState) => {
+        baselineRef.current = {
+            item: nextItem,
+            amount: nextState.amount,
+            unitValue: nextState.unitValue,
+        };
+    }, []);
 
     const syncToParent = useCallback(
         (nextItem: FoodIdentifyItem, nextState: FoodItemEditState) => {
@@ -79,27 +100,39 @@ export default function FoodDetailPage() {
         [itemIndex, onSave, recordTime],
     );
 
-    const updateState = useCallback(
+    const applyServingChange = useCallback(
         (nextState: FoodItemEditState) => {
+            const scaledItem = scaleFoodItemByServing(
+                baselineRef.current,
+                nextState.amount,
+                nextState.unitValue,
+            );
+            setItem(scaledItem);
             setState(nextState);
             if (!isRecognizeSave) {
-                syncToParent(item, nextState);
+                syncToParent(scaledItem, nextState);
             }
         },
-        [isRecognizeSave, item, syncToParent],
+        [isRecognizeSave, syncToParent],
     );
 
     const handleCorrected = useCallback(
         (payload: ManualCorrectionSavePayload) => {
             setItem(payload.item);
             setState(payload.state);
+            resetBaseline(payload.item, payload.state);
+            // 滑块仅在挂载时读 initialValue，需强制 remount 才能同步分量
+            setSliderKey(prev => prev + 1);
             if (isRecognizeSave) {
                 setRecordTime(payload.recordTime);
+                if (payload.mealCategory === 1 || payload.mealCategory === 2 || payload.mealCategory === 3) {
+                    setMealCategory(payload.mealCategory);
+                }
                 return;
             }
             onSave?.(payload);
         },
-        [isRecognizeSave, onSave],
+        [isRecognizeSave, onSave, resetBaseline],
     );
 
     const handleSave = useCallback(async () => {
@@ -159,11 +192,15 @@ export default function FoodDetailPage() {
 
     const handleUnitChange = (unitValue: FoodUnitValue) => {
         const nextConfig = getSliderConfig(unitValue);
-        const nextAmount = isGramUnit(unitValue)
-            ? Math.max(nextConfig.min, Math.min(Math.round(state.amount) || nextConfig.min, nextConfig.max))
-            : Math.max(nextConfig.min, Math.min(state.amount || nextConfig.min, nextConfig.max));
+        const nextAmount = resolveAmountAfterUnitChange(
+            baselineRef.current,
+            state.amount,
+            state.unitValue,
+            unitValue,
+            { min: nextConfig.min, max: nextConfig.max },
+        );
         setSliderKey(prev => prev + 1);
-        updateState({
+        applyServingChange({
             ...state,
             unitValue,
             amount: nextAmount,
@@ -252,8 +289,11 @@ export default function FoodDetailPage() {
                     return;
                 }
 
-                setItem(nextFoods[0]);
-                setState(createFoodItemState(nextFoods[0]));
+                const nextItem = nextFoods[0];
+                const nextState = createFoodItemState(nextItem);
+                setItem(nextItem);
+                setState(nextState);
+                resetBaseline(nextItem, nextState);
                 setSliderKey(prev => prev + 1);
             } catch {
                 // 补充失败不影响主流程，保留基础识别结果
@@ -278,11 +318,23 @@ export default function FoodDetailPage() {
                     contentContainerStyle={[styles.bodyContent, styles.mH12, { paddingBottom: 24 }]}
                     showsVerticalScrollIndicator={false}>
                     <View style={styles.commonWrap}>
-                        <Flex justify="between" align="start" style={{ flex: 1 }}>
-                            <View style={{ flex: 1, paddingRight: 12 }}>
-                                <Text style={styles.foodItemName}>{item.mealName || '未知食物'}</Text>
-                                <Text style={styles.foodItemMeta}>{metaText}</Text>
-                            </View>
+                        <Flex justify="between" align="center" style={{ flex: 1 }}>
+                            <Flex align="center" style={{ flex: 1, paddingRight: 12 }}>
+                                <View style={styles.foodDetailCover}>
+                                    <Image
+                                        style={styles.foodDetailCoverImg}
+                                        source={
+                                            ossUrl?.trim()
+                                                ? { uri: ossUrl.trim() }
+                                                : require('@/assets/images/medication/default2.png')
+                                        }
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.foodItemName}>{item.mealName || '未知食物'}</Text>
+                                    <Text style={styles.foodItemMeta}>{metaText}</Text>
+                                </View>
+                            </Flex>
                             <TouchableOpacity
                                 activeOpacity={0.7}
                                 style={styles.foodManualBtn}
@@ -293,6 +345,14 @@ export default function FoodDetailPage() {
                                         state,
                                         recordTime,
                                         onSave: handleCorrected,
+                                        ...(isRecognizeSave
+                                            ? {
+                                                  showMealPeriod: true,
+                                                  mealCategory,
+                                                  ossId,
+                                                  foodIdentifyId,
+                                              }
+                                            : {}),
                                     });
                                 }}>
                                 <Flex align="center">
@@ -374,7 +434,9 @@ export default function FoodDetailPage() {
                                 tickWidth={36}
                                 initialValue={state.amount}
                                 unit={state.unitValue}
-                                onValueChange={amount => updateState({ ...state, amount })}
+                                onValueChange={amount =>
+                                    applyServingChange({ ...stateRef.current, amount })
+                                }
                             />
                         </View>
 

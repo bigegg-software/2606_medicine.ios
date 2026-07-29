@@ -11,7 +11,7 @@ import {
 import { useEventListener } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Flex } from '@ant-design/react-native';
-import { RouteProp, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/community/courseDetail';
@@ -26,11 +26,12 @@ import {
 } from '@/api/course';
 import { buildDictLabelMap, DICT_TYPES, getDictDataByType, type DictDataItem } from '@/api/dict';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { formatCourseViewCount, stripHtmlText, toCourseId } from './courseHelpers';
+import { formatCourseWatchingCount, stripHtmlText, toCourseId } from './courseHelpers';
 
 type Route = RouteProp<RootStackParamList, 'CourseDetail'>;
 
 export default function CourseDetailPage() {
+  const navigation = useNavigation();
   const { params } = useRoute<Route>();
   const courseId = toCourseId(params.courseId);
   const [course, setCourse] = useState<CourseItem | null>(null);
@@ -39,6 +40,28 @@ export default function CourseDetailPage() {
   const [typeLabelMap, setTypeLabelMap] = useState<Record<string, string>>({});
   const hasRecordedViewRef = useRef(false);
   const hasRecordedCompleteRef = useRef(false);
+
+  const handleShare = useCallback(() => {
+    // TODO: 分享
+  }, []);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleShare}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.headerShareBtn}
+        >
+          <Image
+            style={styles.headerShareIcon}
+            source={require('@/assets/images/community/icon_share.png')}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [handleShare, navigation]);
 
   const videoUrl = course?.videoOssUrl?.trim() || '';
   const player = useVideoPlayer(videoUrl || null, instance => {
@@ -148,7 +171,7 @@ export default function CourseDetailPage() {
 
   if (!course) {
     return (
-      <PageLayout style={styles.container} contentStyle={styles.center}>
+      <PageLayout style={styles.container} contentStyle={styles.center} showHeaderBackground={false}>
         <Text style={styles.emptyText}>课程不存在或已下架</Text>
       </PageLayout>
     );
@@ -160,33 +183,44 @@ export default function CourseDetailPage() {
     : '';
 
   return (
-    <PageLayout style={styles.container}>
+    <PageLayout style={styles.container} showHeaderBackground={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
         {videoUrl ? (
           <View style={styles.videoWrap}>
             <VideoView style={styles.video} player={player} contentFit="contain" nativeControls />
+            {courseTypeLabel ? (
+              <View style={styles.categoryTag} pointerEvents="none">
+                <Text style={styles.categoryText}>{courseTypeLabel}</Text>
+              </View>
+            ) : null}
           </View>
         ) : null}
+        <Flex style={styles.metaBar} justify="between" align="center">
+          <Flex align="center" style={styles.metaLeft}>
+            <Text style={styles.metaName} numberOfLines={1}>
+              {course.instructor?.trim() || '讲师待定'}
+            </Text>
+          </Flex>
+          <Flex align="center" style={styles.metaRight}>
+            <Image
+              style={styles.metaWatchIcon}
+              source={require('@/assets/images/community/icon_gkrs.png')}
+            />
+            <Text style={styles.metaWatchText}>{formatCourseWatchingCount(course.viewCount)}</Text>
+          </Flex>
+        </Flex>
 
         <View style={styles.body}>
-          {courseTypeLabel ? (
-            <View style={styles.categoryTag}>
-              <Text style={styles.categoryText}>{courseTypeLabel}</Text>
-            </View>
-          ) : null}
           <Text style={styles.title}>{course.title || '课程详情'}</Text>
-          {course.instructor ? (
-            <Text style={styles.instructor}>讲师：{course.instructor}</Text>
-          ) : null}
-          {course.courseIntro ? (
+          {/* {course.courseIntro ? (
             <Text style={styles.intro}>{course.courseIntro}</Text>
-          ) : null}
-
+          ) : null} */}
+          {/* 
           <View style={styles.statsRow}>
             <Text style={styles.statText}>{formatCourseViewCount(course.viewCount)}</Text>
             <Text style={styles.statText}>{course.likeCount ?? 0} 点赞</Text>
             <Text style={styles.statText}>{course.favoriteCount ?? 0} 收藏</Text>
-          </View>
+          </View> */}
 
           <Flex style={styles.actionRow}>
             <TouchableOpacity
@@ -196,10 +230,11 @@ export default function CourseDetailPage() {
             >
               <Image
                 style={styles.actionIcon}
-                source={require('@/assets/images/community/dz.png')}
+                source={require('@/assets/images/community/icon_dz.png')}
+                tintColor={course.isLiked ? '#6C925E' : '#61666D'}
               />
               <Text style={[styles.actionText, course.isLiked && styles.actionTextActive]}>
-                {course.isLiked ? '已点赞' : '点赞'}
+                {course.likeCount ?? 0}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -209,15 +244,19 @@ export default function CourseDetailPage() {
             >
               <Image
                 style={styles.actionIcon}
-                source={require('@/assets/images/community/sc.png')}
+                source={require('@/assets/images/community/icon_sc.png')}
+                tintColor={course.isFavorited ? '#6C925E' : '#61666D'}
               />
               <Text style={[styles.actionText, course.isFavorited && styles.actionTextActive]}>
-                {course.isFavorited ? '已收藏' : '收藏'}
+                {course.favoriteCount ?? 0}
               </Text>
             </TouchableOpacity>
           </Flex>
 
-          <Text style={styles.sectionTitle}>课程详情</Text>
+          <Flex align="center" style={styles.sectionTitleRow}>
+            <View style={styles.sectionTitleBar} />
+            <Text style={styles.sectionTitle}>详情</Text>
+          </Flex>
           <Text style={styles.detailText}>{detailText}</Text>
         </View>
       </ScrollView>

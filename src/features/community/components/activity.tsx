@@ -25,8 +25,10 @@ import {
 import { buildDictLabelMap, DICT_TYPES, getDictDataByType, type DictDataItem } from '@/api/dict';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
+    canToggleActivitySignup,
     formatActivitySignupCount,
     formatActivityStartTime,
+    getActivityListStatusMeta,
     isNoticeActivity,
     toActivityId,
 } from '../activityHelpers';
@@ -244,6 +246,8 @@ export default function ActivityPage() {
         const typeLabel = item.activityType ? typeLabelMap[item.activityType] ?? item.activityType : '';
         const coverSource = item.coverOssUrl?.trim() ? { uri: item.coverOssUrl } : DEFAULT_COVER;
         const joining = joiningId === activityId;
+        const statusMeta = getActivityListStatusMeta(item.status, item.isBm);
+        const canToggle = canToggleActivitySignup(item.status, item.isBm);
 
         if (isNoticeActivity(item, typeLabel)) {
             return renderNoticeItem(item);
@@ -262,26 +266,21 @@ export default function ActivityPage() {
                                 {item.activityName?.trim() || '活动'}
                             </Text>
                             <TouchableOpacity
-                                disabled={joining}
+                                disabled={joining || !canToggle}
                                 onPress={event => {
                                     event.stopPropagation();
+                                    if (!canToggle) return;
                                     void handleToggleSignup(item);
                                 }}>
-                                <Flex
+                                <View
                                     style={[
-                                        styles.activitySignupBtn,
-                                        item.isBm ? styles.activitySignupBtnJoined : null,
-                                    ]}
-                                >
-                                    <Text
-                                        style={[
-                                            styles.activitySignupText,
-                                            item.isBm ? styles.activitySignupTextJoined : null,
-                                        ]}
-                                    >
-                                        {joining ? '处理中' : item.isBm ? '已报名' : '去报名'}
+                                        styles.activityStatusTag,
+                                        { backgroundColor: statusMeta.backgroundColor },
+                                    ]}>
+                                    <Text style={[styles.activityStatusTagText, { color: statusMeta.color }]}>
+                                        {joining ? '处理中' : statusMeta.label}
                                     </Text>
-                                </Flex>
+                                </View>
                             </TouchableOpacity>
                         </Flex>
                         <Text style={styles.mapIntro} numberOfLines={2}>

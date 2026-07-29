@@ -22,3 +22,10 @@ export function formatCourseViewCount(count?: number | null) {
   if (!Number.isFinite(value) || value <= 0) return '0人次观看';
   return `${value}人次观看`;
 }
+
+/** 课程详情观看中文案：2,150人正在看 */
+export function formatCourseWatchingCount(count?: number | null) {
+  const value = Number(count ?? 0);
+  const safe = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  return `${safe.toLocaleString('en-US')}人正在看`;
+}

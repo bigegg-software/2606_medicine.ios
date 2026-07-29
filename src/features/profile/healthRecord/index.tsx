@@ -54,9 +54,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 const CHRONIC_PREVIEW_SIZE = 2;
 
 function formatRecordTitle(record: MedicalRecord) {
-    const diagnosis = record.diagnosticResult || '未填写诊断';
-    const type = record.medicalRecordType;
-    return type ? `${diagnosis}（${type}）` : diagnosis;
+    return record.hospital?.trim() || '—';
 }
 
 function formatRecordDateLabel(record: MedicalRecord) {
@@ -376,7 +374,7 @@ export default function HealthRecordPage() {
                                                 {formatRecordTitle(item)}
                                             </Text>
                                             <Text style={styles.familyItemRelation} numberOfLines={1}>
-                                                {item.hospital || '—'}
+                                                {item.doctor?.trim() || '—'}
                                             </Text>
                                         </View>
                                     </Flex>

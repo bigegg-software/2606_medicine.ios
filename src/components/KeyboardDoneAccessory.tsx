@@ -29,13 +29,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 4,
   },
-  androidOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    zIndex: 9999,
-    elevation: 9999,
-  },
   overlayHost: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 9999,
@@ -44,6 +37,13 @@ const styles = StyleSheet.create({
   overlayHostModal: {
     zIndex: 10000,
     elevation: 10000,
+  },
+  androidOverlay: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 9999,
+    elevation: 9999,
   },
 });
 
@@ -76,6 +76,12 @@ export default function KeyboardDoneAccessory({
 
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+
+    // 父组件重渲染导致本组件重挂载时，键盘可能已弹出，需主动同步高度
+    const metrics = Keyboard.metrics();
+    if (metrics?.height) {
+      setKeyboardHeight(metrics.height);
+    }
 
     const onShow = (event: KeyboardEvent) => {
       setKeyboardHeight(event.endCoordinates.height);

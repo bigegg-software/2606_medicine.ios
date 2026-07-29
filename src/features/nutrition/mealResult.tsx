@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, ImageBackground, Text, TouchableOpacity, View } from 'react-native';
 import { Flex, Picker, Toast } from '@ant-design/react-native';
 import moment from 'moment';
@@ -34,6 +34,24 @@ import {
     parseTimeValue,
     TIME_PICKER_DATA,
 } from './utils/mealResultHelpers';
+import {
+    scaleFoodItemByServing,
+    type FoodServingBaseline,
+} from './utils/foodServingScaleHelpers';
+
+function buildBaselines(
+    items: FoodIdentifyItem[],
+    states?: FoodItemEditState[],
+): FoodServingBaseline[] {
+    return items.map((item, index) => {
+        const state = states?.[index] ?? createFoodItemState(item);
+        return {
+            item,
+            amount: state.amount,
+            unitValue: state.unitValue,
+        };
+    });
+}
 
 export default function MealResultPage() {
     const navigation = useNavigation<any>();
@@ -50,6 +68,7 @@ export default function MealResultPage() {
     const [foodItemStates, setFoodItemStates] = useState<FoodItemEditState[]>(() =>
         initialAnalysisResult.map(createFoodItemState),
     );
+    const baselinesRef = useRef<FoodServingBaseline[]>(buildBaselines(initialAnalysisResult));
     const [mealCategory, setMealCategory] = useState(() => {
         const fromRoute = result.mealCategory;
         if (fromRoute === 1 || fromRoute === 2 || fromRoute === 3) return fromRoute;
@@ -67,12 +86,22 @@ export default function MealResultPage() {
         setFoodItemStates(prev =>
             prev.map((foodState, index) => (index === correction.index ? correction.state : foodState)),
         );
+        baselinesRef.current = baselinesRef.current.map((baseline, index) =>
+            index === correction.index
+                ? {
+                      item: correction.item,
+                      amount: correction.state.amount,
+                      unitValue: correction.state.unitValue,
+                  }
+                : baseline,
+        );
         setRecordTime(correction.recordTime);
     }, []);
 
     const deleteFood = useCallback((itemIndex: number) => {
         setFoods(prev => prev.filter((_, index) => index !== itemIndex));
         setFoodItemStates(prev => prev.filter((_, index) => index !== itemIndex));
+        baselinesRef.current = baselinesRef.current.filter((_, index) => index !== itemIndex);
     }, []);
 
     useEffect(() => {
@@ -116,8 +145,10 @@ export default function MealResultPage() {
                 const data = apiResourceData(res);
                 const nextFoods = data?.analysisResult;
                 if (Array.isArray(nextFoods) && nextFoods.length > 0) {
+                    const nextStates = nextFoods.map(createFoodItemState);
                     setFoods(nextFoods);
-                    setFoodItemStates(nextFoods.map(createFoodItemState));
+                    setFoodItemStates(nextStates);
+                    baselinesRef.current = buildBaselines(nextFoods, nextStates);
                 }
             } catch {
                 // 补充失败不影响主流程，保留基础识别结果
@@ -188,6 +219,14 @@ export default function MealResultPage() {
 
     const updateFoodItemState = useCallback((index: number, next: FoodItemEditState) => {
         setFoodItemStates(prev => prev.map((item, itemIndex) => (itemIndex === index ? next : item)));
+        setFoods(prev =>
+            prev.map((food, itemIndex) => {
+                if (itemIndex !== index) return food;
+                const baseline = baselinesRef.current[index];
+                if (!baseline) return food;
+                return scaleFoodItemByServing(baseline, next.amount, next.unitValue);
+            }),
+        );
     }, []);
 
     return (
@@ -260,13 +299,19 @@ export default function MealResultPage() {
                                         </View>
                                     ) : allNutrition.length > 0 ? (
                                         <View style={styles.nutrientGrid}>
-                                            {allNutrition.map(entry => {
+                                            {allNutrition.map((entry, entryIndex) => {
                                                 const valueText =
                                                     entry.value % 1 === 0
                                                         ? String(entry.value)
                                                         : entry.value.toFixed(1);
+                                                const isRowLast = entryIndex % 3 === 2;
                                                 return (
-                                                    <View key={entry.key} style={styles.nutrientCard}>
+                                                    <View
+                                                        key={entry.key}
+                                                        style={[
+                                                            styles.nutrientCard,
+                                                            isRowLast && styles.nutrientCardLast,
+                                                        ]}>
                                                         <Text style={styles.nutrientTitle}>{entry.label}</Text>
                                                         <Flex justify="center" align="end" style={styles.nutrientValueRow}>
                                                             <Text style={styles.nutrientValue}>{valueText}</Text>

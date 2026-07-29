@@ -11,6 +11,9 @@ export type LiveStreamItem = {
   liveStartTime?: string;
   liveEndTime?: string;
   livePlatform?: string;
+  /** 第三方观看链接（如小鹅通） */
+  liveUrl?: string;
+  watchUrl?: string;
   liveIntro?: string;
   liveHighlights?: string;
   status?: number;

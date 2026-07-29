@@ -336,7 +336,7 @@ export default function ConsumptionPage() {
                         <View style={styles.rowBox}>
                             <Flex justify="between">
                                 <View>
-                                    <Text style={styles.todayMetricLabel}>已达成消耗</Text>
+                                    <Text style={styles.todayMetricLabel}>已达成活动消耗</Text>
                                     <Text style={styles.todayMetricValue}>{todayEnergyCard.activeText}</Text>
                                 </View>
                                 <View style={styles.todayMetricRight}>

@@ -10,11 +10,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Flex } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
-import { useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import type { RouteProp } from '@react-navigation/native';
 import {
   getActivityInfo,
@@ -30,9 +29,11 @@ import type { RootStackParamList } from '@/route/router';
 import {
   canToggleActivitySignup,
   formatActivityDetailDateTime,
+  getActivityLifecycleStatusStyle,
+  getActivityLifecycleStatusText,
+  getActivityListStatusMeta,
   getActivitySignupRemain,
   getActivityStatusText,
-  getActivityStatusTone,
   parseActivityDetailContent,
   splitDetailLines,
   toActivityId,
@@ -44,37 +45,41 @@ const DEFAULT_COVER = require('@/assets/images/home/head.png');
 
 function SectionHeader({ title }: { title: string }) {
   return (
-    <View style={styles.sectionHeader}>
-      <View style={styles.sectionAccent} />
+    <Flex align="center" style={styles.sectionTitleRow}>
+      <View style={styles.sectionTitleBar} />
       <Text style={styles.sectionTitle}>{title}</Text>
-    </View>
+    </Flex>
   );
 }
 
 function InfoRow({
   icon,
-  label,
-  value,
-  last,
-  action,
+  text,
+  onPress,
+  showArrow,
 }: {
-  icon: keyof typeof MaterialIcons.glyphMap;
-  label: string;
-  value: string;
-  last?: boolean;
-  action?: React.ReactNode;
+  icon: number;
+  text: string;
+  onPress?: () => void;
+  showArrow?: boolean;
 }) {
+  const content = (
+    <Flex align="center" style={styles.infoRow}>
+      <Image source={icon} style={styles.infoIcon} />
+      <Text style={styles.infoText}>{text}</Text>
+      {showArrow ? (
+        <Image
+          source={require('@/assets/images/community/icon_right.png')}
+          style={styles.infoArrow}
+        />
+      ) : null}
+    </Flex>
+  );
+  if (!onPress) return content;
   return (
-    <View style={[styles.infoRow, last && styles.infoRowLast]}>
-      <View style={styles.infoIconWrap}>
-        <MaterialIcons name={icon} size={18} color={AppTheme.primaryColor} />
-      </View>
-      <View style={styles.infoContent}>
-        <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={styles.infoValue}>{value}</Text>
-        {action}
-      </View>
-    </View>
+    <TouchableOpacity activeOpacity={0.7} onPress={onPress}>
+      {content}
+    </TouchableOpacity>
   );
 }
 
@@ -94,7 +99,13 @@ function DetailTextBlock({ text }: { text: string }) {
   );
 }
 
+function formatSignupWatching(count: number) {
+  const safe = Number.isFinite(count) && count > 0 ? Math.floor(count) : 0;
+  return `${safe.toLocaleString('en-US')}人已报名`;
+}
+
 export default function ActivityDetailPage() {
+  const navigation = useNavigation();
   const { params } = useRoute<Route>();
   const insets = useSafeAreaInsets();
   const activityId = toActivityId(params.id);
@@ -165,6 +176,28 @@ export default function ActivityDetailPage() {
     }
   };
 
+  const handleShare = useCallback(() => {
+    // TODO: 分享
+  }, []);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={handleShare}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          style={styles.headerShareBtn}
+        >
+          <Image
+            style={styles.headerShareIcon}
+            source={require('@/assets/images/community/icon_share.png')}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [handleShare, navigation]);
+
   const detailContent = useMemo(
     () => parseActivityDetailContent(data?.activityDetail),
     [data?.activityDetail],
@@ -193,7 +226,7 @@ export default function ActivityDetailPage() {
 
   if (!data) {
     return (
-      <PageLayout style={styles.container} contentStyle={styles.center}>
+      <PageLayout style={styles.container} contentStyle={styles.center} showHeaderBackground={false}>
         <Text style={styles.emptyText}>暂无活动详情</Text>
       </PageLayout>
     );
@@ -201,10 +234,13 @@ export default function ActivityDetailPage() {
 
   const coverSource = data.coverOssUrl?.trim() ? { uri: data.coverOssUrl } : DEFAULT_COVER;
   const statusText = getActivityStatusText(data.status, data.statusName, data.isBm);
-  const statusTone = getActivityStatusTone(data.status);
   const typeLabel = data.activityType ? typeLabelMap[data.activityType] ?? data.activityType : '';
+  const lifecycleStatusText = getActivityLifecycleStatusText(data.status, data.statusName);
+  const lifecycleStatusStyle = getActivityLifecycleStatusStyle(data.status, data.statusName);
+  const listStatusMeta = getActivityListStatusMeta(data.status, data.isBm);
   const location = data.activityLocation?.trim() || '待定';
-  const introText = detailContent.intro || data.activityRemark?.trim() || '暂无详细介绍';
+  const noticeText = data.activityRemark?.trim() || '';
+  const introText = detailContent.intro || '暂无详细介绍';
   const signupCount = Number(data.signupCount ?? 0);
   const signupLimit = Number(data.signupLimit ?? 0);
   const remainCount = getActivitySignupRemain(signupCount, signupLimit);
@@ -214,132 +250,152 @@ export default function ActivityDetailPage() {
   const organizerName = data.contactName?.trim() || '主办方';
 
   return (
-    <PageLayout style={styles.container} showHeaderBackground={false}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+    <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
+      <View style={styles.pageBody}>
+        <ScrollView
+          style={styles.scrollFlex}
+          contentContainerStyle={[
+            styles.scroll,
+            !showSignupAction && styles.scrollNoFooter,
+          ]}
+          showsVerticalScrollIndicator={false}>
         <View style={styles.heroWrap}>
           <Image source={coverSource} style={styles.heroImage} resizeMode="cover" />
-          <LinearGradient
-            colors={['rgba(0,0,0,0.08)', 'rgba(0,0,0,0.55)']}
-            style={styles.heroGradient}
-          />
-          <View style={[styles.heroStatusTag, { backgroundColor: statusTone.bg }]}>
-            <Text style={[styles.heroStatusText, { color: statusTone.text }]}>{statusText}</Text>
-          </View>
+          {lifecycleStatusText || typeLabel ? (
+            <View style={styles.heroTagRow} pointerEvents="none">
+              {lifecycleStatusText ? (
+                <View style={[styles.statusTag, { backgroundColor: lifecycleStatusStyle.bg }]}>
+                  <View style={[styles.statusDot, { backgroundColor: lifecycleStatusStyle.dot }]} />
+                  <Text style={[styles.statusTagText, { color: lifecycleStatusStyle.text }]}>
+                    {lifecycleStatusText}
+                  </Text>
+                </View>
+              ) : null}
+              {typeLabel ? (
+                <View style={styles.categoryTag}>
+                  <Text style={styles.categoryText}>{typeLabel}</Text>
+                </View>
+              ) : null}
+            </View>
+          ) : null}
         </View>
 
-        <View style={styles.summaryCard}>
-          <Text style={styles.title}>{data.activityName?.trim() || '活动详情'}</Text>
-          <View style={styles.badgeRow}>
-            {typeLabel ? (
-              <View style={styles.typeBadge}>
-                <Text style={styles.typeBadgeText}>{typeLabel}</Text>
-              </View>
-            ) : null}
-            <View style={[styles.signupBadge, !data.isBm && styles.signupBadgePending]}>
-              <Text style={[styles.signupBadgeText, !data.isBm && styles.signupBadgeTextPending]}>
-                {data.isBm ? '已报名' : '未报名'}
+        <Flex style={styles.metaBar} justify="between" align="center">
+          <Flex align="center" style={styles.metaLeft}>
+            <View style={styles.metaProgressTrack}>
+              <View
+                style={[
+                  styles.metaProgressFill,
+                  {
+                    width: `${(signupLimit > 0 ? progressRatio : 0) * 100}%`,
+                  },
+                ]}
+              />
+            </View>
+            <Text style={styles.metaRemainLabel}>剩余名额:</Text>
+            <Text style={styles.metaRemainValue}>
+              {remainCount == null ? '--' : remainCount}
+            </Text>
+          </Flex>
+          <Flex align="center" style={styles.metaRight}>
+            <Image
+              style={styles.metaWatchIcon}
+              source={require('@/assets/images/community/icon_gkrs.png')}
+            />
+            <Text style={styles.metaWatchText}>{formatSignupWatching(signupCount)}</Text>
+          </Flex>
+        </Flex>
+
+        <View style={styles.body}>
+          <Flex justify="between" align="start">
+            <Text style={[styles.title, { flex: 1, marginRight: 8 }]} numberOfLines={2}>
+              {data.activityName?.trim() || '活动详情'}
+            </Text>
+            <View
+              style={[
+                styles.titleStatusTag,
+                { backgroundColor: listStatusMeta.backgroundColor },
+              ]}>
+              <Text style={[styles.titleStatusTagText, { color: listStatusMeta.color }]}>
+                {listStatusMeta.label}
               </Text>
             </View>
-          </View>
-        </View>
+          </Flex>
 
-        <View style={styles.content}>
+
           <View style={styles.infoCard}>
             <InfoRow
-              icon="schedule"
-              label="开始时间"
-              value={formatActivityDetailDateTime(data.activityStartTime)}
+              icon={require('@/assets/images/community/icon_time.png')}
+              text={`开始时间：${formatActivityDetailDateTime(data.activityStartTime)}`}
             />
             <InfoRow
-              icon="event-busy"
-              label="报名截止"
-              value={formatActivityDetailDateTime(data.signupDeadline)}
+              icon={require('@/assets/images/community/icon_rl.png')}
+              text={`报名截止：${formatActivityDetailDateTime(data.signupDeadline)}`}
             />
             <InfoRow
-              icon="place"
-              label="地点"
-              value={location}
-              last
-              action={
-                location !== '待定' ? (
-                  <TouchableOpacity style={styles.mapLink} onPress={() => openMap(location)}>
-                    <Text style={styles.mapLinkText}>点击查看地图</Text>
-                  </TouchableOpacity>
-                ) : null
-              }
+              icon={require('@/assets/images/community/icon_dw.png')}
+              text={`报名地点：${location}`}
+              showArrow
+              onPress={location !== '待定' ? () => openMap(location) : undefined}
             />
           </View>
 
-          <View style={styles.sectionCard}>
-            <SectionHeader title="活动详情" />
-            <DetailTextBlock text={introText} />
-            {detailContent.sections.map(section => (
-              <View key={section.title} style={styles.sectionSubBlock}>
-                <Text style={styles.sectionSubTitle}>{section.title}</Text>
-                <DetailTextBlock text={section.body} />
-              </View>
-            ))}
-          </View>
+          {noticeText ? (
+            <Flex align="start" style={styles.noticeBox}>
+              <Image
+                source={require('@/assets/images/community/icon_warn.png')}
+                style={styles.noticeIcon}
+              />
+              <Text style={styles.noticeText}>{noticeText}</Text>
+            </Flex>
+          ) : null}
 
-          <View style={styles.sectionCard}>
-            <SectionHeader title="报名情况" />
-            <View style={styles.signupStatRow}>
-              <Text style={styles.signupStat}>{signupCount}</Text>
-              <Text style={styles.signupStatUnit}>
-                {signupLimit > 0 ? `/ ${signupLimit} 人` : '人已报名'}
+          <SectionHeader title="详情" />
+          <DetailTextBlock text={introText} />
+          {detailContent.sections.map(section => (
+            <View key={section.title} style={styles.sectionSubBlock}>
+              <Text style={styles.sectionSubTitle}>{section.title}</Text>
+              <DetailTextBlock text={section.body} />
+            </View>
+          ))}
+
+          <Flex align="center" style={styles.organizerCard}>
+            <View style={styles.organizerInfo}>
+              <Text style={styles.organizerName} numberOfLines={1}>
+                {`主办方 : ${organizerName}`}
+              </Text>
+              <Text style={styles.organizerPhone} numberOfLines={1}>
+                {data.contactPhone?.trim() || '暂无联系电话'}
               </Text>
             </View>
-            {signupLimit > 0 ? (
-              <>
-                <View style={styles.progressTrack}>
-                  <View style={[styles.progressFill, { width: `${progressRatio * 100}%` }]} />
-                </View>
-                <Text style={styles.signupMeta}>剩余名额：{remainCount ?? 0} 人</Text>
-              </>
+            {data.contactPhone?.trim() ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.organizerPhoneBtn}
+                onPress={() => Linking.openURL(`tel:${data.contactPhone!.trim()}`)}>
+                <Image
+                  source={require('@/assets/images/community/icon_phone.png')}
+                  style={styles.organizerPhoneIcon}
+                />
+              </TouchableOpacity>
             ) : null}
-            <View style={styles.signupMetaRow}>
-              <Text style={styles.signupMeta}>您的报名状态</Text>
-              <View style={[styles.signupStatusPill, !data.isBm && styles.signupStatusPillPending]}>
-                <Text style={[styles.signupStatusText, !data.isBm && styles.signupStatusTextPending]}>
-                  {data.isBm ? '已报名' : '未报名'}
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.sectionCard}>
-            <SectionHeader title="主办方" />
-            <View style={styles.organizerRow}>
-              <View style={styles.organizerIconWrap}>
-                <MaterialIcons name="groups" size={22} color={AppTheme.primaryColor} />
-              </View>
-              <View style={styles.organizerInfo}>
-                <Text style={styles.organizerName}>{organizerName}</Text>
-                {data.contactPhone?.trim() ? (
-                  <TouchableOpacity onPress={() => Linking.openURL(`tel:${data.contactPhone}`)}>
-                    <Text style={styles.organizerPhone}>{data.contactPhone.trim()}</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <Text style={styles.signupMeta}>暂无联系电话</Text>
-                )}
-              </View>
-            </View>
-          </View>
+          </Flex>
         </View>
       </ScrollView>
 
       {showSignupAction ? (
-        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
           <TouchableOpacity
             style={[
               styles.btn,
               data.isBm && styles.btnCancel,
               actionLoading && styles.btnDisabled,
             ]}
+            activeOpacity={0.7}
             disabled={actionLoading}
             onPress={toggleRegister}>
             {actionLoading ? (
-              <ActivityIndicator color={data.isBm ? AppTheme.textPrimary : '#FFFFFF'} />
+              <ActivityIndicator color={data.isBm ? '#6D925E' : '#FFFFFF'} />
             ) : (
               <Text style={[styles.btnText, data.isBm && styles.btnCancelText]}>
                 {data.isBm ? '取消报名' : '立即报名'}
@@ -348,6 +404,7 @@ export default function ActivityDetailPage() {
           </TouchableOpacity>
         </View>
       ) : null}
+      </View>
     </PageLayout>
   );
 }

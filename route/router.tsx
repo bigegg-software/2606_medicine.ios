@@ -231,6 +231,11 @@ export type RootStackParamList = {
     state: import('@/src/features/profile/medication/meal/components/FoodDetailCard').FoodItemEditState;
     recordTime: string;
     onSave?: (payload: import('@/src/features/nutrition/utils/manualCorrectionHelpers').ManualCorrectionSavePayload) => void;
+    /** 单个食物识别模式：展示并回传餐段，保存时直接提交记录 */
+    showMealPeriod?: boolean;
+    mealCategory?: number;
+    ossId?: number;
+    foodIdentifyId?: number;
   };
   FoodDetailPage: {
     itemIndex: number;
@@ -414,8 +419,8 @@ export default function RootStack() {
         options={{ title: '首页', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
       />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
-      <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: '活动详情' }} />
-      <Stack.Screen name="CourseDetail" component={CourseDetailPage} options={{ title: '课程详情' }} />
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: "" }} />
+      <Stack.Screen name="CourseDetail" component={CourseDetailPage} options={{ title: "" }} />
       <Stack.Screen name="LiveDetail" component={LiveDetailPage} options={{ title: '直播详情' }} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />

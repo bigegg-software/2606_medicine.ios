@@ -24,7 +24,7 @@ export function formatActivityDetailDateTime(time?: string | null) {
   if (!time?.trim()) return '--';
   const target = moment(time);
   if (!target.isValid()) return time;
-  return target.format('YYYY年M月D日 HH:mm');
+  return target.format('YYYY/M/D HH:mm');
 }
 
 export function getActivityStatusText(status?: number, statusName?: string, isBm?: boolean) {
@@ -51,6 +51,40 @@ export function getActivityStatusText(status?: number, statusName?: string, isBm
   if (isBm === true) return '已报名';
   if (isBm === false) return '未报名';
   return '--';
+}
+
+/** 封面活动生命周期状态：报名中 / 进行中 / 已结束 / 已取消 */
+export function getActivityLifecycleStatusText(status?: number, statusName?: string) {
+  if (status === 0) return '报名中';
+  if (status === 1) return '进行中';
+  if (status === 2) return '已结束';
+  if (status === 3 || status === 4) return '已取消';
+
+  const name = statusName?.trim();
+  if (name) {
+    if (/报名中|去报名|立即报名|未开始/.test(name)) return '报名中';
+    if (/进行中/.test(name)) return '进行中';
+    if (/已结束/.test(name)) return '已结束';
+    if (/已取消|已下架/.test(name)) return '已取消';
+  }
+  return '';
+}
+
+export function getActivityLifecycleStatusStyle(status?: number, statusName?: string) {
+  const label = getActivityLifecycleStatusText(status, statusName);
+  if (label === '报名中') {
+    return { bg: '#EE9C44', text: '#FFFFFF', dot: '#FFFFFF' };
+  }
+  if (label === '进行中') {
+    return { bg: '#6D925E', text: '#FFFFFF', dot: '#FFFFFF' };
+  }
+  if (label === '已结束') {
+    return { bg: '#FB4550', text: '#FFFFFF', dot: '#FFFFFF' };
+  }
+  if (label === '已取消') {
+    return { bg: '#E4E5E7', text: '#333333', dot: '#333333' };
+  }
+  return { bg: '#6D925E', text: '#FFFFFF', dot: '#FFFFFF' };
 }
 
 export function getActivityStatusTone(status?: number) {
@@ -124,6 +158,23 @@ export function canToggleActivitySignup(status?: number, isBm?: boolean) {
   if (status === 2 || status === 3 || status === 4) return false;
   if (status === 0) return true;
   return Boolean(isBm && status === 1);
+}
+
+/** 活动列表右上角状态标签文案与颜色 */
+export function getActivityListStatusMeta(status?: number, isBm?: boolean) {
+  if (status === 1) {
+    return { label: '进行中', backgroundColor: '#6D925E', color: '#FFFFFF' };
+  }
+  if (status === 2) {
+    return { label: '已结束', backgroundColor: '#FB4550', color: '#FFFFFF' };
+  }
+  if (status === 3 || status === 4) {
+    return { label: '已取消', backgroundColor: '#E4E5E7', color: '#333333' };
+  }
+  if (isBm) {
+    return { label: '已报名', backgroundColor: '#EE9C44', color: '#FFFFFF' };
+  }
+  return { label: '未报名', backgroundColor: '#EEF5EE', color: '#6D925E' };
 }
 
 export function formatActivitySignupCount(count?: number | null) {

@@ -10,6 +10,7 @@ import {
     ScrollView,
     Keyboard,
     Platform,
+    InteractionManager,
     findNodeHandle,
     type FocusEvent,
 } from 'react-native';
@@ -65,6 +66,8 @@ export default function AuthPage() {
     const [frontPreviewUri, setFrontPreviewUri] = useState('');
     const [backPreviewUri, setBackPreviewUri] = useState('');
     const [sourcePickerSide, setSourcePickerSide] = useState<IdCardSide | null>(null);
+    /** 弹窗完全关闭后再打开系统相册，避免 Modal 叠层导致相册打不开 */
+    const pendingAlbumSideRef = useRef<IdCardSide | null>(null);
 
     const regionLabel = useMemo(() => formatRegionLabel(form), [form]);
     const regionValue = useMemo(
@@ -181,22 +184,34 @@ export default function AuthPage() {
     }, [submitting, uploadingSide]);
 
     const closeSourcePicker = useCallback(() => {
+        pendingAlbumSideRef.current = null;
         setSourcePickerSide(null);
     }, []);
 
     const handleSourceCamera = useCallback(() => {
         if (!sourcePickerSide) return;
         const side = sourcePickerSide;
+        pendingAlbumSideRef.current = null;
         setSourcePickerSide(null);
         navigation.navigate('IdCardCameraPage', { side });
     }, [navigation, sourcePickerSide]);
 
     const handleSourceAlbum = useCallback(() => {
         if (!sourcePickerSide) return;
-        const side = sourcePickerSide;
+        pendingAlbumSideRef.current = sourcePickerSide;
         setSourcePickerSide(null);
-        void handlePickFromAlbum(side);
-    }, [handlePickFromAlbum, sourcePickerSide]);
+    }, [sourcePickerSide]);
+
+    const handleSourcePickerDismissed = useCallback(() => {
+        const side = pendingAlbumSideRef.current;
+        if (!side) return;
+        pendingAlbumSideRef.current = null;
+        InteractionManager.runAfterInteractions(() => {
+            setTimeout(() => {
+                void handlePickFromAlbum(side);
+            }, 300);
+        });
+    }, [handlePickFromAlbum]);
 
     useFocusEffect(
         useCallback(() => {
@@ -407,6 +422,7 @@ export default function AuthPage() {
             <BottomSheetModal
                 visible={sourcePickerSide != null}
                 onClose={closeSourcePicker}
+                onDismissed={handleSourcePickerDismissed}
                 sheetStyle={styles.sourceSheet}>
                 <Text style={styles.sourceSheetTitle}>上传身份证</Text>
                 <Flex justify="center" style={styles.sourceSheetRow}>

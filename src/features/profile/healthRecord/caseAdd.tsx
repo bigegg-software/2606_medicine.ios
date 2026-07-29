@@ -9,8 +9,11 @@ import {
     Alert,
     ActivityIndicator,
     Platform,
+    Keyboard,
     findNodeHandle,
     type FocusEvent,
+    type NativeSyntheticEvent,
+    type NativeScrollEvent,
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Toast, DatePicker } from '@ant-design/react-native';
@@ -207,6 +210,7 @@ function TextareaField({
 export default function CaseAddPage() {
     const navigation = useNavigation<Nav>();
     const scrollRef = useRef<ScrollView>(null);
+    const scrollOffsetRef = useRef(0);
     const [type, setType] = useState('门诊');
     const [recordDate, setRecordDate] = useState(moment().format('YYYY-MM-DD'));
     const [hospital, setHospital] = useState('');
@@ -311,6 +315,24 @@ export default function CaseAddPage() {
         }, Platform.OS === 'ios' ? 80 : 120);
     }, []);
 
+    const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+    }, []);
+
+    // 键盘收起时保持当前滚动位置，避免点「完成」后整页往下跳
+    useFocusEffect(
+        useCallback(() => {
+            const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+            const sub = Keyboard.addListener(hideEvent, () => {
+                const y = scrollOffsetRef.current;
+                requestAnimationFrame(() => {
+                    scrollRef.current?.scrollTo({ y, animated: false });
+                });
+            });
+            return () => sub.remove();
+        }, []),
+    );
+
     const pickDocument = async () => {
         try {
             const result = await DocumentPicker.getDocumentAsync({
@@ -400,7 +422,8 @@ export default function CaseAddPage() {
                 contentContainerStyle={styles.body}
                 keyboardShouldPersistTaps="handled"
                 keyboardDismissMode="on-drag"
-                automaticallyAdjustKeyboardInsets
+                onScroll={handleScroll}
+                scrollEventThrottle={16}
                 showsVerticalScrollIndicator={false}>
                 <View style={styles.rowBox}>
                     <Text style={styles.sectionTitle}>拍照识别</Text>
@@ -732,8 +755,8 @@ export default function CaseAddPage() {
                             </TouchableOpacity>
                         </Flex>
                     </View>
-                    </View>
-                </ScrollView>
+                </View>
+            </ScrollView>
             <View style={styles.bottomBar}>
                 <TouchableOpacity
                     style={[styles.bottomBarButtonLeft, (submitting || identifying || pickingDocument) && { opacity: 0.6 }]}

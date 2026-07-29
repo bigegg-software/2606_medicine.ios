@@ -18,9 +18,10 @@ const styles = StyleSheet.create({
     },
     nutrientGrid: {
         marginTop: 12,
+        width: '100%',
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
         rowGap: 12,
     },
     nutrientLoading: {
@@ -39,13 +40,18 @@ const styles = StyleSheet.create({
         color: '#999999',
     },
     nutrientCard: {
+        // 一行 3 个，列间距约 2.75%：(100% - 2.75%*2) / 3 ≈ 31.5%
         width: '31.5%',
+        marginRight: '2.75%',
         height: 60,
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
         paddingHorizontal: 10,
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    nutrientCardLast: {
+        marginRight: 0,
     },
     nutrientTitle: {
         fontWeight: '500',
@@ -125,7 +131,19 @@ const styles = StyleSheet.create({
         width: 5, height: 9,
         marginLeft: 6
     },
-    imageBox: { width: 60, height: 60, borderRadius: 30, overflow: 'hidden', },
+    imageBox: { width: 60, height: 60, borderRadius: 30, overflow: 'hidden' },
+    foodDetailCover: {
+        width: 60,
+        height: 60,
+        marginRight: 12,
+        borderRadius: 8,
+        overflow: 'hidden',
+        backgroundColor: '#F0F2F5',
+    },
+    foodDetailCoverImg: {
+        width: 60,
+        height: 60,
+    },
     iconImage: { width: 18, height: 18 },
     iconText: {
         marginLeft: 4,

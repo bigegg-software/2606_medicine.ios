@@ -26,12 +26,6 @@ export const FEEDBACK_FAQ_LIST: FeedbackFaqItem[] = [
       '会的。只要您在“用药记录”中添加了药品并设置了时间，APP会在指定时间通过通知栏消息提醒您。',
   },
   {
-    id: 'nutrition-restriction',
-    title: '营养处方的“限制项”是什么意思？',
-    answer:
-      '这是医生根据您的身体情况设置的饮食红线（如：限制钠摄入、限制糖分）。您在添加饮食记录时，若触及红线，系统会给予温馨提示。',
-  },
-  {
     id: 'switch-family-view',
     title: '怎么切换“家属视角”？',
     answer:

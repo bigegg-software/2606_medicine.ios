@@ -1,8 +1,20 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ActivityIndicator, TextInput, TouchableOpacity, ScrollView, Alert, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  ActivityIndicator,
+  Image,
+  TextInput,
+  TouchableOpacity,
+  ScrollView,
+  Alert,
+  Keyboard,
+  Platform,
+  type KeyboardEvent,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-navigation/native-stack';
 import {
   addEmergencyContact,
@@ -16,14 +28,13 @@ import styles from '@/css/profile/healthRecord';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
-import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
+import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = NativeStackScreenProps<RootStackParamList, 'EmergencyAdd'>;
 
 const CONTACT_NAME_MAX_LENGTH = 20;
 const CONTACT_PHONE_MAX_LENGTH = 20;
-const REMARK_MAX_LENGTH = 100;
 
 function limitText(value: string, maxLength: number) {
   return value.slice(0, maxLength);
@@ -33,6 +44,10 @@ export default function EmergencyAddPage({ route }: Props) {
   const contactId = route.params?.id;
   const isEdit = contactId != null;
   const navigation = useNavigation<Nav>();
+  const keyboardDoneAccessory = useMemo(
+    () => <KeyboardDoneAccessory useOverlay />,
+    [],
+  );
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [relationType, setRelationType] = useState('');
@@ -42,10 +57,30 @@ export default function EmergencyAddPage({ route }: Props) {
   const [loadingOptions, setLoadingOptions] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [initializing, setInitializing] = useState(isEdit);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   useEffect(() => {
     navigation.setOptions({ title: isEdit ? '编辑紧急联系人' : '添加紧急联系人' });
   }, [isEdit, navigation]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+      const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+      const onShow = (event: KeyboardEvent) => {
+        setKeyboardHeight(event.endCoordinates.height);
+      };
+      const onHide = () => {
+        setKeyboardHeight(0);
+      };
+      const showSub = Keyboard.addListener(showEvent, onShow);
+      const hideSub = Keyboard.addListener(hideEvent, onHide);
+      return () => {
+        showSub.remove();
+        hideSub.remove();
+      };
+    }, []),
+  );
 
   useEffect(() => {
     (async () => {
@@ -141,84 +176,101 @@ export default function EmergencyAddPage({ route }: Props) {
   }
 
   return (
-    <PageLayout style={styles.container}>
-      <KeyboardDoneAccessory />
-      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
-        <ScrollView
-          contentContainerStyle={styles.body}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag">
-          <View style={styles.userBox}>
-            <Flex justify="between" align="center" style={styles.infoItem}>
-              <Text style={styles.infoItemLabel}>姓名</Text>
-              <TextInput
-                style={styles.infoInput}
-                placeholder="请输入姓名"
-                placeholderTextColor={AppTheme.textSecondary}
-                value={contactName}
-                onChangeText={value => setContactName(limitText(value, CONTACT_NAME_MAX_LENGTH))}
-                maxLength={CONTACT_NAME_MAX_LENGTH}
-                returnKeyType="done"
-                blurOnSubmit
-                onSubmitEditing={Keyboard.dismiss}
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              />
-            </Flex>
+    <PageLayout
+      style={styles.container}
+      edges={[]}
+      showHeaderBackground={false}
+      keyboardAccessory={keyboardDoneAccessory}>
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.body}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        showsVerticalScrollIndicator={false}>
+        <View style={styles.userBox}>
+          <Flex justify="between" align="center" style={styles.infoItem}>
+            <Text style={styles.infoItemLabel}>姓名</Text>
+            <TextInput
+              style={styles.infoInput}
+              placeholder="请输入姓名"
+              placeholderTextColor={AppTheme.textSecondary}
+              value={contactName}
+              onChangeText={value => setContactName(limitText(value, CONTACT_NAME_MAX_LENGTH))}
+              maxLength={CONTACT_NAME_MAX_LENGTH}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
+            />
+          </Flex>
 
-            <Flex justify="between" align="center" style={styles.infoItem}>
-              <Text style={styles.infoItemLabel}>手机号</Text>
-              <TextInput
-                style={styles.infoInput}
-                placeholder="请输入手机号"
-                placeholderTextColor={AppTheme.textSecondary}
-                value={contactPhone}
-                onChangeText={value => setContactPhone(limitText(value, CONTACT_PHONE_MAX_LENGTH))}
-                keyboardType="phone-pad"
-                maxLength={CONTACT_PHONE_MAX_LENGTH}
-                returnKeyType="done"
-                blurOnSubmit
-                onSubmitEditing={Keyboard.dismiss}
-                inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
-              />
-            </Flex>
+          <Flex justify="between" align="center" style={styles.infoItem}>
+            <Text style={styles.infoItemLabel}>手机号</Text>
+            <TextInput
+              style={styles.infoInput}
+              placeholder="请输入手机号"
+              placeholderTextColor={AppTheme.textSecondary}
+              value={contactPhone}
+              onChangeText={value => setContactPhone(limitText(value, CONTACT_PHONE_MAX_LENGTH))}
+              keyboardType="phone-pad"
+              maxLength={CONTACT_PHONE_MAX_LENGTH}
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
+            />
+          </Flex>
 
-            <View style={styles.fieldBlock}>
-              <Text style={styles.infoItemLabel}>关系</Text>
-              <View style={styles.wrapChipGrid}>
-                {relationOptions.map(item => {
-                  const value = item.dictValue != null ? String(item.dictValue) : '';
-                  const active = relationType === value;
-                  return (
-                    <TouchableOpacity
-                      key={value}
-                      style={[
-                        styles.choiceChip,
-                        styles.choiceChipInline,
-                        styles.choiceChipWrap,
-                        active && styles.choiceChipActive,
-                      ]}
-                      onPress={() => setRelationType(value)}>
-                      <Text style={[styles.choiceChipText, active && styles.choiceChipTextActive]}>
-                        {item.dictLabel || value}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+          <View style={styles.fieldBlock}>
+            <Text style={styles.infoItemLabel}>关系</Text>
+            <View style={styles.wrapChipGrid}>
+              {relationOptions.map(item => {
+                const value = item.dictValue != null ? String(item.dictValue) : '';
+                const active = relationType === value;
+                return (
+                  <TouchableOpacity
+                    key={value}
+                    style={[
+                      styles.choiceChip,
+                      styles.choiceChipInline,
+                      styles.choiceChipWrap,
+                      active && styles.choiceChipActive,
+                    ]}
+                    onPress={() => setRelationType(value)}>
+                    <Text style={[styles.choiceChipText, active && styles.choiceChipTextActive]}>
+                      {item.dictLabel || value}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
-        </ScrollView>
-      </TouchableWithoutFeedback>
+        </View>
+      </ScrollView>
 
-      <TouchableOpacity style={styles.addBtn} onPress={submit} disabled={submitting}>
-        <Flex justify="center" align="center" style={{ flex: 1 }}>
-          {submitting ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <Text style={styles.addText}>{isEdit ? '保存' : '添加'}</Text>
-          )}
-        </Flex>
-      </TouchableOpacity>
+      {keyboardHeight <= 0 ? (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[styles.bottomBarButtonLeft, submitting && { opacity: 0.6 }]}
+            activeOpacity={0.7}
+            onPress={submit}
+            disabled={submitting}>
+            <Flex style={{ flex: 1 }} justify="center" align="center">
+              {submitting ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Image
+                    style={styles.bottomBarButtonImg}
+                    source={require('@/assets/images/schedule/save.png')}
+                  />
+                  <Text style={styles.bottomBarButtonTextLeft}>
+                    {isEdit ? '保存修改' : '确认添加'}
+                  </Text>
+                </>
+              )}
+            </Flex>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </PageLayout>
   );
 }

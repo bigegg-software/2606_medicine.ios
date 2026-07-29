@@ -3,6 +3,7 @@ import {
     ActivityIndicator,
     Alert,
     Image,
+    ScrollView,
     Text,
     TouchableOpacity,
     View,
@@ -210,9 +211,15 @@ export default function LivePage() {
     return (
         <View>
             {livingList.length > 0 ? (
-                <View style={styles.liveTopRow}>
-                    {livingList.slice(0, 2).map(renderLiveTopCard)}
-                </View>
+                <ScrollView
+                    horizontal
+                    nestedScrollEnabled
+                    removeClippedSubviews={false}
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.liveTopScroll}
+                    contentContainerStyle={styles.liveTopScrollContent}>
+                    {livingList.map(renderLiveTopCard)}
+                </ScrollView>
             ) : null}
             <Text style={styles.sectionTitle}>直播预告</Text>
             <View>

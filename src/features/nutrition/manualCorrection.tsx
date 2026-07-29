@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    ActivityIndicator,
     Image,
     KeyboardAvoidingView,
     Platform,
@@ -16,24 +17,37 @@ import styles from '@/css/nutrition/manualCorrection';
 import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
 import type { RootStackParamList } from '@/route/router';
+import { addMealDetailList } from '@/api/mealDetail';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import { NUTRITION_UNITS } from '@/src/features/profile/medication/meal/utils/mealNutritionHelpers';
 import {
     buildFoodUnitOptions,
-    isGramUnit,
     type FoodUnitValue,
 } from '@/src/features/profile/medication/meal/utils/foodUnitHelpers';
 import {
     ADDABLE_NUTRIENT_OPTIONS,
+    applyScaledItemToManualForm,
     buildManualCorrectionForm,
     formToFoodIdentifyItem,
     getServingLimits,
     validateNutrientValue,
     type ManualCorrectionForm,
 } from './utils/manualCorrectionHelpers';
+import {
+    resolveAmountAfterUnitChange,
+    scaleFoodItemByServing,
+    type FoodServingBaseline,
+} from './utils/foodServingScaleHelpers';
+import { buildMealDetailItems, getMealCategoryByTime, MEAL_PERIOD_OPTIONS } from './utils/mealResultHelpers';
+import { markMealInputForReset } from '@/src/features/profile/medication/meal/utils/mealInputReset';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const MANUAL_CORRECTION_KEYBOARD_ACCESSORY_ID = 'manualCorrectionKeyboardDone';
 
+/** 手动更正页展示：午餐（业务 category 仍为 2） */
+const MANUAL_MEAL_PERIOD_OPTIONS = MEAL_PERIOD_OPTIONS.map(option =>
+    option.category === 2 ? { ...option, label: '午餐' } : option,
+);
 const MAIN_NUTRIENTS = [
     { key: 'calorie', label: '热量', unit: '千卡', color: '#6D925E' },
     { key: 'carbs', label: '碳水', unit: 'g', color: '#72A1C5' },
@@ -46,14 +60,51 @@ const CUSTOM_NUTRIENT_PICKER_VALUE = '__custom__';
 export default function ManualCorrectionPage() {
     const navigation = useNavigation<any>();
     const route = useRoute<RouteProp<RootStackParamList, 'ManualCorrectionPage'>>();
-    const { itemIndex, item, state, recordTime: initialRecordTime, onSave } = route.params;
+    const {
+        itemIndex,
+        item,
+        state,
+        recordTime: initialRecordTime,
+        onSave,
+        showMealPeriod,
+        mealCategory: initialMealCategory,
+        ossId,
+        foodIdentifyId,
+    } = route.params;
 
     const [form, setForm] = useState<ManualCorrectionForm>(() =>
         buildManualCorrectionForm(item, state, initialRecordTime),
     );
+    const [mealCategory, setMealCategory] = useState(() => {
+        if (initialMealCategory === 1 || initialMealCategory === 2 || initialMealCategory === 3) {
+            return initialMealCategory;
+        }
+        return getMealCategoryByTime();
+    });
+    const [saving, setSaving] = useState(false);
     const scrollRef = useRef<ScrollView>(null);
     const headerHeight = useHeaderHeight();
     const customNutrientCountRef = useRef(form.customNutrients.length);
+    const baselineRef = useRef<FoodServingBaseline>((() => {
+        const built = formToFoodIdentifyItem(
+            buildManualCorrectionForm(item, state, initialRecordTime),
+            item,
+        );
+        return {
+            item: built.item,
+            amount: built.state.amount,
+            unitValue: built.state.unitValue,
+        };
+    })());
+
+    const rebaseBaseline = useCallback((nextForm: ManualCorrectionForm) => {
+        const built = formToFoodIdentifyItem(nextForm, item);
+        baselineRef.current = {
+            item: built.item,
+            amount: built.state.amount,
+            unitValue: built.state.unitValue,
+        };
+    }, [item]);
 
     const scrollToFocusedInput = useCallback(() => {
         requestAnimationFrame(() => {
@@ -77,23 +128,32 @@ export default function ManualCorrectionPage() {
     const handleServingAmountChange = useCallback((value: string) => {
         const validated = validateNutrientValue(value);
         if (validated === null) return;
-        setForm(prev => ({
-            ...prev,
-            servingAmount: validated === '' ? 0 : Number(validated),
-        }));
+        const nextAmount = validated === '' ? 0 : Number(validated);
+        setForm(prev => {
+            if (!(nextAmount > 0)) {
+                return { ...prev, servingAmount: nextAmount };
+            }
+            const scaled = scaleFoodItemByServing(
+                baselineRef.current,
+                nextAmount,
+                prev.servingUnit,
+            );
+            return applyScaledItemToManualForm(prev, scaled, nextAmount, prev.servingUnit);
+        });
     }, []);
 
     const handleServingUnitChange = useCallback((unitValue: FoodUnitValue) => {
         const { min, max } = getServingLimits(unitValue);
         setForm(prev => {
-            const nextAmount = Math.max(min, Math.min(prev.servingAmount || min, max));
-            return {
-                ...prev,
-                servingUnit: unitValue,
-                servingAmount: isGramUnit(unitValue)
-                    ? Math.round(nextAmount)
-                    : parseFloat(nextAmount.toFixed(1)),
-            };
+            const nextAmount = resolveAmountAfterUnitChange(
+                baselineRef.current,
+                prev.servingAmount,
+                prev.servingUnit,
+                unitValue,
+                { min, max },
+            );
+            const scaled = scaleFoodItemByServing(baselineRef.current, nextAmount, unitValue);
+            return applyScaledItemToManualForm(prev, scaled, nextAmount, unitValue);
         });
     }, []);
 
@@ -117,7 +177,11 @@ export default function ManualCorrectionPage() {
         if (key === 'calorie') {
             const validated = validateNutrientValue(value);
             if (validated === null) return;
-            setForm(prev => ({ ...prev, calorie: validated }));
+            setForm(prev => {
+                const next = { ...prev, calorie: validated };
+                rebaseBaseline(next);
+                return next;
+            });
             return;
         }
 
@@ -129,49 +193,64 @@ export default function ManualCorrectionPage() {
             const fat = parseFloat(next.fat || '0');
             const carbs = parseFloat(next.carbs || '0');
             next.calorie = String(parseFloat((protein * 4 + carbs * 4 + fat * 9).toFixed(2)));
+            rebaseBaseline(next);
             return next;
         });
-    }, []);
+    }, [rebaseBaseline]);
 
     const updateExtraNutrient = useCallback((key: string, value: string) => {
         const validated = validateNutrientValue(value);
         if (validated === null) return;
-        setForm(prev => ({
-            ...prev,
-            extraNutrition: { ...prev.extraNutrition, [key]: validated },
-        }));
-    }, []);
+        setForm(prev => {
+            const next = {
+                ...prev,
+                extraNutrition: { ...prev.extraNutrition, [key]: validated },
+            };
+            rebaseBaseline(next);
+            return next;
+        });
+    }, [rebaseBaseline]);
 
     const handleAddNutrient = useCallback((key: string) => {
-        setForm(prev => ({
-            ...prev,
-            visibleNutrients: [...prev.visibleNutrients, key],
-            extraNutrition: { ...prev.extraNutrition, [key]: prev.extraNutrition[key] ?? '' },
-        }));
-    }, []);
+        setForm(prev => {
+            const next = {
+                ...prev,
+                visibleNutrients: [...prev.visibleNutrients, key],
+                extraNutrition: { ...prev.extraNutrition, [key]: prev.extraNutrition[key] ?? '' },
+            };
+            rebaseBaseline(next);
+            return next;
+        });
+    }, [rebaseBaseline]);
 
     const handleRemoveNutrient = useCallback((key: string) => {
         setForm(prev => {
             const extraNutrition = { ...prev.extraNutrition };
             delete extraNutrition[key];
-            return {
+            const next = {
                 ...prev,
                 visibleNutrients: prev.visibleNutrients.filter(itemKey => itemKey !== key),
                 extraNutrition,
             };
+            rebaseBaseline(next);
+            return next;
         });
-    }, []);
+    }, [rebaseBaseline]);
 
     const handleAddCustomNutrient = useCallback(() => {
-        setForm(prev => ({
-            ...prev,
-            customNutrients: [
-                ...prev.customNutrients,
-                { id: String(Date.now()), name: '', amount: '' },
-            ],
-        }));
+        setForm(prev => {
+            const next = {
+                ...prev,
+                customNutrients: [
+                    ...prev.customNutrients,
+                    { id: String(Date.now()), name: '', amount: '' },
+                ],
+            };
+            rebaseBaseline(next);
+            return next;
+        });
         scrollToFocusedInput();
-    }, [scrollToFocusedInput]);
+    }, [rebaseBaseline, scrollToFocusedInput]);
 
     useEffect(() => {
         if (form.customNutrients.length > customNutrientCountRef.current) {
@@ -184,33 +263,46 @@ export default function ManualCorrectionPage() {
         if (field === 'amount') {
             const validated = validateNutrientValue(value);
             if (validated === null) return;
-            setForm(prev => ({
-                ...prev,
-                customNutrients: prev.customNutrients.map(item =>
-                    item.id === id ? { ...item, amount: validated } : item,
-                ),
-            }));
+            setForm(prev => {
+                const next = {
+                    ...prev,
+                    customNutrients: prev.customNutrients.map(row =>
+                        row.id === id ? { ...row, amount: validated } : row,
+                    ),
+                };
+                rebaseBaseline(next);
+                return next;
+            });
             return;
         }
 
-        setForm(prev => ({
-            ...prev,
-            customNutrients: prev.customNutrients.map(item =>
-                item.id === id
-                    ? { ...item, name: value, error: !value.trim() }
-                    : item,
-            ),
-        }));
-    }, []);
+        setForm(prev => {
+            const next = {
+                ...prev,
+                customNutrients: prev.customNutrients.map(row =>
+                    row.id === id
+                        ? { ...row, name: value, error: !value.trim() }
+                        : row,
+                ),
+            };
+            rebaseBaseline(next);
+            return next;
+        });
+    }, [rebaseBaseline]);
 
     const handleRemoveCustomNutrient = useCallback((id: string) => {
-        setForm(prev => ({
-            ...prev,
-            customNutrients: prev.customNutrients.filter(item => item.id !== id),
-        }));
-    }, []);
+        setForm(prev => {
+            const next = {
+                ...prev,
+                customNutrients: prev.customNutrients.filter(row => row.id !== id),
+            };
+            rebaseBaseline(next);
+            return next;
+        });
+    }, [rebaseBaseline]);
 
-    const handleConfirm = useCallback(() => {
+    const handleConfirm = useCallback(async () => {
+        if (saving) return;
         if (!form.mealName.trim()) {
             Toast.show('请输入食物名称');
             return;
@@ -239,6 +331,37 @@ export default function ManualCorrectionPage() {
         }
 
         const result = formToFoodIdentifyItem(form, item);
+
+        // 单个食物识别模式：与食物详情「保存」一致，直接提交记录
+        if (showMealPeriod) {
+            setSaving(true);
+            try {
+                const res = (await addMealDetailList({
+                    mealDetailList: buildMealDetailItems(
+                        [result.item],
+                        [result.state],
+                        form.recordTime,
+                        mealCategory,
+                    ),
+                    ossId,
+                    foodIdentifyId,
+                    timeStr: form.recordTime,
+                })) as { code?: number; msg?: string; message?: string };
+                if (isResourceApiOk(res)) {
+                    Toast.success('记录成功');
+                    markMealInputForReset();
+                    navigation.pop(2);
+                    return;
+                }
+                Toast.show(res?.msg || res?.message || '保存失败');
+            } catch {
+                Toast.show('保存失败');
+            } finally {
+                setSaving(false);
+            }
+            return;
+        }
+
         onSave?.({
             index: itemIndex,
             item: result.item,
@@ -246,7 +369,18 @@ export default function ManualCorrectionPage() {
             recordTime: form.recordTime,
         });
         navigation.goBack();
-    }, [form, item, itemIndex, navigation, onSave]);
+    }, [
+        foodIdentifyId,
+        form,
+        item,
+        itemIndex,
+        mealCategory,
+        navigation,
+        onSave,
+        ossId,
+        saving,
+        showMealPeriod,
+    ]);
 
     return (
         <PageLayout showHeaderBackground={false}
@@ -330,6 +464,38 @@ export default function ManualCorrectionPage() {
                                     </Picker>
                                 </View>
                             </Flex>
+
+                            {showMealPeriod ? (
+                                <View style={styles.mealPeriodSection}>
+                                    <View style={[styles.sectionTitleWrap, styles.servingTitleWrap]}>
+                                        <LinearGradient
+                                            colors={['#6D925E', 'rgba(109,146,94,0)']}
+                                            start={{ x: 0, y: 0 }}
+                                            end={{ x: 1, y: 0 }}
+                                            style={styles.sectionTitleUnderline}
+                                        />
+                                        <Text style={[styles.pageTopBgText, styles.sectionTitleText]}>时间段</Text>
+                                    </View>
+                                    <View style={styles.mealPeriodRow}>
+                                        {MANUAL_MEAL_PERIOD_OPTIONS.map(option => {
+                                            const selected = mealCategory === option.category;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={option.category}
+                                                    activeOpacity={0.7}
+                                                    style={[
+                                                        styles.mealPeriodChip,
+                                                        selected && styles.mealPeriodChipActive,
+                                                    ]}
+                                                    onPress={() => setMealCategory(option.category)}>
+                                                    <Image style={styles.mealPeriodIcon} source={option.icon} />
+                                                    <Text style={styles.mealPeriodText}>{option.label}</Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+                                </View>
+                            ) : null}
                         </View>
 
 
@@ -516,13 +682,24 @@ export default function ManualCorrectionPage() {
                     </ScrollView>
 
                     <View style={styles.bottomBar}>
-                        <TouchableOpacity style={styles.primaryBtn} onPress={handleConfirm}>
+                        <TouchableOpacity
+                            style={[styles.primaryBtn, saving && { opacity: 0.6 }]}
+                            disabled={saving}
+                            onPress={() => {
+                                void handleConfirm();
+                            }}>
                             <Flex justify="center" align="center" style={{ flex: 1 }}>
-                                <Image
-                                    style={styles.primaryBtnIcon}
-                                    source={require('@/assets/images/schedule/save.png')}
-                                />
-                                <Text style={styles.primaryBtnText}>保存更正</Text>
+                                {saving ? (
+                                    <ActivityIndicator color="#FFFFFF" />
+                                ) : (
+                                    <>
+                                        <Image
+                                            style={styles.primaryBtnIcon}
+                                            source={require('@/assets/images/schedule/save.png')}
+                                        />
+                                        <Text style={styles.primaryBtnText}>保存更正</Text>
+                                    </>
+                                )}
                             </Flex>
                         </TouchableOpacity>
                     </View>

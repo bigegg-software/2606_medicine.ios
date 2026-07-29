@@ -18,6 +18,7 @@ import {
     resolveFoodUnitValue,
     type FoodUnitValue,
 } from '../utils/foodUnitHelpers';
+import { resolveAmountAfterUnitChange } from '@/src/features/nutrition/utils/foodServingScaleHelpers';
 
 export {
     FOOD_UNIT_LABELS,
@@ -135,9 +136,13 @@ export default function FoodDetailCard({
 
     const handleUnitChange = (unitValue: FoodUnitValue) => {
         const nextConfig = getSliderConfig(unitValue);
-        const nextAmount = isGramUnit(unitValue)
-            ? Math.max(nextConfig.min, Math.min(Math.round(state.amount) || nextConfig.min, nextConfig.max))
-            : Math.max(nextConfig.min, Math.min(state.amount || nextConfig.min, nextConfig.max));
+        const nextAmount = resolveAmountAfterUnitChange(
+            { item, amount: state.amount, unitValue: state.unitValue },
+            state.amount,
+            state.unitValue,
+            unitValue,
+            { min: nextConfig.min, max: nextConfig.max },
+        );
         setSliderKey(prev => prev + 1);
         onChange({
             ...state,

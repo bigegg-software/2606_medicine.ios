@@ -105,27 +105,38 @@ export function buildPersonalAuditPayload(
 }
 
 export async function pickIdCardImageFromLibrary(side: IdCardSide): Promise<PickedIdCardImage | null> {
-  const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-  if (!permission.granted) {
-    Alert.alert('提示', '需要相册权限');
+  try {
+    const current = await ImagePicker.getMediaLibraryPermissionsAsync();
+    let permission = current;
+    if (!current.granted) {
+      permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    }
+    if (!permission.granted) {
+      Alert.alert('提示', '需要相册权限才能选择身份证照片');
+      return null;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsMultipleSelection: false,
+      selectionLimit: 1,
+    });
+
+    if (result.canceled || !result.assets?.[0]) {
+      return null;
+    }
+
+    const asset = result.assets[0];
+    return {
+      uri: asset.uri,
+      name: asset.fileName ?? `idcard_${side}_${Date.now()}.jpg`,
+      type: asset.mimeType ?? 'image/jpeg',
+    };
+  } catch {
+    Alert.alert('提示', '无法打开系统相册，请稍后重试');
     return null;
   }
-
-  const result = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ['images'],
-    quality: 0.8,
-  });
-
-  if (result.canceled || !result.assets[0]) {
-    return null;
-  }
-
-  const asset = result.assets[0];
-  return {
-    uri: asset.uri,
-    name: asset.fileName ?? `idcard_${side}_${Date.now()}.jpg`,
-    type: asset.mimeType ?? 'image/jpeg',
-  };
 }
 
 export async function uploadIdCardImage(

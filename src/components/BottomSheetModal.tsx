@@ -51,11 +51,23 @@ export default function BottomSheetModal({
   const backdropAnim = useRef(new Animated.Value(0)).current;
   const [rendered, setRendered] = useState(visible);
   const onDismissedRef = useRef(onDismissed);
+  /** 关闭动画结束后再通知，避免调用方在 Modal 仍挂载时打开系统相册/相机 */
+  const shouldNotifyDismissedRef = useRef(false);
   const insets = useSafeAreaInsets();
 
   useEffect(() => {
     onDismissedRef.current = onDismissed;
   }, [onDismissed]);
+
+  useEffect(() => {
+    if (visible || rendered || !shouldNotifyDismissedRef.current) return;
+    shouldNotifyDismissedRef.current = false;
+    // 等 Modal 卸载完成后再回调，否则 iOS 系统相册常无法弹出
+    const timer = setTimeout(() => {
+      onDismissedRef.current?.();
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [rendered, visible]);
 
   useEffect(() => {
     if (!rendered) return;
@@ -96,6 +108,7 @@ export default function BottomSheetModal({
 
   useEffect(() => {
     if (visible) {
+      shouldNotifyDismissedRef.current = false;
       setRendered(true);
       slideAnim.setValue(SCREEN_HEIGHT);
       backdropAnim.setValue(0);
@@ -116,6 +129,7 @@ export default function BottomSheetModal({
 
     if (!rendered) return;
 
+    shouldNotifyDismissedRef.current = true;
     Animated.parallel([
       Animated.timing(slideAnim, {
         toValue: SCREEN_HEIGHT,
@@ -130,7 +144,8 @@ export default function BottomSheetModal({
     ]).start(({ finished }) => {
       if (finished) {
         setRendered(false);
-        onDismissedRef.current?.();
+      } else {
+        shouldNotifyDismissedRef.current = false;
       }
     });
   }, [backdropAnim, rendered, slideAnim, visible]);
