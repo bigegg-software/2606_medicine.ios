@@ -6,6 +6,7 @@ import type {
     UserQuestionAnswerItem,
     UserQuestionRecord,
 } from '@/api/questionTemplate';
+import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 
 export type StatusStyleKey = 'rowStatus' | 'rowStatusWarn' | 'rowStatusOrange' | 'rowStatusError';
 
@@ -257,13 +258,29 @@ export type AssessmentSummary = {
     statusStyle: StatusStyleKey;
 };
 
-function isListQuestionnaireType(type?: QuestionnaireType): type is QuestionnaireType {
-    return type != null && QUESTIONNAIRE_CONFIG.some(item => item.type === type);
+export function normalizeQuestionnaireType(
+    type?: QuestionnaireType | string | number | null,
+): QuestionnaireType | undefined {
+    if (type == null || type === '') return undefined;
+    const num = Number(type);
+    if (!Number.isFinite(num)) return undefined;
+    return num as QuestionnaireType;
+}
+
+function isListQuestionnaireType(type?: QuestionnaireType | string | number): type is QuestionnaireType {
+    const normalized = normalizeQuestionnaireType(type);
+    return normalized != null && QUESTIONNAIRE_CONFIG.some(item => item.type === normalized);
+}
+
+/** 历史列表：展示已配置标题的问卷类型（含未在首页卡片展示的） */
+function isHistoryQuestionnaireType(type?: QuestionnaireType | string | number): type is QuestionnaireType {
+    const normalized = normalizeQuestionnaireType(type);
+    return normalized != null && QUESTIONNAIRE_TITLES[normalized] != null;
 }
 
 export function formatAssessmentResult(record: UserQuestionRecord): ScoreLevel | undefined {
-    const type = record.type;
-    if (!isListQuestionnaireType(type)) return undefined;
+    const type = normalizeQuestionnaireType(record.type);
+    if (type == null || !isHistoryQuestionnaireType(type)) return undefined;
     if (record.score != null) return getScoreLevel(type, record.score);
     if (record.comments?.trim()) {
         return { result: record.comments.trim(), statusStyle: 'rowStatus' };
@@ -272,8 +289,8 @@ export function formatAssessmentResult(record: UserQuestionRecord): ScoreLevel |
 }
 
 export function toAssessmentSummary(record: UserQuestionRecord): AssessmentSummary | undefined {
-    const type = record.type;
-    if (!isListQuestionnaireType(type)) return undefined;
+    const type = normalizeQuestionnaireType(record.type);
+    if (type == null || !isHistoryQuestionnaireType(type)) return undefined;
     const date = formatAssessmentDate(record);
     const scoreLevel = formatAssessmentResult(record);
     if (!date && !scoreLevel) return undefined;
@@ -285,8 +302,8 @@ export function toAssessmentSummary(record: UserQuestionRecord): AssessmentSumma
 }
 
 export function toHistoryItem(record: UserQuestionRecord): HistoryItem | undefined {
-    const type = record.type;
-    if (!isListQuestionnaireType(type)) return undefined;
+    const type = normalizeQuestionnaireType(record.type);
+    if (type == null || !isHistoryQuestionnaireType(type)) return undefined;
     const summary = toAssessmentSummary(record);
     if (!summary) return undefined;
     return {
@@ -307,9 +324,25 @@ export function sortRecordsByTime(records: UserQuestionRecord[]) {
 export function buildLastAssessmentMap(records: UserQuestionRecord[]) {
     const next: Partial<Record<QuestionnaireType, AssessmentSummary>> = {};
     records.forEach(record => {
-        if (record.type == null) return;
+        const type = normalizeQuestionnaireType(record.type);
+        if (type == null || !isListQuestionnaireType(type)) return;
         const summary = toAssessmentSummary(record);
-        if (summary) next[record.type] = summary;
+        if (summary) next[type] = summary;
     });
     return next;
+}
+
+/** 兼容 frontList：rows 顶层，或 data / data.rows */
+export function getUserQuestionListRecords(res: unknown): UserQuestionRecord[] {
+    const rows = getResourceRows<UserQuestionRecord>(
+        res as { code?: number; rows?: UserQuestionRecord[] },
+    );
+    if (rows.length > 0) return rows;
+
+    const data = apiResourceData<UserQuestionRecord[] | { rows?: UserQuestionRecord[] }>(
+        res as { code?: number; data?: UserQuestionRecord[] | { rows?: UserQuestionRecord[] } },
+    );
+    if (Array.isArray(data)) return data;
+    if (data && Array.isArray(data.rows)) return data.rows;
+    return [];
 }

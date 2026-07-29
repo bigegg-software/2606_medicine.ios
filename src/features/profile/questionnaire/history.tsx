@@ -3,12 +3,16 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshCon
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { getUserQuestionFrontList, type UserQuestionListResult } from '@/api/questionTemplate';
+import { getUserQuestionFrontList } from '@/api/questionTemplate';
 import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
-import { getResourceRows } from '@/src/utils/apiHelpers';
 import NoData from '@/src/components/noData';
-import { sortRecordsByTime, toHistoryItem, type HistoryItem } from './utils/helpers';
+import {
+    getUserQuestionListRecords,
+    sortRecordsByTime,
+    toHistoryItem,
+    type HistoryItem,
+} from './utils/helpers';
 
 const PAGE_SIZE = 20;
 
@@ -26,7 +30,7 @@ export default function QuestionnaireHistoryPage() {
         }
         try {
             const res = await getUserQuestionFrontList({ pageSize: PAGE_SIZE, pageNum: 1 });
-            const records = getResourceRows(res as unknown as UserQuestionListResult);
+            const records = getUserQuestionListRecords(res);
             setHistoryList(
                 sortRecordsByTime(records)
                     .map(toHistoryItem)

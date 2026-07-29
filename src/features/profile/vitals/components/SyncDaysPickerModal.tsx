@@ -3,6 +3,7 @@ import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheetModal from '@/src/components/BottomSheetModal';
+import { AppTheme } from '@/common/theme';
 import styles from '@/css/vitals/syncModal';
 
 const SYNC_DAYS_OPTIONS = [
@@ -16,6 +17,7 @@ export type SyncDaysPickerModalProps = {
   visible: boolean;
   initialValue?: number;
   saving: boolean;
+  description?: string;
   onCancel: () => void;
   onConfirm: (days: number) => void;
   onDismissed?: () => void;
@@ -25,6 +27,7 @@ export default function SyncDaysPickerModal({
   visible,
   initialValue,
   saving,
+  description = '可在「设置 → 数据管理」中修改',
   onCancel,
   onConfirm,
   onDismissed,
@@ -46,7 +49,7 @@ export default function SyncDaysPickerModal({
       dismissOnBackdropPress={!saving}>
       <View style={[styles.sheetBox, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <Text style={styles.sheetTitle}>选择同步周期</Text>
-        <Text style={styles.sheetDesc}>可在「设置 → 数据管理」中修改</Text>
+        <Text style={styles.sheetDesc}>{description}</Text>
 
         <View>
           {SYNC_DAYS_OPTIONS.map(item => {
@@ -61,6 +64,7 @@ export default function SyncDaysPickerModal({
                 <Text style={styles.selectText}>{item.label}</Text>
                 <Image
                   style={styles.rowImgSize}
+                  tintColor={active ? AppTheme.primaryColor : undefined}
                   source={
                     active
                       ? require('@/assets/images/vitals/icon_completed.png')

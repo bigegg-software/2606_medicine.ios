@@ -20,7 +20,7 @@ const styles = StyleSheet.create({
         textAlign: 'left',
     },
     sheetDesc: {
-        marginTop: 8,
+        marginTop: 4,
         fontWeight: '400',
         fontSize: 14,
         color: AppTheme.textSecondary,

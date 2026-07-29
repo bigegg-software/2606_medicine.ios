@@ -7,18 +7,18 @@ import {
     getUserQuestionFrontList,
     getUserQuestionNewList,
     type QuestionnaireType,
-    type UserQuestionListResult,
     type UserQuestionNewListResult,
     type UserQuestionRecord,
 } from '@/api/questionTemplate';
 import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
-import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
+import { apiResourceData } from '@/src/utils/apiHelpers';
 import {
     buildLastAssessmentMap,
     canStartAssessment,
     getAssessmentStatusIcon,
     getNextAssessmentDate,
+    getUserQuestionListRecords,
     QUESTIONNAIRE_CONFIG,
     QUESTIONNAIRE_TITLES,
     sortRecordsByTime,
@@ -46,16 +46,17 @@ export default function QuestionnaireListPage() {
         try {
             const [latestRes, historyRes] = await Promise.all([
                 getUserQuestionNewList(),
-                getUserQuestionFrontList({ pageSize: 4, pageNum: 1 }),
+                getUserQuestionFrontList({ pageSize: 20, pageNum: 1 }),
             ]);
             const latestRecords =
                 apiResourceData<UserQuestionRecord[]>(latestRes as unknown as UserQuestionNewListResult) ?? [];
-            const historyRecords = getResourceRows(historyRes as unknown as UserQuestionListResult);
+            const historyRecords = getUserQuestionListRecords(historyRes);
             setLastAssessmentByType(buildLastAssessmentMap(latestRecords));
             setHistoryList(
                 sortRecordsByTime(historyRecords)
                     .map(toHistoryItem)
-                    .filter((item): item is HistoryItem => Boolean(item)),
+                    .filter((item): item is HistoryItem => Boolean(item))
+                    .slice(0, 3),
             );
         } catch {
             setLastAssessmentByType({});
