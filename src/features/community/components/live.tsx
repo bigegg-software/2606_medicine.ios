@@ -167,7 +167,16 @@ export default function LivePage() {
                 activeOpacity={0.85}
                 onPress={() => openLiveDetail(item)}>
                 <Flex>
-                    <Image source={coverSource} style={styles.liveImg} />
+                    <View style={styles.liveImgWrap}>
+                        <Image source={coverSource} style={styles.liveImg} />
+                        <View style={styles.livePreviewTag}>
+                            <Image
+                                source={require('@/assets/images/community/icon_yg.png')}
+                                style={styles.livePreviewTagIcon}
+                            />
+                            <Text style={styles.livePreviewTagText}>直播预告</Text>
+                        </View>
+                    </View>
                     <View style={styles.liveMapBox}>
                         <Flex justify="between" align="start">
                             <Text style={[styles.mapBoxItemTitle, { flex: 1, marginRight: 8 }]} numberOfLines={1}>
@@ -211,17 +220,32 @@ export default function LivePage() {
     return (
         <View>
             {livingList.length > 0 ? (
-                <ScrollView
-                    horizontal
-                    nestedScrollEnabled
-                    removeClippedSubviews={false}
-                    showsHorizontalScrollIndicator={false}
-                    style={styles.liveTopScroll}
-                    contentContainerStyle={styles.liveTopScrollContent}>
-                    {livingList.map(renderLiveTopCard)}
-                </ScrollView>
+                <>
+                    <Flex align="center" style={styles.sectionTitleRow}>
+                        <Image
+                            source={require('@/assets/images/community/zb.png')}
+                            style={styles.sectionTitleIcon}
+                        />
+                        <Text style={styles.sectionTitleText}>直播中</Text>
+                    </Flex>
+                    <ScrollView
+                        horizontal
+                        nestedScrollEnabled
+                        removeClippedSubviews={false}
+                        showsHorizontalScrollIndicator={false}
+                        style={styles.liveTopScroll}
+                        contentContainerStyle={styles.liveTopScrollContent}>
+                        {livingList.map(renderLiveTopCard)}
+                    </ScrollView>
+                </>
             ) : null}
-            <Text style={styles.sectionTitle}>直播预告</Text>
+            <Flex align="center" style={styles.sectionTitleRow}>
+                <Image
+                    source={require('@/assets/images/community/icon_yg.png')}
+                    style={styles.sectionTitleIcon}
+                />
+                <Text style={styles.sectionTitleText}>直播预告</Text>
+            </Flex>
             <View>
                 <View style={styles.mapBox}>
                     {previewList.length === 0 ? (

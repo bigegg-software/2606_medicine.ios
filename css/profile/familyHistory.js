@@ -4,7 +4,30 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
     body: { paddingHorizontal: 12, paddingTop: 2, paddingBottom: 14 },
+    bodyEmpty: {
+        flexGrow: 1,
+        paddingHorizontal: 18,
+        paddingTop: 2,
+        paddingBottom: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    emptyWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyImage: {
+        width: 120,
+        height: 80,
+    },
+    emptyText: {
+        marginTop: 25,
+        fontWeight: 'bold',
+        fontSize: 14,
+        color: '#333333',
+        textAlign: 'center',
+    },
     sectionCard: {
         marginTop: 12,
         backgroundColor: '#FFFFFF',

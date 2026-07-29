@@ -90,16 +90,24 @@ export default function FamilyHistoryPage() {
 
     return (
         <PageLayout style={styles.container} edges={[]}>
-            <ScrollView contentContainerStyle={styles.body}>
-                <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>已记录的家族病史</Text>
-                    <View style={styles.listBox}>
-                        {familyList.length === 0 ? (
-                            <View style={styles.infoBox}>
-                                <Text style={[styles.itemSubtitle, { marginTop: 0 }]}>待补充</Text>
-                            </View>
-                        ) : (
-                            familyList.map((item, index) => {
+            <ScrollView
+                contentContainerStyle={
+                    familyList.length === 0 ? styles.bodyEmpty : styles.body
+                }>
+                {familyList.length === 0 ? (
+                    <View style={styles.emptyWrap}>
+                        <Image
+                            style={styles.emptyImage}
+                            source={require('@/assets/images/user/zwjl.png')}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.emptyText}>暂无家族病史</Text>
+                    </View>
+                ) : (
+                    <View style={styles.sectionCard}>
+                        <Text style={styles.sectionTitle}>已记录的家族病史</Text>
+                        <View style={styles.listBox}>
+                            {familyList.map((item, index) => {
                                 const statusStyle = getStatusStyles(item.status);
                                 return (
                                     <Flex
@@ -110,7 +118,9 @@ export default function FamilyHistoryPage() {
                                         <TouchableOpacity
                                             style={{ flex: 1 }}
                                             activeOpacity={0.7}
-                                            onPress={() => navigation.navigate('FamilyHistoryAdd', { editIndex: index })}>
+                                            onPress={() =>
+                                                navigation.navigate('FamilyHistoryAdd', { editIndex: index })
+                                            }>
                                             <Flex align="center">
                                                 <View style={styles.itemImgBox}>
                                                     <Image
@@ -120,7 +130,10 @@ export default function FamilyHistoryPage() {
                                                 </View>
                                                 <View style={styles.itemContent}>
                                                     <Flex align="center">
-                                                        <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">
+                                                        <Text
+                                                            style={styles.itemName}
+                                                            numberOfLines={1}
+                                                            ellipsizeMode="tail">
                                                             {formatMemberTitle(item)}
                                                         </Text>
                                                         {item.status ? (
@@ -143,10 +156,10 @@ export default function FamilyHistoryPage() {
                                         </TouchableOpacity>
                                     </Flex>
                                 );
-                            })
-                        )}
+                            })}
+                        </View>
                     </View>
-                </View>
+                )}
             </ScrollView>
 
             <View style={styles.bottomBar}>

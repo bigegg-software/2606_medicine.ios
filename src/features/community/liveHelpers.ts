@@ -36,6 +36,13 @@ export function formatLiveWatchingCount(count?: number | null) {
   return `${safe.toLocaleString('en-US')}人次观看`;
 }
 
+/** 预约人数展示用数字 */
+export function formatLiveReserveCount(count?: number | null) {
+  const value = Number(count ?? 0);
+  const safe = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
+  return safe.toLocaleString('en-US');
+}
+
 export function getLiveStatusText(status?: number, statusName?: string) {
   if (statusName?.trim()) return statusName.trim();
   if (status === 1) return '直播中';

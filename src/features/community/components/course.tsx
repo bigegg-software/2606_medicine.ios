@@ -16,7 +16,6 @@ import styles from '@/css/community/community';
 import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
 import {
-  getCourseFavoriteList,
   getCourseList,
   type CourseItem,
 } from '@/api/course';
@@ -28,7 +27,6 @@ import { formatCourseViewCount, toCourseId } from '../courseHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const PAGE_SIZE = 10;
-const FAVORITE_TAB = 'favorite';
 
 type CourseTab = {
   label: string;
@@ -79,7 +77,6 @@ export default function CoursePage() {
       setTabs([
         { label: '全部', value: '' },
         ...dictTabs,
-        { label: '我的收藏', value: FAVORITE_TAB },
       ]);
     })();
   }, []);
@@ -112,9 +109,10 @@ export default function CoursePage() {
 
     try {
       const params = { pageNum: page, pageSize: PAGE_SIZE };
-      const res = tab === FAVORITE_TAB
-        ? await getCourseFavoriteList(params)
-        : await getCourseList({ ...params, courseType: tab || undefined });
+      const res = await getCourseList({
+        ...params,
+        courseType: tab || undefined,
+      });
 
       if (!isResourceApiOk(res)) {
         if (mode !== 'loadMore' && tab === activeTabRef.current) {
@@ -283,7 +281,7 @@ export default function CoursePage() {
 
   const listEmpty = !loading ? (
     <Text style={{ textAlign: 'center', marginTop: 40, color: '#999', fontSize: 14 }}>
-      {activeTab === FAVORITE_TAB ? '暂无收藏课程' : '暂无课程'}
+      暂无课程
     </Text>
   ) : null;
 

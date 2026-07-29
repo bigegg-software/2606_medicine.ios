@@ -19,6 +19,8 @@ export type LiveStreamItem = {
   status?: number;
   statusName?: string;
   viewCount?: number;
+  /** 预约人数 */
+  reserveCount?: number;
   isReserved?: boolean;
   createTime?: string;
   updateTime?: string;

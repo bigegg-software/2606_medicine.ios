@@ -1,5 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, type NativeScrollEvent, type NativeSyntheticEvent, } from 'react-native';
+import {
+    View,
+    Text,
+    Image,
+    ScrollView,
+    TouchableOpacity,
+    ActivityIndicator,
+    RefreshControl,
+    type NativeScrollEvent,
+    type NativeSyntheticEvent,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -9,7 +19,6 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/chronicDisease/index';
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import NoData from '@/src/components/noData';
 import ChronicDiseaseCard from './components/ChronicDiseaseCard';
 import {
     DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
@@ -169,18 +178,6 @@ export default function ChronicDiseasePage() {
         }, []),
     );
 
-    useEffect(() => {
-        navigation.setOptions({
-            headerRight: () => (
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('ChronicDiseaseAddPage')}
-                    style={{ marginRight: 16 }}>
-                    <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>添加</Text>
-                </TouchableOpacity>
-            ),
-        });
-    }, [navigation]);
-
     const hasMore = hasMoreData(total, records.length, lastFetchCount);
 
     const handleRefresh = useCallback(() => {
@@ -233,9 +230,9 @@ export default function ChronicDiseasePage() {
     }
 
     return (
-        <PageLayout style={styles.container}>
+        <PageLayout style={styles.container} edges={[]}>
             <ScrollView
-                contentContainerStyle={styles.body}
+                contentContainerStyle={records.length === 0 ? styles.bodyEmpty : styles.body}
                 refreshControl={
                     <RefreshControl
                         refreshing={refreshing}
@@ -245,14 +242,22 @@ export default function ChronicDiseasePage() {
                     />
                 }
                 onScroll={handleScroll}
-                scrollEventThrottle={400}
-            >
-                <View style={styles.infoBox}>
-                    <Flex justify="between">
-                        <Text style={styles.sectionTitle}>已建档慢病</Text>
-                    </Flex>
-                    {records.length > 0 ? (
-                        records.map(item => {
+                scrollEventThrottle={400}>
+                {records.length === 0 ? (
+                    <View style={styles.emptyWrap}>
+                        <Image
+                            style={styles.emptyImage}
+                            source={require('@/assets/images/user/zwjl.png')}
+                            resizeMode="contain"
+                        />
+                        <Text style={styles.emptyText}>暂无慢病记录</Text>
+                    </View>
+                ) : (
+                    <View style={styles.infoBox}>
+                        <Flex justify="between">
+                            <Text style={styles.sectionTitle}>已建档慢病</Text>
+                        </Flex>
+                        {records.map(item => {
                             const dailyIndicators =
                                 item.id != null
                                     ? dailyIndicatorsById.get(item.id) ?? DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS
@@ -270,15 +275,26 @@ export default function ChronicDiseasePage() {
                                     }
                                 />
                             );
-                        })
-                    ) : (
-                        <Flex style={{ marginTop: 40, marginBottom: 20 }}>
-                            <NoData text="暂无慢病记录" />
-                        </Flex>
-                    )}
-                    {listFooter}
-                </View>
+                        })}
+                        {listFooter}
+                    </View>
+                )}
             </ScrollView>
+
+            <View style={styles.bottomBar}>
+                <TouchableOpacity
+                    style={styles.bottomBarButton}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
+                    <Flex style={{ flex: 1 }} justify="center" align="center">
+                        <Image
+                            style={styles.bottomBarButtonImg}
+                            source={require('@/assets/images/vitals/icon_add.png')}
+                        />
+                        <Text style={styles.bottomBarButtonText}>添加慢病</Text>
+                    </Flex>
+                </TouchableOpacity>
+            </View>
         </PageLayout>
     );
 }

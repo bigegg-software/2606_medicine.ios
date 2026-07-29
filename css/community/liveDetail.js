@@ -17,6 +17,30 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
   },
+  headerReserveBadge: {
+    marginRight: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 15,
+    paddingVertical: 8,
+    backgroundColor: '#F6F8FB',
+    borderRadius: 6,
+  },
+  headerReserveIcon: {
+    width: 12,
+    height: 12,
+    marginRight: 4,
+  },
+  headerReserveText: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  headerReserveCount: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    color: '#333333',
+  },
 
   heroWrap: {
     position: 'relative',
@@ -40,10 +64,15 @@ const styles = StyleSheet.create({
   statusTag: {
     flexDirection: 'row',
     alignItems: 'center',
+    height: 22,
     paddingHorizontal: 6,
-    paddingVertical: 4,
     borderRadius: 4,
-    backgroundColor: '#6D925E',
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
+  },
+  statusTagIcon: {
+    width: 12,
+    height: 12,
+    marginRight: 2,
   },
   statusDot: {
     width: 4,
@@ -52,19 +81,23 @@ const styles = StyleSheet.create({
     marginRight: 3,
   },
   statusTagText: {
-    fontWeight: '500',
+    fontWeight: '400',
     fontSize: 12,
+    lineHeight: 16,
     color: '#FFFFFF',
   },
   categoryTag: {
-    paddingVertical: 3,
+    height: 22,
     paddingHorizontal: 6,
-    backgroundColor: 'rgba(0,0,0,0.62)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
     borderRadius: 4,
   },
   categoryText: {
     fontWeight: '400',
     fontSize: 12,
+    lineHeight: 16,
     color: '#FFFFFF',
   },
 
@@ -87,7 +120,7 @@ const styles = StyleSheet.create({
   metaSchedule: {
     fontWeight: '500',
     fontSize: 13,
-    color: '#999999',
+    color: '#333333',
     flexShrink: 1,
   },
   metaDivider: {

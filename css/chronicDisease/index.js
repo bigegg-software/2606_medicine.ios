@@ -4,6 +4,29 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
     body: { paddingHorizontal: 18, paddingTop: 2, paddingBottom: 14 },
+    bodyEmpty: {
+        flexGrow: 1,
+        paddingHorizontal: 18,
+        paddingTop: 2,
+        paddingBottom: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    emptyImage: {
+        width: 120,
+        height: 80,
+    },
+    emptyText: {
+        marginTop: 25,
+        fontWeight: 'bold',
+        fontSize: 14,
+        color: '#333333',
+        textAlign: 'center',
+    },
     sectionBox: { marginTop: 12 },
     sectionTitle: { fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary },
     infoBox: {
@@ -13,9 +36,9 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.08,
         shadowRadius: 12,
-        backgroundColor: "#FFFFFF",
+        backgroundColor: '#FFFFFF',
         borderRadius: 12,
-        padding: 15
+        padding: 15,
     },
     rowBox: {
         marginTop: 12,
@@ -24,18 +47,19 @@ const styles = StyleSheet.create({
         backgroundColor: '#F6F8FB',
     },
     uploadTimeBox: {
-        marginTop: 7
+        marginTop: 7,
     },
     imgSize: {
         width: 12,
-        height: 12, marginRight: 4
+        height: 12,
+        marginRight: 4,
     },
     uploadTime: {
         fontWeight: 500,
         fontSize: 12,
-        color: "#999999"
+        color: '#999999',
     },
-    infoTitle: { fontWeight: "bold", fontSize: 15, color: "#333333" },
+    infoTitle: { fontWeight: 'bold', fontSize: 15, color: '#333333' },
     infoStatusBox: {
         height: 22,
         paddingHorizontal: 6,
@@ -47,7 +71,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     infoStatusText: { fontWeight: 'bold', fontSize: 12, color: '#6D925E', lineHeight: 20 },
-    /* 需关注 */
     infoStatusBoxAttention: {
         height: 22,
         paddingHorizontal: 6,
@@ -59,7 +82,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     infoStatusTextAttention: { fontWeight: 'bold', fontSize: 12, color: '#EE9C44', lineHeight: 20 },
-    /* 高风险 */
     infoStatusBoxHighRisk: {
         height: 22,
         paddingHorizontal: 6,
@@ -74,14 +96,45 @@ const styles = StyleSheet.create({
     infoContent: {
         marginTop: 15,
         padding: 15,
-        backgroundColor: "#FEFFFF",
+        backgroundColor: '#FEFFFF',
         borderRadius: 6,
     },
     infoContentImage: { width: 24, height: 24, marginRight: 5 },
-    infoContentText: { fontWeight: 'bold', fontSize: 12, color: "#333333" },
-    pageLine: { marginTop: 14, marginBottom: 12, height: 1, backgroundColor: "#173F7D", opacity: 0.06 },
-    infoContentTime: { fontWeight: 400, fontSize: 14, color: "#173F7D" }
+    infoContentText: { fontWeight: 'bold', fontSize: 12, color: '#333333' },
+    pageLine: { marginTop: 14, marginBottom: 12, height: 1, backgroundColor: '#173F7D', opacity: 0.06 },
+    infoContentTime: { fontWeight: 400, fontSize: 14, color: '#173F7D' },
+    bottomBar: {
+        width: '100%',
+        paddingHorizontal: 15,
+        paddingTop: 15,
+        paddingBottom: 40,
+        backgroundColor: '#FEFEFE',
+        borderTopLeftRadius: 24,
+        borderTopRightRadius: 24,
+        shadowColor: '#B4C9FF',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.14,
+        shadowRadius: 4,
+        elevation: 3,
+    },
+    bottomBarButton: {
+        marginTop: 4,
+        height: 50,
+        backgroundColor: AppTheme.primaryColor,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    bottomBarButtonImg: {
+        width: 20,
+        height: 20,
+        marginRight: 4,
+    },
+    bottomBarButtonText: {
+        fontWeight: '600',
+        fontSize: 16,
+        color: '#FFFFFF',
+    },
+});
 
-})
-
-export default styles
+export default styles;

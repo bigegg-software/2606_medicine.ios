@@ -28,6 +28,7 @@ import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { stripHtmlText } from './courseHelpers';
 import {
   formatLiveDailySchedule,
+  formatLiveReserveCount,
   formatLiveWatchingCount,
   formatLiveWatchMethodText,
   getLiveStatusStyle,
@@ -52,27 +53,23 @@ export default function LiveDetailPage() {
   const [platformLabelMap, setPlatformLabelMap] = useState<Record<string, string>>({});
   const hasRecordedViewRef = useRef(false);
 
-  const handleShare = useCallback(() => {
-    // TODO: 分享
-  }, []);
+  const reserveCountText = formatLiveReserveCount(live?.reserveCount);
 
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleShare}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.headerShareBtn}
-        >
+        <View style={styles.headerReserveBadge}>
           <Image
-            style={styles.headerShareIcon}
-            source={require('@/assets/images/community/icon_share.png')}
+            style={styles.headerReserveIcon}
+            source={require('@/assets/images/community/icon_yy.png')}
           />
-        </TouchableOpacity>
+          <Text style={styles.headerReserveText}>
+            已有<Text style={styles.headerReserveCount}>{reserveCountText}</Text>人预约
+          </Text>
+        </View>
       ),
     });
-  }, [handleShare, navigation]);
+  }, [navigation, reserveCountText]);
 
   const loadLive = useCallback(async () => {
     if (!liveId) {
@@ -82,7 +79,6 @@ export default function LiveDetailPage() {
 
     try {
       const res = await getLiveStreamInfo(liveId);
-      console.log(res)
       if (isResourceApiOk(res as { code?: number })) {
         setLive(apiResourceData<LiveStreamItem>(res as { code?: number; data?: LiveStreamItem }) ?? null);
       } else {
@@ -134,7 +130,18 @@ export default function LiveDetailPage() {
         const data = apiResourceData<{ status?: boolean }>(
           res as { code?: number; data?: { status?: boolean } },
         );
-        setLive(prev => (prev ? { ...prev, isReserved: data?.status ?? nextStatus } : prev));
+        setLive(prev => {
+          if (!prev) return prev;
+          const current = Number(prev.reserveCount ?? 0);
+          const nextCount = nextStatus
+            ? current + 1
+            : Math.max(0, current - 1);
+          return {
+            ...prev,
+            isReserved: data?.status ?? nextStatus,
+            reserveCount: nextCount,
+          };
+        });
         Alert.alert('提示', nextStatus ? '预约成功' : '已取消预约');
       } else {
         Alert.alert('失败', (res as { msg?: string }).msg ?? '请稍后重试');
@@ -214,10 +221,22 @@ export default function LiveDetailPage() {
             {statusText || typeLabel ? (
               <View style={styles.heroTagRow} pointerEvents="none">
                 {statusText ? (
-                  <View style={[styles.statusTag, { backgroundColor: statusStyle.bg }]}>
-                    <View style={[styles.statusDot, { backgroundColor: statusStyle.dot }]} />
-                    <Text style={[styles.statusTagText, { color: statusStyle.text }]}>
-                      {statusText}
+                  <View style={styles.statusTag}>
+                    {live.status === 1 ? (
+                      <Image
+                        source={require('@/assets/images/community/zb.png')}
+                        style={styles.statusTagIcon}
+                      />
+                    ) : live.status === 0 ? (
+                      <Image
+                        source={require('@/assets/images/community/icon_yg.png')}
+                        style={styles.statusTagIcon}
+                      />
+                    ) : (
+                      <View style={[styles.statusDot, { backgroundColor: statusStyle.dot }]} />
+                    )}
+                    <Text style={styles.statusTagText}>
+                      {live.status === 0 ? '直播预告' : statusText}
                     </Text>
                   </View>
                 ) : null}
@@ -244,13 +263,13 @@ export default function LiveDetailPage() {
                 </>
               ) : null}
             </Flex>
-            <Flex align="center" style={styles.metaRight}>
+            {/* <Flex align="center" style={styles.metaRight}>
               <Image
                 style={styles.metaWatchIcon}
                 source={require('@/assets/images/community/icon_gkrs.png')}
               />
               <Text style={styles.metaWatchText}>{formatLiveWatchingCount(live.viewCount)}</Text>
-            </Flex>
+            </Flex> */}
           </Flex>
 
           <View style={styles.body}>

@@ -447,46 +447,55 @@ export default function HealthRecordPage() {
 
                     <View style={{ marginTop: 10 }}>
                         {familyList.length === 0 ? (
-                            <View style={familyHistoryStyles.infoBox}>
-                                <Text style={[familyHistoryStyles.itemSubtitle, { marginTop: 0 }]}>待补充</Text>
-                            </View>
+                            <TouchableOpacity onPress={() => navigation.navigate('FamilyHistoryAdd')}>
+                                <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                    <View>
+                                        <Text style={styles.familyItemName}>点击添加家族病史</Text>
+                                    </View>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
                         ) : (
-                            <View style={familyHistoryStyles.listBox}>
-                                {familyList.map((item, index) => {
-                                    const statusStyle = getStatusStyles(item.status);
-                                    return (
-                                        <Flex
-                                            key={`${index}-${item.familyRelationships}`}
-                                            align="center"
-                                            style={familyHistoryStyles.infoBox}>
-                                            <View style={familyHistoryStyles.itemImgBox}>
-                                                <Image
-                                                    style={familyHistoryStyles.itemImg}
-                                                    source={require('@/assets/images/user/icon_user.png')}
-                                                />
-                                            </View>
-                                            <View style={familyHistoryStyles.itemContent}>
-                                                <Flex align="center">
-                                                    <Text
-                                                        style={familyHistoryStyles.itemName}
-                                                        numberOfLines={1}
-                                                        ellipsizeMode="tail">
-                                                        {formatMemberTitle(item)}
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                onPress={() => navigation.navigate('FamilyHistory')}>
+                                <View style={familyHistoryStyles.listBox}>
+                                    {familyList.map((item, index) => {
+                                        const statusStyle = getStatusStyles(item.status);
+                                        return (
+                                            <Flex
+                                                key={`${index}-${item.familyRelationships}`}
+                                                align="center"
+                                                style={familyHistoryStyles.infoBox}>
+                                                <View style={familyHistoryStyles.itemImgBox}>
+                                                    <Image
+                                                        style={familyHistoryStyles.itemImg}
+                                                        source={require('@/assets/images/user/icon_user.png')}
+                                                    />
+                                                </View>
+                                                <View style={familyHistoryStyles.itemContent}>
+                                                    <Flex align="center">
+                                                        <Text
+                                                            style={familyHistoryStyles.itemName}
+                                                            numberOfLines={1}
+                                                            ellipsizeMode="tail">
+                                                            {formatMemberTitle(item)}
+                                                        </Text>
+                                                        {item.status ? (
+                                                            <View style={statusStyle.box}>
+                                                                <Text style={statusStyle.text}>{item.status}</Text>
+                                                            </View>
+                                                        ) : null}
+                                                    </Flex>
+                                                    <Text style={familyHistoryStyles.itemSubtitle} numberOfLines={1}>
+                                                        {item.medicalCondition || '—'}
                                                     </Text>
-                                                    {item.status ? (
-                                                        <View style={statusStyle.box}>
-                                                            <Text style={statusStyle.text}>{item.status}</Text>
-                                                        </View>
-                                                    ) : null}
-                                                </Flex>
-                                                <Text style={familyHistoryStyles.itemSubtitle} numberOfLines={1}>
-                                                    {item.medicalCondition || '—'}
-                                                </Text>
-                                            </View>
-                                        </Flex>
-                                    );
-                                })}
-                            </View>
+                                                </View>
+                                            </Flex>
+                                        );
+                                    })}
+                                </View>
+                            </TouchableOpacity>
                         )}
                     </View>
                 </View>

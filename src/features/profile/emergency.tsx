@@ -10,7 +10,6 @@ import {
 } from '@/api/emergencyContact';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
-import NoData from '@/src/components/noData';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import {
@@ -108,79 +107,90 @@ export default function EmergencyPage() {
   }
 
   return (
-    <PageLayout style={styles.container}>
+    <PageLayout style={styles.container} edges={[]}>
       <ScrollView
-        contentContainerStyle={[
-          styles.body,
-          contacts.length === 0 && { flexGrow: 1 },
-        ]}>
-        <View style={styles.infoBox}>
-          <Text style={styles.sectionTitle}>紧急联系人</Text>
-
-          {contacts.length === 0 ? (
-            <View style={{ marginTop: 10, flex: 1, minHeight: 240 }}>
-              <Flex style={{ flex: 1 }}>
-                <NoData />
-              </Flex>
-            </View>
-          ) : (
-            <View style={{ marginTop: 10 }}>
-              {contacts.map((contact, index) => (
-                <Flex
-                  key={String(contact.id)}
-                  justify="between"
-                  align="center"
-                  style={[
-                    styles.familyItem,
-                    index === contacts.length - 1 && { marginBottom: 0 },
-                  ]}>
-                  <TouchableOpacity
-                    style={{ flex: 1, minWidth: 0 }}
-                    activeOpacity={0.7}
-                    onPress={() => handleEdit(contact)}>
-                    <View style={styles.familyItemRow}>
-                      <View style={styles.familyItemImgBox}>
-                        <Image
-                          style={styles.familyItemImg}
-                          source={require('@/assets/images/user/icon_phone.png')}
-                        />
-                      </View>
-                      <View style={styles.familyItemContent}>
-                        <Flex align="center">
-                          <Text style={styles.familyItemName} numberOfLines={1}>
-                            {formatEmergencyContactName(contact, relationMap)}
+        contentContainerStyle={
+          contacts.length === 0 ? styles.bodyEmpty : styles.body
+        }>
+        {contacts.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <Image
+              style={styles.emptyImage}
+              source={require('@/assets/images/user/zwjl.png')}
+              resizeMode="contain"
+            />
+            <Text style={styles.emptyText}>暂无紧急联系人</Text>
+          </View>
+        ) : (
+          <>
+            <View style={styles.infoBox}>
+              <Text style={styles.sectionTitle}>紧急联系人</Text>
+              <View style={{ marginTop: 10 }}>
+                {contacts.map((contact, index) => (
+                  <Flex
+                    key={String(contact.id)}
+                    justify="between"
+                    align="center"
+                    style={[
+                      styles.familyItem,
+                      index === contacts.length - 1 && { marginBottom: 0 },
+                    ]}>
+                    <TouchableOpacity
+                      style={{ flex: 1, minWidth: 0 }}
+                      activeOpacity={0.7}
+                      onPress={() => handleEdit(contact)}>
+                      <View style={styles.familyItemRow}>
+                        <View style={styles.familyItemImgBox}>
+                          <Image
+                            style={styles.familyItemImg}
+                            source={require('@/assets/images/user/icon_phone.png')}
+                          />
+                        </View>
+                        <View style={styles.familyItemContent}>
+                          <Flex align="center">
+                            <Text style={styles.familyItemName} numberOfLines={1}>
+                              {formatEmergencyContactName(contact, relationMap)}
+                            </Text>
+                            {contact.isDefault === 1 ? (
+                              <Flex style={styles.jzBox}>
+                                <Text style={styles.jzText}>默认</Text>
+                              </Flex>
+                            ) : null}
+                          </Flex>
+                          <Text style={styles.familyItemRelation} numberOfLines={1}>
+                            {contact.contactPhone || '—'}
                           </Text>
-                          {contact.isDefault === 1 ? (
-                            <Flex style={styles.jzBox}>
-                              <Text style={styles.jzText}>默认</Text>
-                            </Flex>
-                          ) : null}
-                        </Flex>
-                        <Text style={styles.familyItemRelation} numberOfLines={1}>
-                          {contact.contactPhone || '—'}
-                        </Text>
+                        </View>
                       </View>
-                    </View>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => handleDelete(contact)}>
-                    <Image style={styles.editIcon} source={require('@/assets/images/user/del.png')} />
-                  </TouchableOpacity>
-                </Flex>
-              ))}
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDelete(contact)}>
+                      <Image style={styles.editIcon} source={require('@/assets/images/user/del.png')} />
+                    </TouchableOpacity>
+                  </Flex>
+                ))}
+              </View>
             </View>
-          )}
-        </View>
-
-        <Text style={styles.emergencyText}>
-          紧急联系人将在您遇到紧急情况时被通知，建议添加2-3位家人或朋友。
-        </Text>
+            <Text style={styles.emergencyText}>
+              紧急联系人将在您遇到紧急情况时被通知，建议添加2-3位家人或朋友。
+            </Text>
+          </>
+        )}
       </ScrollView>
 
-      <TouchableOpacity style={styles.addBtn} onPress={handleAdd}>
-        <Flex justify="center" align="center" style={{ flex: 1 }}>
-          <Text style={styles.addText}>添加紧急联系人</Text>
-        </Flex>
-      </TouchableOpacity>
+      <View style={styles.bottomBar}>
+        <TouchableOpacity
+          style={styles.bottomBarButtonLeft}
+          activeOpacity={0.7}
+          onPress={handleAdd}>
+          <Flex style={{ flex: 1 }}>
+            <Image
+              style={styles.bottomBarButtonImg}
+              source={require('@/assets/images/vitals/icon_add.png')}
+            />
+            <Text style={styles.bottomBarButtonTextLeft}>添加紧急联系人</Text>
+          </Flex>
+        </TouchableOpacity>
+      </View>
     </PageLayout>
   );
 }

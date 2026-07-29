@@ -421,7 +421,7 @@ export default function RootStack() {
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: "" }} />
       <Stack.Screen name="CourseDetail" component={CourseDetailPage} options={{ title: "" }} />
-      <Stack.Screen name="LiveDetail" component={LiveDetailPage} options={{ title: '直播详情' }} />
+      <Stack.Screen name="LiveDetail" component={LiveDetailPage} options={{ title: "" }} />
       <Stack.Screen name="ProfileEditPage" component={ProfileEditPage} options={{ title: "个人信息修改" }} />
       <Stack.Screen name="MyFamily" component={MyFamily} options={{ title: "我的家人" }} />
       <Stack.Screen name="MyFamilyAdd" component={MyFamilyAdd} options={{ title: "添加家人" }} />
