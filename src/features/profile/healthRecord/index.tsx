@@ -364,16 +364,17 @@ export default function HealthRecordPage() {
                                 <Flex
                                     key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
                                     justify="between"
+                                    align="center"
                                     style={[styles.familyItem, index == records.length - 1 && { borderBottomWidth: 0 }]}>
-                                    <Flex>
+                                    <Flex style={{ flex: 1, minWidth: 0, marginRight: 8 }} align="center">
                                         <View style={styles.familyItemImgBox}>
                                             <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_order.png')} />
                                         </View>
-                                        <View>
-                                            <Text style={styles.familyItemName} numberOfLines={1}>
+                                        <View style={styles.familyItemContent}>
+                                            <Text style={styles.familyItemName} numberOfLines={1} ellipsizeMode="tail">
                                                 {formatRecordTitle(item)}
                                             </Text>
-                                            <Text style={styles.familyItemRelation} numberOfLines={1}>
+                                            <Text style={styles.familyItemRelation} numberOfLines={1} ellipsizeMode="tail">
                                                 {item.doctor?.trim() || '—'}
                                             </Text>
                                         </View>

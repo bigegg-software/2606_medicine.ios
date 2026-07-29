@@ -347,11 +347,11 @@ export default function FoodDetailPage() {
                                         onSave: handleCorrected,
                                         ...(isRecognizeSave
                                             ? {
-                                                  showMealPeriod: true,
-                                                  mealCategory,
-                                                  ossId,
-                                                  foodIdentifyId,
-                                              }
+                                                showMealPeriod: true,
+                                                mealCategory,
+                                                ossId,
+                                                foodIdentifyId,
+                                            }
                                             : {}),
                                     });
                                 }}>
@@ -394,35 +394,40 @@ export default function FoodDetailPage() {
                         <View style={styles.foodDetailDivider} />
 
                         {isRecognizeSave && isPhotoInput && othersLoading ? (
-                            <View style={styles.nutrientLoading}>
-                                <ActivityIndicator color={AppTheme.primaryColor} />
-                                <Text style={styles.nutrientLoadingText}>正在补充营养成分...</Text>
-                            </View>
+                            <>
+                                <View style={styles.nutrientLoading}>
+                                    <ActivityIndicator color={AppTheme.primaryColor} />
+                                    <Text style={styles.nutrientLoadingText}>正在补充营养成分...</Text>
+                                </View>
+                                <View style={[styles.foodDetailDivider, { marginBottom: 0 }]} />
+                            </>
                         ) : nutritionEntries.length > 0 ? (
-                            <View style={[styles.nutrientGrid, styles.foodDetailNutrientGrid]}>
-                                {nutritionEntries.map((entry, entryIndex) => {
-                                    const valueText =
-                                        entry.value % 1 === 0 ? String(entry.value) : entry.value.toFixed(1);
-                                    const isRowLast = entryIndex % 3 === 2;
-                                    return (
-                                        <View
-                                            key={entry.key}
-                                            style={[
-                                                styles.nutrientCard,
-                                                styles.foodDetailNutrientCard,
-                                                isRowLast && styles.foodDetailNutrientCardLast,
-                                            ]}>
-                                            <Text style={styles.nutrientTitle}>{entry.label}</Text>
-                                            <Flex justify="center" align="end" style={styles.nutrientValueRow}>
-                                                <Text style={styles.nutrientValue}>{valueText}</Text>
-                                                <Text style={styles.nutrientUnit}>{entry.unit}</Text>
-                                            </Flex>
-                                        </View>
-                                    );
-                                })}
-                            </View>
+                            <>
+                                <View style={[styles.nutrientGrid, styles.foodDetailNutrientGrid]}>
+                                    {nutritionEntries.map((entry, entryIndex) => {
+                                        const valueText =
+                                            entry.value % 1 === 0 ? String(entry.value) : entry.value.toFixed(1);
+                                        const isRowLast = entryIndex % 3 === 2;
+                                        return (
+                                            <View
+                                                key={entry.key}
+                                                style={[
+                                                    styles.nutrientCard,
+                                                    styles.foodDetailNutrientCard,
+                                                    isRowLast && styles.foodDetailNutrientCardLast,
+                                                ]}>
+                                                <Text style={styles.nutrientTitle}>{entry.label}</Text>
+                                                <Flex justify="center" align="end" style={styles.nutrientValueRow}>
+                                                    <Text style={styles.nutrientValue}>{valueText}</Text>
+                                                    <Text style={styles.nutrientUnit}>{entry.unit}</Text>
+                                                </Flex>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                                <View style={[styles.foodDetailDivider, { marginBottom: 0 }]} />
+                            </>
                         ) : null}
-                        <View style={[styles.foodDetailDivider, { marginBottom: 0 }]} />
 
                         <View style={styles.sliderWrap}>
                             <QuestionnairePercentRulerSlider

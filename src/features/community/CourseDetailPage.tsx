@@ -45,23 +45,23 @@ export default function CourseDetailPage() {
     // TODO: 分享
   }, []);
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          activeOpacity={0.7}
-          onPress={handleShare}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={styles.headerShareBtn}
-        >
-          <Image
-            style={styles.headerShareIcon}
-            source={require('@/assets/images/community/icon_share.png')}
-          />
-        </TouchableOpacity>
-      ),
-    });
-  }, [handleShare, navigation]);
+  // useEffect(() => {
+  //   navigation.setOptions({
+  //     headerRight: () => (
+  //       <TouchableOpacity
+  //         activeOpacity={0.7}
+  //         onPress={handleShare}
+  //         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+  //         style={styles.headerShareBtn}
+  //       >
+  //         <Image
+  //           style={styles.headerShareIcon}
+  //           source={require('@/assets/images/community/icon_share.png')}
+  //         />
+  //       </TouchableOpacity>
+  //     ),
+  //   });
+  // }, [handleShare, navigation]);
 
   const videoUrl = course?.videoOssUrl?.trim() || '';
   const player = useVideoPlayer(videoUrl || null, instance => {

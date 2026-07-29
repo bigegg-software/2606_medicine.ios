@@ -168,6 +168,8 @@ const styles = StyleSheet.create({
         fontWeight: "bold",
         fontSize: 12,
         color: "#333333",
+        flexShrink: 0,
+        marginLeft: 4,
     },
     familyItemContent: { flex: 1, minWidth: 0, overflow: 'hidden' },
     infoItemValue1: {

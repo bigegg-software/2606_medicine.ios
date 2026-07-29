@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Platform,
   RefreshControl,
   ScrollView,
   Text,
@@ -10,6 +11,8 @@ import {
   View,
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
+import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/community/community';
@@ -221,11 +224,32 @@ export default function CoursePage() {
             source={coverUri ? { uri: coverUri } : DEFAULT_COVER}
             style={styles.courseImg}
           />
+          <LinearGradient
+            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)']}
+            start={{ x: 0.5, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={styles.courseImgGradient}
+            pointerEvents="none"
+          >
+            <Flex align="center">
+              <Image style={styles.gkrsIcon} source={require('@/assets/images/community/gkrc.png')} />
+              <Text style={styles.gkrsText}>{formatCourseViewCount(item.viewCount)}</Text>
+            </Flex>
+          </LinearGradient>
           <View style={styles.courseCategoryTag}>
             <Text style={styles.liveTopCategoryText}>{getCourseTypeLabel(item.courseType)}</Text>
           </View>
-          <Text style={styles.gkrsText}>{formatCourseViewCount(item.viewCount)}</Text>
-          <Image source={require('@/assets/images/community/play.png')} style={styles.coursePlayIcon} />
+          <View style={styles.coursePlayWrap} pointerEvents="none">
+            {Platform.OS === 'ios' ? (
+              <BlurView intensity={28} tint="light" style={styles.coursePlayBlur} />
+            ) : (
+              <View style={[styles.coursePlayBlur, styles.coursePlayBlurFallback]} />
+            )}
+            <Image
+              source={require('@/assets/images/community/icon_play.png')}
+              style={styles.coursePlayIcon}
+            />
+          </View>
         </View>
         <View style={styles.courseBoxInfo}>
           <Text style={styles.courseTitle} numberOfLines={1}>{item.title || '未命名课程'}</Text>

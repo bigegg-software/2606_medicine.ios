@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
         width: 60,
         height: 60,
         marginRight: 12,
-        borderRadius: 8,
+        borderRadius: 30,
         overflow: 'hidden',
         backgroundColor: '#F0F2F5',
     },

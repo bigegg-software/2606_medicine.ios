@@ -96,12 +96,11 @@ const styles = StyleSheet.create({
     mealPeriodRow: {
         width: '100%',
         flexDirection: 'row',
-        justifyContent: 'flex-start',
         alignItems: 'center',
         gap: 12,
     },
     mealPeriodChip: {
-        width: 71,
+        flex: 1,
         height: 70,
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
