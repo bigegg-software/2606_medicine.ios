@@ -7,8 +7,24 @@ import {
   type DictDataItem,
 } from '@/api/dict';
 import type { ExPatientRuleInfo, ExPatientRuleRatio } from '@/api/exPatientRule';
+import type { UserBaseInfo } from '@/api/patient';
+import type { UserExtr } from '@/api/user';
 import { getExRecordDayCalendarList, getExRecordDayStatis, type ExRecordDayCalendarItem, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+
+/** 运动页顶栏：年龄 | 性别 | 目标体重 */
+export function formatExerciseUserInfoText(
+  user?: UserBaseInfo | null,
+  userExtr?: UserExtr | null,
+) {
+  const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+  const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
+  const gender = user?.gender?.trim() || '';
+  const weightGoal = Number(userExtr?.weightGoals);
+  const goalText =
+    Number.isFinite(weightGoal) && weightGoal > 0 ? `目标${weightGoal}kg` : '';
+  return [age, gender, goalText].filter(Boolean).join(' | ') || '--';
+}
 
 const EXERCISE_TYPE_LABELS: Record<string, string> = {
   cardio: '有氧心肺',

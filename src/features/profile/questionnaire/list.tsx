@@ -102,9 +102,7 @@ export default function QuestionnaireListPage() {
                                     <View style={{ flex: 1, marginRight: 8 }}>
                                         <Text style={styles.rowTitle}>{QUESTIONNAIRE_TITLES[item.type]}</Text>
                                         <Text style={styles.rowText}>预计时间：{item.duration}</Text>
-                                        {!canStart && nextAssessmentDate ? (
-                                            <Text style={styles.rowText}>下次可评估：{nextAssessmentDate}</Text>
-                                        ) : null}
+
                                     </View>
                                     {hasLastAssessment ? (
                                         <Image
@@ -122,6 +120,7 @@ export default function QuestionnaireListPage() {
                                             </Flex>
                                         </TouchableOpacity>
                                     )}
+                                
                                 </Flex>
                                 {hasLastAssessment ? (
                                     <>
@@ -153,6 +152,16 @@ export default function QuestionnaireListPage() {
                                             </TouchableOpacity>
                                         </Flex>
                                     </>
+                                ) : null}
+                                {!canStart && nextAssessmentDate ? (
+                                    <Flex style={styles.nextAssessBox} align="center">
+                                        <Image
+                                            style={styles.nextAssessIcon}
+                                            source={require('@/assets/images/questionnaire/icon_ts.png')}
+                                        />
+                                        <Text style={styles.nextAssessLabel}>下次评估时间：</Text>
+                                        <Text style={styles.nextAssessDate}>{nextAssessmentDate}</Text>
+                                    </Flex>
                                 ) : null}
                             </View>
                         );

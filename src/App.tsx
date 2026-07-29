@@ -16,7 +16,6 @@ import { SET_LOGIN } from '@/store/type/login';
 import { buildScaledAntdTheme } from '@/common/antdTheme';
 import { FontSizeProvider, useFontSize } from '@/common/FontSizeContext';
 import { AppTheme } from '@/common/theme';
-// import { checkAutoSyncOnLaunch } from '@/utils/checkAutoSyncOnLaunch';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import updateHealthKit from '@/utils/healthKit';
 import { addPushNotificationListeners, registerIosPushToken, syncNotificationSettingsFromUserExtr } from '@/src/utils/pushNotifications';
@@ -29,23 +28,24 @@ function AutoSyncOnLaunch() {
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const userId = useSelector((state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId);
   const autoSyncData = userExtr?.autoSyncData;
-  const checkedRef = React.useRef(false);
+  /** 已触发过自动同步的账号，退出登录后清空，换号登录可再次同步 */
+  const syncedUserIdRef = React.useRef<string | null>(null);
 
   useEffect(() => {
-    if (checkedRef.current || !isLogin || !userId || userExtr == null) return;
-    if (Platform.OS !== 'ios') {
-      checkedRef.current = true;
+    if (!isLogin) {
+      syncedUserIdRef.current = null;
       return;
     }
+    if (!userId || userExtr == null) return;
+    if (Platform.OS !== 'ios') return;
+    // 与数据管理页一致：非 0 视为开启自动同步
+    if (autoSyncData === 0) return;
 
+    const uid = String(userId);
+    if (syncedUserIdRef.current === uid) return;
+    syncedUserIdRef.current = uid;
 
-
-    checkedRef.current = true;
-    if (autoSyncData !== 1) return;
-    // if (autoSyncData === 1) {
-    //   void checkAutoSyncOnLaunch(userId, autoSyncData);
-    // }
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (AppState.currentState !== 'active') return;
       void updateHealthKit(null).then(syncRes => {
         if (typeof syncRes === 'object' && syncRes !== null && 'code' in syncRes && !isResourceApiOk(syncRes as { code?: number }) && (syncRes as { code?: number }).code !== 0) {
@@ -57,6 +57,8 @@ function AutoSyncOnLaunch() {
         if (msg) Toast.show(msg);
       });
     }, 2500);
+
+    return () => clearTimeout(timer);
   }, [autoSyncData, isLogin, userExtr, userId]);
 
   return null;

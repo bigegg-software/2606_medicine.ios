@@ -22,8 +22,8 @@ export function getAuthHomeRoute(identityPerspective?: string | null): AuthHomeR
 /** 当前身份展示文案 */
 export function getIdentityLabel(identityPerspective?: string | null): string {
   const perspective = normalizeIdentityPerspective(identityPerspective);
-  if (perspective === 'old') return '用户';
-  if (perspective === 'child') return '家人';
+  if (perspective === 'old') return '长者';
+  if (perspective === 'child') return '家属';
   return '未设置';
 }
 

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { baseURL } from '@/utils/config';
 import store from '@/store/store';
 import { SET_LOGIN, SET_LOGIN_EXPIRED } from '@/store/type/login';
+import { SET_UPLOADING, SET_UPLOAD_PROGRESS } from '@/store/type/upload';
 import { clearAll } from '@/services/storage';
 
 const apiClient = axios.create({
@@ -64,6 +65,8 @@ async function handleUnauthorized(config?: InternalAxiosRequestConfig) {
   isHandling401 = true;
   store.dispatch({ type: SET_LOGIN, payload: false });
   store.dispatch({ type: SET_LOGIN_EXPIRED, payload: true });
+  store.dispatch({ type: SET_UPLOADING, payload: false });
+  store.dispatch({ type: SET_UPLOAD_PROGRESS, payload: 0 });
   await clearAll();
 }
 

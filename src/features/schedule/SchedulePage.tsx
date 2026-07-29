@@ -8,8 +8,10 @@ import MilestoneRings from './components/MilestoneRings';
 import TaskProgressRing from './components/TaskProgressRing';
 import styles from '@/css/schedule/schedule';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import moment from 'moment';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
@@ -25,6 +27,7 @@ import {
   buildScheduleWeekDays,
   clampDateRangeToPrescription,
   formatPrescriptionCycleDays,
+  formatScheduleTopInfoText,
   getCurrentWeekDateRange,
   getHistoryStatusLabel,
   getInUseStatusText,
@@ -130,6 +133,7 @@ function ScheduleWeekDayCell({
 
 export default function SchedulePage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const user = useSelector((s: RootState) => s.user.info);
   const [weekDays, setWeekDays] = useState<ScheduleWeekDayItem[]>(() => buildScheduleWeekDays());
   const [prescription, setPrescription] = useState<InUseExPatientRule | null>(null);
   const [prescriptionLoading, setPrescriptionLoading] = useState(false);
@@ -160,6 +164,10 @@ export default function SchedulePage() {
   const historyItems = useMemo(
     () => historyPlans.map(toHistoryPlanItem),
     [historyPlans],
+  );
+  const topInfoText = useMemo(
+    () => formatScheduleTopInfoText(user, prescription),
+    [user, prescription],
   );
 
   const loadPrescription = useCallback(async () => {
@@ -295,7 +303,8 @@ export default function SchedulePage() {
               <Text style={styles.pageTitleSubtitleText}>已坚持 279 天</Text>
             </Flex>
           </Flex>
-          <Text style={styles.pageTopText}>58岁 | 三高人群 | 力量平衡管理 | 自2025/10/08起</Text>
+          <Text style={styles.pageTopText}>{topInfoText}</Text>
+          {/* <Text style={styles.pageTopText}>58岁 | 三高人群 | 力量平衡管理 | 自2025/10/08起</Text> */}
 
           <View style={styles.pageTopBgWrap}>
             <View style={styles.pageTopBg}>

@@ -2,11 +2,14 @@ import moment from 'moment';
 import type { ImageSourcePropType } from 'react-native';
 import type { DietMealFoodItem, DietMealItem, DietPatientRuleInfo } from '@/api/dietPatientRule';
 import type { MealDetailItem } from '@/api/mealDetail';
+import type { UserBaseInfo } from '@/api/patient';
+import type { SystemUser, UserExtr } from '@/api/user';
 import { parseFoods } from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 import {
   formatMealServingText,
   toNumber,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
 
 export type RecommendedFoodItem = {
   key: string;
@@ -160,22 +163,44 @@ export function formatActualFoodMeta(item: MealDetailItem): string {
   return `${amountText} · ${calories} kcal`;
 }
 
-export function formatDietHeaderInfo(rule: DietPatientRuleInfo | null) {
+export function formatDietHeaderInfo(
+  rule: DietPatientRuleInfo | null,
+  user?: UserBaseInfo | null,
+  systemUser?: SystemUser | null,
+  userExtr?: UserExtr | null,
+) {
   const base = rule?.patientUserBaseInfo;
   const name = rule?.patientUserName?.trim()
     || base?.name?.trim()
+    || getDisplayUserName(user, systemUser)
     || '--';
-  const age = base?.age != null && Number(base.age) > 0 ? `${base.age}岁` : '--';
-  const gender = base?.gender?.trim() || '--';
+
+  let age = '';
+  if (base?.age != null && Number(base.age) > 0) {
+    age = `${base.age}岁`;
+  } else {
+    const birthMoment = moment(user?.birthDate ?? base?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+    if (birthMoment.isValid()) {
+      age = `${moment().diff(birthMoment, 'years')}岁`;
+    }
+  }
+
+  const gender = base?.gender?.trim() || user?.gender?.trim() || '';
   const diagnosis = rule?.diagnosticLabel?.trim()
     || rule?.diagnosis?.trim()
     || base?.diagnosticLabel?.trim()
     || base?.primaryDiagnosis?.trim()
-    || '--';
+    || '';
+
+  const weightGoal = Number(userExtr?.weightGoals);
+  const goalText =
+    Number.isFinite(weightGoal) && weightGoal > 0 ? `目标${weightGoal}kg` : '';
+
   const version = rule?.version != null && Number(rule.version) > 0
     ? `处方V${rule.version}`
-    : '处方';
-  const infoText = [age, gender, diagnosis].filter(Boolean).join(' | ');
+    : '';
+
+  const infoText = [age, gender, diagnosis, goalText].filter(Boolean).join(' | ') || '--';
 
   return { name, version, infoText };
 }

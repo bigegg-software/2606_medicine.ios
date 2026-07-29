@@ -49,7 +49,6 @@ const styles = StyleSheet.create({
     navIndicator: { width: 34, height: 10, },
     sectionTitle: { marginTop: 16, fontWeight: 500, fontSize: 18, marginLeft: 14, color: AppTheme.textPrimary, },
     sectionTitleRow: {
-        marginTop: 16,
         marginLeft: 14,
         marginRight: 14,
         flexDirection: 'row',

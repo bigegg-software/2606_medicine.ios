@@ -15,7 +15,13 @@ const styles = StyleSheet.create({
         paddingHorizontal: 18,
         paddingVertical: 16,
     },
-    rowLine: { height: 1, backgroundColor: AppTheme.borderColor, width: '100%' },
+    rowLine: { height: 1, backgroundColor: '#E7EAEB', width: '100%' },
+    settingRow: {
+        height: 62,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+    },
     sectionTitle: { marginTop: 18, fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 19 },
     sectionDesc: { marginTop: 6, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 20 },
     optionBox: {
@@ -53,11 +59,10 @@ const styles = StyleSheet.create({
     previewLabel: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, marginBottom: 8 },
     previewText: { fontWeight: 400, color: AppTheme.textPrimary, lineHeight: 19 },
     imgBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(109,146,94,0.12)' },
-    imgItem: { width: 24, height: 24 },
+    imgItem: { width: 22, height: 22 },
     itemText: { marginLeft: 12, fontWeight: 400, fontSize: 16, color: AppTheme.textPrimary, },
-    delText: { fontWeight: 500, fontSize: 16, color: AppTheme.primaryColor, },
     rowTitle: { fontWeight: 400, fontSize: 16, color: "#333333" },
-    switch: { width: 43, height: 21 },
+    switch: { width: 44, height: 22 },
 });
 
 export default styles;

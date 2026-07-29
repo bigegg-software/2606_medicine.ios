@@ -1,6 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { Alert, Image, ImageSourcePropType, Text, TouchableOpacity, View } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useDispatch } from 'react-redux';
 import styles from '@/css/auth/identitySelect';
@@ -15,18 +15,21 @@ import {
 
 const IDENTITY_OPTIONS: ReadonlyArray<{
   value: IdentityPerspective;
+  badge: string;
   title: string;
   desc: string;
   icon: ImageSourcePropType;
 }> = [
     {
       value: 'child',
+      badge: '家属',
       title: '关爱家人健康',
       desc: '实时查看家人的血压、血糖及用药情况，及时掌握健康动态。',
       icon: require('@/assets/images/login/icon1.png'),
     },
     {
       value: 'old',
+      badge: '长者',
       title: '安心共享健康',
       desc: '授权家人查看我的血压、血糖和用药记录，并可随时调整或撤销授权。',
       icon: require('@/assets/images/login/icon2.png'),
@@ -41,6 +44,10 @@ export default function IdentitySelectPage() {
 
   const handleSelect = useCallback(
     async (value: IdentityPerspective) => {
+      if (value === 'child') {
+        Toast.show('正在开发中', 1.5);
+        return;
+      }
       if (submittingRef.current) return;
       submittingRef.current = true;
       setSubmitting(true);
@@ -84,7 +91,22 @@ export default function IdentitySelectPage() {
                 <Flex align="center" style={{ flex: 1 }}>
                   <Image style={styles.optionIcon} source={option.icon} />
                   <View style={styles.optionTextWrap}>
-                    <Text style={styles.optionText}>{option.title}</Text>
+                    <Flex align="center">
+                      <View
+                        style={[
+                          styles.optionBadge,
+                          option.value === 'old' && styles.optionBadgeElder,
+                        ]}>
+                        <Text
+                          style={[
+                            styles.optionBadgeText,
+                            option.value === 'old' && styles.optionBadgeTextElder,
+                          ]}>
+                          {option.badge}
+                        </Text>
+                      </View>
+                      <Text style={styles.optionText}>{option.title}</Text>
+                    </Flex>
                     <Text style={styles.optionDesc}>{option.desc}</Text>
                   </View>
                 </Flex>

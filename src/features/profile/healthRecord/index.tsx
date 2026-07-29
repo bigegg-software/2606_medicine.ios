@@ -563,11 +563,6 @@ export default function HealthRecordPage() {
                                             {QUESTIONNAIRE_TITLES[item.type]}
                                         </Text>
                                         <Text style={questionnaireStyles.rowText}>预计时间：{item.duration}</Text>
-                                        {!canStart && nextAssessmentDate ? (
-                                            <Text style={questionnaireStyles.rowText}>
-                                                下次可评估：{nextAssessmentDate}
-                                            </Text>
-                                        ) : null}
                                     </View>
                                     {hasLastAssessment ? (
                                         <Image
@@ -629,6 +624,16 @@ export default function HealthRecordPage() {
                                             </TouchableOpacity>
                                         </Flex>
                                     </>
+                                ) : null}
+                                {!canStart && nextAssessmentDate ? (
+                                    <Flex style={questionnaireStyles.nextAssessBox} align="center">
+                                        <Image
+                                            style={questionnaireStyles.nextAssessIcon}
+                                            source={require('@/assets/images/questionnaire/icon_ts.png')}
+                                        />
+                                        <Text style={questionnaireStyles.nextAssessLabel}>下次评估时间：</Text>
+                                        <Text style={questionnaireStyles.nextAssessDate}>{nextAssessmentDate}</Text>
+                                    </Flex>
                                 ) : null}
                             </View>
                         );

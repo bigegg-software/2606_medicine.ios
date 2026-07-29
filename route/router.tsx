@@ -116,7 +116,10 @@ import QuestionnaireResult from '@/src/features/profile/questionnaire/result';
 import QuestionnaireHistory from '@/src/features/profile/questionnaire/history';
 
 //设置 
-import SettingsPage from '@/src/features/profile/settings';
+import FontSizeSettingPage from '@/src/features/profile/settingPage/FontSizeSetting';
+import SpeechSpeedSettingPage from '@/src/features/profile/settingPage/SpeechSpeedSetting';
+import NotificationSettingPage from '@/src/features/profile/settingPage/NotificationSetting';
+import DataManageSettingPage from '@/src/features/profile/settingPage/DataManageSetting';
 import AboutUs from '@/src/features/profile/aboutUs';
 import FeedbackPage from '@/src/features/feedback/index';
 
@@ -163,7 +166,10 @@ export type RootStackParamList = {
   QuestionnaireDetail: { id: string }
   QuestionnaireResult: { id: string; type: QuestionnaireType };
   QuestionnaireHistory: undefined;
-  SettingsPage: undefined;
+  FontSizeSettingPage: undefined;
+  SpeechSpeedSettingPage: undefined;
+  NotificationSettingPage: undefined;
+  DataManageSettingPage: undefined;
   AuthenticationPage: undefined;
   IdCardCameraPage: { side: 'front' | 'back' };
   MessagePage: undefined;
@@ -503,7 +509,10 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
-      <Stack.Screen name="SettingsPage" component={SettingsPage} options={{ title: "设置" }} />
+      <Stack.Screen name="FontSizeSettingPage" component={FontSizeSettingPage} options={{ title: '字体大小' }} />
+      <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速' }} />
+      <Stack.Screen name="NotificationSettingPage" component={NotificationSettingPage} options={{ title: '消息通知' }} />
+      <Stack.Screen name="DataManageSettingPage" component={DataManageSettingPage} options={{ title: '数据管理' }} />
       <Stack.Screen name="AuthenticationPage" component={AuthenticationPage} options={{ title: "实名认证" }} />
       <Stack.Screen
         name="IdCardCameraPage"

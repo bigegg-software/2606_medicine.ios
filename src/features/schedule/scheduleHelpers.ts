@@ -6,6 +6,7 @@ import {
   getDictDataByType,
   type DictDataItem,
 } from '@/api/dict';
+import type { UserBaseInfo } from '@/api/patient';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { getExRecordDayStatis, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import {
@@ -788,6 +789,22 @@ export function formatPrescriptionCycleDays(startDate?: string, endDate?: string
   const end = moment(endDate);
   if (!start.isValid() || !end.isValid()) return '--';
   return `${end.diff(start, 'days') + 1}`;
+}
+
+/** 日程页顶栏：年龄 | 诊断 | 处方名 | 自开始日起 */
+export function formatScheduleTopInfoText(
+  user?: UserBaseInfo | null,
+  prescription?: Pick<InUseExPatientRule, 'diagnosis' | 'prescriptionName' | 'startDate'> | null,
+) {
+  const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+  const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
+  const diagnosis = prescription?.diagnosis?.trim() || '';
+  const prescriptionName = prescription?.prescriptionName?.trim() || '';
+  const start = prescription?.startDate?.trim();
+  const startText = start
+    ? `自${moment(start).isValid() ? moment(start).format('YYYY/MM/DD') : start}起`
+    : '';
+  return [age, diagnosis, prescriptionName, startText].filter(Boolean).join(' | ') || '--';
 }
 
 export function getPrescriptionProgressStatusText(progress?: number) {

@@ -52,6 +52,27 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  optionBadge: {
+    marginRight: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    backgroundColor: 'rgba(109,146,94,0.06)',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(109,146,94,0.3)',
+  },
+  optionBadgeElder: {
+    backgroundColor: 'rgba(238,156,68,0.06)',
+    borderColor: 'rgba(238,156,68,0.3)',
+  },
+  optionBadgeText: {
+    fontWeight: 'bold',
+    fontSize: 11,
+    color: '#6D925E',
+  },
+  optionBadgeTextElder: {
+    color: '#EE9C44',
+  },
   optionText: {
     fontWeight: 'bold',
     fontSize: 20,

@@ -134,7 +134,7 @@ export default function LivePage() {
                             <Text style={styles.liveTopCategoryText}>{typeLabel}</Text>
                         </Flex>
                     ) : null}
-                    <Text style={styles.gkrsText}>{item.viewCount}人次观看</Text>
+                    {/* <Text style={styles.gkrsText}>{item.viewCount}人次观看</Text> */}
                     <View style={styles.liveTopLiveTag}>
                         <Image source={require('@/assets/images/community/zb.png')} style={styles.liveTopLiveDot} />
                         <Text style={styles.liveTopLiveText}>
@@ -169,13 +169,6 @@ export default function LivePage() {
                 <Flex>
                     <View style={styles.liveImgWrap}>
                         <Image source={coverSource} style={styles.liveImg} />
-                        <View style={styles.livePreviewTag}>
-                            <Image
-                                source={require('@/assets/images/community/icon_yg.png')}
-                                style={styles.livePreviewTagIcon}
-                            />
-                            <Text style={styles.livePreviewTagText}>直播预告</Text>
-                        </View>
                     </View>
                     <View style={styles.liveMapBox}>
                         <Flex justify="between" align="start">
@@ -221,13 +214,6 @@ export default function LivePage() {
         <View>
             {livingList.length > 0 ? (
                 <>
-                    <Flex align="center" style={styles.sectionTitleRow}>
-                        <Image
-                            source={require('@/assets/images/community/zb.png')}
-                            style={styles.sectionTitleIcon}
-                        />
-                        <Text style={styles.sectionTitleText}>直播中</Text>
-                    </Flex>
                     <ScrollView
                         horizontal
                         nestedScrollEnabled
@@ -240,10 +226,6 @@ export default function LivePage() {
                 </>
             ) : null}
             <Flex align="center" style={styles.sectionTitleRow}>
-                <Image
-                    source={require('@/assets/images/community/icon_yg.png')}
-                    style={styles.sectionTitleIcon}
-                />
                 <Text style={styles.sectionTitleText}>直播预告</Text>
             </Flex>
             <View>

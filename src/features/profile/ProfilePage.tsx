@@ -11,6 +11,7 @@ import { getUserSignInfo, getUserSignTip, postUserSign, type UserSignInfoRecord 
 import { clearAll } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
 import { fetchUserSession, clearUser } from '@/store/actions/user';
+import { SET_UPLOADING, SET_UPLOAD_PROGRESS } from '@/store/type/upload';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import type { RootState, AppDispatch } from '@/store/store';
 import { AppTheme } from '@/common/theme';
@@ -26,6 +27,7 @@ import SignInModal from './components/SignInModal';
 import { buildSignButtonLabel, isSignedTodayByBjDate } from './utils/signInHelpers';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
+import { formatSyncRangeLabel } from './settingPage/utils/settingsHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -62,8 +64,10 @@ export default function ProfilePage() {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser: any = useSelector((s: RootState) => s.user.systemUser);
+  const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const loading = useSelector((s: RootState) => s.user.loading);
   const { label: fontSizeLabel } = useFontSize();
+  const dataManageLabel = formatSyncRangeLabel(userExtr?.synWdataDays, userExtr?.autoSyncData);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
   const [signInVisible, setSignInVisible] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -181,6 +185,8 @@ export default function ProfilePage() {
   }, [dispatch, loadSignStatus, loadSignTip, signedToday, signing]);
 
   const switchToFamilyPerspective = useCallback(async () => {
+    Toast.show('正在开发中', 1.5);
+    return;
     if (switchingIdentity) return;
     setSwitchingIdentity(true);
     try {
@@ -218,6 +224,8 @@ export default function ProfilePage() {
           }
           await clearAll();
           dispatch(clearUser());
+          dispatch({ type: SET_UPLOADING, payload: false });
+          dispatch({ type: SET_UPLOAD_PROGRESS, payload: 0 });
           dispatch({ type: SET_LOGIN, payload: false });
           navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
         },
@@ -367,7 +375,7 @@ export default function ProfilePage() {
               <Image style={styles.tabSize} source={require('@/assets/images/user/icon_tab.png')} />
             </Flex>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+          <TouchableOpacity onPress={() => navigation.navigate('FontSizeSettingPage')}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/fontSize.png')} />
@@ -379,7 +387,7 @@ export default function ProfilePage() {
               <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+          <TouchableOpacity onPress={() => navigation.navigate('SpeechSpeedSettingPage')}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/zs.png')} />
@@ -391,7 +399,7 @@ export default function ProfilePage() {
               <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+          <TouchableOpacity onPress={() => navigation.navigate('NotificationSettingPage')}>
             <Flex justify='between' style={styles.familyItem}>
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
@@ -403,13 +411,13 @@ export default function ProfilePage() {
               <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
             </Flex>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => navigation.navigate('SettingsPage')}>
+          <TouchableOpacity onPress={() => navigation.navigate('DataManageSettingPage')}>
             <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/data.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>数据管理</Text>
-                  <Text style={styles.familyItemRelation}>手动同步・7天</Text>
+                  <Text style={styles.familyItemRelation}>{dataManageLabel}</Text>
                 </View>
               </Flex>
               <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />

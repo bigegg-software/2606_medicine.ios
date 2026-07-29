@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -10,9 +11,13 @@ import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/die
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { formatDietHeaderInfo } from './components/utils/dietMealHelpers';
 import { AppTheme } from '@/common/theme';
+import type { RootState } from '@/store/store';
 
 export default function NutritionPage() {
   const navigation: any = useNavigation();
+  const user = useSelector((s: RootState) => s.user.info);
+  const systemUser = useSelector((s: RootState) => s.user.systemUser);
+  const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const [activeNav, setActiveNav] = useState(0);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +45,7 @@ export default function NutritionPage() {
     }, [loadDietRule]),
   );
 
-  const header = formatDietHeaderInfo(dietRule);
+  const header = formatDietHeaderInfo(dietRule, user, systemUser, userExtr);
   const pageList = [
     {
       title: '今日食谱',
@@ -76,10 +81,12 @@ export default function NutritionPage() {
         <View style={styles.topNameBox}>
           <Flex style={{ marginTop: 7 }}>
             <Text style={styles.topNameText}>{header.name}</Text>
-            <Flex style={styles.containerBox}>
-              <Image style={styles.topNameImage} source={require('@/assets/images/nutrition/star.png')} />
-              <Text style={styles.cfText}>{header.version}</Text>
-            </Flex>
+            {header.version ? (
+              <Flex style={styles.containerBox}>
+                <Image style={styles.topNameImage} source={require('@/assets/images/nutrition/star.png')} />
+                <Text style={styles.cfText}>{header.version}</Text>
+              </Flex>
+            ) : null}
           </Flex>
           <Flex style={styles.topInfoBox}>
             <Flex style={styles.brBox}>

@@ -28,8 +28,8 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.1,
     },
     timeIcon: { width: 16, height: 16 },
-    rowTitle: { fontWeight: "bold", fontSize: 16, color: AppTheme.textPrimary },
-    rowText: { fontWeight: 400, fontSize: 14, marginTop: 6, color: AppTheme.textSecondary },
+    rowTitle: { fontWeight: "bold", fontSize: 15, color: AppTheme.textPrimary },
+    rowText: { fontWeight: 500, fontSize: 13, marginTop: 6, color: AppTheme.textSecondary },
     rowTitleText: { fontWeight: "bold", fontSize: 18, color: AppTheme.textPrimary },
     rowStatus: {
         height: 22,
@@ -93,6 +93,18 @@ const styles = StyleSheet.create({
     },
     rowLine: { height: 1, backgroundColor: '#E8DED2', width: "100%" },
     btmBox: { marginTop: 12 },
+    nextAssessBox: {
+        marginTop: 12,
+        paddingVertical: 10,
+        paddingHorizontal: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    nextAssessIcon: { width: 12, height: 12, marginRight: 6 },
+    nextAssessLabel: { fontWeight: '500', fontSize: 13, color: '#333333' },
+    nextAssessDate: { fontWeight: '500', fontSize: 13, color: '#999999' },
     iconSize: {
         width: 47,
         height: 47

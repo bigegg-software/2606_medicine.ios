@@ -65,7 +65,7 @@ export function getNextAssessmentDate(type: QuestionnaireType, lastDate?: string
     if (!last.isValid()) return undefined;
     const next = last.clone().add(months, 'months').startOf('day');
     if (moment().isSameOrAfter(next, 'day')) return undefined;
-    return next.format('YYYY-MM-DD');
+    return next.format('YYYY/MM/DD');
 }
 
 const MAX_SCORE_BY_TYPE: Partial<Record<QuestionnaireType, number>> = {
