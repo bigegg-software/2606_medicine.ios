@@ -90,7 +90,7 @@ export type MeasureDataItem = {
   dataTime?: string;
   val?: number;
   val2?: number;
-  bmi?: number;
+  bmi?: number | string;
   isHigh?: number;
   isLow?: number;
   level?: string;

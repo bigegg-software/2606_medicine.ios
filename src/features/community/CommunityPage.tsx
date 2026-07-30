@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import styles from '@/css/community/community';
@@ -15,8 +15,19 @@ const NAV_LIST = [
   { label: '活动', value: 'activity' },
 ] as const;
 
+type NavValue = (typeof NAV_LIST)[number]['value'];
+
 export default function CommunityPage() {
-  const [activeNav, setActiveNav] = useState<string>(NAV_LIST[0].value);
+  const [activeNav, setActiveNav] = useState<NavValue>(NAV_LIST[0].value);
+  /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
+  const [mountedTabs, setMountedTabs] = useState<Partial<Record<NavValue, boolean>>>({
+    ranking: true,
+  });
+
+  const onPressNav = useCallback((value: NavValue) => {
+    setActiveNav(value);
+    setMountedTabs(prev => (prev[value] ? prev : { ...prev, [value]: true }));
+  }, []);
 
   return (
     <TabPageLayout style={styles.container}>
@@ -24,7 +35,7 @@ export default function CommunityPage() {
         <View style={styles.topNavBox}>
           <Flex justify="around" style={styles.navBox}>
             {NAV_LIST.map((item, index) => (
-              <Flex style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
+              <Flex style={styles.navCol} key={index} onPress={() => onPressNav(item.value)}>
                 <View style={styles.navItemWrap}>
                   <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>{item.label}</Text>
                   {activeNav === item.value ? (
@@ -39,17 +50,26 @@ export default function CommunityPage() {
         </View>
       </Flex>
       <View style={styles.pageContent}>
-        {activeNav === 'ranking' ? (
-          <RankingPage />
-        ) : activeNav === 'course' ? (
-          <CoursePage />
-        ) : activeNav === 'activity' ? (
-          <ActivityPage />
-        ) : (
-          <ScrollView contentContainerStyle={styles.scroll}>
+        {mountedTabs.ranking ? (
+          <View style={{ flex: 1, display: activeNav === 'ranking' ? 'flex' : 'none' }}>
+            <RankingPage />
+          </View>
+        ) : null}
+        {mountedTabs.live ? (
+          <View style={{ flex: 1, display: activeNav === 'live' ? 'flex' : 'none' }}>
             <LivePage />
-          </ScrollView>
-        )}
+          </View>
+        ) : null}
+        {mountedTabs.course ? (
+          <View style={{ flex: 1, display: activeNav === 'course' ? 'flex' : 'none' }}>
+            <CoursePage />
+          </View>
+        ) : null}
+        {mountedTabs.activity ? (
+          <View style={{ flex: 1, display: activeNav === 'activity' ? 'flex' : 'none' }}>
+            <ActivityPage />
+          </View>
+        ) : null}
       </View>
     </TabPageLayout>
   );

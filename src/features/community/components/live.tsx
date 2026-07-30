@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
     ActivityIndicator,
     Alert,
     Image,
+    RefreshControl,
     ScrollView,
     Text,
     TouchableOpacity,
@@ -28,6 +29,7 @@ import {
 } from '../liveHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type LoadMode = 'initial' | 'refresh' | 'silent';
 
 const DEFAULT_COVER = require('@/assets/images/home/head.png');
 const LIVE_PAGE_SIZE = 20;
@@ -37,8 +39,10 @@ export default function LivePage() {
     const [livingList, setLivingList] = useState<LiveStreamItem[]>([]);
     const [previewList, setPreviewList] = useState<LiveStreamItem[]>([]);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [reservingId, setReservingId] = useState('');
     const [typeLabelMap, setTypeLabelMap] = useState<Record<string, string>>({});
+    const hasLoadedOnceRef = useRef(false);
 
     useEffect(() => {
         (async () => {
@@ -50,8 +54,12 @@ export default function LivePage() {
         })();
     }, []);
 
-    const loadLiveData = useCallback(async () => {
-        setLoading(true);
+    const loadLiveData = useCallback(async (mode: LoadMode = 'initial') => {
+        if (mode === 'refresh') {
+            setRefreshing(true);
+        } else if (mode === 'initial') {
+            setLoading(true);
+        }
         try {
             const [livingRes, previewRes] = await Promise.all([
                 getLiveStreamList({ status: 1, pageNum: 1, pageSize: LIVE_PAGE_SIZE }),
@@ -68,19 +76,25 @@ export default function LivePage() {
                     ? getResourceRows<LiveStreamItem>(previewRes as { code?: number; rows?: LiveStreamItem[] })
                     : [],
             );
+            hasLoadedOnceRef.current = true;
         } catch {
             setLivingList([]);
             setPreviewList([]);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, []);
 
     useFocusEffect(
         useCallback(() => {
-            void loadLiveData();
+            void loadLiveData(hasLoadedOnceRef.current ? 'silent' : 'initial');
         }, [loadLiveData]),
     );
+
+    const handleRefresh = useCallback(() => {
+        void loadLiveData('refresh');
+    }, [loadLiveData]);
 
     const openLiveDetail = useCallback((item: LiveStreamItem) => {
         const liveId = toLiveId(item.liveId);
@@ -134,7 +148,6 @@ export default function LivePage() {
                             <Text style={styles.liveTopCategoryText}>{typeLabel}</Text>
                         </Flex>
                     ) : null}
-                    {/* <Text style={styles.gkrsText}>{item.viewCount}人次观看</Text> */}
                     <View style={styles.liveTopLiveTag}>
                         <Image source={require('@/assets/images/community/zb.png')} style={styles.liveTopLiveDot} />
                         <Text style={styles.liveTopLiveText}>
@@ -158,7 +171,6 @@ export default function LivePage() {
         const liveId = toLiveId(item.liveId);
         const coverSource = item.coverOssUrl?.trim() ? { uri: item.coverOssUrl } : DEFAULT_COVER;
         const typeLabel = item.liveType ? typeLabelMap[item.liveType] ?? item.liveType : '';
-        const reserving = reservingId === liveId;
 
         return (
             <TouchableOpacity
@@ -202,28 +214,37 @@ export default function LivePage() {
         );
     };
 
-    if (loading) {
+    if (loading && !refreshing) {
         return (
-            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
+            <View style={{ flex: 1, paddingVertical: 40, alignItems: 'center', justifyContent: 'center' }}>
                 <ActivityIndicator color={AppTheme.primaryColor} />
             </View>
         );
     }
 
     return (
-        <View>
+        <ScrollView
+            style={{ flex: 1 }}
+            contentContainerStyle={styles.scroll}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+                <RefreshControl
+                    refreshing={refreshing}
+                    onRefresh={handleRefresh}
+                    colors={[AppTheme.primaryColor]}
+                    tintColor={AppTheme.primaryColor}
+                />
+            }>
             {livingList.length > 0 ? (
-                <>
-                    <ScrollView
-                        horizontal
-                        nestedScrollEnabled
-                        removeClippedSubviews={false}
-                        showsHorizontalScrollIndicator={false}
-                        style={styles.liveTopScroll}
-                        contentContainerStyle={styles.liveTopScrollContent}>
-                        {livingList.map(renderLiveTopCard)}
-                    </ScrollView>
-                </>
+                <ScrollView
+                    horizontal
+                    nestedScrollEnabled
+                    removeClippedSubviews={false}
+                    showsHorizontalScrollIndicator={false}
+                    style={styles.liveTopScroll}
+                    contentContainerStyle={styles.liveTopScrollContent}>
+                    {livingList.map(renderLiveTopCard)}
+                </ScrollView>
             ) : null}
             <Flex align="center" style={styles.sectionTitleRow}>
                 <Text style={styles.sectionTitleText}>直播预告</Text>
@@ -239,6 +260,6 @@ export default function LivePage() {
                     )}
                 </View>
             </View>
-        </View>
+        </ScrollView>
     );
 }

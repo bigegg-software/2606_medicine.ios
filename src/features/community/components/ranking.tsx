@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, ActivityIndicator, ImageSourcePropType, TouchableOpacity } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import { View, Text, ScrollView, Image, ActivityIndicator, ImageSourcePropType, TouchableOpacity, RefreshControl } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { useSelector } from 'react-redux';
 import { AppTheme } from '@/common/theme';
@@ -199,11 +198,16 @@ export default function RankingPage() {
     const currentUserGender = useSelector((state: RootState) => state.user.info?.gender);
 
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<RankingTab>('growth');
     const [rankingList, setRankingList] = useState<RankingItem[]>([]);
 
-    const loadRanking = useCallback(async () => {
-        setLoading(true);
+    const loadRanking = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+        if (mode === 'refresh') {
+            setRefreshing(true);
+        } else {
+            setLoading(true);
+        }
         try {
             const res = (await getRankingList()) as unknown as { code?: number; data?: RankingItem[] };
             const data = apiResourceData<RankingItem[]>(res);
@@ -212,11 +216,16 @@ export default function RankingPage() {
             setRankingList([]);
         } finally {
             setLoading(false);
+            setRefreshing(false);
         }
     }, []);
 
     useEffect(() => {
-        loadRanking();
+        void loadRanking('initial');
+    }, [loadRanking]);
+
+    const handleRefresh = useCallback(() => {
+        void loadRanking('refresh');
     }, [loadRanking]);
 
     const topThree = useMemo(() => rankingList.slice(0, 3), [rankingList]);
@@ -237,7 +246,7 @@ export default function RankingPage() {
             ? { uri: currentUserAvatar }
             : getDefaultAvatarByGender(currentUserGender);
 
-    if (loading) {
+    if (loading && !refreshing) {
         return (
             <View style={[styles.rankingPage, styles.center]}>
                 <ActivityIndicator color={AppTheme.primaryColor} />
@@ -250,7 +259,15 @@ export default function RankingPage() {
             <ScrollView
                 style={styles.rankingScroll}
                 contentContainerStyle={styles.rankingScrollContent}
-                showsVerticalScrollIndicator={false}>
+                showsVerticalScrollIndicator={false}
+                refreshControl={
+                    <RefreshControl
+                        refreshing={refreshing}
+                        onRefresh={handleRefresh}
+                        colors={[AppTheme.primaryColor]}
+                        tintColor={AppTheme.primaryColor}
+                    />
+                }>
 
 
                 <Flex style={styles.tabBox}>

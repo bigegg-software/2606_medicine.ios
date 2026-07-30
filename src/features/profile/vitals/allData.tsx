@@ -14,6 +14,10 @@ import {
   loadVitalsUploadMapByYear,
   type VitalsUploadMap,
 } from './utils/vitalsUploadCalendarHelpers';
+import {
+  formatMeasureBmi,
+  getMeasureBmiLevelLabel,
+} from './utils/allDataWeightHelpers';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import {
   buildWearableStatusFilterPickerData,
@@ -654,6 +658,13 @@ function MeasureRecordCard({
         <View style={styles.expandDetail}>
           <Flex justify="between">
             <View>
+
+              {type === '体重' ? (
+                <>
+                  <Text style={styles.mapLeftText}>BMI</Text>
+                  <Text style={styles.mapLeftText}>BMI等级</Text>
+                </>
+              ) : null}
               {item.measurementStatus ? <Text style={styles.mapLeftText}>记录状态</Text> : null}
               <Text style={styles.mapLeftText}>记录时间</Text>
               <Text style={styles.mapLeftText}>数据来源</Text>
@@ -662,6 +673,12 @@ function MeasureRecordCard({
               ) : null}
             </View>
             <View>
+              {type === '体重' ? (
+                <>
+                  <Text style={styles.mapRightText}>{formatMeasureBmi(item.bmi)}</Text>
+                  <Text style={styles.mapRightText}>{getMeasureBmiLevelLabel(item.bmi)}</Text>
+                </>
+              ) : null}
               {item.measurementStatus ? (
                 <Text style={styles.mapRightText}>{item.measurementStatus}</Text>
               ) : null}
