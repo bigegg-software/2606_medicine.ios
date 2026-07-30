@@ -1,5 +1,6 @@
-import { Alert } from 'react-native';
+import { Alert, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { manipulateAsync, SaveFormat, type Action } from 'expo-image-manipulator';
 import { uploadOss } from '@/api/oss';
 import {
   aiIdentifyIdCard,
@@ -7,7 +8,7 @@ import {
   type SubmitIdentityAuditParams,
 } from '@/api/identityAudit';
 import { apiResourceData } from '@/src/utils/apiHelpers';
-import { displayCityName } from '@/src/utils/regionData';
+import { displayCityName, resolveResidentialRegion } from '@/src/utils/regionData';
 
 export type PickedIdCardImage = {
   uri: string;
@@ -60,9 +61,8 @@ export function validatePersonalAuthForm(
   if (!name) {
     return '请输入姓名';
   }
-  if (!form.residentialProvince.trim() || !form.residentialCity.trim()
-    || !form.residentialDistrict.trim() || !form.residentialStreet.trim()) {
-    return '请完善居住地区（省/市/区县/街道）';
+  if (!formatRegionLabel(form)) {
+    return '请选择居住地区';
   }
   const detail = form.residentialDetail.trim();
   if (!detail) {
@@ -139,10 +139,56 @@ export async function pickIdCardImageFromLibrary(side: IdCardSide): Promise<Pick
   }
 }
 
+/** 身份证图最长边上限（识别足够，体积更小） */
+const ID_CARD_MAX_EDGE = 1280;
+/** JPEG 压缩系数，0~1，越小体积越小 */
+const ID_CARD_JPEG_COMPRESS = 0.6;
+
+function getLocalImageSize(uri: string): Promise<{ width: number; height: number }> {
+  return new Promise((resolve, reject) => {
+    Image.getSize(
+      uri,
+      (width, height) => resolve({ width, height }),
+      reject,
+    );
+  });
+}
+
+/** 将本地图片（含 HEIC）转为 JPEG，并缩放压缩后再上传/识别 */
+export async function ensureIdCardImageCompressed(file: PickedIdCardImage): Promise<PickedIdCardImage> {
+  const actions: Action[] = [];
+  try {
+    const { width, height } = await getLocalImageSize(file.uri);
+    const maxEdge = Math.max(width, height);
+    if (maxEdge > ID_CARD_MAX_EDGE) {
+      if (width >= height) {
+        actions.push({ resize: { width: ID_CARD_MAX_EDGE } });
+      } else {
+        actions.push({ resize: { height: ID_CARD_MAX_EDGE } });
+      }
+    }
+  } catch {
+    // 取不到尺寸时仍做格式转换与压缩
+  }
+
+  const result = await manipulateAsync(
+    file.uri,
+    actions,
+    { format: SaveFormat.JPEG, compress: ID_CARD_JPEG_COMPRESS },
+  );
+  const baseName = file.name.replace(/\.[^.]+$/, '') || `idcard_${Date.now()}`;
+  return {
+    uri: result.uri,
+    name: `${baseName}.jpg`,
+    type: 'image/jpeg',
+  };
+}
+
 export async function uploadIdCardImage(
   file: PickedIdCardImage,
 ): Promise<{ ossId: string; url: string } | null> {
-  const res = await uploadOss(file);
+  const compressed = await ensureIdCardImageCompressed(file);
+  const res = await uploadOss(compressed);
   const data = apiResourceData<{ url?: string; ossId?: string | number }>(
     res as { code?: number; data?: { url?: string; ossId?: string | number } },
   );
@@ -158,7 +204,8 @@ export async function uploadIdCardImage(
 
 /** 识别身份证照片，返回结构化信息与 oss */
 export async function identifyIdCardImage(file: PickedIdCardImage): Promise<IdCardIdentifyData | null> {
-  const res = await aiIdentifyIdCard(file);
+  const compressed = await ensureIdCardImageCompressed(file);
+  const res = await aiIdentifyIdCard(compressed);
   return apiResourceData<IdCardIdentifyData>(res as { code?: number; data?: IdCardIdentifyData }) ?? null;
 }
 
@@ -167,14 +214,30 @@ export type ApplyIdCardIdentifyResult = {
   ossId: string;
   name?: string;
   idCard?: string;
-  address?: string;
+  residentialProvince?: string;
+  residentialCity?: string;
+  residentialDistrict?: string;
+  residentialStreet?: string;
+  residentialDetail?: string;
 };
 
-/** 将识别结果整理为表单可回显字段 */
-export function normalizeIdCardIdentifyResult(
+function pickTrimmed(...values: Array<string | undefined | null>): string | undefined {
+  for (const value of values) {
+    const text = value?.trim();
+    if (text) return text;
+  }
+  return undefined;
+}
+
+function clampDetailAddress(text: string): string {
+  return text.length > 50 ? text.slice(0, 50) : text;
+}
+
+/** 将识别结果整理为表单可回显字段（兼容新旧接口字段；县级市对齐四级区划） */
+export async function normalizeIdCardIdentifyResult(
   data: IdCardIdentifyData,
   fallbackPreviewUri: string,
-): ApplyIdCardIdentifyResult | null {
+): Promise<ApplyIdCardIdentifyResult | null> {
   const ossId = data.ossId != null ? String(data.ossId) : '';
   if (!ossId) {
     return null;
@@ -183,11 +246,37 @@ export function normalizeIdCardIdentifyResult(
   if (!previewUrl) {
     return null;
   }
+
+  const province = pickTrimmed(data.province);
+  const cityRaw = pickTrimmed(data.city);
+  const city = province && cityRaw ? displayCityName(province, cityRaw) : cityRaw;
+  const district = pickTrimmed(data.district);
+  const street = pickTrimmed(data.street);
+  const resolved = await resolveResidentialRegion({
+    province,
+    city,
+    district,
+    street,
+  });
+  // 优先拆分后的详细地址；兼容旧 address；无省市区时再退回完整地址
+  const hasRegion = Boolean(
+    resolved.province || resolved.city || resolved.district || resolved.street,
+  );
+  const detailRaw = pickTrimmed(
+    data.detailAddress,
+    data.address,
+    hasRegion ? undefined : data.fullAddress,
+  );
+
   return {
     previewUrl,
     ossId,
-    name: data.name?.trim() || undefined,
-    idCard: data.idCard?.trim().toUpperCase() || undefined,
-    address: data.address?.trim() || undefined,
+    name: pickTrimmed(data.name),
+    idCard: pickTrimmed(data.idCard)?.toUpperCase(),
+    residentialProvince: resolved.province || undefined,
+    residentialCity: resolved.city || undefined,
+    residentialDistrict: resolved.district || undefined,
+    residentialStreet: resolved.street || undefined,
+    residentialDetail: detailRaw ? clampDetailAddress(detailRaw) : undefined,
   };
 }

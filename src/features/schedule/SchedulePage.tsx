@@ -276,22 +276,6 @@ export default function SchedulePage() {
     }, []),
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      const stackNavigation = navigation.getParent()?.getParent() ?? navigation.getParent();
-      stackNavigation?.setOptions({
-        headerRight: () => (
-          <TouchableOpacity style={{ marginRight: 18 }} onPress={() => navigation.navigate('CalendarPage')}>
-            <Image style={styles.navIcon} source={require('@/assets/images/schedule/time.png')} />
-          </TouchableOpacity>
-        ),
-      });
-      return () => {
-        stackNavigation?.setOptions({ headerRight: undefined });
-      };
-    }, [navigation]),
-  );
-
   return (
     <TabPageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollNew}>
@@ -654,7 +638,7 @@ export default function SchedulePage() {
                 <Text style={styles.historyInfoText}>累计训练 45 小时，血糖回落至正常高值</Text>
               </Flex>
             </View>
-              <View style={styles.historyItem}>
+            <View style={styles.historyItem}>
               <Flex justify='between'>
                 <Text style={styles.historyItemTitle}>代谢综合征运动干预·第 3 疗程</Text>
                 <Flex style={[styles.historyItemStatus, styles.historyItemStatusDone]}>

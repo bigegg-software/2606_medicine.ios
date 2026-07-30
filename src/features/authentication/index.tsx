@@ -135,8 +135,9 @@ export default function AuthPage() {
         setUploadingSide(side);
         const loadingKey = Toast.loading('识别中', 0);
         try {
+            // HEIC 等格式会在 identifyIdCardImage 内转成 JPEG 并压缩后再提交
             const identified = await identifyIdCardImage(file);
-            const normalized = identified ? normalizeIdCardIdentifyResult(identified, file.uri) : null;
+            const normalized = identified ? await normalizeIdCardIdentifyResult(identified, file.uri) : null;
             if (!normalized) {
                 Toast.show('识别失败，请稍后重试');
                 clearSidePreview(side);
@@ -149,11 +150,20 @@ export default function AuthPage() {
                     const next = { ...prev, idCardFrontOssId: normalized.ossId };
                     if (normalized.name) next.name = normalized.name;
                     if (normalized.idCard) next.idCard = normalized.idCard;
-                    if (normalized.address) {
-                        next.residentialDetail =
-                            normalized.address.length > 50
-                                ? normalized.address.slice(0, 50)
-                                : normalized.address;
+                    if (normalized.residentialProvince) {
+                        next.residentialProvince = normalized.residentialProvince;
+                    }
+                    if (normalized.residentialCity) {
+                        next.residentialCity = normalized.residentialCity;
+                    }
+                    if (normalized.residentialDistrict) {
+                        next.residentialDistrict = normalized.residentialDistrict;
+                    }
+                    if (normalized.residentialStreet) {
+                        next.residentialStreet = normalized.residentialStreet;
+                    }
+                    if (normalized.residentialDetail) {
+                        next.residentialDetail = normalized.residentialDetail;
                     }
                     return next;
                 });

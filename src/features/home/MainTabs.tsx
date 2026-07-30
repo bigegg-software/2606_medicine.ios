@@ -167,6 +167,30 @@ export default function MainTabs() {
         return;
       }
 
+      if (routeName === 'Schedule') {
+        navigation.setOptions({
+          title,
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTitle: undefined,
+          headerLeft: undefined,
+          headerRight: () => (
+            <TouchableOpacity
+              style={{ marginRight: 18 }}
+              activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => navigation.navigate('CalendarPage')}
+            >
+              <Image
+                source={require('@/assets/images/schedule/time.png')}
+                style={{ width: 24, height: 24 }}
+              />
+            </TouchableOpacity>
+          ),
+        });
+        return;
+      }
+
       // headerRight 必须显式设为 () => null；undefined 不会清除已有按钮
       navigation.setOptions({
         title,

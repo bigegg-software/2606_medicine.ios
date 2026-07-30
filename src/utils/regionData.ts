@@ -14,6 +14,7 @@ export type RegionSelection = {
 const MUNICIPALITY_PROVINCES = new Set(['北京市', '天津市', '上海市', '重庆市']);
 
 let cachedOptions: PickerColumnItem[] | null = null;
+let cachedRaw: PcasRaw | null = null;
 
 export function isMunicipalityProvince(province: string): boolean {
   return MUNICIPALITY_PROVINCES.has(province);
@@ -61,13 +62,21 @@ function convertPcasToPickerData(raw: PcasRaw): PickerColumnItem[] {
   });
 }
 
+async function loadPcasRaw(): Promise<PcasRaw> {
+  if (cachedRaw) {
+    return cachedRaw;
+  }
+  const module = await import('china-division/dist/pcas.json');
+  cachedRaw = ((module as { default?: PcasRaw }).default ?? module) as PcasRaw;
+  return cachedRaw;
+}
+
 /** 动态加载 china-division 四级数据并缓存 */
 export async function loadChinaRegionData(): Promise<PickerColumnItem[]> {
   if (cachedOptions) {
     return cachedOptions;
   }
-  const module = await import('china-division/dist/pcas.json');
-  const raw = ((module as { default?: PcasRaw }).default ?? module) as PcasRaw;
+  const raw = await loadPcasRaw();
   cachedOptions = convertPcasToPickerData(raw);
   return cachedOptions;
 }
@@ -87,4 +96,115 @@ export function regionSelectionFromParts(
     district: (district ?? '').trim(),
     street: (street ?? '').trim(),
   };
+}
+
+function findPrefectureCityKey(
+  province: string,
+  provinceData: Record<string, Record<string, string[]>>,
+  cityName: string,
+): string | null {
+  if (!cityName) return null;
+  if (provinceData[cityName]) return cityName;
+  // 直辖市展示名 → 市辖区
+  if (isMunicipalityProvince(province) && cityName === province && provinceData['市辖区']) {
+    return '市辖区';
+  }
+  for (const cityKey of Object.keys(provinceData)) {
+    if (displayCityName(province, cityKey) === cityName) {
+      return cityKey;
+    }
+  }
+  return null;
+}
+
+/**
+ * 将身份证识别出的省市区街道对齐到 china-division 四级结构。
+ * 兼容县级市被识别为「市」的情况（如 河北省/新乐市/承安镇 → 河北省/石家庄市/新乐市/承安镇）。
+ */
+export function resolveRegionAgainstPcas(
+  raw: PcasRaw,
+  parts: {
+    province?: string;
+    city?: string;
+    district?: string;
+    street?: string;
+  },
+): RegionSelection {
+  const province = parts.province?.trim() ?? '';
+  let city = parts.city?.trim() ?? '';
+  let district = parts.district?.trim() ?? '';
+  let street = parts.street?.trim() ?? '';
+
+  if (!province) {
+    return { province, city, district, street };
+  }
+
+  const provinceData = raw[province];
+  if (!provinceData) {
+    return { province, city, district, street };
+  }
+
+  const prefectureKey = findPrefectureCityKey(province, provinceData, city);
+  if (prefectureKey) {
+    return {
+      province,
+      city: displayCityName(province, prefectureKey),
+      district,
+      street,
+    };
+  }
+
+  // city 实际是县级市/区县：挂在某地级市下
+  if (city) {
+    for (const [prefKey, districts] of Object.entries(provinceData)) {
+      const streets = districts[city];
+      if (!streets) continue;
+
+      let nextStreet = street;
+      // 识别常把镇/街道放在 district；上移到 street
+      if (!nextStreet && district && district !== city) {
+        nextStreet = district;
+      } else if (
+        district
+        && district !== city
+        && streets.includes(district)
+        && (!street || street === district)
+      ) {
+        nextStreet = district;
+      }
+
+      return {
+        province,
+        city: displayCityName(province, prefKey),
+        district: city,
+        street: nextStreet,
+      };
+    }
+  }
+
+  // district 是县级市，city 为空或无法匹配
+  if (district) {
+    for (const [prefKey, districts] of Object.entries(provinceData)) {
+      if (!districts[district]) continue;
+      return {
+        province,
+        city: displayCityName(province, prefKey),
+        district,
+        street,
+      };
+    }
+  }
+
+  return { province, city, district, street };
+}
+
+/** 异步解析居住地区，兼容县级市等识别结果 */
+export async function resolveResidentialRegion(parts: {
+  province?: string;
+  city?: string;
+  district?: string;
+  street?: string;
+}): Promise<RegionSelection> {
+  const raw = await loadPcasRaw();
+  return resolveRegionAgainstPcas(raw, parts);
 }

@@ -19,7 +19,7 @@ type FontSizeContextValue = {
 const FontSizeContext = createContext<FontSizeContextValue | null>(null);
 
 export function FontSizeProvider({ children }: { children: React.ReactNode }) {
-    const [option, setOptionState] = useState<FontSizeOption>('medium');
+    const [option, setOptionState] = useState<FontSizeOption>('standard');
 
     useEffect(() => {
         getFontSizeOption().then(setOptionState);

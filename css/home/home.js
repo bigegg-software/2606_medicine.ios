@@ -202,6 +202,19 @@ const styles = StyleSheet.create({
     cfMore: { fontWeight: 500, fontSize: 13, color: "#666666" },
     cfMoreIcon: { width: 12, height: 12, marginLeft: 6 },
     cfContent: { paddingHorizontal: 3, marginTop: 18 },
+    cfEmpty: {
+        alignItems: 'center',
+        marginTop: 18,
+        paddingBottom: 8,
+    },
+    cfEmptyIcon: { width: 50, height: 50 },
+    cfEmptyText: {
+        marginTop: 8,
+        fontWeight: '500',
+        fontSize: 12,
+        color: '#999999',
+        textAlign: 'center',
+    },
     cfItem: { alignItems: 'center' },
     cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 18, color: '#333333', },
     cfText: { textAlign: 'center', marginTop: 8, fontWeight: 500, fontSize: 12, color: "#666666" },
@@ -231,6 +244,27 @@ const styles = StyleSheet.create({
     yyContent: {
         marginTop: 11,
         paddingHorizontal: 6,
+    },
+    yyEmptyTip: {
+        margin: 12,
+        height: 39,
+        backgroundColor: 'rgba(254,248,225,0.2)',
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: 'rgba(238,156,68,0.3)',
+        paddingHorizontal: 12,
+    },
+    yyEmptyTipIcon: {
+        width: 15,
+        height: 15,
+        marginRight: 6,
+    },
+    yyEmptyTipText: {
+        flex: 1,
+        flexShrink: 1,
+        fontWeight: '500',
+        fontSize: 12,
+        color: '#C98A41',
     },
     yyItem: {
         width: '33.33%',
@@ -351,6 +385,7 @@ const styles = StyleSheet.create({
         flexShrink: 0,
     },
     jyBox: {
+        marginTop: 10,
         height: 25,
     },
     jyIcon: {

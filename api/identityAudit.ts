@@ -119,9 +119,21 @@ export type IdCardIdentifyData = {
   sex?: string;
   nation?: string;
   birth?: string;
-  /** 住址（身份证上户籍地址） */
+  /** @deprecated 旧字段，兼容历史返回；优先用 fullAddress / detailAddress */
   address?: string;
-  ossId?: number;
+  /** 完整住址（身份证上户籍地址全文） */
+  fullAddress?: string;
+  /** 省 / 直辖市 */
+  province?: string;
+  /** 市 */
+  city?: string;
+  /** 区 / 县 */
+  district?: string;
+  /** 街道 / 乡镇 */
+  street?: string;
+  /** 详细地址（门牌号等，不含省市区街道） */
+  detailAddress?: string;
+  ossId?: number | string;
   ossUrl?: string;
 };
 

@@ -1,14 +1,18 @@
-import React, { useState } from 'react';
-import { View, Text, Image } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Image, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import styles from '@/css/exercise';
 import type { RootState } from '@/store/store';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { formatExerciseUserInfoText } from './utils/exerciseHelpers';
 import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
+import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
+import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { AppTheme } from '@/common/theme';
 
 
 export default function CommunityPage() {
@@ -19,6 +23,32 @@ export default function CommunityPage() {
   const infoText = formatExerciseUserInfoText(user, userExtr);
 
   const [activeNav, setActiveNav] = useState(0);
+  const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const loadExerciseRule = useCallback(async () => {
+    try {
+      const res = await getInUseExPatientRuleInfo();
+      if (!isResourceApiOk(res as unknown as { code?: number })) {
+        setExerciseRule(null);
+        return;
+      }
+      setExerciseRule(
+        apiResourceData<InUseExPatientRule>(res as unknown as never) ?? null,
+      );
+    } catch {
+      setExerciseRule(null);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadExerciseRule();
+    }, [loadExerciseRule]),
+  );
+
   const pageList = [
     {
       title: '今日训练',
@@ -44,7 +74,7 @@ export default function CommunityPage() {
             <Text style={styles.topNameText}>{displayName}</Text>
             <Flex style={styles.containerBox}>
               <Image style={styles.topNameImage} source={require('@/assets/images/nutrition/star.png')} />
-              <Text style={styles.cfText}>处方V3</Text>
+              <Text style={styles.cfText}>--</Text>
             </Flex>
           </Flex>
           <Flex style={styles.topInfoBox}>
@@ -71,7 +101,21 @@ export default function CommunityPage() {
           </Flex>
         ))}
       </Flex>
-      {activeNav === 0 ? (
+      {loading && !exerciseRule ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator color={AppTheme.primaryColor} />
+        </View>
+      ) : !exerciseRule ? (
+        <View style={styles.emptyPrescription}>
+          <Image
+            source={require('@/assets/images/exercise/icon_yd_empty.png')}
+            style={styles.emptyPrescriptionIcon}
+          />
+          <Text style={styles.emptyPrescriptionText}>
+            暂无运动处方，如需开方，请联系工作人员
+          </Text>
+        </View>
+      ) : activeNav === 0 ? (
         <TrainingPage />
       ) : (
         <PrescriptionPage />

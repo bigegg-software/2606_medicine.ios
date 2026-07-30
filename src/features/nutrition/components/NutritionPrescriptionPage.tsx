@@ -269,6 +269,17 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
 
   return (
     <View style={{ flex: 1 }}>
+      {!dietRule ? (
+        <View style={styles.emptyPrescription}>
+          <Image
+            source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+            style={styles.emptyPrescriptionIcon}
+          />
+          <Text style={styles.emptyPrescriptionText}>
+            暂无营养处方，如需开方，请联系工作人员
+          </Text>
+        </View>
+      ) : (
       <ScrollView
         style={[styles.scroll, { paddingHorizontal: 0 }]}
         contentContainerStyle={{ paddingBottom: 100 }}
@@ -470,6 +481,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
           </>
         ) : null}
       </ScrollView>
+      )}
 
       <Flex
         justify="between"

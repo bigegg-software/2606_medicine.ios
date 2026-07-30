@@ -643,41 +643,53 @@ export default function HomeTab() {
                   </Flex>
                 </TouchableOpacity>
               </Flex>
-              <Flex justify='between' style={styles.cfContent}>
-                {exercisePrescriptionMetrics.map(item => (
-                  <View key={item.key} style={styles.cfItem}>
-                    <Text style={styles.cfValue}>{item.value}%</Text>
-                    <Text style={styles.cfText}>{item.label}</Text>
-                    <View style={styles.cfProgressTrack}>
-                      <View style={[
-                        styles.cfProgressFill,
-                        {
-                          width: Math.max(0,
-                            Math.min(CF_PROGRESS_TRACK_WIDTH, (CF_PROGRESS_TRACK_WIDTH * item.value) / 100),
-                          ),
-                          backgroundColor: item.color,
-                        },
-                      ]} />
-                    </View>
-                  </View>
-                ))}
-              </Flex>
-              {homePrescriptionGoal ? (
-                <Flex style={styles.cfBottom} align="center">
-                  {homePrescriptionGoal.layout === 'metric' ? (
-                    <>
-                      <Text style={styles.btm1}>{homePrescriptionGoal.label}</Text>
-                      <Text style={styles.btmText}>{homePrescriptionGoal.value}</Text>
-                      <Text style={styles.btm1}>{homePrescriptionGoal.unit}</Text>
-                      <Flex style={styles.ydbBox}>
-                        <Text style={styles.ydbText}>{homePrescriptionGoal.badge}</Text>
-                      </Flex>
-                    </>
-                  ) : (
-                    <Text style={styles.btm1} numberOfLines={2}>{homePrescriptionGoal.text}</Text>
-                  )}
-                </Flex>
-              ) : null}
+              {!exercisePrescription ? (
+                <View style={styles.cfEmpty}>
+                  <Image
+                    source={require('@/assets/images/home/icon_yd_empty.png')}
+                    style={styles.cfEmptyIcon}
+                  />
+                  <Text style={styles.cfEmptyText}>暂无运动处方，如需开方，请联系工作人员</Text>
+                </View>
+              ) : (
+                <>
+                  <Flex justify='between' style={styles.cfContent}>
+                    {exercisePrescriptionMetrics.map(item => (
+                      <View key={item.key} style={styles.cfItem}>
+                        <Text style={styles.cfValue}>{item.value}%</Text>
+                        <Text style={styles.cfText}>{item.label}</Text>
+                        <View style={styles.cfProgressTrack}>
+                          <View style={[
+                            styles.cfProgressFill,
+                            {
+                              width: Math.max(0,
+                                Math.min(CF_PROGRESS_TRACK_WIDTH, (CF_PROGRESS_TRACK_WIDTH * item.value) / 100),
+                              ),
+                              backgroundColor: item.color,
+                            },
+                          ]} />
+                        </View>
+                      </View>
+                    ))}
+                  </Flex>
+                  {homePrescriptionGoal ? (
+                    <Flex style={styles.cfBottom} align="center">
+                      {homePrescriptionGoal.layout === 'metric' ? (
+                        <>
+                          <Text style={styles.btm1}>{homePrescriptionGoal.label}</Text>
+                          <Text style={styles.btmText}>{homePrescriptionGoal.value}</Text>
+                          <Text style={styles.btm1}>{homePrescriptionGoal.unit}</Text>
+                          <Flex style={styles.ydbBox}>
+                            <Text style={styles.ydbText}>{homePrescriptionGoal.badge}</Text>
+                          </Flex>
+                        </>
+                      ) : (
+                        <Text style={styles.btm1} numberOfLines={2}>{homePrescriptionGoal.text}</Text>
+                      )}
+                    </Flex>
+                  ) : null}
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -830,6 +842,15 @@ export default function HomeTab() {
                   : `建议热量${formatNutritionInteger(displayCalories)}千卡`}
               </Text>
             </Flex>
+            {!dietRule ? (
+              <Flex style={styles.yyEmptyTip} align="center">
+                <Image
+                  source={require('@/assets/images/home/icon_warn.png')}
+                  style={styles.yyEmptyTipIcon}
+                />
+                <Text style={styles.yyEmptyTipText}>暂无营养处方，如需开方，请联系工作人员</Text>
+              </Flex>
+            ) : null}
           </View>
         </View>
       </View>
