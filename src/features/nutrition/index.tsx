@@ -21,6 +21,8 @@ export default function NutritionPage() {
   const [activeNav, setActiveNav] = useState(0);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
+  const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
 
   const loadDietRule = useCallback(async () => {
     try {
@@ -44,6 +46,11 @@ export default function NutritionPage() {
       void loadDietRule();
     }, [loadDietRule]),
   );
+
+  const onPressNav = useCallback((index: number) => {
+    setActiveNav(index);
+    setMountedTabs(prev => (prev[index] ? prev : { ...prev, [index]: true }));
+  }, []);
 
   const header = formatDietHeaderInfo(dietRule, user, systemUser, userExtr);
   const pageList = [
@@ -103,7 +110,7 @@ export default function NutritionPage() {
             key={page.title}
             style={[styles.navItem, activeNav === index && styles.activeNavItem]}
             justify="center"
-            onPress={() => setActiveNav(index)}
+            onPress={() => onPressNav(index)}
           >
             <Image style={styles.navIcon} source={page.icon} />
             <Text style={[styles.navText, activeNav === index && styles.activeNavText]}>
@@ -116,10 +123,19 @@ export default function NutritionPage() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      ) : activeNav === 0 ? (
-        <DietPage dietRule={dietRule} onDietRuleChange={setDietRule} />
       ) : (
-        <NutritionPrescriptionPage dietRule={dietRule} />
+        <View style={{ flex: 1 }}>
+          {mountedTabs[0] ? (
+            <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
+              <DietPage dietRule={dietRule} onDietRuleChange={setDietRule} />
+            </View>
+          ) : null}
+          {mountedTabs[1] ? (
+            <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
+              <NutritionPrescriptionPage dietRule={dietRule} />
+            </View>
+          ) : null}
+        </View>
       )}
     </PageLayout>
   );
