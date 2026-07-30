@@ -240,7 +240,7 @@ export default function QuestionnaireDetailPage({ route }: { route: { params: { 
 
                 {questionsAnswer.length > 0 ? (
                     <>
-                        <Text style={styles.sectionTitle}>作答详情</Text>
+                        <Text style={[styles.sectionTitle, { marginTop: 16 }]}>作答详情</Text>
                         {questionsAnswer.map((item, index) =>
                             renderQuestionBlock(item, index, detail.type),
                         )}

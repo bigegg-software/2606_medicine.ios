@@ -118,7 +118,7 @@ export default function NotificationSettingPage() {
     <PageLayout style={styles.container} showHeaderBackground={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* <Text style={styles.sectionTitle}>消息通知</Text> */}
-        <View style={[styles.sectionBox,{paddingVertical:0}]}>
+        <View style={[styles.sectionBox, { paddingVertical: 0 }]}>
           <Flex justify="between" align="center" style={styles.settingRow}>
             <Flex align="center">
               <Image

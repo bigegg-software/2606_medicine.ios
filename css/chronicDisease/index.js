@@ -61,7 +61,6 @@ const styles = StyleSheet.create({
     },
     infoTitle: { fontWeight: 'bold', fontSize: 15, color: '#333333' },
     infoStatusBox: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -72,7 +71,6 @@ const styles = StyleSheet.create({
     },
     infoStatusText: { fontWeight: 'bold', fontSize: 12, color: '#6D925E', lineHeight: 20 },
     infoStatusBoxAttention: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -83,7 +81,6 @@ const styles = StyleSheet.create({
     },
     infoStatusTextAttention: { fontWeight: 'bold', fontSize: 12, color: '#EE9C44', lineHeight: 20 },
     infoStatusBoxHighRisk: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,

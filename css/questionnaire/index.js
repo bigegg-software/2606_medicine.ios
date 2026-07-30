@@ -32,7 +32,6 @@ const styles = StyleSheet.create({
     rowText: { fontWeight: 500, fontSize: 13, marginTop: 6, color: AppTheme.textSecondary },
     rowTitleText: { fontWeight: "bold", fontSize: 18, color: AppTheme.textPrimary },
     rowStatus: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -47,7 +46,6 @@ const styles = StyleSheet.create({
         textAlignVertical: 'center',
     },
     rowStatusWarn: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -62,7 +60,6 @@ const styles = StyleSheet.create({
         textAlignVertical: 'center',
     },
     rowStatusOrange: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -77,7 +74,6 @@ const styles = StyleSheet.create({
         textAlignVertical: 'center',
     },
     rowStatusError: {
-        height: 22,
         paddingHorizontal: 6,
         backgroundColor: '#FFFFFF',
         borderRadius: 4,
@@ -257,14 +253,18 @@ const styles = StyleSheet.create({
     detailTime: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, marginTop: 6 },
     progressRing: { width: 60, height: 60, justifyContent: 'center', alignItems: 'center' },
     progressCanvas: { width: 60, height: 60, position: 'absolute' },
-    progressText: { fontWeight: 500, fontSize: 12, color: '#FFBA1D', lineHeight: 14 },
+    progressText: { fontWeight: 500, textAlign: "center", fontSize: 12, color: '#FFBA1D', lineHeight: 14 },
     rowTextBox: { marginTop: 12 },
     topText: { fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary },
-    detailMapTitle: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, marginBottom: 4 },
-    detailMapItem: { marginTop: 8, height: 34, backgroundColor: "#F7FAFF", borderRadius: 24, paddingLeft: 22 },
+    detailMapTitle: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, lineHeight: 22, marginBottom: 4 },
+    detailMapItem: { marginTop: 8, height: 34, backgroundColor: '#F6F7FA', borderRadius: 24, paddingLeft: 22 },
     detailMapItemText: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
-    detailMapItemActive: { backgroundColor: "#E2EDFF", borderWidth: 1, borderColor: AppTheme.primaryColor },
-    detailMapItemTextActive: { color: AppTheme.primaryColor },
+    detailMapItemActive: {
+        backgroundColor: 'rgba(109,146,94,0.12)',
+        borderWidth: 1,
+        borderColor: 'rgba(109,146,94,0.3)',
+    },
+    detailMapItemTextActive: { color: '#6D925E', fontWeight: '500' },
     detailBottomText: { marginTop: 15, textAlign: 'center', fontWeight: 400, fontSize: 12, color: "rgba(153,153,153,0.67)" },
 
 

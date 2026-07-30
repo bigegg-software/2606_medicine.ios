@@ -510,7 +510,7 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
       <Stack.Screen name="FontSizeSettingPage" component={FontSizeSettingPage} options={{ title: '字体大小', gestureEnabled: false }} />
-      <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速' }} />
+      <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速', gestureEnabled: false }} />
       <Stack.Screen name="NotificationSettingPage" component={NotificationSettingPage} options={{ title: '消息通知' }} />
       <Stack.Screen name="DataManageSettingPage" component={DataManageSettingPage} options={{ title: '数据管理' }} />
       <Stack.Screen name="AuthenticationPage" component={AuthenticationPage} options={{ title: "实名认证" }} />

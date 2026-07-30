@@ -16,9 +16,9 @@ const styles = StyleSheet.create({
     mapRightBox: { marginLeft: 17, flex: 1 },
     mapBoxItemTitle: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, },
     mapRightBtn: { height: 19, backgroundColor: "#00C950", borderRadius: 16, },
-    mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
-    wbmBtn: { height: 19, backgroundColor: "#0951AE", borderRadius: 4, },
-    wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", lineHeight: 19, paddingHorizontal: 7, },
+    mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF",  paddingHorizontal: 7, },
+    wbmBtn: {  backgroundColor: "#0951AE", borderRadius: 4, },
+    wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF",paddingHorizontal: 7,paddingVertical:2 },
     activityStatusTag: {
         height: 22,
         paddingHorizontal: 8,

@@ -185,9 +185,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(109,146,94,0.45)',
   },
   bottomBarButtonRight: { flex: 1, height: 46, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: '#6D925E' },
+  bottomBarButtonRightDisabled: {
+    backgroundColor: '#F5F5F5',
+    borderColor: 'rgba(109,146,94,0.35)',
+  },
+  bottomBarButtonRightIconDisabled: { opacity: 0.35 },
   btnImgSize: { width: 20, height: 20, marginRight: 4 },
   bottomBarButtonTextLeft: { fontWeight: 'bold', fontSize: 16, color: '#FFFFFF' },
   bottomBarButtonTextRight: { fontWeight: 'bold', fontSize: 16, color: '#6D925E' },
+  bottomBarButtonTextRightDisabled: { color: 'rgba(109,146,94,0.45)' },
 
 
   backImageBox: {

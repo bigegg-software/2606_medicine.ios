@@ -5,6 +5,11 @@ export function getDietSignButtonLabel(info?: DietUserSignInfo | null) {
   return '完成今日打卡';
 }
 
+/** 历史日期：展示当日打卡结果文案 */
+export function getDietHistorySignButtonLabel(signed?: boolean | null) {
+  return signed ? '已完成今日打卡' : '未完成今日打卡';
+}
+
 /** 不可打卡时的提示；可打卡返回 null */
 export function getDietSignBlockedMessage(info?: DietUserSignInfo | null) {
   if (info?.signedToday) return '今日已打卡';

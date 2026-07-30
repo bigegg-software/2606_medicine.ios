@@ -32,13 +32,14 @@ import {
     sumProtein,
     toNumber,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
-import { getMealCategoryByTime } from '@/src/features/nutrition/utils/mealResultHelpers';
 import {
     getDietUserSignInfo,
     postDietUserSign,
     type DietUserSignInfo,
 } from '@/api/dietUserSignInfo';
+import { getDailyRecordStatusListByDateRange } from '@/api/dailyRecordStatus';
 import {
+    getDietHistorySignButtonLabel,
     getDietSignBlockedMessage,
     getDietSignButtonLabel,
 } from './utils/dietSignHelpers';
@@ -131,8 +132,9 @@ async function loadDietRuleForDate(
     customerLocalDate: string,
     inUseRule: DietPatientRuleInfo | null,
 ): Promise<DietPatientRuleInfo | null> {
-    const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
-    if (isToday) return inUseRule;
+    const today = moment().format('YYYY-MM-DD');
+    // 今天与未来：用当前在用处方（未来按对应星期展示推荐餐）
+    if (customerLocalDate >= today) return inUseRule;
     return fetchDietRuleForDate(customerLocalDate);
 }
 
@@ -141,11 +143,13 @@ function RecommendedMealCard({
     actualCalories,
     actualFoods,
     onDeleteFood,
+    showPhotoButton,
 }: {
     section: RecommendedMealSection;
     actualCalories: number;
     actualFoods: MealDetailItem[];
     onDeleteFood: (item: MealDetailItem) => void;
+    showPhotoButton: boolean;
 }) {
     const navigation = useNavigation<Nav>();
     const planCalories = section.planCalories > 0 ? Math.round(section.planCalories) : 0;
@@ -258,20 +262,22 @@ function RecommendedMealCard({
                 </View>
             ) : null}
 
-            <TouchableOpacity
-                style={styles.btnBox}
-                activeOpacity={0.8}
-                onPress={() =>
-                    navigation.navigate('MealRecognitionPage', {
-                        mealCategory: getMealCategoryByTime(),
-                    })
-                }
-            >
-                <Flex style={{ flex: 1 }} justify="center">
-                    <Image style={styles.btnImg} source={require('@/assets/images/nutrition/camera.png')} />
-                    <Text style={styles.btnText}>拍照记录这一餐</Text>
-                </Flex>
-            </TouchableOpacity>
+            {showPhotoButton ? (
+                <TouchableOpacity
+                    style={styles.btnBox}
+                    activeOpacity={0.8}
+                    onPress={() =>
+                        navigation.navigate('MealRecognitionPage', {
+                            mealCategory: section.category,
+                        })
+                    }
+                >
+                    <Flex style={{ flex: 1 }} justify="center">
+                        <Image style={styles.btnImg} source={require('@/assets/images/nutrition/camera.png')} />
+                        <Text style={styles.btnText}>拍照记录这一餐</Text>
+                    </Flex>
+                </TouchableOpacity>
+            ) : null}
         </View>
     );
 }
@@ -285,16 +291,27 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
     const [refreshing, setRefreshing] = useState(false);
     const [signing, setSigning] = useState(false);
     const [signInfo, setSignInfo] = useState<DietUserSignInfo | null>(null);
+    const [historySigned, setHistorySigned] = useState(false);
     const [checkInSuccessVisible, setCheckInSuccessVisible] = useState(false);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
+    const todayKey = moment().format('YYYY-MM-DD');
+    const isPastSelected = selectedDate < todayKey;
+    const isTodaySelected = selectedDate === todayKey;
 
     const recommendedSections = useMemo(
         () => buildRecommendedMealSections(dayRule?.mealList, selectedDate),
         [dayRule?.mealList, selectedDate],
     );
 
-    const signButtonLabel = useMemo(() => getDietSignButtonLabel(signInfo), [signInfo]);
-    const signButtonDisabled = Boolean(signInfo?.signedToday) || signing;
+    const signButtonLabel = useMemo(() => {
+        if (isPastSelected) return getDietHistorySignButtonLabel(historySigned);
+        return getDietSignButtonLabel(signInfo);
+    }, [historySigned, isPastSelected, signInfo]);
+    const signButtonIcon = isPastSelected && !historySigned
+        ? require('@/assets/images/nutrition/icon_x.png')
+        : require('@/assets/images/nutrition/wc.png');
+    const signButtonDisabled = !isTodaySelected || Boolean(signInfo?.signedToday) || signing;
+    const refreshDisabled = !isTodaySelected || Boolean(signInfo?.signedToday) || refreshing;
 
     const loadSignInfo = useCallback(async () => {
         try {
@@ -313,6 +330,26 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         }
     }, []);
 
+    const loadHistorySignStatus = useCallback(async (date: string) => {
+        try {
+            const res = await getDailyRecordStatusListByDateRange({
+                startDate: date,
+                endDate: date,
+            });
+            if (!isResourceApiOk(res as unknown as { code?: number })) {
+                setHistorySigned(false);
+                return;
+            }
+            const list = apiResourceData(
+                res as unknown as { code?: number; data?: { customerLocalDate?: string; isDiet?: boolean }[] },
+            ) ?? [];
+            const item = list.find(row => row.customerLocalDate === date) ?? list[0];
+            setHistorySigned(Boolean(item?.isDiet));
+        } catch {
+            setHistorySigned(false);
+        }
+    }, []);
+
     const loadDayData = useCallback(async (date: string, inUseRule: DietPatientRuleInfo | null) => {
         const [meals, rule] = await Promise.all([
             loadMealDetailListForDate(date),
@@ -326,7 +363,12 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         useCallback(() => {
             void loadDayData(selectedDate, dietRule);
             void loadSignInfo();
-        }, [dietRule, loadDayData, loadSignInfo, selectedDate]),
+            if (selectedDate < moment().format('YYYY-MM-DD')) {
+                void loadHistorySignStatus(selectedDate);
+            } else {
+                setHistorySigned(false);
+            }
+        }, [dietRule, loadDayData, loadHistorySignStatus, loadSignInfo, selectedDate]),
     );
 
     const targetCalories = Number(dayRule?.targetCalories) || 0;
@@ -418,6 +460,12 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
 
     const onPressCheckIn = useCallback(async () => {
         if (signing) return;
+        if (selectedDate !== moment().format('YYYY-MM-DD')) {
+            Toast.info(selectedDate > moment().format('YYYY-MM-DD')
+                ? '未来日期不可打卡'
+                : '历史日期不可打卡');
+            return;
+        }
         if (signInfo?.signedToday) {
             Toast.info('今日已打卡');
             return;
@@ -451,9 +499,19 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
             Toast.remove(loadingKey);
             setSigning(false);
         }
-    }, [signInfo, signing]);
+    }, [selectedDate, signInfo, signing]);
 
     const onPressRefresh = useCallback(async () => {
+        if (selectedDate !== moment().format('YYYY-MM-DD')) {
+            Toast.info(selectedDate > moment().format('YYYY-MM-DD')
+                ? '未来日期不可换一换'
+                : '历史日期不可换一换');
+            return;
+        }
+        if (signInfo?.signedToday) {
+            Toast.info('今日已打卡，不可换一换');
+            return;
+        }
         const ruleId = dayRule?.dietPatientRuleId ?? dietRule?.dietPatientRuleId;
         if (ruleId == null || String(ruleId).trim() === '') {
             Toast.show('暂无可用处方');
@@ -495,6 +553,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         onDietRuleChange,
         refreshing,
         selectedDate,
+        signInfo?.signedToday,
     ]);
 
     if (!dietRule) {
@@ -639,6 +698,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                             actualCalories={actualCaloriesByCategory[section.category] ?? 0}
                             actualFoods={actualFoodsByCategory[section.category] ?? []}
                             onDeleteFood={onDeleteFood}
+                            showPhotoButton={isTodaySelected}
                         />
                     ))
                 ) : (
@@ -665,21 +725,39 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                         signButtonDisabled && styles.bottomBarButtonLeftDisabled,
                     ]}
                     activeOpacity={0.7}
+                    disabled={signButtonDisabled}
                     onPress={onPressCheckIn}
                 >
                     <Flex justify="center" style={{ flex: 1 }}>
-                        <Image style={styles.btnImgSize} source={require('@/assets/images/nutrition/wc.png')} />
+                        <Image style={styles.btnImgSize} source={signButtonIcon} />
                         <Text style={styles.bottomBarButtonTextLeft}>{signButtonLabel}</Text>
                     </Flex>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={styles.bottomBarButtonRight}
+                    style={[
+                        styles.bottomBarButtonRight,
+                        refreshDisabled && styles.bottomBarButtonRightDisabled,
+                    ]}
                     activeOpacity={0.7}
+                    disabled={refreshDisabled}
                     onPress={onPressRefresh}
                 >
                     <Flex justify="center" style={{ flex: 1 }}>
-                        <Image style={styles.btnImgSize} source={require('@/assets/images/nutrition/hyh.png')} />
-                        <Text style={styles.bottomBarButtonTextRight}>换一换</Text>
+                        <Image
+                            style={[
+                                styles.btnImgSize,
+                                refreshDisabled && styles.bottomBarButtonRightIconDisabled,
+                            ]}
+                            source={require('@/assets/images/nutrition/hyh.png')}
+                        />
+                        <Text
+                            style={[
+                                styles.bottomBarButtonTextRight,
+                                refreshDisabled && styles.bottomBarButtonTextRightDisabled,
+                            ]}
+                        >
+                            换一换
+                        </Text>
                     </Flex>
                 </TouchableOpacity>
             </Flex>

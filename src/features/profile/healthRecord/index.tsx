@@ -247,7 +247,7 @@ export default function HealthRecordPage() {
                     </Flex>
 
                     <Flex justify="between" style={styles.infoItem}>
-                        <Text style={styles.infoItemLabel}>昵称</Text>
+                        <Text style={styles.infoItemLabel}>姓名</Text>
                         <Text style={styles.infoItemValue}>{name}</Text>
                     </Flex>
 

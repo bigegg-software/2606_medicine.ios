@@ -1,10 +1,52 @@
 export const SPEECH_SPEED_OPTIONS = [
-  { key: 'slow', label: '慢' },
-  { key: 'normal', label: '正常' },
-  { key: 'fast', label: '快' },
+  { key: 'slow', label: '慢', rate: 0.5, rateLabel: '0.5' },
+  { key: 'normal', label: '正常', rate: 1.0, rateLabel: '1.0' },
+  { key: 'fast', label: '快', rate: 1.5, rateLabel: '1.5' },
 ] as const;
 
 export type SpeechSpeed = (typeof SPEECH_SPEED_OPTIONS)[number]['key'];
+
+export const SPEECH_SPEED_MIN = 0.5;
+export const SPEECH_SPEED_MAX = 1.5;
+export const SPEECH_SPEED_STEP = 0.1;
+/** 两大刻度之间的小刻度数量 */
+export const SPEECH_SPEED_MINOR_BETWEEN = 4;
+
+export function snapSpeechSpeedRate(rate: number): number {
+  const clamped = Math.max(SPEECH_SPEED_MIN, Math.min(SPEECH_SPEED_MAX, rate));
+  const steps = Math.round((clamped - SPEECH_SPEED_MIN) / SPEECH_SPEED_STEP);
+  return Number((SPEECH_SPEED_MIN + steps * SPEECH_SPEED_STEP).toFixed(1));
+}
+
+export function getSpeechSpeedTickCount(): number {
+  return Math.round((SPEECH_SPEED_MAX - SPEECH_SPEED_MIN) / SPEECH_SPEED_STEP) + 1;
+}
+
+export function speechSpeedRateToIndex(rate: number): number {
+  const snapped = snapSpeechSpeedRate(rate);
+  return Math.round((snapped - SPEECH_SPEED_MIN) / SPEECH_SPEED_STEP);
+}
+
+export function speechSpeedIndexToRate(index: number): number {
+  const maxIndex = getSpeechSpeedTickCount() - 1;
+  const safe = Math.max(0, Math.min(maxIndex, index));
+  return Number((SPEECH_SPEED_MIN + safe * SPEECH_SPEED_STEP).toFixed(1));
+}
+
+/** 最近的档位标签（慢/正常/快） */
+export function nearestSpeechSpeedOption(rate: number) {
+  const snapped = snapSpeechSpeedRate(rate);
+  let best = SPEECH_SPEED_OPTIONS[1];
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const item of SPEECH_SPEED_OPTIONS) {
+    const dist = Math.abs(item.rate - snapped);
+    if (dist < bestDist) {
+      best = item;
+      bestDist = dist;
+    }
+  }
+  return best;
+}
 
 export const SYNC_RANGE_OPTIONS = [
   { key: '7d', label: '最近7天' },

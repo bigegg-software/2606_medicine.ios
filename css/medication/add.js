@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     dateValue: { fontWeight: 400, fontSize: 14, color: AppTheme.textPrimary },
     calendarIcon: { width: 19, height: 19, marginLeft: 8, tintColor: PRIMARY },
     addBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: PRIMARY, borderRadius: 8 },
-    addText: { height: 19, fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
+    addText: { fontWeight: 500, fontSize: 16, color: '#FFFFFF' },
     switch: { width: 43, height: 21 },
     rowText: {
         marginTop: 12,
