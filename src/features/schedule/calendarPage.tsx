@@ -695,6 +695,72 @@ function ScheduleTimeline({
   );
 }
 
+function CalendarMonthGrid({
+  calendarDays,
+  selectedDate,
+  statusMap,
+  onSelectDate,
+}: {
+  calendarDays: CalendarDay[];
+  selectedDate: string;
+  statusMap: Map<string, DailyRecordStatusItem>;
+  onSelectDate: (dateKey: string) => void;
+}) {
+  const todayKey = moment().format('YYYY-MM-DD');
+
+  return (
+    <View style={styles.calendarGrid}>
+      {calendarDays.map(day => {
+        const dateKey = day.date.format('YYYY-MM-DD');
+        const isSelected = selectedDate === dateKey;
+        const isTodayCell = dateKey === todayKey;
+        const dayDots = getCalendarDayDotColors(statusMap.get(dateKey));
+        const overlapDots = dayDots.length >= 4;
+
+        return (
+          <TouchableOpacity
+            key={dateKey}
+            activeOpacity={0.7}
+            style={styles.dayCell}
+            hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
+            onPress={() => onSelectDate(dateKey)}>
+            <View style={[styles.dayInner, isSelected && styles.daySelected]}>
+              <Text
+                style={
+                  isSelected
+                    ? styles.dayTextSelected
+                    : day.isCurrentMonth
+                      ? styles.dayText
+                      : styles.dayTextOther
+                }>
+                {isTodayCell ? '今' : day.date.date()}
+              </Text>
+            </View>
+            <Flex
+              style={[
+                styles.dayDotWrap,
+                overlapDots ? styles.dayDotWrapOverlap : styles.dayDotWrapGap,
+              ]}>
+              {dayDots.map((color, index) => (
+                <View
+                  key={`${dateKey}-${color}-${index}`}
+                  style={[
+                    styles.dayDot,
+                    { backgroundColor: color },
+                    overlapDots && index > 0 ? styles.dayDotOverlap : null,
+                  ]}
+                />
+              ))}
+            </Flex>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+const MemoCalendarMonthGrid = React.memo(CalendarMonthGrid);
+
 export default function ScheduleCalendarPage() {
   const navigation = useNavigation<Nav>();
   const [currentMonth, setCurrentMonth] = useState(moment());
@@ -708,9 +774,13 @@ export default function ScheduleCalendarPage() {
   const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
   const [checkingInGroupKey, setCheckingInGroupKey] = useState<string | null>(null);
   const statusMapRef = useRef(statusMap);
+  const currentMonthRef = useRef(currentMonth);
+  const selectedDateRef = useRef(selectedDate);
   const skipFocusRefreshRef = useRef(true);
 
   statusMapRef.current = statusMap;
+  currentMonthRef.current = currentMonth;
+  selectedDateRef.current = selectedDate;
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
   const isToday = selectedDate === moment().format('YYYY-MM-DD');
@@ -721,15 +791,18 @@ export default function ScheduleCalendarPage() {
     return [...others, ...drugItems].sort((left, right) => left.sortValue - right.sortValue);
   }, [isToday, medicationPlanGroups, timelineItems]);
 
-  const loadMonthlyOverview = useCallback(async (month: Moment) => {
-    setLoadingMonth(true);
+  const loadMonthlyOverview = useCallback(async (
+    month: Moment,
+    options?: { silent?: boolean },
+  ) => {
+    if (!options?.silent) setLoadingMonth(true);
     try {
       const map = await loadDailyRecordStatusMap(month);
       setStatusMap(map);
     } catch {
       setStatusMap(new Map());
     } finally {
-      setLoadingMonth(false);
+      if (!options?.silent) setLoadingMonth(false);
     }
   }, []);
 
@@ -762,6 +835,10 @@ export default function ScheduleCalendarPage() {
     }
   }, []);
 
+  const handleSelectDate = useCallback((dateKey: string) => {
+    setSelectedDate(dateKey);
+  }, []);
+
   useEffect(() => {
     void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
@@ -774,17 +851,19 @@ export default function ScheduleCalendarPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
   }, [selectedDate, loadDayTimeline, loadTodayMedication]);
 
-  // 从记餐等页面返回时刷新日历点位与当日时间轴
+  // 从记餐等页面返回时刷新；勿把 selectedDate 放进依赖，否则切日期会误触发整月重载
   useFocusEffect(
     useCallback(() => {
       if (skipFocusRefreshRef.current) {
         skipFocusRefreshRef.current = false;
         return;
       }
-      void loadMonthlyOverview(currentMonth);
-      void loadDayTimeline(selectedDate, statusMapRef.current.get(selectedDate));
-      void loadTodayMedication(selectedDate);
-    }, [currentMonth, selectedDate, loadMonthlyOverview, loadDayTimeline, loadTodayMedication]),
+      const month = currentMonthRef.current;
+      const date = selectedDateRef.current;
+      void loadMonthlyOverview(month, { silent: true });
+      void loadDayTimeline(date, statusMapRef.current.get(date));
+      void loadTodayMedication(date);
+    }, [loadMonthlyOverview, loadDayTimeline, loadTodayMedication]),
   );
 
   // 月度 status 返回后，仅历史日且需要运动/用药时再补一次（今日跳过）
@@ -928,6 +1007,7 @@ export default function ScheduleCalendarPage() {
               activeOpacity={0.7}
               onPress={() => setCurrentMonth(m => moment(m).subtract(1, 'month'))}
               style={styles.navIconLeftWrap}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Image source={require('@/assets/images/schedule/icon_left.png')} style={styles.navIcon} />
             </TouchableOpacity>
@@ -953,6 +1033,7 @@ export default function ScheduleCalendarPage() {
               activeOpacity={0.7}
               onPress={() => setCurrentMonth(m => moment(m).add(1, 'month'))}
               style={styles.navIconRightWrap}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Image source={require('@/assets/images/schedule/icon_right.png')} style={styles.navIcon} />
             </TouchableOpacity>
@@ -973,52 +1054,12 @@ export default function ScheduleCalendarPage() {
               <ActivityIndicator color={AppTheme.primaryColor} />
             </View>
           ) : (
-            <View style={styles.calendarGrid}>
-              {calendarDays.map(day => {
-                const dateKey = day.date.format('YYYY-MM-DD');
-                const isSelected = selectedDate === dateKey;
-                const isToday = day.date.isSame(moment(), 'day');
-                const dayDots = getCalendarDayDotColors(statusMap.get(dateKey));
-                const overlapDots = dayDots.length >= 4;
-
-                return (
-                  <TouchableOpacity
-                    key={dateKey}
-                    activeOpacity={0.7}
-                    style={styles.dayCell}
-                    onPress={() => setSelectedDate(dateKey)}>
-                    <View style={[styles.dayInner, isSelected && styles.daySelected]}>
-                      <Text
-                        style={
-                          isSelected
-                            ? styles.dayTextSelected
-                            : day.isCurrentMonth
-                              ? styles.dayText
-                              : styles.dayTextOther
-                        }>
-                        {isToday ? '今' : day.date.date()}
-                      </Text>
-                    </View>
-                    <Flex
-                      style={[
-                        styles.dayDotWrap,
-                        overlapDots ? styles.dayDotWrapOverlap : styles.dayDotWrapGap,
-                      ]}>
-                      {dayDots.map((color, index) => (
-                        <View
-                          key={`${dateKey}-${color}-${index}`}
-                          style={[
-                            styles.dayDot,
-                            { backgroundColor: color },
-                            overlapDots && index > 0 ? styles.dayDotOverlap : null,
-                          ]}
-                        />
-                      ))}
-                    </Flex>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <MemoCalendarMonthGrid
+              calendarDays={calendarDays}
+              selectedDate={selectedDate}
+              statusMap={statusMap}
+              onSelectDate={handleSelectDate}
+            />
           )}
         </View>
         <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.calendarBack}>

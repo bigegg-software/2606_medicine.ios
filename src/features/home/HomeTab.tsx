@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent } from 'react-native';
+import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
@@ -234,6 +234,11 @@ export default function HomeTab() {
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [homePrescriptionGoal, setHomePrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(null);
   const [vitalInfoKey, setVitalInfoKey] = useState<string | null>(null);
+  const [scrollEnabled, setScrollEnabled] = useState(false);
+  const [showTopMask, setShowTopMask] = useState(false);
+  const viewportHeightRef = useRef(0);
+  const contentHeightRef = useRef(0);
+  const showTopMaskRef = useRef(false);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
@@ -457,8 +462,48 @@ export default function HomeTab() {
   //   AsyncStorage.setItem('token','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJsb2dpblR5cGUiOiJsb2dpbiIsImxvZ2luSWQiOiJhcHBfdXNlcjoyMDYxMjYyMTkzNDQyMjM4NDY2Iiwicm5TdHIiOiJidlZsRnA2aVpXMVZreEpkQk44TU13OGJJbFRiZktheSIsImNsaWVudGlkIjoiNTI4Y2ZlZDc0ODkyNDMzYjkyZjJhYzU1MTk4OTIwY3EtdXNlckFwcFNtcyIsInRlbmFudElkIjoiMDAwMDAwIiwidXNlcklkIjoyMDYxMjYyMTkzNDQyMjM4NDY2LCJ1c2VyTmFtZSI6IjE3NjAxNjM4MDIxIn0.BgYnMUWXvdXFJj_LF3hBr-PDHjfYz55Ry_PjuyJ_EDw');
   //   AsyncStorage.setItem('clientId','528cfed74892433b92f2ac55198920cq-userAppSms');
   // },[])
+
+  const updateScrollEnabled = useCallback(() => {
+    const viewport = viewportHeightRef.current;
+    const contentH = contentHeightRef.current;
+    if (viewport <= 0 || contentH <= 0) {
+      setScrollEnabled(false);
+      return;
+    }
+    setScrollEnabled(contentH > viewport + 1);
+  }, []);
+
+  const onScrollViewLayout = useCallback((event: LayoutChangeEvent) => {
+    viewportHeightRef.current = event.nativeEvent.layout.height;
+    updateScrollEnabled();
+  }, [updateScrollEnabled]);
+
+  const onScrollContentSizeChange = useCallback((_width: number, height: number) => {
+    contentHeightRef.current = height;
+    updateScrollEnabled();
+  }, [updateScrollEnabled]);
+
+  const onHomeScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const next = event.nativeEvent.contentOffset.y > 1;
+    if (next === showTopMaskRef.current) return;
+    showTopMaskRef.current = next;
+    setShowTopMask(next);
+  }, []);
+
   const content = (
-    <ScrollView style={[styles.scrollView, styles.scroll]}>
+    <ScrollView
+      style={styles.scrollView}
+      contentContainerStyle={styles.scroll}
+      scrollEnabled={scrollEnabled}
+      bounces={false}
+      alwaysBounceVertical={false}
+      overScrollMode="never"
+      showsVerticalScrollIndicator={false}
+      onLayout={onScrollViewLayout}
+      onContentSizeChange={onScrollContentSizeChange}
+      onScroll={onHomeScroll}
+      scrollEventThrottle={16}
+    >
       <Image
         source={require('@/assets/images/home/back.png')}
         style={[bannerSize, { position: "absolute", top: 0, left: 0 }]}
@@ -854,10 +899,8 @@ export default function HomeTab() {
           </View>
         </View>
       </View>
-
-
     </ScrollView>
-  );
+  )
 
   return (
     <View style={styles.container}>
@@ -866,6 +909,14 @@ export default function HomeTab() {
           <Image source={require('@/assets/images/home/homeLogo.png')} style={styles.miniLogo} />
         </View>
       </View>
+      {showTopMask ? (
+        <LinearGradient
+          colors={['rgba(1,24,44,0.9)', 'rgba(1,24,44,0.5)', 'rgba(46,108,149,0)']}
+          locations={[0, 0.6, 1]}
+          style={styles.scrollTopMask}
+          pointerEvents="none"
+        />
+      ) : null}
       {Platform.OS === 'android' ? (
         <BlurTargetView ref={blurTargetRef} style={styles.scrollView}>
           {content}

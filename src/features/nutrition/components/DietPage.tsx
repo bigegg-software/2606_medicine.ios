@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,6 +7,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
 import styles from '@/css/nutrition';
 import { buildDietWeekDays } from './utils/dietCalendarHelpers';
+import { getDayMealEatDots, loadMealEatMapByYear, type MealEatMap } from './utils/dietMealEatHelpers';
 import DietProgressRing from './DietProgressRing';
 import DietDatePickerModal from './DietDatePickerModal';
 import DietCheckInSuccessModal from './DietCheckInSuccessModal';
@@ -293,6 +294,9 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
     const [signInfo, setSignInfo] = useState<DietUserSignInfo | null>(null);
     const [historySigned, setHistorySigned] = useState(false);
     const [checkInSuccessVisible, setCheckInSuccessVisible] = useState(false);
+    const [eatMap, setEatMap] = useState<MealEatMap>({});
+    const loadedEatYearsRef = useRef<Set<number>>(new Set());
+    const loadingEatYearsRef = useRef<Set<number>>(new Set());
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
     const todayKey = moment().format('YYYY-MM-DD');
     const isPastSelected = selectedDate < todayKey;
@@ -359,6 +363,36 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         setDayRule(rule);
     }, []);
 
+    const ensureEatYearLoaded = useCallback(async (year: number, force = false) => {
+        const currentYear = moment().year();
+        if (!Number.isFinite(year) || year > currentYear) return;
+        if (!force && (loadedEatYearsRef.current.has(year) || loadingEatYearsRef.current.has(year))) {
+            return;
+        }
+        if (loadingEatYearsRef.current.has(year)) return;
+
+        loadingEatYearsRef.current.add(year);
+        try {
+            const nextMap = await loadMealEatMapByYear(year);
+            if (nextMap) {
+                loadedEatYearsRef.current.add(year);
+                setEatMap(prev => ({ ...prev, ...nextMap }));
+            }
+        } finally {
+            loadingEatYearsRef.current.delete(year);
+        }
+    }, []);
+
+    // 周切换 / 选中日跨年时懒加载餐次标记
+    useEffect(() => {
+        const years = new Set<number>();
+        years.add(moment(selectedDate, 'YYYY-MM-DD').year());
+        weekDays.forEach(day => years.add(moment(day.key, 'YYYY-MM-DD').year()));
+        years.forEach(year => {
+            void ensureEatYearLoaded(year);
+        });
+    }, [ensureEatYearLoaded, selectedDate, weekDays]);
+
     useFocusEffect(
         useCallback(() => {
             void loadDayData(selectedDate, dietRule);
@@ -368,7 +402,17 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
             } else {
                 setHistorySigned(false);
             }
-        }, [dietRule, loadDayData, loadHistorySignStatus, loadSignInfo, selectedDate]),
+            // 回到页面时刷新可见周所在年的餐次点
+            const years = new Set<number>();
+            years.add(moment(selectedDate, 'YYYY-MM-DD').year());
+            buildDietWeekDays(selectedDate).forEach(day => {
+                years.add(moment(day.key, 'YYYY-MM-DD').year());
+            });
+            years.forEach(year => {
+                loadedEatYearsRef.current.delete(year);
+                void ensureEatYearLoaded(year, true);
+            });
+        }, [dietRule, ensureEatYearLoaded, loadDayData, loadHistorySignStatus, loadSignInfo, selectedDate]),
     );
 
     const targetCalories = Number(dayRule?.targetCalories) || 0;
@@ -580,6 +624,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                 <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;
+                        const mealDots = getDayMealEatDots(eatMap[item.key]);
                         return (
                             <TouchableOpacity
                                 key={item.key}
@@ -593,6 +638,14 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                                 <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
                                     {item.day}
                                 </Text>
+                                <View style={styles.calendarMealDotWrap}>
+                                    {mealDots.map((color, index) => (
+                                        <View
+                                            key={`${item.key}-${color}-${index}`}
+                                            style={[styles.calendarMealDot, { backgroundColor: color }]}
+                                        />
+                                    ))}
+                                </View>
                             </TouchableOpacity>
                         );
                     })}

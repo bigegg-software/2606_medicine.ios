@@ -90,3 +90,22 @@ export const getMealAllRecords = (params?: {
   pageNum?: number;
 }) =>
   request.get<MealAllRecordsResult>('/patient/fitpulse/meal/allRecords', { params });
+
+/** 按日期范围查询指定餐次每日是否吃过 */
+export type MealIsEatByDateItem = {
+  customerLocalDate?: string;
+  exists?: boolean;
+};
+
+export type MealIsEatByDateRangeResult = {
+  code?: number;
+  msg?: string;
+  data?: MealIsEatByDateItem[];
+};
+
+export const getMealIsEatByDateRange = (params: {
+  mealCategory: number;
+  startDate: string;
+  endDate: string;
+}) =>
+  request.get<MealIsEatByDateRangeResult>('/patient/fitpulse/meal/isEatByDateRange', { params });

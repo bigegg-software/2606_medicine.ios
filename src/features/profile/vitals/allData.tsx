@@ -10,6 +10,12 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/vitals/all';
 import { buildAllDataWeekDays } from './utils/allDataCalendarHelpers';
 import {
+  resolveVitalsUploadMarker,
+  loadVitalsUploadMapByYear,
+  type VitalsUploadMap,
+} from './utils/vitalsUploadCalendarHelpers';
+import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
+import {
   buildWearableStatusFilterPickerData,
   filterWearableRecordsByStatus,
   WEARABLE_STATUS_FILTER_ALL,
@@ -57,7 +63,6 @@ import SleepStageDetailChart, {
   type SleepStageSelection,
 } from './detail/components/SleepStageDetailChart';
 import detailStyles from '@/css/vitals/bloodPage';
-import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import {
   buildEnergyGoalSummaryCardData,
   buildStepsGoalSummaryCardData,
@@ -975,7 +980,11 @@ export default function AllDataPage({ route }: Props) {
   const [loading, setLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState(WEARABLE_STATUS_FILTER_ALL);
+  const [uploadMap, setUploadMap] = useState<VitalsUploadMap>({});
+  const loadedUploadYearsRef = useRef<Set<number>>(new Set());
+  const loadingUploadYearsRef = useRef<Set<number>>(new Set());
   const weekDays = useMemo(() => buildAllDataWeekDays(selectedDate), [selectedDate]);
+  const uploadMarker = useMemo(() => resolveVitalsUploadMarker(measureType), [measureType]);
   const monthLabel = useMemo(
     () => moment(selectedDate, 'YYYY-MM-DD').format('YYYY年M月'),
     [selectedDate],
@@ -996,6 +1005,46 @@ export default function AllDataPage({ route }: Props) {
   useEffect(() => {
     setStatusFilter(WEARABLE_STATUS_FILTER_ALL);
   }, [measureType, selectedDate]);
+
+  const ensureUploadYearLoaded = useCallback(async (year: number) => {
+    const currentYear = moment().year();
+    if (!Number.isFinite(year) || year > currentYear) return;
+    if (loadedUploadYearsRef.current.has(year) || loadingUploadYearsRef.current.has(year)) return;
+
+    loadingUploadYearsRef.current.add(year);
+    try {
+      const nextMap = await loadVitalsUploadMapByYear(uploadMarker, year);
+      if (nextMap) {
+        loadedUploadYearsRef.current.add(year);
+        setUploadMap(prev => ({ ...prev, ...nextMap }));
+      }
+    } finally {
+      loadingUploadYearsRef.current.delete(year);
+    }
+  }, [uploadMarker]);
+
+  // 切换指标类型时重置上传标记缓存
+  useEffect(() => {
+    loadedUploadYearsRef.current = new Set();
+    loadingUploadYearsRef.current = new Set();
+    setUploadMap({});
+    const currentYear = moment().year();
+    const selectedYear = moment(selectedDate, 'YYYY-MM-DD').year();
+    void ensureUploadYearLoaded(currentYear);
+    if (selectedYear < currentYear) {
+      void ensureUploadYearLoaded(selectedYear);
+    }
+  }, [ensureUploadYearLoaded, measureType]);
+
+  // 周切换 / 选中日跨年时懒加载
+  useEffect(() => {
+    const years = new Set<number>();
+    years.add(moment(selectedDate, 'YYYY-MM-DD').year());
+    weekDays.forEach(day => years.add(moment(day.key, 'YYYY-MM-DD').year()));
+    years.forEach(year => {
+      void ensureUploadYearLoaded(year);
+    });
+  }, [ensureUploadYearLoaded, selectedDate, weekDays]);
 
   const goToday = useCallback(() => {
     setSelectedDate(moment().format('YYYY-MM-DD'));
@@ -1250,6 +1299,7 @@ export default function AllDataPage({ route }: Props) {
           <Flex justify="between" style={styles.calendarWeekRow}>
             {weekDays.map(item => {
               const isActive = item.key === selectedDate;
+              const hasUpload = Boolean(uploadMap[item.key]);
               return (
                 <TouchableOpacity
                   key={item.key}
@@ -1262,6 +1312,13 @@ export default function AllDataPage({ route }: Props) {
                   <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
                     {item.day}
                   </Text>
+                  <View style={styles.calendarDotWrap}>
+                    {hasUpload ? (
+                      <View
+                        style={[styles.calendarDot, { backgroundColor: uploadMarker.color }]}
+                      />
+                    ) : null}
+                  </View>
                 </TouchableOpacity>
               );
             })}
@@ -1347,6 +1404,7 @@ export default function AllDataPage({ route }: Props) {
         selectedDate={selectedDate}
         onClose={() => setDatePickerVisible(false)}
         onSelect={setSelectedDate}
+        uploadMarker={uploadMarker}
       />
 
       {showAddButton ? (

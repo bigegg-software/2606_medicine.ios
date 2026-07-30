@@ -241,3 +241,25 @@ export const getMeasureDataNormalDayCount = (params: MeasureDataNormalDayCountPa
     '/patient/exMeasureData/normalDayCount',
     { params },
   );
+
+export type MeasureIsUploadByDateItem = {
+  customerLocalDate?: string;
+  exists?: boolean;
+};
+
+export type MeasureIsUploadByDateRangeResult = {
+  code?: number;
+  msg?: string;
+  data?: MeasureIsUploadByDateItem[];
+};
+
+/** 按日期范围查询指定类型测量数据每日是否上传过 */
+export const getMeasureDataIsUploadByDateRange = (params: {
+  type: MeasureDataType | string;
+  startDate: string;
+  endDate: string;
+}) =>
+  request.get<MeasureIsUploadByDateRangeResult>(
+    '/patient/measureData/isUploadByDateRange',
+    { params },
+  );

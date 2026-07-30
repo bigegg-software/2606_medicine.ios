@@ -21,19 +21,19 @@ const IDENTITY_OPTIONS: ReadonlyArray<{
   icon: ImageSourcePropType;
 }> = [
     {
+      value: 'old',
+      badge: '用户',
+      title: '个人健康管理',
+      desc: '记录和管理个人健康数据，获得运动处方、营养处方及健康建议。',
+      icon: require('@/assets/images/login/icon2.png'),
+    },
+    {
       value: 'child',
       badge: '家属',
       title: '关爱家人健康',
       desc: '实时查看家人的血压、血糖及用药情况，及时掌握健康动态。',
       icon: require('@/assets/images/login/icon1.png'),
-    },
-    {
-      value: 'old',
-      badge: '长者',
-      title: '安心共享健康',
-      desc: '授权家人查看我的血压、血糖和用药记录，并可随时调整或撤销授权。',
-      icon: require('@/assets/images/login/icon2.png'),
-    },
+    }
   ];
 
 export default function IdentitySelectPage() {

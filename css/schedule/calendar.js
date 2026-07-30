@@ -16,8 +16,18 @@ const styles = StyleSheet.create({
   },
   dayTitleBtn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   dayTitle: { fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, textAlign: 'center' },
-  navIconLeftWrap: { width: 18, height: 18 },
-  navIconRightWrap: { width: 18, height: 18, alignItems: "flex-end" },
+  navIconLeftWrap: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  navIconRightWrap: {
+    width: 44,
+    height: 44,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
   navIcon: { width: 8, height: 18 },
   weekHead: { flexDirection: 'row', marginTop: 20, gap: 12 },
   weekCellWrap: {
@@ -37,7 +47,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
-  dayCell: { width: '14.28%', marginTop: 25, height: 32, justifyContent: 'center', alignItems: 'center' },
+  dayCell: {
+    width: '14.28%',
+    marginTop: 16,
+    minHeight: 48,
+    paddingVertical: 4,
+    justifyContent: 'flex-start',
+    alignItems: 'center',
+  },
   dayText: {
     fontWeight: 400,
     fontSize: 14,

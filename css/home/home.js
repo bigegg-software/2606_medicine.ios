@@ -12,6 +12,15 @@ const styles = StyleSheet.create({
         zIndex: 20,
         elevation: 20,
     },
+    scrollTopMask: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: 150,
+        zIndex: 15,
+        elevation: 15,
+    },
     floatingHeaderInner: {
         height: 44,
         flexDirection: 'row',

@@ -83,6 +83,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  recordBox: {
+    marginTop: 21,
+  },
+  recordText: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+  },
+  recordLegend: {
+    gap: 12,
+  },
+  recordLegendItem: {
+    gap: 4,
+  },
+  recordLegendDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  recordLegendText: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+  },
   closeIcon: {
     width: 18,
     height: 18,
@@ -130,9 +154,10 @@ const styles = StyleSheet.create({
   },
   dayCell: {
     flex: 1,
-    height: 44,
+    height: 52,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 2,
   },
   dayInner: {
     width: 36,
@@ -163,6 +188,19 @@ const styles = StyleSheet.create({
   dayTextToday: {
     color: '#6D925E',
     fontWeight: 'bold',
+  },
+  dayMealDotWrap: {
+    marginTop: 2,
+    minHeight: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+  },
+  dayMealDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
 });
 

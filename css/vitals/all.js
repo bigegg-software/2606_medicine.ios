@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     },
     calendarWeekRow: {
         marginTop: 13,
-        height: 64,
+        height: 70,
     },
     calendarCol: { width: 38, height: '100%', borderRadius: 25, backgroundColor: 'transparent' },
     calendarColActive: { backgroundColor: 'rgba(109,146,94,0.12)' },
@@ -114,6 +114,18 @@ const styles = StyleSheet.create({
         marginTop: 5,
         color: AppTheme.primaryColor,
         textAlign: 'center',
+    },
+    calendarDotWrap: {
+        height: 6,
+        marginTop: 2,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    calendarDot: {
+        width: 5,
+        height: 5,
+        borderRadius: 2.5,
+        backgroundColor: AppTheme.primaryColor,
     },
     mapBox: {
         padding: 15,

@@ -163,3 +163,25 @@ export const removeWearableOriginalDataById = (wearableDataId: string, id: strin
   request.delete<WearableRemoveResult>('/patient/wearableData/removeOriginalDataById', {
     params: { wearableDataId, id },
   });
+
+export type WearableIsUploadByDateItem = {
+  customerLocalDate?: string;
+  exists?: boolean;
+};
+
+export type WearableIsUploadByDateRangeResult = {
+  code?: number;
+  msg?: string;
+  data?: WearableIsUploadByDateItem[];
+};
+
+/** 按日期范围查询指定类型穿戴数据每日是否上传过 */
+export const getWearableDataIsUploadByDateRange = (params: {
+  type: WearableDataType | string;
+  startDate: string;
+  endDate: string;
+}) =>
+  request.get<WearableIsUploadByDateRangeResult>(
+    '/patient/wearableData/isUploadByDateRange',
+    { params },
+  );

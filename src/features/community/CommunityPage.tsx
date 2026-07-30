@@ -24,7 +24,7 @@ export default function CommunityPage() {
         <View style={styles.topNavBox}>
           <Flex justify="around" style={styles.navBox}>
             {NAV_LIST.map((item, index) => (
-              <TouchableOpacity style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
+              <Flex style={styles.navCol} key={index} onPress={() => setActiveNav(item.value)}>
                 <View style={styles.navItemWrap}>
                   <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>{item.label}</Text>
                   {activeNav === item.value ? (
@@ -33,7 +33,7 @@ export default function CommunityPage() {
                     </View>
                   ) : null}
                 </View>
-              </TouchableOpacity>
+              </Flex>
             ))}
           </Flex>
         </View>
