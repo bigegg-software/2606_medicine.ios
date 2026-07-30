@@ -37,6 +37,13 @@ import {
 const ICON_COLLAPSE = require('@/assets/images/nutrition/sq.png');
 const ICON_EXPAND = require('@/assets/images/nutrition/dk.png');
 
+const PRESCRIPTION_TABS = [
+  { label: '生活方式建议', value: 'lifestyle' },
+  { label: '药物与监测', value: 'monitor' },
+] as const;
+
+type PrescriptionTabValue = (typeof PRESCRIPTION_TABS)[number]['value'];
+
 type Props = {
   dietRule?: DietPatientRuleInfo | null;
 };
@@ -134,6 +141,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
   const monitorCards = useMemo(() => buildPrescriptionMonitorCards(dietRule), [dietRule]);
 
   const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>({});
+  const [monitorTab, setMonitorTab] = useState<PrescriptionTabValue>('lifestyle');
   const [mealNote, setMealNote] = useState('');
   const [isVoiceListening, setIsVoiceListening] = useState(false);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -145,11 +153,33 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
 
   const showSendAction = mealNote.trim().length > 0 || isVoiceListening;
 
+  const lifestyleMonitorCards = useMemo(
+    () => monitorCards.filter(card => card.group === 'lifestyle'),
+    [monitorCards],
+  );
+  const medicalMonitorCards = useMemo(
+    () => monitorCards.filter(card => card.group === 'monitor'),
+    [monitorCards],
+  );
+  const activeMonitorCards = monitorTab === 'lifestyle'
+    ? lifestyleMonitorCards
+    : medicalMonitorCards;
+
   useEffect(() => {
     setExpandedMap(
       Object.fromEntries(adviceItems.map(item => [item.key, item.defaultExpanded])),
     );
   }, [adviceItems]);
+
+  useEffect(() => {
+    if (monitorTab === 'lifestyle' && lifestyleMonitorCards.length === 0 && medicalMonitorCards.length > 0) {
+      setMonitorTab('monitor');
+      return;
+    }
+    if (monitorTab === 'monitor' && medicalMonitorCards.length === 0 && lifestyleMonitorCards.length > 0) {
+      setMonitorTab('lifestyle');
+    }
+  }, [lifestyleMonitorCards.length, medicalMonitorCards.length, monitorTab]);
 
   useEffect(() => {
     let cancelled = false;
@@ -353,7 +383,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
                 <Text style={styles.tipBoxText}>{dietMode.title}</Text>
               </Flex>
               <Text style={styles.tipBoxText1}>{dietMode.reasoning}</Text>
-              {dietMode.strategy ? (
+              {/* {dietMode.strategy ? (
                 <Flex align="start" style={styles.tipBox1}>
                   <Image
                     source={require('@/assets/images/nutrition/star1.png')}
@@ -361,7 +391,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
                   />
                   <Text style={styles.tipBox1Text}>{dietMode.strategy}</Text>
                 </Flex>
-              ) : null}
+              ) : null} */}
             </View>
           </View>
         ) : null}
@@ -461,23 +491,60 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
               source={require('@/assets/images/schedule/calendarBack.png')}
               style={styles.backImage1}
             >
-              <Flex align="center" style={{ flex: 1, paddingLeft: 20 }}>
-                <Text style={styles.backImage1Text}>药物与监测</Text>
+              <Flex justify="around" align="center" style={styles.prescriptionTabBox}>
+                {PRESCRIPTION_TABS.map(item => {
+                  const active = monitorTab === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      style={styles.prescriptionTabCol}
+                      activeOpacity={0.7}
+                      onPress={() => setMonitorTab(item.value)}
+                    >
+                      <View style={styles.prescriptionTabItemWrap}>
+                        <Text
+                          style={[
+                            styles.prescriptionTabText,
+                            active && styles.prescriptionTabTextActive,
+                          ]}
+                        >
+                          {item.label}
+                        </Text>
+                        {active ? (
+                          <View style={styles.prescriptionTabIndicatorWrap}>
+                            <Image
+                              source={require('@/assets/images/user/btm.png')}
+                              style={styles.prescriptionTabIndicator}
+                            />
+                          </View>
+                        ) : null}
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
               </Flex>
             </ImageBackground>
-            {monitorCards.map((card, index) => (
-              <ExpandableMonitorCard
-                key={card.key}
-                title={card.title}
-                icon={card.icon}
-                badge={card.badge}
-                text={card.text}
-                colors={card.colors}
-                contentStyle={
-                  index === 0 ? [styles.jcContent, { marginTop: 0 }] : styles.jcContent
-                }
-              />
-            ))}
+            {activeMonitorCards.length > 0 ? (
+              activeMonitorCards.map((card, index) => (
+                <ExpandableMonitorCard
+                  key={card.key}
+                  title={card.title}
+                  icon={card.icon}
+                  badge={card.badge}
+                  text={card.text}
+                  colors={card.colors}
+                  contentStyle={
+                    index === 0 ? [styles.jcContent, { marginTop: 3 }] : styles.jcContent
+                  }
+                />
+              ))
+            ) : (
+              <View style={[styles.nutritionContent, { marginTop: 0 }]}>
+                <Text style={styles.dietListText}>
+                  {monitorTab === 'lifestyle' ? '暂无生活方式建议' : '暂无药物与监测建议'}
+                </Text>
+              </View>
+            )}
           </>
         ) : null}
       </ScrollView>

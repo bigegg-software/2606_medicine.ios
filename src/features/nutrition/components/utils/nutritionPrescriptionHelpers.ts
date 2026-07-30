@@ -43,6 +43,8 @@ export type PrescriptionAdviceItem = {
 
 export type PrescriptionMonitorCard = {
   key: string;
+  /** 生活方式建议 | 药物与监测 */
+  group: 'lifestyle' | 'monitor';
   title: string;
   icon: ImageSourcePropType;
   badge: string | null;
@@ -326,31 +328,56 @@ export function buildPrescriptionMonitorCards(rule?: DietPatientRuleInfo | null)
     medical?.medication_regimen_analysis?.trim()
       ? {
           key: 'interaction',
+          group: 'monitor',
           title: '药物与营养交互',
           icon: require('@/assets/images/nutrition/icon_yw.png'),
           badge: '医学内容',
           text: medical.medication_regimen_analysis.trim(),
-          colors: ['#EAF4FF', '#F4F9FF', '#FEFFFF'] as const,
+          colors: ['#FAFAFA', '#FEFFFF', '#FEFFFF'] as const,
         }
       : null,
     medical?.risk_monitoring_plan?.trim()
       ? {
           key: 'monitor',
+          group: 'monitor',
           title: '监测建议',
           icon: require('@/assets/images/nutrition/icon_jc.png'),
           badge: '医学内容',
           text: medical.risk_monitoring_plan.trim(),
-          colors: ['#EAF4FF', '#F4F9FF', '#FEFFFF'] as const,
+          colors: ['#FAFAFA', '#FEFFFF', '#FEFFFF'] as const,
+        }
+      : null,
+    lifestyle?.strategy_and_goals?.trim()
+      ? {
+          key: 'strategy',
+          group: 'lifestyle',
+          title: '核心策略与目标',
+          icon: require('@/assets/images/nutrition/icon_tip.png'),
+          badge: null,
+          text: lifestyle.strategy_and_goals.trim(),
+          colors: ['#FAFAFA', '#FEFFFF', '#FEFFFF'] as const,
+        }
+      : null,
+    lifestyle?.energy_paragraph?.trim()
+      ? {
+          key: 'energy',
+          group: 'lifestyle',
+          title: '能量管理说明',
+          icon: require('@/assets/images/nutrition/icon_nl.png'),
+          badge: null,
+          text: lifestyle.energy_paragraph.trim(),
+          colors: ['#FAFAFA', '#FEFFFF', '#FEFFFF'] as const,
         }
       : null,
     lifestyle?.exercise_advice?.trim()
       ? {
           key: 'exercise',
+          group: 'lifestyle',
           title: '运动建议',
           icon: require('@/assets/images/nutrition/icon_jy.png'),
           badge: null,
           text: lifestyle.exercise_advice.trim(),
-          colors: ['#F2F6EF', '#FDFFFB', '#FEFFFF'] as const,
+          colors: ['#FAFAFA', '#FEFFFF', '#FEFFFF'] as const,
         }
       : null,
   ];

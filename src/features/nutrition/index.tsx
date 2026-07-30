@@ -25,6 +25,7 @@ export default function NutritionPage() {
   const loadDietRule = useCallback(async () => {
     try {
       const res = await getInUseDietPatientRuleInfo();
+      console.log(res)
       if (!isResourceApiOk(res as unknown as { code?: number })) {
         setDietRule(null);
         return;
