@@ -50,7 +50,7 @@ export default function AcceptAiPromptModal({
             indicatorStyle="black"
             bounces>
             <Text style={styles.acceptAiDesc}>
-              为向您提供 AI 分析与个性化洞察，莱益昇 使用第三方 AI 服务提供商 Glm 和 DeepSeek。
+              为向您提供 AI 分析与个性化洞察，莱益晟 使用第三方 AI 服务提供商 Glm 和 DeepSeek。
             </Text>
             <Text style={styles.acceptAiDesc}>
               当您选择使用 AI 功能时，您提交用于分析的以下数据可能会被安全传输至上述服务商进行处理：

@@ -149,7 +149,7 @@ export default function DataManageSettingPage() {
               <View style={styles.settingLeftText}>
                 <Text style={styles.itemText}>AI数据处理</Text>
                 <Text style={styles.itemTextSmall}>
-                  允许莱益昇适用AI服务分析您的数据并生成个性化信息。
+                  允许莱益晟适用AI服务分析您的数据并生成个性化信息。
                 </Text>
               </View>
             </View>
