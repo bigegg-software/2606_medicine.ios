@@ -70,6 +70,10 @@ export type UserExtr = {
   authStatus?: number;
   wearableDeviceBound?: number;
   healthIndexShowList?: string[];
+  /** 是否开启语音播报 0.否 1.是（默认关闭） */
+  isVoiceBroadcast?: number;
+  /** 语速（默认 1.0） */
+  voiceSpeed?: number;
 };
 
 export type UserInfoData = {
@@ -115,6 +119,10 @@ export type UpdateExtrInfoPayload = {
   /** 身份视角 old.老人 child.子女 */
   identityPerspective?: string;
   healthIndexShowList?: string[];
+  /** 是否开启语音播报 0.否 1.是（默认关闭） */
+  isVoiceBroadcast?: number;
+  /** 语速（默认 1.0） */
+  voiceSpeed?: number;
 };
 
 export const updateExtrInfo = (data: UpdateExtrInfoPayload) =>

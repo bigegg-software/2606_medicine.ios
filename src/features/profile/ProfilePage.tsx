@@ -28,7 +28,7 @@ import SignInModal from './components/SignInModal';
 import { buildSignButtonLabel, isSignedTodayByBjDate } from './utils/signInHelpers';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
-import { formatSyncRangeLabel } from './settingPage/utils/settingsHelpers';
+import { formatSyncRangeLabel, formatVoiceSpeedLabel } from './settingPage/utils/settingsHelpers';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import {
   getFamilyBindStatusMeta,
@@ -75,6 +75,7 @@ export default function ProfilePage() {
   const loading = useSelector((s: RootState) => s.user.loading);
   const { label: fontSizeLabel } = useFontSize();
   const dataManageLabel = formatSyncRangeLabel(userExtr?.synWdataDays, userExtr?.autoSyncData);
+  const speechSpeedLabel = formatVoiceSpeedLabel(userExtr?.voiceSpeed);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
   const [signInVisible, setSignInVisible] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -524,7 +525,7 @@ export default function ProfilePage() {
                 <Image style={styles.imgItem} source={require('@/assets/images/user/zs.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>语音语速</Text>
-                  <Text style={styles.familyItemRelation}>当前：正常</Text>
+                  <Text style={styles.familyItemRelation}>当前：{speechSpeedLabel}</Text>
                 </View>
               </Flex>
               <Image

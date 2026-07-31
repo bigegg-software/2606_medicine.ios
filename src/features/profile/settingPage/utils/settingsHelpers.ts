@@ -18,6 +18,19 @@ export function snapSpeechSpeedRate(rate: number): number {
   return Number((SPEECH_SPEED_MIN + steps * SPEECH_SPEED_STEP).toFixed(1));
 }
 
+/** 从 userExtr.voiceSpeed 解析语速，缺省 1.0 */
+export function parseVoiceSpeed(voiceSpeed?: number | null): number {
+  if (voiceSpeed == null || !Number.isFinite(Number(voiceSpeed))) {
+    return SPEECH_SPEED_OPTIONS[1].rate;
+  }
+  return snapSpeechSpeedRate(Number(voiceSpeed));
+}
+
+/** 是否开启语音播报：仅 isVoiceBroadcast === 1 为开（默认关闭） */
+export function isVoiceBroadcastOn(isVoiceBroadcast?: number | null): boolean {
+  return isVoiceBroadcast === 1;
+}
+
 export function getSpeechSpeedTickCount(): number {
   return Math.round((SPEECH_SPEED_MAX - SPEECH_SPEED_MIN) / SPEECH_SPEED_STEP) + 1;
 }
@@ -36,7 +49,7 @@ export function speechSpeedIndexToRate(index: number): number {
 /** 最近的档位标签（慢/正常/快） */
 export function nearestSpeechSpeedOption(rate: number) {
   const snapped = snapSpeechSpeedRate(rate);
-  let best = SPEECH_SPEED_OPTIONS[1];
+  let best: (typeof SPEECH_SPEED_OPTIONS)[number] = SPEECH_SPEED_OPTIONS[1];
   let bestDist = Number.POSITIVE_INFINITY;
   for (const item of SPEECH_SPEED_OPTIONS) {
     const dist = Math.abs(item.rate - snapped);
@@ -46,6 +59,13 @@ export function nearestSpeechSpeedOption(rate: number) {
     }
   }
   return best;
+}
+
+/** 个人中心展示：精确命中慢/正常/快时用文案，否则显示数值 */
+export function formatVoiceSpeedLabel(voiceSpeed?: number | null): string {
+  const rate = parseVoiceSpeed(voiceSpeed);
+  const exact = SPEECH_SPEED_OPTIONS.find(item => item.rate === rate);
+  return exact?.label ?? rate.toFixed(1);
 }
 
 export const SYNC_RANGE_OPTIONS = [

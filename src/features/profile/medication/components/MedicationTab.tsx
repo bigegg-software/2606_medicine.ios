@@ -7,7 +7,7 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/medication/index';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import { SET_USER_EXTR } from '@/store/type/user';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { AppDispatch, RootState } from '@/store/store';
 import {
     DRUG_TIP_TYPE_OPTIONS,
@@ -202,8 +202,12 @@ export default function MedicationTab() {
         });
     }, [saveDrugTipInfo, tipSettings.drugTipTypes]);
 
-    const loadPageData = useCallback(async () => {
-        setLoading(true);
+    const hasLoadedOnceRef = useRef(false);
+
+    const loadPageData = useCallback(async (mode: 'initial' | 'silent' = 'initial') => {
+        if (mode === 'initial') {
+            setLoading(true);
+        }
         try {
             let maps = dictMapsRef.current;
             if (!maps) {
@@ -222,16 +226,21 @@ export default function MedicationTab() {
             setPlanGroups([]);
             setHistoryDays([]);
         } finally {
-            setLoading(false);
+            hasLoadedOnceRef.current = true;
+            if (mode === 'initial') {
+                setLoading(false);
+            }
         }
     }, []);
 
     const loadPageDataRef = useRef(loadPageData);
     loadPageDataRef.current = loadPageData;
 
-    useEffect(() => {
-        void loadPageData();
-    }, [loadPageData]);
+    useFocusEffect(
+        useCallback(() => {
+            void loadPageDataRef.current(hasLoadedOnceRef.current ? 'silent' : 'initial');
+        }, []),
+    );
 
     const handleCheckIn = useCallback(async (item: MedicationPlanItemView) => {
         if (!item.canCheckIn || checkingInKey || checkingInGroupTime) return;
@@ -263,7 +272,7 @@ export default function MedicationTab() {
             const failedCount = results.filter(res => !isResourceApiOk(res as any)).length;
             if (failedCount > 0) {
                 Toast.show(failedCount === items.length ? '打卡失败' : '部分打卡失败', 1.5);
-                await loadPageDataRef.current();
+                await loadPageDataRef.current('silent');
                 return;
             }
 

@@ -8,6 +8,13 @@ const styles = StyleSheet.create({
   pageLine: { height: 1, marginTop: 10, backgroundColor: 'rgba(5,58,147,0.06)' },
   scroll: { paddingHorizontal: 18, paddingBottom: 40 },
   navIcon: { width: 24, height: 24 },
+  headerRight: {
+    marginRight: 18,
+  },
+  headerVoiceBtn: {
+    marginRight: 16,
+  },
+  headerHistoryBtn: {},
   timeText: { fontWeight: 400, fontSize: 16, textAlign: "center", marginTop: 12, color: AppTheme.textPrimary },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   avatarSpacer: { width: 40, height: 40 },
@@ -377,6 +384,9 @@ const styles = StyleSheet.create({
   aiMessageBox: { marginTop: 13 },
   aiMessageBoxFollowUp: { marginTop: 19 },
   aiMessageBubbleWrap: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', marginLeft: 7 },
+  aiMessageColumn: {
+    flex: 1,
+  },
   aiMessageBubbleArrow: {
     width: 0,
     height: 0,
@@ -402,6 +412,21 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
+  },
+  aiSpeakBtn: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+  },
+  aiSpeakBtnText: {
+    marginLeft: 4,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  aiSpeakBtnTextActive: {
+    color: AppTheme.primaryColor,
   },
   aiMessageText: { fontWeight: '400', fontSize: 16, color: AppTheme.textPrimary, lineHeight: 24, flexShrink: 1 },
   aiMessageTextBold: { fontWeight: '600', fontSize: 16, color: AppTheme.textPrimary, lineHeight: 24 },

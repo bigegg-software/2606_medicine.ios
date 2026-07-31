@@ -38,6 +38,7 @@ import HealthStatusCards from './components/HealthStatusCards';
 import TodayScheduleCards from './components/TodayScheduleCards';
 import TypingDots from './components/TypingDots';
 import AssistantHistoryDrawer from './components/AssistantHistoryDrawer';
+import { useAssistantSpeech } from './utils/useAssistantSpeech';
 
 const DOCUMENT_TYPES = [
   'application/pdf',
@@ -54,6 +55,36 @@ const QUICK_ACTIONS = [
   { label: '健康状况', action: 'health_status' as const },
   { label: '用药提醒', action: 'reminder' as const },
 ];
+
+/** 自动播报文案：AI 气泡 + 同条快捷操作的建议（用药/量表） */
+function buildAutoSpeakText(displayItems: DisplayItem[], aiKey: string): string {
+  const ai = displayItems.find(
+    (item): item is Extract<DisplayItem, { type: 'ai' }> =>
+      item.type === 'ai' && item.key === aiKey,
+  );
+  const parts: string[] = [];
+  if (ai?.text.trim()) {
+    parts.push(ai.text.trim());
+  }
+  const id = aiKey.startsWith('ai-') ? aiKey.slice(3) : '';
+  if (id) {
+    const medication = displayItems.find(
+      (item): item is Extract<DisplayItem, { type: 'medication_cards' }> =>
+        item.type === 'medication_cards' && item.key === `medication-${id}`,
+    );
+    if (medication?.advice?.trim()) {
+      parts.push(medication.advice.trim());
+    }
+    const questionnaire = displayItems.find(
+      (item): item is Extract<DisplayItem, { type: 'questionnaire_cards' }> =>
+        item.type === 'questionnaire_cards' && item.key === `questionnaire-${id}`,
+    );
+    if (questionnaire?.suggestion?.trim()) {
+      parts.push(questionnaire.suggestion.trim());
+    }
+  }
+  return parts.join('\n');
+}
 
 function getKeyboardDuration(event: KeyboardEvent) {
   if (Platform.OS === 'ios' && typeof event.duration === 'number') {
@@ -143,10 +174,14 @@ function MessageRow({
   item,
   userAvatarSource,
   onPreviewImage,
+  speakingKey,
+  onToggleSpeak,
 }: {
   item: DisplayItem;
   userAvatarSource: ImageSourcePropType;
   onPreviewImage: (files: UploadPreview['fileList']) => void;
+  speakingKey: string | null;
+  onToggleSpeak: (key: string, text: string) => void;
 }) {
   if (item.type === 'time') {
     return <Text style={styles.timeText}>{item.label}</Text>;
@@ -225,13 +260,35 @@ function MessageRow({
     );
   }
 
+  const speaking = speakingKey === item.key;
+  const canSpeak = !item.streaming && !!item.text.trim();
+
   return (
     <Flex align="start" style={styles.aiMessageBox}>
       <Image source={require('@/assets/images/assistant/avatar.png')} style={styles.avatar} />
       <View style={styles.aiMessageBubbleWrap}>
         <View style={styles.aiMessageBubbleArrow} />
-        <View style={styles.aiMessageBoxContent}>
-          <AiMessageContent text={item.text} streaming={item.streaming} />
+        <View style={styles.aiMessageColumn}>
+          <View style={styles.aiMessageBoxContent}>
+            <AiMessageContent text={item.text} streaming={item.streaming} />
+          </View>
+          {canSpeak ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.aiSpeakBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => onToggleSpeak(item.key, item.text)}
+            >
+              <MaterialIcons
+                name={speaking ? 'stop-circle' : 'volume-up'}
+                size={20}
+                color={speaking ? AppTheme.primaryColor : '#999999'}
+              />
+              <Text style={[styles.aiSpeakBtnText, speaking && styles.aiSpeakBtnTextActive]}>
+                {speaking ? '停止播报' : '语音播报'}
+              </Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       </View>
     </Flex>
@@ -289,6 +346,80 @@ export default function AssistantPage() {
     scrollEndRef,
   } = useAssistantChat();
 
+  const {
+    speakingKey,
+    speechEnabled,
+    speak,
+    stop: stopSpeech,
+    toggle: toggleSpeech,
+    toggleEnabled: toggleSpeechEnabled,
+    refreshSettings,
+  } = useAssistantSpeech();
+  const prevStreamingKeyRef = useRef<string | null>(null);
+  const seenAiKeysRef = useRef<Set<string>>(new Set());
+  const autoSpeakReadyRef = useRef(false);
+  const speechEnabledRef = useRef(speechEnabled);
+  speechEnabledRef.current = speechEnabled;
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshSettings();
+      return () => {
+        void stopSpeech();
+      };
+    }, [refreshSettings, stopSpeech]),
+  );
+
+  useEffect(() => {
+    const aiItems = displayItems.filter(
+      (item): item is Extract<DisplayItem, { type: 'ai' }> => item.type === 'ai',
+    );
+
+    // 初始化 / 切换会话：只记录已有消息，避免历史回放播报
+    if (initializing) {
+      autoSpeakReadyRef.current = false;
+      prevStreamingKeyRef.current = null;
+      seenAiKeysRef.current = new Set(aiItems.map(item => item.key));
+      return;
+    }
+
+    if (!autoSpeakReadyRef.current) {
+      seenAiKeysRef.current = new Set(aiItems.map(item => item.key));
+      autoSpeakReadyRef.current = true;
+      return;
+    }
+
+    const streamingItem = aiItems.find(item => Boolean(item.streaming));
+    if (streamingItem) {
+      prevStreamingKeyRef.current = streamingItem.key;
+      seenAiKeysRef.current.add(streamingItem.key);
+      return;
+    }
+
+    const finishedStreamingKey = prevStreamingKeyRef.current;
+    if (finishedStreamingKey) {
+      prevStreamingKeyRef.current = null;
+      seenAiKeysRef.current.add(finishedStreamingKey);
+      if (speechEnabledRef.current) {
+        const text = buildAutoSpeakText(displayItems, finishedStreamingKey);
+        if (text) {
+          void speak(finishedStreamingKey, text);
+        }
+      }
+      return;
+    }
+
+    // 快捷操作等非流式回复：新出现的 AI 气泡自动播报
+    for (const item of aiItems) {
+      if (seenAiKeysRef.current.has(item.key)) continue;
+      seenAiKeysRef.current.add(item.key);
+      if (!speechEnabledRef.current) continue;
+      const text = buildAutoSpeakText(displayItems, item.key);
+      if (!text) continue;
+      void speak(item.key, text);
+    }
+  }, [displayItems, initializing, speak]);
+
   const startNewChatRef = useRef(startNewChat);
   const openChatRef = useRef(openChat);
   startNewChatRef.current = startNewChat;
@@ -298,24 +429,43 @@ export default function AssistantPage() {
     useCallback(() => {
       navigation.setOptions({
         headerRight: () => (
-          <TouchableOpacity
-            style={{ marginRight: 18 }}
-            onPress={() => {
-              inputRef.current?.blur();
-              Keyboard.dismiss();
-              void speechToTextRef.current?.stopListening();
-              if (attachmentPanelOpenRef.current) {
-                attachmentPanelOpenRef.current = false;
-                setAttachmentPanelOpen(false);
-                bottomOffset.value = withTiming(0, {
-                  duration: 220,
-                  easing: Easing.out(Easing.cubic),
-                });
-              }
-              setHistoryDrawerVisible(true);
-            }}>
-            <Image style={styles.navIcon} source={require('@/assets/images/assistant/time.png')} />
-          </TouchableOpacity>
+          <Flex align="center" style={styles.headerRight}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.headerVoiceBtn}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              onPress={() => {
+                void toggleSpeechEnabled();
+              }}
+            >
+              <Image
+                style={styles.navIcon}
+                source={
+                  speechEnabled
+                    ? require('@/assets/images/assistant/icon_bf.png')
+                    : require('@/assets/images/assistant/icon_jy.png')
+                }
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerHistoryBtn}
+              onPress={() => {
+                inputRef.current?.blur();
+                Keyboard.dismiss();
+                void speechToTextRef.current?.stopListening();
+                if (attachmentPanelOpenRef.current) {
+                  attachmentPanelOpenRef.current = false;
+                  setAttachmentPanelOpen(false);
+                  bottomOffset.value = withTiming(0, {
+                    duration: 220,
+                    easing: Easing.out(Easing.cubic),
+                  });
+                }
+                setHistoryDrawerVisible(true);
+              }}>
+              <Image style={styles.navIcon} source={require('@/assets/images/assistant/time.png')} />
+            </TouchableOpacity>
+          </Flex>
         ),
       });
 
@@ -338,7 +488,14 @@ export default function AssistantPage() {
       return () => {
         navigation.setOptions({ headerRight: undefined });
       };
-    }, [bottomOffset, navigation, route.params?.chatId, route.params?.startNew]),
+    }, [
+      bottomOffset,
+      navigation,
+      route.params?.chatId,
+      route.params?.startNew,
+      speechEnabled,
+      toggleSpeechEnabled,
+    ]),
   );
 
   const headerTitleStyle = useMemo(
@@ -413,30 +570,33 @@ export default function AssistantPage() {
   }, [animateBottomOffset, getBottomInset]);
 
   const handleVoiceStart = useCallback(() => {
+    void stopSpeech();
     setInput(current => {
       voiceBaseTextRef.current = current;
       return current;
     });
-  }, [setInput]);
+  }, [setInput, stopSpeech]);
 
   const handleVoiceTextChange = useCallback((text: string) => {
     setInput(voiceBaseTextRef.current + text);
   }, [setInput]);
 
   const handleMicPress = useCallback(() => {
+    void stopSpeech();
     inputRef.current?.blur();
     Keyboard.dismiss();
-  }, []);
+  }, [stopSpeech]);
 
   const handleSendPress = useCallback(() => {
     voiceBaseTextRef.current = '';
     void speechToTextRef.current?.stopListening();
+    void stopSpeech();
     if (loading) {
       void stopMessage();
     } else {
       void sendMessage();
     }
-  }, [loading, sendMessage, stopMessage]);
+  }, [loading, sendMessage, stopMessage, stopSpeech]);
 
   const handleAddPress = useCallback(() => {
     if (attachmentPanelOpenRef.current) {
@@ -481,6 +641,7 @@ export default function AssistantPage() {
 
   const handleQuickActionPress = useCallback(
     (item: (typeof QUICK_ACTIONS)[number]) => {
+      void stopSpeech();
       if ('action' in item && item.action === 'today_schedule') {
         void (async () => {
           const ok = await runTodayScheduleQuickAction();
@@ -518,7 +679,13 @@ export default function AssistantPage() {
         return;
       }
     },
-    [runHealthStatusQuickAction, runMedicationReminder, runQuestionnaireQuickAction, runTodayScheduleQuickAction],
+    [
+      runHealthStatusQuickAction,
+      runMedicationReminder,
+      runQuestionnaireQuickAction,
+      runTodayScheduleQuickAction,
+      stopSpeech,
+    ],
   );
 
   const hasInput = !!input.trim();
@@ -573,6 +740,10 @@ export default function AssistantPage() {
                 item={item}
                 userAvatarSource={userAvatarSource}
                 onPreviewImage={handlePreviewImage}
+                speakingKey={speakingKey}
+                onToggleSpeak={(key, text) => {
+                  void toggleSpeech(key, text);
+                }}
               />
             ))}
           </ScrollView>
@@ -721,9 +892,11 @@ export default function AssistantPage() {
         visible={historyDrawerVisible}
         onClose={() => setHistoryDrawerVisible(false)}
         onSelectChat={chatId => {
+          void stopSpeech();
           void openChat(chatId);
         }}
         onStartNewChat={() => {
+          void stopSpeech();
           void startNewChat();
         }}
       />
