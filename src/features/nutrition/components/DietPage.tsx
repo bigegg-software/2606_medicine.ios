@@ -4,6 +4,7 @@ import { Flex, Toast } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import moment from 'moment';
 import styles from '@/css/nutrition';
 import { buildDietWeekDays } from './utils/dietCalendarHelpers';
@@ -23,9 +24,11 @@ import {
     type RecommendedMealSection,
 } from './utils/dietMealHelpers';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import { deleteMealDetail, getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type MealRecordItem } from '@/api/meal';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import {
     getFoodRecordsByCategory,
     isWaterRecord,
@@ -285,6 +288,9 @@ function RecommendedMealCard({
 
 export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation<Nav>();
+    const user = useSelector((state: RootState) => state.user.info);
+    const profileComplete = isUserBaseInfoComplete(user);
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
     const [mealDetailList, setMealDetailList] = useState<MealDetailItem[]>([]);
     const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(dietRule);
@@ -601,15 +607,28 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
     ]);
 
     if (!dietRule) {
-        return <View style={styles.emptyPrescription}>
-            <Image
-                source={require('@/assets/images/nutrition/icon_yy_empty.png')}
-                style={styles.emptyPrescriptionIcon}
-            />
-            <Text style={styles.emptyPrescriptionText}>
-                暂无营养处方，如需开方，请联系工作人员
-            </Text>
-        </View>
+        return (
+            <View style={styles.emptyPrescription}>
+                <Image
+                    source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+                    style={styles.emptyPrescriptionIcon}
+                />
+                {profileComplete ? (
+                    <Text style={styles.emptyPrescriptionText}>
+                        暂无营养处方，如需开方，请联系工作人员
+                    </Text>
+                ) : (
+                    <Text style={styles.emptyPrescriptionText}>
+                        暂无营养处方，请先
+                        <Text
+                            style={styles.emptyPrescriptionLink}
+                            onPress={() => navigation.navigate('ProfileEditPage')}>
+                            完善个人信息
+                        </Text>
+                    </Text>
+                )}
+            </View>
+        );
     }
 
     return (

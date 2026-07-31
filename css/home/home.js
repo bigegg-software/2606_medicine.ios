@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native'
+import { AppTheme } from '@/common/theme'
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F5F8FF' },
@@ -224,6 +225,11 @@ const styles = StyleSheet.create({
         color: '#999999',
         textAlign: 'center',
     },
+    cfEmptyLink: {
+        fontWeight: '500',
+        fontSize: 12,
+        color: AppTheme.primaryColor,
+    },
     cfItem: { alignItems: 'center' },
     cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 18, color: '#333333', },
     cfText: { textAlign: 'center', marginTop: 8, fontWeight: 500, fontSize: 12, color: "#666666" },
@@ -274,6 +280,12 @@ const styles = StyleSheet.create({
         fontWeight: '500',
         fontSize: 12,
         color: '#C98A41',
+    },
+    yyEmptyTipLink: {
+        marginLeft: 2,
+        fontWeight: '500',
+        fontSize: 12,
+        color: AppTheme.primaryColor,
     },
     yyItem: {
         width: '33.33%',

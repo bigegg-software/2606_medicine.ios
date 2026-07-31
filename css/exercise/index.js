@@ -63,6 +63,11 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
   },
+  emptyPrescriptionLink: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: AppTheme.primaryColor,
+  },
   calendarBox: { marginTop: 18, height: 64, paddingHorizontal: 13 },
   calendarCol: { width: 38, height: '100%', borderRadius: 25, backgroundColor: 'transparent' },
   calendarColActive: { backgroundColor: 'rgba(109,146,94,0.12)' },

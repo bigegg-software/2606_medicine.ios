@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
-import { Flex, DatePicker, Toast } from '@ant-design/react-native';
+import { Flex, DatePicker, Picker, Toast } from '@ant-design/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import moment from 'moment';
 import { getUserBaseInfo, updateUserBaseInfo } from '@/api/patient';
@@ -19,6 +19,10 @@ import {
   isSameWeight,
   syncProfileWeightToMeasureData,
 } from '@/src/features/profile/vitals/utils/weightSyncHelpers';
+import {
+  DAILY_ACTIVITY_LEVEL_PICKER_DATA,
+  resolveDailyActivityLevelLabel,
+} from '@/src/features/profile/healthRecord/utils/profileActivityLevelHelpers';
 
 const PROFILE_EDIT_ACCESSORY = {
   name: 'profileEditNameDoneToolbar',
@@ -88,6 +92,7 @@ export default function ProfileEditPage() {
     height: '',
     weight: '',
     bloodType: '',
+    dailyActivityLevel: '',
   });
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -108,6 +113,7 @@ export default function ProfileEditPage() {
           height?: number;
           weight?: number;
           bloodType?: string;
+          dailyActivityLevel?: string;
         }>(res as { code?: number; data?: Record<string, unknown> });
         if (data) {
           const loadedWeight = data.weight != null && Number.isFinite(Number(data.weight))
@@ -123,6 +129,7 @@ export default function ProfileEditPage() {
             height: limitText(data.height != null ? String(data.height) : '', METRIC_MAX_LENGTH),
             weight: limitText(loadedWeight != null ? String(loadedWeight) : '', METRIC_MAX_LENGTH),
             bloodType: data.bloodType ?? '',
+            dailyActivityLevel: data.dailyActivityLevel != null ? String(data.dailyActivityLevel) : '',
           });
         }
       } finally {
@@ -209,6 +216,7 @@ export default function ProfileEditPage() {
         height,
         weight,
         bloodType: form.bloodType || undefined,
+        dailyActivityLevel: form.dailyActivityLevel || undefined,
       });
       if (!isResourceApiOk(res as { code?: number })) {
         const r = res as { msg?: string; message?: string };
@@ -407,6 +415,32 @@ export default function ProfileEditPage() {
                 ))}
               </View>
             </View>
+
+            <Picker
+              data={DAILY_ACTIVITY_LEVEL_PICKER_DATA}
+              cols={1}
+              value={form.dailyActivityLevel ? [form.dailyActivityLevel] : []}
+              onOk={values => patch('dailyActivityLevel', String(values[0] ?? ''))}>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Flex justify="between" align="center" style={styles.infoItem}>
+                  <Text style={styles.infoItemLabel}>活动水平</Text>
+                  <Flex justify="end" align="center" style={{ flex: 1 }}>
+                    <Text
+                      style={[
+                        styles.infoItemValue,
+                        !form.dailyActivityLevel && styles.infoPlaceholder,
+                      ]}
+                      numberOfLines={1}>
+                      {resolveDailyActivityLevelLabel(form.dailyActivityLevel) || '请选择运动水平'}
+                    </Text>
+                    <Image
+                      source={require('@/assets/images/vitals/icon_right.png')}
+                      style={{ width: 5, height: 9, marginLeft: 6 }}
+                    />
+                  </Flex>
+                </Flex>
+              </TouchableOpacity>
+            </Picker>
 
             <Flex justify="between" align="center" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
               <Text style={styles.infoItemLabel}>手机号</Text>

@@ -3,7 +3,8 @@ import { View, Text, Image, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/exercise';
 import type { RootState } from '@/store/store';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
@@ -13,14 +14,18 @@ import PrescriptionPage from './components/PrescriptionPage';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
+import type { RootStackParamList } from '@/route/router';
+import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 
 
 export default function CommunityPage() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const displayName = getDisplayUserName(user, systemUser);
   const infoText = formatExerciseUserInfoText(user, userExtr);
+  const profileComplete = isUserBaseInfoComplete(user);
 
   const [activeNav, setActiveNav] = useState(0);
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
@@ -111,9 +116,20 @@ export default function CommunityPage() {
             source={require('@/assets/images/exercise/icon_yd_empty.png')}
             style={styles.emptyPrescriptionIcon}
           />
-          <Text style={styles.emptyPrescriptionText}>
-            暂无运动处方，如需开方，请联系工作人员
-          </Text>
+          {profileComplete ? (
+            <Text style={styles.emptyPrescriptionText}>
+              暂无运动处方，如需开方，请联系工作人员
+            </Text>
+          ) : (
+            <Text style={styles.emptyPrescriptionText}>
+              暂无运动处方，请先
+              <Text
+                style={styles.emptyPrescriptionLink}
+                onPress={() => navigation.navigate('ProfileEditPage')}>
+                完善个人信息
+              </Text>
+            </Text>
+          )}
         </View>
       ) : activeNav === 0 ? (
         <TrainingPage />

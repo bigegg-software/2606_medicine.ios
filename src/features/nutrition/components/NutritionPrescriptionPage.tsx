@@ -15,6 +15,8 @@ import {
 import { Flex, Toast } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import styles from '@/css/nutrition';
 import NutrientProgressRing from './NutrientProgressRing';
@@ -23,6 +25,9 @@ import type { DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getCaloriesToFoodEquiv, type CaloriesToFoodEquivResult } from '@/api/mealDetail';
 import SpeechToText, { type SpeechToTextRef } from '@/src/features/assistant/components/SpeechToText';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
+import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import {
   buildPrescriptionAdviceItems,
   buildPrescriptionCalories,
@@ -132,7 +137,9 @@ function ExpandableMonitorCard({
 
 export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
   const insets = useSafeAreaInsets();
-  const navigation: any = useNavigation();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const user = useSelector((state: RootState) => state.user.info);
+  const profileComplete = isUserBaseInfoComplete(user);
   const calories = useMemo(() => buildPrescriptionCalories(dietRule), [dietRule]);
   const nutrientItems = useMemo(() => buildPrescriptionNutrients(dietRule), [dietRule]);
   const dietMode = useMemo(() => buildPrescriptionDietMode(dietRule), [dietRule]);
@@ -305,9 +312,20 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
             source={require('@/assets/images/nutrition/icon_yy_empty.png')}
             style={styles.emptyPrescriptionIcon}
           />
-          <Text style={styles.emptyPrescriptionText}>
-            暂无营养处方，如需开方，请联系工作人员
-          </Text>
+          {profileComplete ? (
+            <Text style={styles.emptyPrescriptionText}>
+              暂无营养处方，如需开方，请联系工作人员
+            </Text>
+          ) : (
+            <Text style={styles.emptyPrescriptionText}>
+              暂无营养处方，请先
+              <Text
+                style={styles.emptyPrescriptionLink}
+                onPress={() => navigation.navigate('ProfileEditPage')}>
+                完善个人信息
+              </Text>
+            </Text>
+          )}
         </View>
       ) : (
       <ScrollView

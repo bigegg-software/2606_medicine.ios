@@ -37,6 +37,7 @@ import {
   type WearableDataType,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
+import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import { HEALTH_KIT_SYNC_COMPLETED } from '@/utils/healthKit';
 import {
   buildSingleValueSeries,
@@ -240,6 +241,8 @@ export default function HomeTab() {
   const contentHeightRef = useRef(0);
   const showTopMaskRef = useRef(false);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
+  const user = useSelector((state: RootState) => state.user.info);
+  const profileComplete = isUserBaseInfoComplete(user);
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
   );
@@ -694,7 +697,18 @@ export default function HomeTab() {
                     source={require('@/assets/images/home/icon_yd_empty.png')}
                     style={styles.cfEmptyIcon}
                   />
-                  <Text style={styles.cfEmptyText}>暂无运动处方，如需开方，请联系工作人员</Text>
+                  {profileComplete ? (
+                    <Text style={styles.cfEmptyText}>暂无运动处方，如需开方，请联系工作人员</Text>
+                  ) : (
+                    <Text style={styles.cfEmptyText}>
+                      暂无运动处方，请先
+                      <Text
+                        style={styles.cfEmptyLink}
+                        onPress={() => navigation.navigate('ProfileEditPage')}>
+                        完善个人信息
+                      </Text>
+                    </Text>
+                  )}
                 </View>
               ) : (
                 <>
@@ -893,7 +907,18 @@ export default function HomeTab() {
                   source={require('@/assets/images/home/icon_warn.png')}
                   style={styles.yyEmptyTipIcon}
                 />
-                <Text style={styles.yyEmptyTipText}>暂无营养处方，如需开方，请联系工作人员</Text>
+                {profileComplete ? (
+                  <Text style={styles.yyEmptyTipText}>暂无营养处方，如需开方，请联系工作人员</Text>
+                ) : (
+                  <Text style={styles.yyEmptyTipText}>
+                    暂无营养处方，请先
+                    <Text
+                      style={styles.yyEmptyTipLink}
+                      onPress={() => navigation.navigate('ProfileEditPage')}>
+                      完善个人信息
+                    </Text>
+                  </Text>
+                )}
               </Flex>
             ) : null}
           </View>

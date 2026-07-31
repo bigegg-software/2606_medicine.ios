@@ -10,6 +10,8 @@ export type UserBaseInfo = {
   height?: number;
   weight?: number;
   bloodType?: string;
+  /** 日常活动水平：1.1–1.5 */
+  dailyActivityLevel?: string;
 };
 
 export type UpdateUserBaseInfoParams = {
@@ -20,6 +22,7 @@ export type UpdateUserBaseInfoParams = {
   height?: number;
   weight?: number;
   bloodType?: string;
+  dailyActivityLevel?: string;
 };
 
 export const getUserBaseInfo = () => request.get('/patient/userBaseInfo/getInfo');

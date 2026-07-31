@@ -29,6 +29,7 @@ import {
     loadEmergencyContacts,
     loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
+import { resolveDailyActivityLevelLabel } from '@/src/features/profile/healthRecord/utils/profileActivityLevelHelpers';
 import ChronicDiseaseCard from '@/src/features/profile/chronicDisease/components/ChronicDiseaseCard';
 import {
     DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
@@ -274,6 +275,12 @@ export default function HealthRecordPage() {
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>血型</Text>
                         <Text style={styles.infoItemValue}>{user?.bloodType || '--'}</Text>
+                    </Flex>
+                    <Flex justify="between" style={styles.infoItem}>
+                        <Text style={styles.infoItemLabel}>活动水平</Text>
+                        <Text style={styles.infoItemValue}>
+                            {resolveDailyActivityLevelLabel(user?.dailyActivityLevel) || '--'}
+                        </Text>
                     </Flex>
                     <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
                         <Text style={styles.infoItemLabel}>手机号</Text>
