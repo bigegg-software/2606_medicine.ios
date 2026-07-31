@@ -63,10 +63,17 @@ const styles = StyleSheet.create({
     color: '#999999',
     textAlign: 'center',
   },
-  emptyPrescriptionLink: {
+  emptyPrescriptionTextRow: {
+    marginTop: 25,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyPrescriptionTextInline: {
     fontWeight: '500',
     fontSize: 14,
-    color: AppTheme.primaryColor,
+    color: '#999999',
   },
   calendarBox: { marginTop: 18, height: 64, paddingHorizontal: 13 },
   calendarCol: { width: 38, height: '100%', borderRadius: 25, backgroundColor: 'transparent' },

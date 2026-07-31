@@ -28,6 +28,7 @@ import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
+import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 import {
   buildPrescriptionAdviceItems,
   buildPrescriptionCalories,
@@ -317,91 +318,87 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
               暂无营养处方，如需开方，请联系工作人员
             </Text>
           ) : (
-            <Text style={styles.emptyPrescriptionText}>
-              暂无营养处方，请先
-              <Text
-                style={styles.emptyPrescriptionLink}
-                onPress={() => navigation.navigate('ProfileEditPage')}>
-                完善个人信息
-              </Text>
-            </Text>
+            <Flex style={styles.emptyPrescriptionTextRow}>
+              <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
+              <CompleteProfileLink color='#6D925E' />
+            </Flex>
           )}
         </View>
       ) : (
-      <ScrollView
-        style={[styles.scroll, { paddingHorizontal: 0 }]}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        keyboardShouldPersistTaps="handled"
-      >
-        <View style={styles.backImageBox}>
-          <ImageBackground
-            source={require('@/assets/images/nutrition/back.png')}
-            style={styles.backImage}
-          >
-            <Flex>
-              <Image
-                style={styles.navIcon}
-                source={require('@/assets/images/nutrition/kll.png')}
-              />
-              <Text style={styles.calendarContentTitle}>每日推荐热量</Text>
-            </Flex>
-            <Flex style={styles.kcalBox}>
-              <Text style={styles.kcalValue}>{calories.calories}</Text>
-              <Text style={styles.kcalText}>kcal</Text>
-            </Flex>
-            <Flex align="start" style={styles.kcalInfoBox}>
-              <Image
-                style={styles.kcalInfoIcon}
-                source={require('@/assets/images/nutrition/kllInfo.png')}
-              />
-              <Text style={styles.kcalInfoText}>
-                {caloriesFoodEquiv || calories.energyTip || '换算中...'}
+        <ScrollView
+          style={[styles.scroll, { paddingHorizontal: 0 }]}
+          contentContainerStyle={{ paddingBottom: 100 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.backImageBox}>
+            <ImageBackground
+              source={require('@/assets/images/nutrition/back.png')}
+              style={styles.backImage}
+            >
+              <Flex>
+                <Image
+                  style={styles.navIcon}
+                  source={require('@/assets/images/nutrition/kll.png')}
+                />
+                <Text style={styles.calendarContentTitle}>每日推荐热量</Text>
+              </Flex>
+              <Flex style={styles.kcalBox}>
+                <Text style={styles.kcalValue}>{calories.calories}</Text>
+                <Text style={styles.kcalText}>kcal</Text>
+              </Flex>
+              <Flex align="start" style={styles.kcalInfoBox}>
+                <Image
+                  style={styles.kcalInfoIcon}
+                  source={require('@/assets/images/nutrition/kllInfo.png')}
+                />
+                <Text style={styles.kcalInfoText}>
+                  {caloriesFoodEquiv || calories.energyTip || '换算中...'}
+                </Text>
+              </Flex>
+            </ImageBackground>
+          </View>
+
+          <View style={styles.nutritionContent}>
+            <Flex justify="between">
+              <Text style={styles.calendarContentTitle}>三大营养素目标</Text>
+              <Text style={[styles.calendarContentSubtitle, { color: '#999999' }]}>
+                克数·生活化翻译
               </Text>
             </Flex>
-          </ImageBackground>
-        </View>
-
-        <View style={styles.nutritionContent}>
-          <Flex justify="between">
-            <Text style={styles.calendarContentTitle}>三大营养素目标</Text>
-            <Text style={[styles.calendarContentSubtitle, { color: '#999999' }]}>
-              克数·生活化翻译
-            </Text>
-          </Flex>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowScroll}>
-            {nutrientItems.map(item => (
-              <View key={item.key} style={styles.colBox}>
-                <Flex justify="center" style={styles.colValueBox}>
-                  <NutrientProgressRing progress={item.progress} color={item.color} />
-                  <Text style={styles.colValue}>
-                    {item.amountText}
-                    <Text style={styles.colValueText}>g</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.rowScroll}>
+              {nutrientItems.map(item => (
+                <View key={item.key} style={styles.colBox}>
+                  <Flex justify="center" style={styles.colValueBox}>
+                    <NutrientProgressRing progress={item.progress} color={item.color} />
+                    <Text style={styles.colValue}>
+                      {item.amountText}
+                      <Text style={styles.colValueText}>g</Text>
+                    </Text>
+                  </Flex>
+                  <Flex style={{ marginTop: 8 }} justify="center">
+                    <Image style={styles.colImg} source={item.icon} />
+                    <Text style={styles.colTitle}>{item.title}</Text>
+                  </Flex>
+                  <Text style={styles.colText}>
+                    {nutrientFoodEquivMap[item.key] || item.desc || '换算中...'}
                   </Text>
-                </Flex>
-                <Flex style={{ marginTop: 8 }} justify="center">
-                  <Image style={styles.colImg} source={item.icon} />
-                  <Text style={styles.colTitle}>{item.title}</Text>
-                </Flex>
-                <Text style={styles.colText}>
-                  {nutrientFoodEquivMap[item.key] || item.desc || '换算中...'}
-                </Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
 
-        {dietMode ? (
-          <View style={styles.nutritionContent}>
-            <Text style={styles.calendarContentTitle}>推荐饮食模式</Text>
-            <View style={styles.modeBox}>
-              <Flex>
-                <Flex style={styles.tipBox}>
-                  <Text style={styles.tipBoxTitle}>{dietMode.code}</Text>
+          {dietMode ? (
+            <View style={styles.nutritionContent}>
+              <Text style={styles.calendarContentTitle}>推荐饮食模式</Text>
+              <View style={styles.modeBox}>
+                <Flex>
+                  <Flex style={styles.tipBox}>
+                    <Text style={styles.tipBoxTitle}>{dietMode.code}</Text>
+                  </Flex>
+                  <Text style={styles.tipBoxText}>{dietMode.title}</Text>
                 </Flex>
-                <Text style={styles.tipBoxText}>{dietMode.title}</Text>
-              </Flex>
-              <Text style={styles.tipBoxText1}>{dietMode.reasoning}</Text>
-              {/* {dietMode.strategy ? (
+                <Text style={styles.tipBoxText1}>{dietMode.reasoning}</Text>
+                {/* {dietMode.strategy ? (
                 <Flex align="start" style={styles.tipBox1}>
                   <Image
                     source={require('@/assets/images/nutrition/star1.png')}
@@ -410,162 +407,162 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
                   <Text style={styles.tipBox1Text}>{dietMode.strategy}</Text>
                 </Flex>
               ) : null} */}
-            </View>
-          </View>
-        ) : null}
-
-        {macroSources.length > 0 ? (
-          <>
-            <ImageBackground
-              source={require('@/assets/images/schedule/calendarBack.png')}
-              style={styles.backImage1}
-            >
-              <Flex align="center" style={{ flex: 1, paddingLeft: 20 }}>
-                <Text style={styles.backImage1Text}>三大营养素来源建议</Text>
-              </Flex>
-            </ImageBackground>
-            {macroSources.map(item => (
-              <View
-                key={item.key}
-                style={[
-                  styles.nutritionContent,
-                  item.key === macroSources[0]?.key ? { marginTop: 0 } : null,
-                ]}
-              >
-                <Flex style={{ marginBottom: 8 }}>
-                  <Image style={styles.navIcon} source={item.icon} />
-                  <Text style={styles.calendarContentTitle}>{item.title}</Text>
-                </Flex>
-                <Text style={styles.dietListText}>{item.desc}</Text>
-                {item.tags.length > 0 ? (
-                  <Flex wrap='wrap' style={styles.tabBox}>
-                    {item.tags.map(tag => (
-                      <Flex key={`${item.key}-${tag}`} style={styles.tabItem}>
-                        <Text style={styles.tabItemText}>{tag}</Text>
-                      </Flex>
-                    ))}
-                  </Flex>
-                ) : null}
               </View>
-            ))}
-          </>
-        ) : null}
+            </View>
+          ) : null}
 
-        {adviceItems.length > 0 ? (
-          <View style={styles.nutritionContent}>
-            <Flex>
-              <Image
-                style={styles.navIcon}
-                source={require('@/assets/images/nutrition/icon1.png')}
-              />
-              <Text style={styles.calendarContentTitle}>分项健康建议</Text>
-            </Flex>
-            {adviceItems.map(item => {
-              const expanded = !!expandedMap[item.key];
-              return (
-                <View key={item.key}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleAdvice(item.key)}>
-                    <Flex justify="between" style={styles.fxBox}>
-                      <Flex>
-                        <Image style={styles.fxIcon} source={item.icon} />
-                        <Text style={styles.fxTitle}>{item.title}</Text>
-                      </Flex>
-                      <Image
-                        style={styles.fxIcon}
-                        source={expanded ? ICON_EXPAND : ICON_COLLAPSE}
-                      />
+          {macroSources.length > 0 ? (
+            <>
+              <ImageBackground
+                source={require('@/assets/images/schedule/calendarBack.png')}
+                style={styles.backImage1}
+              >
+                <Flex align="center" style={{ flex: 1, paddingLeft: 20 }}>
+                  <Text style={styles.backImage1Text}>三大营养素来源建议</Text>
+                </Flex>
+              </ImageBackground>
+              {macroSources.map(item => (
+                <View
+                  key={item.key}
+                  style={[
+                    styles.nutritionContent,
+                    item.key === macroSources[0]?.key ? { marginTop: 0 } : null,
+                  ]}
+                >
+                  <Flex style={{ marginBottom: 8 }}>
+                    <Image style={styles.navIcon} source={item.icon} />
+                    <Text style={styles.calendarContentTitle}>{item.title}</Text>
+                  </Flex>
+                  <Text style={styles.dietListText}>{item.desc}</Text>
+                  {item.tags.length > 0 ? (
+                    <Flex wrap='wrap' style={styles.tabBox}>
+                      {item.tags.map(tag => (
+                        <Flex key={`${item.key}-${tag}`} style={styles.tabItem}>
+                          <Text style={styles.tabItemText}>{tag}</Text>
+                        </Flex>
+                      ))}
                     </Flex>
-                  </TouchableOpacity>
-                  {expanded ? (
-                    <ImageBackground source={item.background} style={styles.fxBackBox}>
-                      <View style={styles.fxBackBoxContent}>
-                        {item.tips.map((tip, tipIndex) => (
-                          <Flex
-                            key={`${item.key}-tip-${tipIndex}`}
-                            align="start"
-                            style={styles.fxTextCol}
-                          >
-                            <View
-                              style={[
-                                styles.fxBackBoxContentImg,
-                                { backgroundColor: item.dotColor },
-                              ]}
-                            />
-                            <Text style={[styles.fxText, { color: item.color }]}>{tip}</Text>
-                          </Flex>
-                        ))}
-                      </View>
-                    </ImageBackground>
                   ) : null}
                 </View>
-              );
-            })}
-          </View>
-        ) : null}
+              ))}
+            </>
+          ) : null}
 
-        {monitorCards.length > 0 ? (
-          <>
-            <ImageBackground
-              source={require('@/assets/images/schedule/calendarBack.png')}
-              style={styles.backImage1}
-            >
-              <Flex justify="around" align="center" style={styles.prescriptionTabBox}>
-                {PRESCRIPTION_TABS.map(item => {
-                  const active = monitorTab === item.value;
-                  return (
-                    <TouchableOpacity
-                      key={item.value}
-                      style={styles.prescriptionTabCol}
-                      activeOpacity={0.7}
-                      onPress={() => setMonitorTab(item.value)}
-                    >
-                      <View style={styles.prescriptionTabItemWrap}>
-                        <Text
-                          style={[
-                            styles.prescriptionTabText,
-                            active && styles.prescriptionTabTextActive,
-                          ]}
-                        >
-                          {item.label}
-                        </Text>
-                        {active ? (
-                          <View style={styles.prescriptionTabIndicatorWrap}>
-                            <Image
-                              source={require('@/assets/images/user/btm.png')}
-                              style={styles.prescriptionTabIndicator}
-                            />
-                          </View>
-                        ) : null}
-                      </View>
-                    </TouchableOpacity>
-                  );
-                })}
-              </Flex>
-            </ImageBackground>
-            {activeMonitorCards.length > 0 ? (
-              activeMonitorCards.map((card, index) => (
-                <ExpandableMonitorCard
-                  key={card.key}
-                  title={card.title}
-                  icon={card.icon}
-                  badge={card.badge}
-                  text={card.text}
-                  colors={card.colors}
-                  contentStyle={
-                    index === 0 ? [styles.jcContent, { marginTop: 3 }] : styles.jcContent
-                  }
+          {adviceItems.length > 0 ? (
+            <View style={styles.nutritionContent}>
+              <Flex>
+                <Image
+                  style={styles.navIcon}
+                  source={require('@/assets/images/nutrition/icon1.png')}
                 />
-              ))
-            ) : (
-              <View style={[styles.nutritionContent, { marginTop: 0 }]}>
-                <Text style={styles.dietListText}>
-                  {monitorTab === 'lifestyle' ? '暂无生活方式建议' : '暂无药物与监测建议'}
-                </Text>
-              </View>
-            )}
-          </>
-        ) : null}
-      </ScrollView>
+                <Text style={styles.calendarContentTitle}>分项健康建议</Text>
+              </Flex>
+              {adviceItems.map(item => {
+                const expanded = !!expandedMap[item.key];
+                return (
+                  <View key={item.key}>
+                    <TouchableOpacity activeOpacity={0.7} onPress={() => toggleAdvice(item.key)}>
+                      <Flex justify="between" style={styles.fxBox}>
+                        <Flex>
+                          <Image style={styles.fxIcon} source={item.icon} />
+                          <Text style={styles.fxTitle}>{item.title}</Text>
+                        </Flex>
+                        <Image
+                          style={styles.fxIcon}
+                          source={expanded ? ICON_EXPAND : ICON_COLLAPSE}
+                        />
+                      </Flex>
+                    </TouchableOpacity>
+                    {expanded ? (
+                      <ImageBackground source={item.background} style={styles.fxBackBox}>
+                        <View style={styles.fxBackBoxContent}>
+                          {item.tips.map((tip, tipIndex) => (
+                            <Flex
+                              key={`${item.key}-tip-${tipIndex}`}
+                              align="start"
+                              style={styles.fxTextCol}
+                            >
+                              <View
+                                style={[
+                                  styles.fxBackBoxContentImg,
+                                  { backgroundColor: item.dotColor },
+                                ]}
+                              />
+                              <Text style={[styles.fxText, { color: item.color }]}>{tip}</Text>
+                            </Flex>
+                          ))}
+                        </View>
+                      </ImageBackground>
+                    ) : null}
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+
+          {monitorCards.length > 0 ? (
+            <>
+              <ImageBackground
+                source={require('@/assets/images/schedule/calendarBack.png')}
+                style={styles.backImage1}
+              >
+                <Flex justify="around" align="center" style={styles.prescriptionTabBox}>
+                  {PRESCRIPTION_TABS.map(item => {
+                    const active = monitorTab === item.value;
+                    return (
+                      <TouchableOpacity
+                        key={item.value}
+                        style={styles.prescriptionTabCol}
+                        activeOpacity={0.7}
+                        onPress={() => setMonitorTab(item.value)}
+                      >
+                        <View style={styles.prescriptionTabItemWrap}>
+                          <Text
+                            style={[
+                              styles.prescriptionTabText,
+                              active && styles.prescriptionTabTextActive,
+                            ]}
+                          >
+                            {item.label}
+                          </Text>
+                          {active ? (
+                            <View style={styles.prescriptionTabIndicatorWrap}>
+                              <Image
+                                source={require('@/assets/images/user/btm.png')}
+                                style={styles.prescriptionTabIndicator}
+                              />
+                            </View>
+                          ) : null}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </Flex>
+              </ImageBackground>
+              {activeMonitorCards.length > 0 ? (
+                activeMonitorCards.map((card, index) => (
+                  <ExpandableMonitorCard
+                    key={card.key}
+                    title={card.title}
+                    icon={card.icon}
+                    badge={card.badge}
+                    text={card.text}
+                    colors={card.colors}
+                    contentStyle={
+                      index === 0 ? [styles.jcContent, { marginTop: 3 }] : styles.jcContent
+                    }
+                  />
+                ))
+              ) : (
+                <View style={[styles.nutritionContent, { marginTop: 0 }]}>
+                  <Text style={styles.dietListText}>
+                    {monitorTab === 'lifestyle' ? '暂无生活方式建议' : '暂无药物与监测建议'}
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : null}
+        </ScrollView>
       )}
 
       <Flex

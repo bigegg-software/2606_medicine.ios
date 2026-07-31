@@ -315,19 +315,36 @@ const styles = StyleSheet.create({
         paddingHorizontal: 24,
         alignItems: 'center',
     },
+    errorImg: {
+        width: 150,
+        height: 150
+    },
     errorTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#333333',
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#666666',
         textAlign: 'center',
     },
     errorIntro: {
-        marginTop: 8,
+        marginTop: 25,
+        fontSize: 15,
+        fontWeight: 'bold',
+        color: '#6D925E',
+    },
+    errorRow: {
+        marginTop: 10,
+    },
+    errorRowIcon: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: '#6D925E',
+    },
+    errorText: {
+        marginLeft: 8,
+        fontWeight: 500,
         fontSize: 14,
-        color: '#666666',
-        lineHeight: 22,
-        textAlign: 'center',
-        paddingHorizontal: 24,
+        color: "#666666",
     },
     bottomBar: {
         paddingHorizontal: 15,

@@ -89,10 +89,10 @@ export default function MealResultPage() {
         baselinesRef.current = baselinesRef.current.map((baseline, index) =>
             index === correction.index
                 ? {
-                      item: correction.item,
-                      amount: correction.state.amount,
-                      unitValue: correction.state.unitValue,
-                  }
+                    item: correction.item,
+                    amount: correction.state.amount,
+                    unitValue: correction.state.unitValue,
+                }
                 : baseline,
         );
         setRecordTime(correction.recordTime);
@@ -105,8 +105,17 @@ export default function MealResultPage() {
     }, []);
 
     useEffect(() => {
+        if (isError) {
+            navigation.setOptions({
+                gestureEnabled: false,
+                title: '识别失败',
+                headerTitle: '识别失败',
+            });
+            return;
+        }
         navigation.setOptions({
             gestureEnabled: false,
+            title: '',
             headerTitle: () => (
                 <Picker
                     data={TIME_PICKER_DATA}
@@ -127,7 +136,7 @@ export default function MealResultPage() {
                 </Picker>
             ),
         });
-    }, [navigation, recordTime]);
+    }, [isError, navigation, recordTime]);
 
     // 图片识别：补充其他营养元素；文字识别不请求
     useEffect(() => {
@@ -238,8 +247,23 @@ export default function MealResultPage() {
                     showsVerticalScrollIndicator={false}>
                     {isError ? (
                         <View style={styles.errorState}>
-                            <Text style={styles.errorTitle}>未识别到食物</Text>
-                            <Text style={styles.errorIntro}>请重新拍摄，或稍后再试。</Text>
+                            <Image source={require('@/assets/images/nutrition/cxps.png')} style={styles.errorImg} />
+                            <Text style={styles.errorTitle}>未识别到食物，请重新拍摄</Text>
+                            <View>
+                                <Text style={styles.errorIntro}>提高识别成功率的小tips</Text>
+                                <Flex style={styles.errorRow}>
+                                    <View style={styles.errorRowIcon}></View>
+                                    <Text style={styles.errorText}>向下俯拍食物</Text>
+                                </Flex>
+                                <Flex style={styles.errorRow}>
+                                    <View style={styles.errorRowIcon}></View>
+                                    <Text style={styles.errorText}>食物完整展示在取景框中间</Text>
+                                </Flex>
+                                <Flex style={styles.errorRow}>
+                                    <View style={styles.errorRowIcon}></View>
+                                    <Text style={styles.errorText}>减少食物周围的杂物</Text>
+                                </Flex>
+                            </View>
                         </View>
                     ) : (
                         <>

@@ -18,6 +18,7 @@ import MiniProgressRing from './components/MiniProgressRing';
 import MiniSparkline from './components/MiniSparkline';
 import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
+import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 import { fetchUserInfo } from '@/store/actions/user';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -700,14 +701,10 @@ export default function HomeTab() {
                   {profileComplete ? (
                     <Text style={styles.cfEmptyText}>暂无运动处方，如需开方，请联系工作人员</Text>
                   ) : (
-                    <Text style={styles.cfEmptyText}>
-                      暂无运动处方，请先
-                      <Text
-                        style={styles.cfEmptyLink}
-                        onPress={() => navigation.navigate('ProfileEditPage')}>
-                        完善个人信息
-                      </Text>
-                    </Text>
+                    <View style={styles.cfEmptyTextRow}>
+                      <Text style={styles.cfEmptyTextInline}>暂无运动处方，请先</Text>
+                      <CompleteProfileLink color= '#6D925E' textStyle={styles.cfEmptyLink} />
+                    </View>
                   )}
                 </View>
               ) : (
@@ -910,14 +907,10 @@ export default function HomeTab() {
                 {profileComplete ? (
                   <Text style={styles.yyEmptyTipText}>暂无营养处方，如需开方，请联系工作人员</Text>
                 ) : (
-                  <Text style={styles.yyEmptyTipText}>
-                    暂无营养处方，请先
-                    <Text
-                      style={styles.yyEmptyTipLink}
-                      onPress={() => navigation.navigate('ProfileEditPage')}>
-                      完善个人信息
-                    </Text>
-                  </Text>
+                  <View style={styles.yyEmptyTipTextRow}>
+                    <Text style={styles.yyEmptyTipTextInline}>暂无营养处方，请先</Text>
+                    <CompleteProfileLink color= '#C98A41' textStyle={styles.yyEmptyTipLink} />
+                  </View>
                 )}
               </Flex>
             ) : null}

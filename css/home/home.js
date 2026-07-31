@@ -225,10 +225,21 @@ const styles = StyleSheet.create({
         color: '#999999',
         textAlign: 'center',
     },
-    cfEmptyLink: {
+    cfEmptyTextRow: {
+        marginTop: 8,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cfEmptyTextInline: {
         fontWeight: '500',
         fontSize: 12,
-        color: AppTheme.primaryColor,
+        color: '#999999',
+    },
+    cfEmptyLink: {
+        fontSize: 12,
+        lineHeight: 16,
     },
     cfItem: { alignItems: 'center' },
     cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 18, color: '#333333', },
@@ -281,11 +292,21 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: '#C98A41',
     },
-    yyEmptyTipLink: {
-        marginLeft: 2,
+    yyEmptyTipTextRow: {
+        flex: 1,
+        flexShrink: 1,
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+    },
+    yyEmptyTipTextInline: {
         fontWeight: '500',
         fontSize: 12,
-        color: AppTheme.primaryColor,
+        color: '#C98A41',
+    },
+    yyEmptyTipLink: {
+        fontSize: 12,
+        lineHeight: 16,
     },
     yyItem: {
         width: '33.33%',

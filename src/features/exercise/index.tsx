@@ -3,8 +3,7 @@ import { View, Text, Image, ActivityIndicator } from 'react-native';
 import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useFocusEffect } from '@react-navigation/native';
 import styles from '@/css/exercise';
 import type { RootState } from '@/store/store';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
@@ -14,12 +13,11 @@ import PrescriptionPage from './components/PrescriptionPage';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
-import type { RootStackParamList } from '@/route/router';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
+import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 
 
 export default function CommunityPage() {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
@@ -121,14 +119,10 @@ export default function CommunityPage() {
               暂无运动处方，如需开方，请联系工作人员
             </Text>
           ) : (
-            <Text style={styles.emptyPrescriptionText}>
-              暂无运动处方，请先
-              <Text
-                style={styles.emptyPrescriptionLink}
-                onPress={() => navigation.navigate('ProfileEditPage')}>
-                完善个人信息
-              </Text>
-            </Text>
+            <Flex style={styles.emptyPrescriptionTextRow}>
+              <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
+              <CompleteProfileLink color='#6D925E' />
+            </Flex>
           )}
         </View>
       ) : activeNav === 0 ? (

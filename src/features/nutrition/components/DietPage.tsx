@@ -29,6 +29,7 @@ import { deleteMealDetail, getTodayMealDetailList, type MealDetailItem } from '@
 import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type MealRecordItem } from '@/api/meal';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
+import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 import {
     getFoodRecordsByCategory,
     isWaterRecord,
@@ -618,14 +619,10 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                         暂无营养处方，如需开方，请联系工作人员
                     </Text>
                 ) : (
-                    <Text style={styles.emptyPrescriptionText}>
-                        暂无营养处方，请先
-                        <Text
-                            style={styles.emptyPrescriptionLink}
-                            onPress={() => navigation.navigate('ProfileEditPage')}>
-                            完善个人信息
-                        </Text>
-                    </Text>
+                    <Flex style={styles.emptyPrescriptionTextRow}>
+                        <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
+                        <CompleteProfileLink color= '#6D925E' textStyle={styles.emptyPrescriptionTextInline} />
+                    </Flex>
                 )}
             </View>
         );
