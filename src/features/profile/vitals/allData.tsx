@@ -992,7 +992,13 @@ export default function AllDataPage({ route }: Props) {
   const isWearableType = Boolean(wearableConfig) || isEnergyType || isSleepType;
   const showAddButton = !isWearableType;
   const navigation = useNavigation<Nav>();
-  const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
+  const [selectedDate, setSelectedDate] = useState(() => {
+    const paramDate = route.params?.date?.trim();
+    if (paramDate && moment(paramDate, 'YYYY-MM-DD', true).isValid()) {
+      return paramDate;
+    }
+    return moment().format('YYYY-MM-DD');
+  });
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [records, setRecords] = useState<MeasureDataItem[]>([]);
   const [wearableRecords, setWearableRecords] = useState<WearableReadingRecord[]>([]);

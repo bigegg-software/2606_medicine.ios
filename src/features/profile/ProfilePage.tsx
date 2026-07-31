@@ -5,7 +5,6 @@ import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
-import { MaterialIcons } from '@expo/vector-icons';
 import { logout as logoutApi } from '@/api/auth';
 import { getUserSignInfo, getUserSignTip, postUserSign, type UserSignInfoRecord } from '@/api/userSignInfo';
 import { getOldFamilyBindMyList, type OldFamilyBindItem } from '@/api/oldFamilyBind';
@@ -376,7 +375,10 @@ export default function ProfilePage() {
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => navigation.navigate('MyFamily')}
           >
-            <MaterialIcons name="chevron-right" size={24} color="#9DAAAD" />
+            <Image
+              style={{ width: 8, height: 13 }}
+              source={require('@/assets/images/user/icon_right.png')}
+            />
           </TouchableOpacity>
         </Flex>
         <View style={[styles.familyBox, { paddingVertical: 10 }]}>
@@ -394,7 +396,10 @@ export default function ProfilePage() {
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 onPress={() => navigation.navigate('MyFamily')}
               >
-                <MaterialIcons name="chevron-right" size={24} color="#9DAAAD" />
+                <Image
+                  style={{ width: 8, height: 13 }}
+                  source={require('@/assets/images/user/icon_right.png')}
+                />
               </TouchableOpacity>
             </Flex>
           ) : (
@@ -452,7 +457,10 @@ export default function ProfilePage() {
                       navigation.navigate('FamilyDetail', { id: bindId });
                     }}
                   >
-                    <MaterialIcons name="chevron-right" size={24} color="#9DAAAD" />
+                    <Image
+                      style={{ width: 8, height: 13 }}
+                      source={require('@/assets/images/user/icon_right.png')}
+                    />
                   </TouchableOpacity>
                 </Flex>
               );
@@ -470,7 +478,10 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemRelation}>共绑定5个设备</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+            <Image
+              style={{ width: 8, height: 13 }}
+              source={require('@/assets/images/user/icon_right.png')}
+            />
           </Flex>
         </View>
 
@@ -501,7 +512,10 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>当前：{fontSizeLabel}</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('SpeechSpeedSettingPage')}>
@@ -513,7 +527,10 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>当前：正常</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('NotificationSettingPage')}>
@@ -525,7 +542,10 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>已开启</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('DataManageSettingPage')}>
@@ -537,7 +557,10 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemRelation}>{dataManageLabel}</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
           </TouchableOpacity>
         </View>
@@ -551,7 +574,10 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemName}>帮助与反馈</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => navigation.navigate('AboutUsPage')}>
@@ -562,7 +588,10 @@ export default function ProfilePage() {
                   <Text style={styles.familyItemName}>关于我们</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
           </TouchableOpacity>
         </View>
@@ -575,7 +604,10 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemName}>修改密码</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+             <Image
+                  style={{ width: 8, height: 13 }}
+                  source={require('@/assets/images/user/icon_right.png')}
+                />
           </Flex>
           <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
             <Flex>
@@ -584,7 +616,10 @@ export default function ProfilePage() {
                 <Text style={styles.familyItemName}>个人信息可见性</Text>
               </View>
             </Flex>
-            <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+             <Image
+                  style={{ width: 8, height: 13 }}
+                  source={require('@/assets/images/user/icon_right.png')}
+                />
           </Flex>
         </View> */}
         <TouchableOpacity style={styles.logout} onPress={logout}>

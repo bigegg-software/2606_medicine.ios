@@ -122,6 +122,15 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'visible',
   },
+  trendChartArea: {
+    position: 'relative',
+  },
+  trendChartPlaceholder: {
+    width: '100%',
+    height: 210,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   legendRow: {
     marginTop: 30,
     marginHorizontal: 12,
@@ -143,14 +152,11 @@ const styles = StyleSheet.create({
     color: '#666666',
   },
   baselineHint: {
-
-    position: "absolute",
+    position: 'absolute',
     bottom: 10,
     zIndex: 99,
     left: 0,
     right: 0,
-    marginTop: 8,
-    marginHorizontal: 12,
     textAlign: 'center',
     fontWeight: '500',
     fontSize: 11,
@@ -216,11 +222,9 @@ const styles = StyleSheet.create({
     height: 210,
   },
   trendEmpty: {
-    // marginTop: 10,
     marginHorizontal: 12,
     flex: 1,
     borderRadius: 12,
-    // backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },

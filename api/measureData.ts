@@ -165,6 +165,12 @@ export const updateMeasureData = (data: UpdateMeasureDataPayload) =>
 export const removeMeasureDataById = (id: number) =>
   request.delete<AddMeasureDataResult>('/patient/measureData/removeById', { params: { id } });
 
+/** 按 id 查询单条测量数据（消息跳转存在性校验） */
+export const getMeasureDataById = (id: string | number) =>
+  request.get<MeasureDataLatestResult>('/patient/measureData/getInfo', {
+    params: { id: String(id) },
+  });
+
 export const getMeasureDataDetailByDate = (params: {
   customerLocalDate: string;
   type: MeasureDataType;

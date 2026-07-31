@@ -57,6 +57,29 @@ import {
   type ScheduleDictMaps,
 } from './scheduleHelpers';
 
+/** 日程日历最早可选月份 */
+export const SCHEDULE_CALENDAR_MIN_MONTH = '2026-06';
+/** 日程日历最早可选日期 */
+export const SCHEDULE_CALENDAR_MIN_DATE = `${SCHEDULE_CALENDAR_MIN_MONTH}-01`;
+
+export function clampScheduleCalendarMonth(month: Moment | string): Moment {
+  const min = moment(SCHEDULE_CALENDAR_MIN_MONTH, 'YYYY-MM').startOf('month');
+  const target = moment(month).startOf('month');
+  if (!target.isValid()) return min.clone();
+  return target.isBefore(min, 'month') ? min.clone() : target;
+}
+
+export function clampScheduleCalendarDate(date?: string | null): string {
+  const value = date?.trim() || '';
+  if (!value || value < SCHEDULE_CALENDAR_MIN_DATE) return SCHEDULE_CALENDAR_MIN_DATE;
+  return value;
+}
+
+export function isScheduleCalendarMonthAtMin(month: Moment) {
+  const min = moment(SCHEDULE_CALENDAR_MIN_MONTH, 'YYYY-MM');
+  return !moment(month).isAfter(min, 'month');
+}
+
 export type CalendarTimelineItem = {
   key: string;
   time: string;

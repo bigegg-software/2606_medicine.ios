@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-na
 import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import styles from '@/css/nutrition';
 import DietPage from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
@@ -12,17 +12,31 @@ import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { formatDietHeaderInfo } from './components/utils/dietMealHelpers';
 import { AppTheme } from '@/common/theme';
 import type { RootState } from '@/store/store';
+import type { RootStackParamList } from '@/route/router';
+
+type Route = RouteProp<RootStackParamList, 'NutritionPage'>;
 
 export default function NutritionPage() {
   const navigation: any = useNavigation();
+  const { params } = useRoute<Route>();
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
-  const [activeNav, setActiveNav] = useState(0);
+  const initialTab = params?.tab === 'prescription' ? 1 : 0;
+  const [activeNav, setActiveNav] = useState(initialTab);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
-  const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
+  const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({
+    [initialTab]: true,
+    0: true,
+  });
+
+  useEffect(() => {
+    if (params?.tab !== 'prescription') return;
+    setActiveNav(1);
+    setMountedTabs(prev => (prev[1] ? prev : { ...prev, 1: true }));
+  }, [params?.tab]);
 
   const loadDietRule = useCallback(async () => {
     try {

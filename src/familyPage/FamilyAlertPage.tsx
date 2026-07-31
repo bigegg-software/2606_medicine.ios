@@ -11,7 +11,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import styles from '@/css/message/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,7 +34,10 @@ import {
   buildFamilyAlertScopeParams,
   buildWarningListDisplayItem,
 } from './utils/familyAlertHelpers';
-import { isFamilyBindInviteMessageType } from './profilePage/utils/familyBindInviteHelpers';
+import {
+  MESSAGE_NOT_FOUND_TOAST,
+  navigateFromMessage,
+} from '@/src/features/message/utils/messageNavigationHelpers';
 
 const PAGE_SIZE = 20;
 
@@ -186,8 +189,14 @@ export default function FamilyAlertPage() {
         }
       }
 
-      if (isFamilyBindInviteMessageType(item.raw.type)) {
-        navigation.navigate('FamilyBindInvitePage', { messageId: String(item.id) });
+      const navResult = await navigateFromMessage(navigation, {
+        type: item.raw.type,
+        bizId: item.raw.bizId,
+        messageId: item.raw.messageId,
+        createTime: item.raw.createTime,
+      });
+      if (navResult === 'missing') {
+        Toast.show(MESSAGE_NOT_FOUND_TOAST);
       }
     },
     [messageScope.identityPerspective, navigation],

@@ -148,7 +148,7 @@ export type RootStackParamList = {
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   FamilyTabs: NavigatorScreenParams<FamilyTabParamList> | undefined;
   ExercisePage: undefined;
-  NutritionPage: undefined;
+  NutritionPage: { tab?: 'diet' | 'prescription' } | undefined;
   ActivityDetail: { id: number | string };
   CourseDetail: { courseId: string };
   LiveDetail: { liveId: string };
@@ -183,7 +183,11 @@ export type RootStackParamList = {
   ChronicDiseaseDetailPage: { id: number } | undefined;
   VitalsPage: undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '体重'; item?: MeasureDataItem };
-  AllDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' | '体重' | '睡眠' };
+  AllDataPage: {
+    type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' | '体重' | '睡眠';
+    /** YYYY-MM-DD，缺省为当天 */
+    date?: string;
+  };
   BloodPressurePage: undefined;
   BloodSugarPage: undefined;
   HeartRatePage: undefined;

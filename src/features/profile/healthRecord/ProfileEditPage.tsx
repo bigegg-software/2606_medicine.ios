@@ -234,7 +234,8 @@ export default function ProfileEditPage() {
       }
 
       await dispatch(fetchUserBaseInfo());
-      Alert.alert('成功', '资料已保存', [{ text: '确定', onPress: () => navigation.goBack() }]);
+      Toast.show('资料已保存');
+      // Alert.alert('成功', '资料已保存', [{ text: '确定', onPress: () => navigation.goBack() }]);
     } catch {
       Alert.alert('错误', '网络错误，请稍后重试');
     } finally {

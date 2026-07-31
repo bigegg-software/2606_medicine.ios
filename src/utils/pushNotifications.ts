@@ -154,7 +154,7 @@ export function handlePushNotificationNavigation(notification: Notifications.Not
   if (!type || IGNORED_TAP_TYPES.has(type)) return;
 
   if (MEAL_TIP_TYPES.has(type)) {
-    navigateWhenReady('Medication', { tab: 'meal' });
+    navigateWhenReady('NutritionPage', { tab: 'prescription' });
     return;
   }
 
@@ -169,7 +169,11 @@ export function handlePushNotificationNavigation(notification: Notifications.Not
   }
 
   if (QUESTIONNAIRE_WARNING_TYPES.has(type)) {
-    navigateWhenReady('QuestionnaireList');
+    if (!bizId) {
+      navigateWhenReady('QuestionnaireList');
+      return;
+    }
+    navigateWhenReady('QuestionnaireDetail', { id: bizId });
     return;
   }
 

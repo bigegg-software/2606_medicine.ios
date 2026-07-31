@@ -332,7 +332,7 @@ export default function FoodRecordingPage() {
                   <View key={card.key} style={styles.rateItem}>
                     <Flex justify="between" align="center">
                       <Text style={styles.rateItemTitle}>{card.title}</Text>
-                      {hasDietPrescription ? (
+                      {hasDietPrescription && card.valueText !== '--' ? (
                         <View style={[styles.rateTag, tagStyle.box]}>
                           <Text style={[styles.rateTagText, tagStyle.text]}>{card.statusLabel}</Text>
                         </View>
@@ -376,8 +376,16 @@ export default function FoodRecordingPage() {
                 </Flex>
               </Flex>
             </ImageBackground>
-            <View style={{ position: 'relative' }}>
-              <NutritionTrendChart trendList={trendList} />
+            <View style={styles.trendChartArea}>
+              {trendList.length === 0 ? (
+                <View style={styles.trendSection}>
+                  <View style={styles.trendChartPlaceholder}>
+                    <Text style={styles.trendEmptyText}>暂无趋势数据</Text>
+                  </View>
+                </View>
+              ) : (
+                <NutritionTrendChart trendList={trendList} />
+              )}
               <Text style={styles.baselineHint}>虚线为达标基准线（90%）</Text>
             </View>
 

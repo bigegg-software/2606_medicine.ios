@@ -103,6 +103,12 @@ export const getWearableDataDetailByCustomerLocalDate = (params: {
 export const getWearableDataLatestByType = (type: WearableDataType) =>
   request.get<WearableDataDetailResult>('/patient/wearableData/latestByType', { params: { type } });
 
+/** 按 id 查询单条穿戴数据（消息跳转存在性校验） */
+export const getWearableDataById = (wearableDataId: string | number) =>
+  request.get<WearableDataDetailResult>('/patient/wearableData/getInfo', {
+    params: { wearableDataId: String(wearableDataId) },
+  });
+
 export type WearableUploadPayload = {
   type: string;
   appType: number;

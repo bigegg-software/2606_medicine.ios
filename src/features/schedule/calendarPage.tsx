@@ -19,10 +19,14 @@ import styles from '@/css/schedule/calendar';
 import type { DailyRecordStatusItem } from '@/api/dailyRecordStatus';
 import {
   CALENDAR_DAY_DOT_COLORS,
+  clampScheduleCalendarDate,
+  clampScheduleCalendarMonth,
   getCalendarDayDotColors,
   getTimelineAxisColor,
   getTimelineStatusBtnColor,
   getTimelineStatusBtnTone,
+  isScheduleCalendarMonthAtMin,
+  SCHEDULE_CALENDAR_MIN_MONTH,
   TIMELINE_STATUS_DONE_COLOR,
   TIMELINE_STATUS_PENDING_COLOR,
   groupTimelineItems,
@@ -47,8 +51,9 @@ import { getLiveStatusText } from '@/src/features/community/liveHelpers';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
 const DASH_COUNT = 30;
-const MIN_YEAR = moment().year() - 10;
+const MIN_YEAR = moment(SCHEDULE_CALENDAR_MIN_MONTH, 'YYYY-MM').year();
 const MAX_YEAR = moment().year() + 1;
+const MIN_MONTH = moment(SCHEDULE_CALENDAR_MIN_MONTH, 'YYYY-MM').month() + 1;
 
 const MONTH_PICKER_DATA = [
   Array.from({ length: MAX_YEAR - MIN_YEAR + 1 }, (_, index) => {
@@ -256,9 +261,23 @@ function MedicationStatus({
   checkingIn: boolean;
   onCheckIn: (item: CalendarTimelineItem) => void;
 }) {
+  const taken = Boolean(item.taken) && !item.canCheckIn;
+  const statusColor = getTimelineStatusBtnColor('已服用');
+  const content = (
+    <Flex align="center">
+      <Image
+        source={
+          taken
+            ? require('@/assets/images/schedule/wc.png')
+            : require('@/assets/images/schedule/select.png')
+        }
+        style={styles.taskCardStatusTakenIcon}
+      />
+      <Text style={[styles.taskCardStatus, { color: statusColor }]}>已服用</Text>
+    </Flex>
+  );
+
   if (item.canCheckIn) {
-    const actionLabel = '已服用';
-    const actionColor = getTimelineStatusBtnColor(actionLabel);
     return (
       <TouchableOpacity
         activeOpacity={0.7}
@@ -266,44 +285,15 @@ function MedicationStatus({
         style={styles.taskCardStatusButton}
         onPress={() => onCheckIn(item)}>
         {checkingIn ? (
-          <ActivityIndicator color={actionColor} size="small" />
+          <ActivityIndicator color={statusColor} size="small" />
         ) : (
-          <Flex align="center">
-            <View style={styles.taskCardStatusIconWrap}>
-              <View
-                style={[
-                  styles.taskCardStatusCircleAction,
-                  { borderColor: actionColor },
-                ]}
-              />
-            </View>
-            <Text style={[styles.taskCardStatus, { color: actionColor }]}>{actionLabel}</Text>
-          </Flex>
+          content
         )}
       </TouchableOpacity>
     );
   }
 
-  const statusLabel = item.taken ? '已服用' : '未服用';
-  const statusColor = getTimelineStatusBtnColor(statusLabel);
-
-  return (
-    <Flex align="center" style={item.taken ? styles.taskCardStatusTakenWrap : null}>
-      <View style={styles.taskCardStatusIconWrap}>
-        {item.taken ? (
-          <>
-            <View style={[styles.taskCardStatusCircleTaken, { borderColor: statusColor }]} />
-            <Text style={[styles.taskCardStatusCheck, { color: statusColor }]}>✓</Text>
-          </>
-        ) : (
-          <View style={[styles.taskCardStatusCircleMuted, { borderColor: statusColor }]} />
-        )}
-      </View>
-      <Text style={[styles.taskCardStatus, { color: statusColor }]}>
-        {statusLabel}
-      </Text>
-    </Flex>
-  );
+  return <View style={styles.taskCardStatusButton}>{content}</View>;
 }
 
 function TimelineCardItem({
@@ -488,32 +478,19 @@ function MedicationTimelineCard({
             {checkingInAll ? (
               <ActivityIndicator color={TIMELINE_STATUS_PENDING_COLOR} size="small" />
             ) : (
-              <Flex align="center">
-                <View style={styles.taskCardStatusIconWrap}>
-                  <View
-                    style={[
-                      styles.taskCardStatusCircleAction,
-                      { borderColor: TIMELINE_STATUS_PENDING_COLOR },
-                    ]}
-                  />
-                </View>
-              </Flex>
+              <Image
+                source={require('@/assets/images/schedule/select.png')}
+                style={styles.taskCardStatusTakenIcon}
+              />
             )}
           </TouchableOpacity>
         ) : allTaken ? (
-          <Flex align="center">
-            <View style={styles.taskCardStatusIconWrap}>
-              <View
-                style={[
-                  styles.taskCardStatusCircleTaken,
-                  { borderColor: TIMELINE_STATUS_DONE_COLOR },
-                ]}
-              />
-              <Text style={[styles.taskCardStatusCheck, { color: TIMELINE_STATUS_DONE_COLOR }]}>
-                ✓
-              </Text>
-            </View>
-          </Flex>
+          <View style={styles.taskCardStatusButton}>
+            <Image
+              source={require('@/assets/images/schedule/wc.png')}
+              style={styles.taskCardStatusTakenIcon}
+            />
+          </View>
         ) : null}
       </Flex>
 
@@ -793,8 +770,10 @@ const MemoCalendarMonthGrid = React.memo(CalendarMonthGrid);
 
 export default function ScheduleCalendarPage() {
   const navigation = useNavigation<Nav>();
-  const [currentMonth, setCurrentMonth] = useState(moment());
-  const [selectedDate, setSelectedDate] = useState(moment().format('YYYY-MM-DD'));
+  const [currentMonth, setCurrentMonth] = useState(() => clampScheduleCalendarMonth(moment()));
+  const [selectedDate, setSelectedDate] = useState(() =>
+    clampScheduleCalendarDate(moment().format('YYYY-MM-DD')),
+  );
   const [statusMap, setStatusMap] = useState<Map<string, DailyRecordStatusItem>>(new Map());
   const [timelineItems, setTimelineItems] = useState<CalendarTimelineItem[]>([]);
   const [medicationPlanGroups, setMedicationPlanGroups] = useState<MedicationPlanGroupView[]>([]);
@@ -813,6 +792,7 @@ export default function ScheduleCalendarPage() {
   selectedDateRef.current = selectedDate;
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
+  const canGoPrevMonth = !isScheduleCalendarMonthAtMin(currentMonth);
   const isToday = selectedDate === moment().format('YYYY-MM-DD');
   const displayTimelineItems = useMemo(() => {
     if (!isToday) return timelineItems;
@@ -866,7 +846,7 @@ export default function ScheduleCalendarPage() {
   }, []);
 
   const handleSelectDate = useCallback((dateKey: string) => {
-    setSelectedDate(dateKey);
+    setSelectedDate(clampScheduleCalendarDate(dateKey));
   }, []);
 
   useEffect(() => {
@@ -1035,8 +1015,12 @@ export default function ScheduleCalendarPage() {
           <Flex justify="between" align="center">
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setCurrentMonth(m => moment(m).subtract(1, 'month'))}
-              style={styles.navIconLeftWrap}
+              disabled={!canGoPrevMonth}
+              onPress={() => {
+                if (!canGoPrevMonth) return;
+                setCurrentMonth(m => clampScheduleCalendarMonth(moment(m).subtract(1, 'month')));
+              }}
+              style={[styles.navIconLeftWrap, !canGoPrevMonth && { opacity: 0.35 }]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
               <Image source={require('@/assets/images/schedule/icon_left.png')} style={styles.navIcon} />
@@ -1047,12 +1031,19 @@ export default function ScheduleCalendarPage() {
               cascade={false}
               value={[currentMonth.year(), currentMonth.month() + 1]}
               onOk={values => {
+                const year = Number(values[0]);
+                let month = Number(values[1]);
+                if (year === MIN_YEAR && month < MIN_MONTH) {
+                  month = MIN_MONTH;
+                }
                 setCurrentMonth(
-                  moment({
-                    year: Number(values[0]),
-                    month: Number(values[1]) - 1,
-                    date: 1,
-                  }),
+                  clampScheduleCalendarMonth(
+                    moment({
+                      year,
+                      month: month - 1,
+                      date: 1,
+                    }),
+                  ),
                 );
               }}>
               <TouchableOpacity activeOpacity={0.7} style={styles.dayTitleBtn}>

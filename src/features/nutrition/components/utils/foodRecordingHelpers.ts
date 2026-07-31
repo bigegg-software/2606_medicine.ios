@@ -21,12 +21,13 @@ export type FoodRecordingRateCard = {
   tone: FoodRecordingRateTone;
 };
 
-/** 达标率状态：≥90 达标，≥80 基本达标，≥60 偏低，其余明显不足 */
+/** 达标率状态：≥90 达标，≥80 基本达标，≥60 偏低，其余明显不足；0 视为无数据 */
 export function getFoodRecordingRateStatus(rate?: number | null): {
   label: string;
   tone: FoodRecordingRateTone;
-} {
+} | null {
   const value = normalizeComplianceRate(rate);
+  if (value === 0) return null;
   if (value >= 90) return { label: '达标', tone: 'ok' };
   if (value >= 80) return { label: '基本达标', tone: 'warn' };
   if (value >= 60) return { label: '偏低', tone: 'warn' };
@@ -34,7 +35,9 @@ export function getFoodRecordingRateStatus(rate?: number | null): {
 }
 
 export function formatFoodRecordingRate(rate?: number | null) {
-  return `${formatMealHistoryRate(normalizeComplianceRate(rate))}%`;
+  const value = normalizeComplianceRate(rate);
+  if (value === 0) return '--';
+  return `${formatMealHistoryRate(value)}%`;
 }
 
 export function buildFoodRecordingRateCards(
@@ -53,8 +56,8 @@ export function buildFoodRecordingRateCards(
       key: item.key,
       title: item.title,
       valueText: formatFoodRecordingRate(item.rate),
-      statusLabel: status.label,
-      tone: status.tone,
+      statusLabel: status?.label ?? '--',
+      tone: status?.tone ?? 'bad',
     };
   });
 }

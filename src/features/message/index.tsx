@@ -11,11 +11,13 @@ import {
     RefreshControl,
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import styles from '@/css/message/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
+import type { RootStackParamList } from '@/route/router';
 import {
     getMessageList,
     markAllMessagesRead,
@@ -30,11 +32,17 @@ import {
     MESSAGE_UNREAD_CHANGED,
     type MessageListDisplayItem,
 } from './utils/messageHelpers';
+import {
+    MESSAGE_NOT_FOUND_TOAST,
+    navigateFromMessage,
+} from './utils/messageNavigationHelpers';
 
 const PAGE_SIZE = 20;
 
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
 export default function MessagePage() {
-    const navigation: any = useNavigation();
+    const navigation = useNavigation<Nav>();
     const identityPerspective = useSelector(
         (state: RootState) => state.user.systemUser?.identityPerspective,
     );
@@ -159,20 +167,32 @@ export default function MessagePage() {
     }, [handleReadAll, markingAll, navigation]);
 
     const handlePressItem = useCallback(async (item: MessageListDisplayItem) => {
-        if (!item.unread) return;
-        try {
-            const res = await markMessageRead(item.id, {
-                identityPerspective: messageScope.identityPerspective,
-            });
-            if (!isResourceApiOk(res as { code?: number })) return;
-            setList(prev =>
-                prev.map(row => (row.id === item.id ? { ...row, unread: false } : row)),
-            );
-            DeviceEventEmitter.emit(MESSAGE_UNREAD_CHANGED);
-        } catch {
-            // ignore
+        if (item.unread) {
+            try {
+                const res = await markMessageRead(item.id, {
+                    identityPerspective: messageScope.identityPerspective,
+                });
+                if (isResourceApiOk(res as { code?: number })) {
+                    setList(prev =>
+                        prev.map(row => (row.id === item.id ? { ...row, unread: false } : row)),
+                    );
+                    DeviceEventEmitter.emit(MESSAGE_UNREAD_CHANGED);
+                }
+            } catch {
+                // ignore
+            }
         }
-    }, [messageScope.identityPerspective]);
+
+        const navResult = await navigateFromMessage(navigation, {
+            type: item.raw.type,
+            bizId: item.raw.bizId,
+            messageId: item.raw.messageId,
+            createTime: item.raw.createTime,
+        });
+        if (navResult === 'missing') {
+            Toast.show(MESSAGE_NOT_FOUND_TOAST);
+        }
+    }, [messageScope.identityPerspective, navigation]);
 
     const handleLoadMore = useCallback(() => {
         if (loading || refreshing || loadingMore || !hasMore) return;
