@@ -1,280 +1,343 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Modal, StyleSheet, ScrollView } from 'react-native';
+import React, { useMemo } from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  useWindowDimensions,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialIcons } from '@expo/vector-icons';
-import { AppTheme } from '@/common/theme';
-import { getVitalInfoContent, type VitalInfoSection } from '../utils/vitalInfoContent';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import BottomSheetModal from '@/src/components/BottomSheetModal';
+import {
+  getVitalInfoContent,
+  type VitalInfoSection,
+  type VitalInfoTableRow,
+} from '../utils/vitalInfoContent';
 
 export type VitalInfoModalProps = {
   vitalKey: string | null;
   onClose: () => void;
 };
 
+const SHEET_PADDING_H = 18;
+const LABEL_COL_WIDTH = 72;
+const VALUE_COL_MIN_WIDTH = 68;
+
+function buildTransposedMatrix(headers: string[], rows: string[][]): string[][] {
+  return headers.map((header, colIndex) => [header, ...rows.map(row => row[colIndex] ?? '')]);
+}
+
+function TransposedTable({
+  matrix,
+  style,
+}: {
+  matrix: string[][];
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { width: windowWidth } = useWindowDimensions();
+  if (matrix.length === 0) return null;
+
+  const colCount = Math.max(...matrix.map(row => row.length), 1);
+  const valueColCount = Math.max(colCount - 1, 1);
+  const availableWidth = windowWidth - SHEET_PADDING_H * 2;
+  const equalValueWidth = (availableWidth - LABEL_COL_WIDTH) / valueColCount;
+  const valueColWidth = Math.max(VALUE_COL_MIN_WIDTH, equalValueWidth);
+  const tableWidth = LABEL_COL_WIDTH + valueColWidth * valueColCount;
+  const needsScroll = tableWidth > availableWidth + 1;
+
+  const table = (
+    <View style={[styles.tableBox, { width: needsScroll ? tableWidth : availableWidth }]}>
+      {matrix.map((row, rowIndex) => (
+        <View key={`row-${rowIndex}`} style={styles.tableRow}>
+          {Array.from({ length: colCount }, (_, colIndex) => {
+            const isLabel = colIndex === 0;
+            const isLastCol = colIndex === colCount - 1;
+            const isLastRow = rowIndex === matrix.length - 1;
+            return (
+              <View
+                key={`cell-${rowIndex}-${colIndex}`}
+                style={[
+                  styles.tableCell,
+                  {
+                    width: isLabel
+                      ? LABEL_COL_WIDTH
+                      : needsScroll
+                        ? valueColWidth
+                        : undefined,
+                    flex: !isLabel && !needsScroll ? 1 : undefined,
+                  },
+                  isLabel ? styles.tableLabelCell : styles.tableValueCell,
+                  isLastCol && styles.tableCellLastCol,
+                  isLastRow && styles.tableCellLastRow,
+                ]}>
+                <Text style={isLabel ? styles.tableLabelText : styles.tableValueText}>
+                  {row[colIndex] ?? ''}
+                </Text>
+              </View>
+            );
+          })}
+        </View>
+      ))}
+    </View>
+  );
+
+  if (!needsScroll) {
+    return <View style={[styles.tableScroll, style]}>{table}</View>;
+  }
+
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      style={[styles.tableScroll, style]}>
+      {table}
+    </ScrollView>
+  );
+}
+
 function SectionTable({ section }: { section: VitalInfoSection }) {
-  const colCount = Math.max(section.headers.length, 1);
+  const matrix = useMemo(
+    () => buildTransposedMatrix(section.headers, section.rows),
+    [section.headers, section.rows],
+  );
 
   return (
     <View style={styles.sectionWrap}>
       <Text style={styles.sectionTitle}>{section.title}</Text>
-      <View style={[styles.tableBox, styles.sectionTableBox]}>
-        <View style={[styles.tableRow, styles.tableHeaderRow]}>
-          {section.headers.map((header, index) => (
-            <Text
-              key={`${section.title}-h-${header}`}
-              style={[
-                styles.tableCell,
-                styles.tableHeaderText,
-                styles.sectionCell,
-                index === 0 && styles.sectionFirstCell,
-                index === colCount - 1 && colCount > 2 && styles.sectionLastCell,
-              ]}
-            >
-              {header}
-            </Text>
-          ))}
-        </View>
-        {section.rows.map((row, rowIndex) => (
-          <View key={`${section.title}-r-${rowIndex}`} style={styles.tableRow}>
-            {section.headers.map((_, colIndex) => (
-              <Text
-                key={`${section.title}-r-${rowIndex}-c-${colIndex}`}
-                style={[
-                  styles.tableCell,
-                  styles.sectionCell,
-                  colIndex === 0 && styles.sectionFirstCell,
-                  colIndex === colCount - 1 && colCount > 2 && styles.sectionLastCell,
-                ]}
-              >
-                {row[colIndex] ?? ''}
-              </Text>
-            ))}
-          </View>
-        ))}
-      </View>
+      <TransposedTable matrix={matrix} style={styles.tableAfterTitle} />
+    </View>
+  );
+}
+
+function LevelsTable({
+  levels,
+}: {
+  levels: Array<{ label: string; range: string }>;
+}) {
+  const matrix = useMemo(
+    () =>
+      buildTransposedMatrix(
+        ['状态', '范围'],
+        levels.map(item => [item.label, item.range]),
+      ),
+    [levels],
+  );
+
+  return (
+    <View style={styles.sectionWrap}>
+      <TransposedTable matrix={matrix} />
+    </View>
+  );
+}
+
+function BloodPressureTable({
+  headers,
+  rows,
+}: {
+  headers: [string, string, string, string];
+  rows: VitalInfoTableRow[];
+}) {
+  const matrix = useMemo(
+    () =>
+      buildTransposedMatrix(
+        [...headers],
+        rows.map(row => [row.category ?? '', row.label, row.systolic, row.diastolic]),
+      ),
+    [headers, rows],
+  );
+
+  return (
+    <View style={styles.sectionWrap}>
+      <TransposedTable matrix={matrix} />
     </View>
   );
 }
 
 export default function VitalInfoModal({ vitalKey, onClose }: VitalInfoModalProps) {
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const content = vitalKey ? getVitalInfoContent(vitalKey) : null;
   const visible = Boolean(content);
   const levels = content?.levels ?? [];
   const table = content?.table;
   const sections = content?.sections ?? [];
+  const sheetMaxHeight = Math.round(windowHeight * 0.8);
+  const bottomPad = Math.max(insets.bottom, 16);
+  // title + divider + paddings + button area，保证「知道了」始终贴在弹层底部可见
+  const scrollMaxHeight = Math.max(120, sheetMaxHeight - 20 - 21 - 16 - 1 - 16 - 48 - bottomPad);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.box}>
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
-            <MaterialIcons name="close" size={22} color={AppTheme.textSecondary} />
-          </TouchableOpacity>
+    <BottomSheetModal visible={visible} onClose={onClose}>
+      <View style={[styles.sheet, { paddingBottom: bottomPad }]}>
+        <View style={styles.titleRow}>
           <Text style={styles.title}>{content?.title ?? ''}</Text>
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <Text style={styles.body}>{content?.body ?? ''}</Text>
-            {levels.length > 0 ? (
-              <View style={styles.levelBox}>
-                {levels.map(item => (
-                  <View key={item.label} style={styles.levelRow}>
-                    <Text style={styles.levelLabel}>{item.label}</Text>
-                    <Text style={styles.levelRange}>{item.range}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-            {table ? (
-              <View style={styles.tableBox}>
-                <View style={[styles.tableRow, styles.tableHeaderRow]}>
-                  <Text style={[styles.tableCell, styles.tableCategory, styles.tableHeaderText]}>
-                    {table.headers[0]}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.tableLabel, styles.tableHeaderText]}>
-                    {table.headers[1]}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.tableValue, styles.tableHeaderText]}>
-                    {table.headers[2]}
-                  </Text>
-                  <Text style={[styles.tableCell, styles.tableValue, styles.tableHeaderText]}>
-                    {table.headers[3]}
-                  </Text>
-                </View>
-                {table.rows.map((row, index) => {
-                  const showCategory = index === 0 || row.category !== table.rows[index - 1]?.category;
-                  return (
-                    <View key={`${row.category ?? ''}-${row.label}`} style={styles.tableRow}>
-                      <Text style={[styles.tableCell, styles.tableCategory]}>
-                        {showCategory ? (row.category ?? '') : ''}
-                      </Text>
-                      <Text style={[styles.tableCell, styles.tableLabel]}>{row.label}</Text>
-                      <Text style={[styles.tableCell, styles.tableValue]}>{row.systolic}</Text>
-                      <Text style={[styles.tableCell, styles.tableValue]}>{row.diastolic}</Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
-            {sections.map(section => (
-              <SectionTable key={section.title} section={section} />
-            ))}
-          </ScrollView>
-          <TouchableOpacity style={styles.confirmBtn} onPress={onClose} activeOpacity={0.8}>
-            <Text style={styles.confirmText}>知道了</Text>
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={onClose}
+            activeOpacity={0.8}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <MaterialIcons name="close" size={22} color="#999999" />
           </TouchableOpacity>
         </View>
+        <View style={styles.divider} />
+        <ScrollView
+          style={[styles.scroll, { maxHeight: scrollMaxHeight }]}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+          nestedScrollEnabled>
+          {content?.body ? <Text style={styles.body}>{content.body}</Text> : null}
+          {levels.length > 0 ? <LevelsTable levels={levels} /> : null}
+          {table ? <BloodPressureTable headers={table.headers} rows={table.rows} /> : null}
+          {sections.map(section => (
+            <SectionTable key={section.title} section={section} />
+          ))}
+        </ScrollView>
+        <TouchableOpacity onPress={onClose} activeOpacity={0.85} style={styles.confirmBtnWrap}>
+          <LinearGradient
+            colors={['#9BBD8E', '#6D925E']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.confirmBtn}>
+            <Text style={styles.confirmText}>知道了</Text>
+          </LinearGradient>
+        </TouchableOpacity>
       </View>
-    </Modal>
+    </BottomSheetModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  box: {
+  sheet: {
     width: '100%',
-    maxHeight: '80%',
-    backgroundColor: '#FEFFFF',
-    borderRadius: 12,
-    paddingTop: 24,
-    paddingHorizontal: 16,
-    paddingBottom: 20,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingTop: 20,
+    paddingHorizontal: SHEET_PADDING_H,
+    overflow: 'hidden',
   },
-  closeBtn: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    zIndex: 1,
-    padding: 4,
+  titleRow: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 24,
+    flexShrink: 0,
   },
   title: {
     fontWeight: '500',
-    fontSize: 17,
-    color: AppTheme.textPrimary,
-    lineHeight: 24,
-    paddingRight: 28,
+    fontSize: 15,
+    color: '#333333',
+    textAlign: 'center',
+    lineHeight: 21,
+    paddingHorizontal: 32,
+  },
+  closeBtn: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  divider: {
+    marginTop: 16,
+    height: 1,
+    backgroundColor: 'rgba(23,63,125,0.08)',
+    flexShrink: 0,
   },
   scroll: {
-    marginTop: 4,
+    flexGrow: 0,
+    flexShrink: 1,
   },
   scrollContent: {
     paddingBottom: 4,
+    flexGrow: 0,
   },
   body: {
-    marginTop: 12,
-    fontWeight: '400',
-    fontSize: 14,
-    color: AppTheme.textSecondary,
-    lineHeight: 22,
-  },
-  levelBox: {
-    marginTop: 14,
-    borderRadius: 8,
-    backgroundColor: '#F6F8FB',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  levelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 8,
-  },
-  levelLabel: {
+    marginTop: 15,
     fontWeight: '500',
     fontSize: 14,
-    color: AppTheme.textPrimary,
-  },
-  levelRange: {
-    fontWeight: '400',
-    fontSize: 13,
-    color: AppTheme.textSecondary,
-    textAlign: 'right',
-    flex: 1,
-    marginLeft: 12,
-  },
-  tableBox: {
-    marginTop: 14,
-    borderRadius: 8,
-    backgroundColor: '#F6F8FB',
-    overflow: 'hidden',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: 'rgba(0,0,0,0.06)',
-  },
-  tableHeaderRow: {
-    borderTopWidth: 0,
-    backgroundColor: 'rgba(109,146,94,0.08)',
-  },
-  tableCell: {
-    fontWeight: '400',
-    fontSize: 11,
-    color: AppTheme.textSecondary,
-    lineHeight: 16,
-  },
-  tableHeaderText: {
-    fontWeight: '500',
-    color: AppTheme.textPrimary,
-  },
-  tableCategory: {
-    width: 42,
-    fontWeight: '500',
-    color: AppTheme.textPrimary,
-  },
-  tableLabel: {
-    flex: 1.4,
-    paddingRight: 4,
-  },
-  tableValue: {
-    flex: 1,
-    textAlign: 'center',
+    color: '#333333',
+    lineHeight: 21,
   },
   sectionWrap: {
-    marginTop: 14,
+    marginTop: 12,
   },
   sectionTitle: {
     fontWeight: '500',
     fontSize: 14,
-    color: AppTheme.textPrimary,
-    marginBottom: 8,
+    color: '#6D925E',
   },
-  sectionTableBox: {
+  tableScroll: {
     marginTop: 0,
+    width: '100%',
   },
-  sectionCell: {
-    flex: 1,
+  tableAfterTitle: {
+    marginTop: 12,
   },
-  sectionFirstCell: {
+  tableBox: {
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    alignItems: 'stretch',
+  },
+  tableCell: {
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E8E8E8',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  tableCellLastCol: {
+    borderRightWidth: 0,
+  },
+  tableCellLastRow: {
+    borderBottomWidth: 0,
+  },
+  tableLabelCell: {
+    backgroundColor: '#F6F8FB',
+  },
+  tableValueCell: {
+    backgroundColor: '#FFFFFF',
+  },
+  tableLabelText: {
     fontWeight: '500',
-    color: AppTheme.textPrimary,
-    flex: 0.9,
+    fontSize: 13,
+    color: '#666666',
+    textAlign: 'center',
   },
-  sectionLastCell: {
-    flex: 1.3,
-    textAlign: 'left',
+  tableValueText: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+    textAlign: 'center',
+  },
+  confirmBtnWrap: {
+    marginTop: 16,
+    flexShrink: 0,
   },
   confirmBtn: {
-    marginTop: 16,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: AppTheme.primaryColor,
+    height: 48,
+    borderRadius: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },
   confirmText: {
     fontWeight: '500',
     fontSize: 16,
-    color: AppTheme.onPrimaryColor ?? '#FFFFFF',
+    color: '#FFFFFF',
   },
 });
