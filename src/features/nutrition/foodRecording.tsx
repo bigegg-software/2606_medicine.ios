@@ -46,7 +46,7 @@ import {
   flattenMealHistoryDays,
   formatMealHistoryMonthLabel,
 } from '@/src/features/profile/medication/meal/utils/mealHistoryHelpers';
-import NoData from '@/src/components/noData';
+import EmptyRecord from '@/src/components/EmptyRecord';
 import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
 
@@ -98,6 +98,7 @@ export default function FoodRecordingPage() {
     () => (dietRule?.dietPatientRuleId != null ? String(dietRule.dietPatientRuleId) : undefined),
     [dietRule?.dietPatientRuleId],
   );
+  const hasDietPrescription = !!dietPatientRuleId;
 
   const flatDays = useMemo(() => flattenMealHistoryDays(monthGroups), [monthGroups]);
 
@@ -191,6 +192,18 @@ export default function FoodRecordingPage() {
       setMonthGroups(mergedGroups);
       monthGroupsRef.current = mergedGroups;
       pageNumRef.current = nextPage;
+
+      // 最近一个月默认展开（仅首次，不覆盖用户手动收起）
+      if (mode !== 'more' && mergedGroups.length > 0) {
+        const latest = mergedGroups[0];
+        const days = latest.list ?? [];
+        const latestKey = latest.yyyyMM?.trim()
+          || days[0]?.customerLocalDate?.trim()
+          || `month-${days.length}`;
+        setExpandedMonths(prev => (
+          latestKey in prev ? prev : { ...prev, [latestKey]: true }
+        ));
+      }
 
       const loadedDays = mergedGroups.reduce((sum, group) => sum + (group.list?.length ?? 0), 0);
       hasMoreRef.current = loadedDays < total;
@@ -319,9 +332,15 @@ export default function FoodRecordingPage() {
                   <View key={card.key} style={styles.rateItem}>
                     <Flex justify="between" align="center">
                       <Text style={styles.rateItemTitle}>{card.title}</Text>
-                      <View style={[styles.rateTag, tagStyle.box]}>
-                        <Text style={[styles.rateTagText, tagStyle.text]}>{card.statusLabel}</Text>
-                      </View>
+                      {hasDietPrescription ? (
+                        <View style={[styles.rateTag, tagStyle.box]}>
+                          <Text style={[styles.rateTagText, tagStyle.text]}>{card.statusLabel}</Text>
+                        </View>
+                      ) : (
+                        <View style={[styles.rateTag, styles.rateTagMuted]}>
+                          <Text style={[styles.rateTagText, styles.rateTagTextMuted]}>--</Text>
+                        </View>
+                      )}
                     </Flex>
                     <Text style={styles.rateItemValue}>{card.valueText}</Text>
                   </View>
@@ -376,8 +395,8 @@ export default function FoodRecordingPage() {
             <ActivityIndicator color={AppTheme.primaryColor} />
           </View>
         ) : flatDays.length === 0 ? (
-          <View style={styles.trendEmpty}>
-            <NoData text="暂无饮食记录" />
+          <View style={[styles.trendEmpty, styles.emptyWrap]}>
+            <EmptyRecord text="暂无饮食记录" />
           </View>
         ) : (
           <>
@@ -413,7 +432,7 @@ export default function FoodRecordingPage() {
                   {expanded ? days.map((day, index) => {
                     const dateKey = day.customerLocalDate?.trim();
                     if (!dateKey) return null;
-                    const status = getFoodRecordingDayStatus(day);
+                    const status = hasDietPrescription ? getFoodRecordingDayStatus(day) : null;
                     const tagStyle = status ? RATE_TAG_STYLE[status.tone] : null;
                     const isLast = index === days.length - 1;
                     return (
@@ -439,7 +458,11 @@ export default function FoodRecordingPage() {
                               <View style={[styles.rateTag, tagStyle.box]}>
                                 <Text style={[styles.rateTagText, tagStyle.text]}>{status.label}</Text>
                               </View>
-                            ) : null}
+                            ) : (
+                              <View style={[styles.rateTag, styles.rateTagMuted]}>
+                                <Text style={[styles.rateTagText, styles.rateTagTextMuted]}>--</Text>
+                              </View>
+                            )}
                             <Image
                               style={styles.dayRightIcon}
                               source={require('@/assets/images/nutrition/icon_right.png')}

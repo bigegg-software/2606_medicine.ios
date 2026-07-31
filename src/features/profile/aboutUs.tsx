@@ -26,7 +26,7 @@ export default function ProfilePage() {
                     <Image style={styles.logo} source={require('@/assets/icon.png')}></Image>
                 </View>
 
-                <Text style={styles.pageText}>莱益晟应用</Text>
+                <Text style={styles.pageText}>莱益晟</Text>
 
 
                 <View style={styles.urlBox}>

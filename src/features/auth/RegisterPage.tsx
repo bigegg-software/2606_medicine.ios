@@ -1,8 +1,25 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, TouchableWithoutFeedback, ScrollView, ActivityIndicator, Alert, Keyboard, Platform, type KeyboardEvent, } from 'react-native';
-import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
+import {
+  View,
+  Text,
+  TextInput,
+  Image,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  ScrollView,
+  ActivityIndicator,
+  Alert,
+  Keyboard,
+  Platform,
+  findNodeHandle,
+  type FocusEvent,
+  type KeyboardEvent,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
+} from 'react-native';
+import Reanimated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch } from 'react-redux';
 import { Flex, Toast } from '@ant-design/react-native';
@@ -54,10 +71,49 @@ export default function RegisterPage() {
     code: 0,
   });
   const switchingAuthRef = useRef(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollOffsetRef = useRef(0);
 
   const refreshAccessory = useCallback((field: RegisterField) => {
     setAccessoryKeys(prev => ({ ...prev, [field]: prev[field] + 1 }));
   }, []);
+
+  const scrollFocusedInputIntoView = useCallback((e: FocusEvent) => {
+    const targetHandle = findNodeHandle(e.target as unknown as number | React.Component);
+    if (targetHandle == null) return;
+
+    setTimeout(() => {
+      const scrollView = scrollRef.current as ScrollView & {
+        getScrollResponder?: () => {
+          scrollResponderScrollNativeHandleToKeyboard?: (
+            nodeHandle: number,
+            additionalOffset: number,
+            preventNegativeScrollOffset?: boolean,
+          ) => void;
+        };
+      } | null;
+      const responder = scrollView?.getScrollResponder?.();
+      responder?.scrollResponderScrollNativeHandleToKeyboard?.(targetHandle, 100, true);
+    }, Platform.OS === 'ios' ? 80 : 120);
+  }, []);
+
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollOffsetRef.current = event.nativeEvent.contentOffset.y;
+  }, []);
+
+  // 键盘收起时保持当前滚动位置，避免点「完成」后整页往下跳
+  useFocusEffect(
+    useCallback(() => {
+      const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+      const sub = Keyboard.addListener(hideEvent, () => {
+        const y = scrollOffsetRef.current;
+        requestAnimationFrame(() => {
+          scrollRef.current?.scrollTo({ y, animated: false });
+        });
+      });
+      return () => sub.remove();
+    }, []),
+  );
 
   const inviteCodeValid = inviteCode.trim().length > 0;
   const phoneValid = phone.trim().length === 11;
@@ -199,12 +255,15 @@ export default function RegisterPage() {
       }>
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <ScrollView
+          ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ flexGrow: 1 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           bounces={false}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}>
           <View style={{ flex: 1 }}>
             <View style={styles.body}>
               <View style={styles.content}>
@@ -219,6 +278,7 @@ export default function RegisterPage() {
                   value={inviteCode}
                   onChangeText={setInviteCode}
                   returnKeyType="done"
+                  onFocus={scrollFocusedInputIntoView}
                   onPressIn={() => refreshAccessory('invite')}
                   inputAccessoryViewID={REGISTER_ACCESSORY.invite}
                 />
@@ -234,6 +294,7 @@ export default function RegisterPage() {
                   value={phone}
                   onChangeText={setPhone}
                   returnKeyType="done"
+                  onFocus={scrollFocusedInputIntoView}
                   onPressIn={() => refreshAccessory('phone')}
                   inputAccessoryViewID={REGISTER_ACCESSORY.phone}
                 />
@@ -249,6 +310,7 @@ export default function RegisterPage() {
                     maxLength={6}
                     value={code}
                     onChangeText={setCode}
+                    onFocus={scrollFocusedInputIntoView}
                     onPressIn={() => refreshAccessory('code')}
                     inputAccessoryViewID={REGISTER_ACCESSORY.code}
                   />

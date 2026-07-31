@@ -21,6 +21,10 @@ import {
   CALENDAR_DAY_DOT_COLORS,
   getCalendarDayDotColors,
   getTimelineAxisColor,
+  getTimelineStatusBtnColor,
+  getTimelineStatusBtnTone,
+  TIMELINE_STATUS_DONE_COLOR,
+  TIMELINE_STATUS_PENDING_COLOR,
   groupTimelineItems,
   groupTimelineItemsByTime,
   loadCalendarDayTimelineItems,
@@ -179,6 +183,24 @@ function ExerciseTimelineSection({
   );
 }
 
+function TimelineStatusBtn({ label }: { label: string }) {
+  const tone = getTimelineStatusBtnTone(label);
+  return (
+    <View style={styles.activityStatusBtn}>
+      <Text
+        style={[
+          styles.activityStatusBtnText,
+          tone === 'done' && styles.activityStatusBtnTextDone,
+          tone === 'pending' && styles.activityStatusBtnTextPending,
+        ]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+    </View>
+  );
+}
+
 function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
   const isRecorded = !item.mealIsRecommended;
   const foods = item.mealFoods ?? [];
@@ -191,6 +213,7 @@ function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
     item.mealCalories != null && item.mealCalories > 0
       ? `${item.mealCalories} 千卡`
       : '';
+  const statusLabel = isRecorded ? '已记录' : '去记录';
 
   return (
     <View style={styles.mergedTimelineCard}>
@@ -218,11 +241,7 @@ function DietTimelineCard({ item }: { item: CalendarTimelineItem }) {
             </Text>
           ) : null}
         </View>
-        <View style={styles.activityStatusBtn}>
-          <Text style={styles.activityStatusBtnText} numberOfLines={1}>
-            {isRecorded ? '已记录' : '去记录'}
-          </Text>
-        </View>
+        <TimelineStatusBtn label={statusLabel} />
       </Flex>
     </View>
   );
@@ -238,6 +257,8 @@ function MedicationStatus({
   onCheckIn: (item: CalendarTimelineItem) => void;
 }) {
   if (item.canCheckIn) {
+    const actionLabel = '已服用';
+    const actionColor = getTimelineStatusBtnColor(actionLabel);
     return (
       <TouchableOpacity
         activeOpacity={0.7}
@@ -245,37 +266,41 @@ function MedicationStatus({
         style={styles.taskCardStatusButton}
         onPress={() => onCheckIn(item)}>
         {checkingIn ? (
-          <ActivityIndicator color={AppTheme.primaryColor} size="small" />
+          <ActivityIndicator color={actionColor} size="small" />
         ) : (
           <Flex align="center">
             <View style={styles.taskCardStatusIconWrap}>
-              <View style={styles.taskCardStatusCircleAction} />
+              <View
+                style={[
+                  styles.taskCardStatusCircleAction,
+                  { borderColor: actionColor },
+                ]}
+              />
             </View>
-            <Text style={[styles.taskCardStatus, styles.taskCardStatusAction]}>已服用</Text>
+            <Text style={[styles.taskCardStatus, { color: actionColor }]}>{actionLabel}</Text>
           </Flex>
         )}
       </TouchableOpacity>
     );
   }
 
+  const statusLabel = item.taken ? '已服用' : '未服用';
+  const statusColor = getTimelineStatusBtnColor(statusLabel);
+
   return (
     <Flex align="center" style={item.taken ? styles.taskCardStatusTakenWrap : null}>
       <View style={styles.taskCardStatusIconWrap}>
         {item.taken ? (
           <>
-            <View style={styles.taskCardStatusCircleTaken} />
-            <Text style={styles.taskCardStatusCheck}>✓</Text>
+            <View style={[styles.taskCardStatusCircleTaken, { borderColor: statusColor }]} />
+            <Text style={[styles.taskCardStatusCheck, { color: statusColor }]}>✓</Text>
           </>
         ) : (
-          <View style={styles.taskCardStatusCircleMuted} />
+          <View style={[styles.taskCardStatusCircleMuted, { borderColor: statusColor }]} />
         )}
       </View>
-      <Text
-        style={[
-          styles.taskCardStatus,
-          item.taken ? styles.taskCardStatusTaken : null,
-        ]}>
-        {item.taken ? '已服用' : '未服用'}
+      <Text style={[styles.taskCardStatus, { color: statusColor }]}>
+        {statusLabel}
       </Text>
     </Flex>
   );
@@ -368,11 +393,7 @@ function LiveTimelineCard({
                   </Text>
                 ) : null}
               </View>
-              <View style={styles.activityStatusBtn}>
-                <Text style={styles.activityStatusBtnText} numberOfLines={1}>
-                  {statusText}
-                </Text>
-              </View>
+              <TimelineStatusBtn label={statusText} />
             </Flex>
           </TouchableOpacity>
         );
@@ -423,11 +444,7 @@ function ActivityTimelineCard({
                   </Text>
                 ) : null}
               </View>
-              <View style={styles.activityStatusBtn}>
-                <Text style={styles.activityStatusBtnText} numberOfLines={1}>
-                  {statusText}
-                </Text>
-              </View>
+              <TimelineStatusBtn label={statusText} />
             </Flex>
           </TouchableOpacity>
         );
@@ -469,11 +486,16 @@ function MedicationTimelineCard({
             disabled={checkingInAll || checkingInKey != null}
             onPress={() => onMedicationCheckInAll(canCheckInItems)}>
             {checkingInAll ? (
-              <ActivityIndicator color={AppTheme.primaryColor} size="small" />
+              <ActivityIndicator color={TIMELINE_STATUS_PENDING_COLOR} size="small" />
             ) : (
               <Flex align="center">
                 <View style={styles.taskCardStatusIconWrap}>
-                  <View style={styles.taskCardStatusCircleAction} />
+                  <View
+                    style={[
+                      styles.taskCardStatusCircleAction,
+                      { borderColor: TIMELINE_STATUS_PENDING_COLOR },
+                    ]}
+                  />
                 </View>
               </Flex>
             )}
@@ -481,8 +503,15 @@ function MedicationTimelineCard({
         ) : allTaken ? (
           <Flex align="center">
             <View style={styles.taskCardStatusIconWrap}>
-              <View style={styles.taskCardStatusCircleTaken} />
-              <Text style={styles.taskCardStatusCheck}>✓</Text>
+              <View
+                style={[
+                  styles.taskCardStatusCircleTaken,
+                  { borderColor: TIMELINE_STATUS_DONE_COLOR },
+                ]}
+              />
+              <Text style={[styles.taskCardStatusCheck, { color: TIMELINE_STATUS_DONE_COLOR }]}>
+                ✓
+              </Text>
             </View>
           </Flex>
         ) : null}
@@ -710,18 +739,19 @@ function CalendarMonthGrid({
 
   return (
     <View style={styles.calendarGrid}>
-      {calendarDays.map(day => {
+      {calendarDays.map((day, index) => {
         const dateKey = day.date.format('YYYY-MM-DD');
         const isSelected = selectedDate === dateKey;
         const isTodayCell = dateKey === todayKey;
         const dayDots = getCalendarDayDotColors(statusMap.get(dateKey));
         const overlapDots = dayDots.length >= 4;
+        const isFirstRow = index < 7;
 
         return (
           <TouchableOpacity
             key={dateKey}
             activeOpacity={0.7}
-            style={styles.dayCell}
+            style={[styles.dayCell, isFirstRow && styles.dayCellFirstRow]}
             hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}
             onPress={() => onSelectDate(dateKey)}>
             <View style={[styles.dayInner, isSelected && styles.daySelected]}>

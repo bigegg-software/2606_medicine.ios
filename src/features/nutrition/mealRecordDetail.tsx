@@ -82,7 +82,7 @@ export default function MealRecordDetailPage() {
   }
 
   return (
-    <PageLayout>
+    <PageLayout edges={[]}>
       <View style={styles.page}>
         <ScrollView
           style={styles.scrollNew}

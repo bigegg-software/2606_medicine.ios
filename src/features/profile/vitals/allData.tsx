@@ -20,6 +20,10 @@ import {
 } from './utils/allDataWeightHelpers';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import {
+  DIET_CALENDAR_MIN_DATE,
+  clampDietCalendarDate,
+} from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
+import {
   buildWearableStatusFilterPickerData,
   filterWearableRecordsByStatus,
   WEARABLE_STATUS_FILTER_ALL,
@@ -1067,8 +1071,13 @@ export default function AllDataPage({ route }: Props) {
     setSelectedDate(moment().format('YYYY-MM-DD'));
   }, []);
 
+  const canGoPrevWeek = selectedDate > DIET_CALENDAR_MIN_DATE;
+
   const goPrevWeek = useCallback(() => {
-    setSelectedDate(prev => moment(prev, 'YYYY-MM-DD').subtract(1, 'week').format('YYYY-MM-DD'));
+    setSelectedDate(prev => {
+      const next = moment(prev, 'YYYY-MM-DD').subtract(1, 'week').format('YYYY-MM-DD');
+      return clampDietCalendarDate(next);
+    });
   }, []);
 
   const goNextWeek = useCallback(() => {
@@ -1287,7 +1296,8 @@ export default function AllDataPage({ route }: Props) {
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={goPrevWeek}
-                style={styles.calendarArrowBtn}
+                disabled={!canGoPrevWeek}
+                style={[styles.calendarArrowBtn, !canGoPrevWeek && { opacity: 0.35 }]}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                 <Image
                   style={styles.calendarArrow}
@@ -1322,7 +1332,7 @@ export default function AllDataPage({ route }: Props) {
                   key={item.key}
                   activeOpacity={0.7}
                   style={[styles.calendarCol, isActive && styles.calendarColActive]}
-                  onPress={() => setSelectedDate(item.key)}>
+                  onPress={() => setSelectedDate(clampDietCalendarDate(item.key))}>
                   <Text style={isActive ? styles.calendarTitleActive : styles.calendarTitle}>
                     {item.label}
                   </Text>
@@ -1420,7 +1430,7 @@ export default function AllDataPage({ route }: Props) {
         visible={datePickerVisible}
         selectedDate={selectedDate}
         onClose={() => setDatePickerVisible(false)}
-        onSelect={setSelectedDate}
+        onSelect={date => setSelectedDate(clampDietCalendarDate(date))}
         uploadMarker={uploadMarker}
       />
 

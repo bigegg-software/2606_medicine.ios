@@ -5,7 +5,14 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
     pageContent: { flex: 1, position: 'relative' },
     body: { padding: 12, paddingTop: 2, paddingBottom: 14 },
+    bodyEmpty: { flexGrow: 1 },
     bodyStretch: { flexGrow: 1, paddingBottom: 0 },
+    emptyWrap: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
     sectionTitle: { fontWeight: "bold", fontSize: 16, color: AppTheme.textPrimary },
     more: { fontWeight: 500, fontSize: 13, color: '#666666' },
     infoBox: {

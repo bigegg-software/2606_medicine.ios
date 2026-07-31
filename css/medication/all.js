@@ -6,7 +6,12 @@ const styles = StyleSheet.create({
     body: { padding: 18, paddingTop: 2, paddingBottom: 40 },
     bodyEmpty: { flexGrow: 1 },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    emptyWrap: { flex: 1, justifyContent: 'center', paddingTop: 40 },
+    emptyWrap: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 40,
+    },
     sectionTitle: { marginLeft: 14, marginTop: 16, fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary },
     pageBody: { flex: 1 },
 

@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import { Flex, Modal, Switch, Toast } from '@ant-design/react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import { updateDrugTipInfo } from '@/api/patient';
@@ -229,21 +228,10 @@ export default function MedicationTab() {
 
     const loadPageDataRef = useRef(loadPageData);
     loadPageDataRef.current = loadPageData;
-    const hasMountedRef = useRef(false);
 
     useEffect(() => {
-        loadPageData();
+        void loadPageData();
     }, [loadPageData]);
-
-    useFocusEffect(
-        useCallback(() => {
-            if (!hasMountedRef.current) {
-                hasMountedRef.current = true;
-                return;
-            }
-            loadPageDataRef.current();
-        }, []),
-    );
 
     const handleCheckIn = useCallback(async (item: MedicationPlanItemView) => {
         if (!item.canCheckIn || checkingInKey || checkingInGroupTime) return;
@@ -400,17 +388,29 @@ export default function MedicationTab() {
                 <Text style={styles.sectionTitle}>今日用药进度</Text>
 
                 <Flex justify="between" style={styles.medicationProgressBox}>
-                    <Text style={styles.medicationLeftText}>{progress.rate}%</Text>
+                    <Text style={styles.medicationLeftText}>
+                        {planGroups.length === 0 ? '--' : `${progress.rate}%`}
+                    </Text>
                     <Text style={styles.medicationRightText}>
-                        <Text style={styles.medicationLeftText}>{progress.takeCount}</Text>
-                        /{progress.takeCount + progress.notTakeCount} 已完成
+                        {planGroups.length === 0 ? (
+                            '--/--'
+                        ) : (
+                            <>
+                                <Text style={styles.medicationLeftText}>{progress.takeCount}</Text>
+                                /{progress.takeCount + progress.notTakeCount} 已完成
+                            </>
+                        )}
                     </Text>
                 </Flex>
                 <View style={styles.medicationProgressTrack}>
                     <View
                         style={[
                             styles.medicationProgressFill,
-                            { width: `${Math.min(100, Math.max(0, progress.rate))}%` },
+                            {
+                                width: planGroups.length === 0
+                                    ? '0%'
+                                    : `${Math.min(100, Math.max(0, progress.rate))}%`,
+                            },
                         ]}
                     />
                 </View>

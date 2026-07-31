@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
-import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
@@ -48,7 +48,13 @@ const EMPTY_DAY_STATE: DayDetailState = {
   detailsByMealId: {},
 };
 
-function NutritionGoalItem({ item }: { item: NutritionGoalItemView }) {
+function NutritionGoalItem({
+  item,
+  showStatus,
+}: {
+  item: NutritionGoalItemView;
+  showStatus: boolean;
+}) {
   const statusStyle = getNutritionGoalStatusStyle(item.display.label);
   return (
     <View style={styles.nutritionGoalItem}>
@@ -59,19 +65,35 @@ function NutritionGoalItem({ item }: { item: NutritionGoalItemView }) {
             {item.title}
           </Text>
         </Flex>
-        <View
-          style={[
-            styles.nutritionGoalStatusTag,
-            {
-              backgroundColor: statusStyle.backgroundColor,
-              borderColor: statusStyle.borderColor,
-            },
-          ]}
-        >
-          <Text style={[styles.nutritionGoalStatus, { color: statusStyle.color }]} numberOfLines={1}>
-            {item.display.label}
-          </Text>
-        </View>
+        {showStatus ? (
+          <View
+            style={[
+              styles.nutritionGoalStatusTag,
+              {
+                backgroundColor: statusStyle.backgroundColor,
+                borderColor: statusStyle.borderColor,
+              },
+            ]}
+          >
+            <Text style={[styles.nutritionGoalStatus, { color: statusStyle.color }]} numberOfLines={1}>
+              {item.display.label}
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={[
+              styles.nutritionGoalStatusTag,
+              {
+                backgroundColor: 'rgba(153,153,153,0.06)',
+                borderColor: '#CCCCCC',
+              },
+            ]}
+          >
+            <Text style={[styles.nutritionGoalStatus, { color: '#999999' }]} numberOfLines={1}>
+              --
+            </Text>
+          </View>
+        )}
       </Flex>
 
       <Flex align="end" style={styles.nutritionGoalValueRow}>
@@ -166,35 +188,42 @@ export default function MealDayDetailPage() {
   const [loading, setLoading] = useState(true);
   const [dayState, setDayState] = useState<DayDetailState>(EMPTY_DAY_STATE);
 
-  const loadDetail = useCallback(async () => {
-    setLoading(true);
-    setDayState(EMPTY_DAY_STATE);
+  useEffect(() => {
+    let cancelled = false;
 
-    // 等转场动画结束再拉数，避免打开时主线程卡顿
-    await new Promise<void>(resolve => {
-      InteractionManager.runAfterInteractions(() => resolve());
-    });
-
-    try {
-      const payload = await loadMealDayDetailPayload(customerLocalDate);
-      setDayState(payload);
-    } catch {
+    const run = async () => {
+      setLoading(true);
       setDayState(EMPTY_DAY_STATE);
-    } finally {
-      setLoading(false);
-    }
-  }, [customerLocalDate]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadDetail();
-    }, [loadDetail]),
-  );
+      // 等转场动画结束再拉数，避免打开时主线程卡顿
+      await new Promise<void>(resolve => {
+        InteractionManager.runAfterInteractions(() => resolve());
+      });
+      if (cancelled) return;
+
+      try {
+        const payload = await loadMealDayDetailPayload(customerLocalDate);
+        if (cancelled) return;
+        setDayState(payload);
+      } catch {
+        if (cancelled) return;
+        setDayState(EMPTY_DAY_STATE);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [customerLocalDate]);
 
   const snapshot = useMemo(
     () => dayState.meals.find(item => item.dietRuleSnapshot)?.dietRuleSnapshot,
     [dayState.meals],
   );
+  const hasDietPrescription = !!snapshot;
 
   const summary = useMemo(
     () => buildDayNutritionSummary(dayState.meals, dayState.foodDetails, snapshot),
@@ -231,7 +260,11 @@ export default function MealDayDetailPage() {
             <Text style={styles.nutritionGoalTitle}>营养目标</Text>
             <View style={styles.nutritionGoalGrid}>
               {nutritionGoals.map(item => (
-                <NutritionGoalItem key={item.key} item={item} />
+                <NutritionGoalItem
+                  key={item.key}
+                  item={item}
+                  showStatus={hasDietPrescription}
+                />
               ))}
             </View>
           </View>

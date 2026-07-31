@@ -49,11 +49,13 @@ const styles = StyleSheet.create({
   calendarGrid: { flexDirection: 'row', flexWrap: 'wrap' },
   dayCell: {
     width: '14.28%',
-    marginTop: 16,
     minHeight: 48,
     paddingVertical: 4,
     justifyContent: 'flex-start',
     alignItems: 'center',
+  },
+  dayCellFirstRow: {
+    marginTop: 16,
   },
   dayText: {
     fontWeight: 400,
@@ -229,7 +231,7 @@ const styles = StyleSheet.create({
   mergedMedicationContent: {
     flex: 1,
     minWidth: 0,
-    marginRight: 12,
+    marginRight: 30,
   },
   mergedMedicationTitleRow: {
     minWidth: 0,
@@ -244,6 +246,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
     fontWeight: 500,
     fontSize: 12,
+    lineHeight: 18,
     color: '#666666',
   },
   activityStatusBtn: {
@@ -259,6 +262,12 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 12,
     color: '#3B74BD',
+  },
+  activityStatusBtnTextDone: {
+    color: '#6D925E',
+  },
+  activityStatusBtnTextPending: {
+    color: '#EE9C44',
   },
   activityLocationText: {
     marginLeft: 18,

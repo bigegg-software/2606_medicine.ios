@@ -6,7 +6,7 @@ import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { getUserQuestionFrontList } from '@/api/questionTemplate';
 import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
-import NoData from '@/src/components/noData';
+import EmptyRecord from '@/src/components/EmptyRecord';
 import {
     getUserQuestionListRecords,
     sortRecordsByTime,
@@ -63,9 +63,10 @@ export default function QuestionnaireHistoryPage() {
     return (
         <PageLayout style={styles.container}>
             <ScrollView
+                style={{ flex: 1 }}
                 contentContainerStyle={[
                     styles.body,
-                    historyList.length === 0 && { flexGrow: 1, justifyContent: 'center' },
+                    historyList.length === 0 && styles.bodyEmpty,
                 ]}
                 refreshControl={
                     <RefreshControl
@@ -95,7 +96,9 @@ export default function QuestionnaireHistoryPage() {
                         </TouchableOpacity>
                     ))
                 ) : (
-                    <NoData text="暂无评估历史" />
+                    <View style={styles.emptyWrap}>
+                        <EmptyRecord text="暂无评估历史" />
+                    </View>
                 )}
             </ScrollView>
         </PageLayout>

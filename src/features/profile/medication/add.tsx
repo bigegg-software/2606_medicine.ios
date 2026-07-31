@@ -121,7 +121,7 @@ export default function MedicationAddPage({ route }: Props) {
     const [doseUnit, setDoseUnit] = useState('');
     const [dailyFrequency, setDailyFrequency] = useState(1);
     const [takeTimes, setTakeTimes] = useState(() => syncTakeTimes([], 1));
-    const [weekDays, setWeekDays] = useState<string[]>(['一', '二', '三', '四', '五']);
+    const [weekDays, setWeekDays] = useState<string[]>(['一', '二', '三', '四', '五', '六', '日']);
     const [cycleStartDate, setCycleStartDate] = useState(moment().format('YYYY-MM-DD'));
     const [cycleEndDate, setCycleEndDate] = useState(() => moment().add(7, 'day').format('YYYY-MM-DD'));
     const [continuousMedication, setContinuousMedication] = useState(true);

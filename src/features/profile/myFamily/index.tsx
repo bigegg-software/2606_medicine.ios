@@ -154,12 +154,12 @@ export default function MyFamilyPage() {
                           </Text>
                         </Flex>
                       </Flex>
-                      <Flex justify="between" style={styles.familyItemPhoneWrap}>
-                        <View>
+                      <Flex justify="between" align="center" style={styles.familyItemPhoneWrap}>
+                        <View style={styles.familyItemSubtitleWrap}>
                           <Text style={styles.phoneNumber}>
                             {maskFamilyPhone(item.jsPhonenumber)}
                           </Text>
-                          <Text style={styles.familyItemStatusText}>
+                          <Text style={styles.familyItemStatusText} numberOfLines={1}>
                             {getFamilyListSubtitle(item)}
                           </Text>
                         </View>

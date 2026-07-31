@@ -248,6 +248,10 @@ const styles = StyleSheet.create({
     color: AppTheme.textPrimary,
     lineHeight: 22,
   },
+  detailHtml: {
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
   detailBlock: {
     marginTop: 12,
   },

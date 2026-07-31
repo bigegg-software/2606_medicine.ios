@@ -106,6 +106,11 @@ const styles = StyleSheet.create({
     familyItemPhoneWrap: {
         marginTop: 6,
     },
+    familyItemSubtitleWrap: {
+        flex: 1,
+        minWidth: 0,
+        marginRight: 8,
+    },
     phoneNumber: {
         fontWeight: 500,
         fontSize: 13,
@@ -119,7 +124,8 @@ const styles = StyleSheet.create({
     },
     familyItemRightIcon: {
         width: 8,
-        height: 13
+        height: 13,
+        flexShrink: 0,
     },
     bottomBar: {
         width: '100%',

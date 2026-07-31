@@ -9,7 +9,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/community/community';
@@ -120,7 +120,7 @@ export default function LivePage() {
                         toLiveId(row.liveId) === liveId ? { ...row, isReserved: reserved } : row,
                     ),
                 );
-                Alert.alert('提示', reserved ? '预约成功' : '已取消预约');
+                Toast.show(reserved ? '预约成功' : '已取消预约');
             } else {
                 Alert.alert('失败', (res as { msg?: string }).msg ?? '请稍后重试');
             }

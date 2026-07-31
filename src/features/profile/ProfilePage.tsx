@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
@@ -8,6 +8,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { MaterialIcons } from '@expo/vector-icons';
 import { logout as logoutApi } from '@/api/auth';
 import { getUserSignInfo, getUserSignTip, postUserSign, type UserSignInfoRecord } from '@/api/userSignInfo';
+import { getOldFamilyBindMyList, type OldFamilyBindItem } from '@/api/oldFamilyBind';
+import type { DictDataItem } from '@/api/dict';
 import { clearAll } from '@/services/storage';
 import { SET_LOGIN } from '@/store/type/login';
 import { fetchUserSession, clearUser } from '@/store/actions/user';
@@ -28,6 +30,12 @@ import { buildSignButtonLabel, isSignedTodayByBjDate } from './utils/signInHelpe
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
 import { formatSyncRangeLabel } from './settingPage/utils/settingsHelpers';
+import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
+import {
+  getFamilyBindStatusMeta,
+  getFamilyDisplayName,
+  getFamilyListSubtitle,
+} from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -44,7 +52,7 @@ const navList = [
   {
     img: require('@/assets/images/user/img6.png'),
     label: '运动处方',
-    route: 'Schedule' as const,
+    route: 'ExercisePage' as const,
   },
   {
     img: require('@/assets/images/user/img5.png'),
@@ -76,11 +84,23 @@ export default function ProfilePage() {
   const [signRewardTokens, setSignRewardTokens] = useState<string | number>('10');
   const [signModalTip, setSignModalTip] = useState('');
   const [authStatus, setAuthStatus] = useState<number | null>(null);
+  const [familyList, setFamilyList] = useState<OldFamilyBindItem[]>([]);
+  const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
   const authBadgeSource = resolveIdentityAuthBadgeSource(authStatus);
   const authBadgeWidth = resolveIdentityAuthBadgeWidth(authStatus);
   const canPressAuthBadge = canPressIdentityAuthBadge(authStatus);
   const showIdentityAuthEntry = shouldShowIdentityAuthEntry(authStatus);
+
+  const relationLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    relationOptions.forEach(item => {
+      const value = String(item.dictValue ?? '');
+      if (!value) return;
+      map[value] = item.dictLabel || value;
+    });
+    return map;
+  }, [relationOptions]);
 
   const loadSignTip = useCallback(async () => {
     try {
@@ -123,16 +143,39 @@ export default function ProfilePage() {
     }
   }, []);
 
+  const loadFamilyList = useCallback(async () => {
+    try {
+      const res = await getOldFamilyBindMyList();
+      const data =
+        apiResourceData(res as unknown as ApiResult<OldFamilyBindItem[]>) ?? [];
+      setFamilyList(Array.isArray(data) ? data : []);
+    } catch {
+      setFamilyList([]);
+    }
+  }, []);
+
   useEffect(() => {
     dispatch(fetchUserSession());
   }, [dispatch]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const options = await loadRelationTypeOptions();
+        setRelationOptions(options);
+      } catch {
+        setRelationOptions([]);
+      }
+    })();
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
       void loadSignTip();
       void loadSignStatus();
       void loadIdentityAuthStatus();
-    }, [loadIdentityAuthStatus, loadSignStatus, loadSignTip]),
+      void loadFamilyList();
+    }, [loadFamilyList, loadIdentityAuthStatus, loadSignStatus, loadSignTip]),
   );
 
   const handleSignIn = useCallback(async () => {
@@ -326,21 +369,95 @@ export default function ProfilePage() {
           ))}
         </Flex>
 
-        <Text style={[styles.modelTitle, { marginTop: 24 }]}>我的家人</Text>
-
+        <Flex justify="between" align="center" style={styles.modelTitleRow}>
+          <Text style={[styles.modelTitle, styles.modelTitleInRow]}>我的家人</Text>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            onPress={() => navigation.navigate('MyFamily')}
+          >
+            <MaterialIcons name="chevron-right" size={24} color="#9DAAAD" />
+          </TouchableOpacity>
+        </Flex>
         <View style={[styles.familyBox, { paddingVertical: 10 }]}>
-          <TouchableOpacity onPress={() => navigation.navigate('MyFamily')}>
-            <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-              <Flex>
+          {familyList.length === 0 ? (
+            <Flex justify="between" align="center" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+              <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/user.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>点击添加联系人</Text>
                   <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
                 </View>
               </Flex>
-              <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
+              <TouchableOpacity
+                activeOpacity={0.7}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                onPress={() => navigation.navigate('MyFamily')}
+              >
+                <MaterialIcons name="chevron-right" size={24} color="#9DAAAD" />
+              </TouchableOpacity>
             </Flex>
-          </TouchableOpacity>
+          ) : (
+            familyList.map((item, index) => {
+              const relationLabel =
+                relationLabelMap[String(item.relationType ?? '')] ||
+                item.relationType ||
+                '家人';
+              const status = getFamilyBindStatusMeta(item.bindStatus);
+              const bindId = item.id != null ? String(item.id) : undefined;
+              const isLast = index === familyList.length - 1;
+              return (
+                <Flex
+                  key={bindId ?? `${item.jsUserId}-${item.jsPhonenumber}`}
+                  justify="between"
+                  align="center"
+                  style={[styles.familyItem, isLast && { borderBottomWidth: 0 }]}
+                >
+                  <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
+                    <Image
+                      style={styles.imgItem}
+                      source={require('@/assets/images/family/family.png')}
+                    />
+                    <View style={[styles.familyItemContent, { flex: 1, minWidth: 0 }]}>
+                      <Flex align="center">
+                        <Text style={styles.familyItemName} numberOfLines={1}>
+                          {getFamilyDisplayName(item)}
+                        </Text>
+                        <Text style={styles.familyListRelation}>{relationLabel}</Text>
+                        <Text
+                          style={[
+                            styles.familyListStatus,
+                            status.authorized && styles.familyListStatusOk,
+                            !status.authorized && !status.pending && styles.familyListStatusFail,
+                            { marginLeft: 6 },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {status.label}
+                        </Text>
+                      </Flex>
+                      <Text style={styles.familyItemRelation} numberOfLines={1}>
+                        {getFamilyListSubtitle(item)}
+                      </Text>
+                    </View>
+                  </Flex>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    onPress={() => {
+                      if (!bindId) {
+                        navigation.navigate('MyFamily');
+                        return;
+                      }
+                      navigation.navigate('FamilyDetail', { id: bindId });
+                    }}
+                  >
+                    <MaterialIcons name="chevron-right" size={24} color="#9DAAAD" />
+                  </TouchableOpacity>
+                </Flex>
+              );
+            })
+          )}
         </View>
 
         <Text style={styles.modelTitle}>我的设备</Text>
@@ -449,7 +566,7 @@ export default function ProfilePage() {
             </Flex>
           </TouchableOpacity>
         </View>
-        <Text style={styles.modelTitle}>隐私设置</Text>
+        {/* <Text style={styles.modelTitle}>隐私设置</Text>
         <View style={styles.familyBox}>
           <Flex justify='between' style={styles.familyItem}>
             <Flex>
@@ -469,7 +586,7 @@ export default function ProfilePage() {
             </Flex>
             <MaterialIcons name="chevron-right" size={24} color={"#9DAAAD"} />
           </Flex>
-        </View>
+        </View> */}
         <TouchableOpacity style={styles.logout} onPress={logout}>
           <Flex justify='center' style={{ flex: 1 }}>
             <Text style={styles.logoutText}>退出登录</Text>

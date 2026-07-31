@@ -18,6 +18,7 @@ import moment from 'moment';
 import styles, { DIET_DATE_PICKER_SHEET_HEIGHT } from '@/css/nutrition/dietDatePicker';
 import {
   DIET_WEEK_LABELS,
+  DIET_CALENDAR_MIN_MONTH,
   buildDietMonthCells,
   buildDietMonthKeys,
   getDietMonthWeekCount,
@@ -85,6 +86,13 @@ function sumMonthHeights(keys: string[], start = 0, end = keys.length) {
     total += getMonthHeight(keys[index]);
   }
   return total;
+}
+
+function getSelectedMonthIndex(keys: string[], selectedDate: string) {
+  const month = moment(selectedDate).format('YYYY-MM');
+  const clamped = month < DIET_CALENDAR_MIN_MONTH ? DIET_CALENDAR_MIN_MONTH : month;
+  const index = keys.indexOf(clamped);
+  return index >= 0 ? index : 0;
 }
 
 type MonthSectionProps = {
@@ -196,8 +204,13 @@ export default function DietDatePickerModal({
   monthKeysRef.current = monthKeys;
   listReadyRef.current = listReady;
 
+  const openTargetIndex = useMemo(
+    () => getSelectedMonthIndex(monthKeys, selectedDate),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [listEpoch],
+  );
   const openTargetOffset = useMemo(
-    () => sumMonthHeights(monthKeys, 0, INITIAL_BEFORE),
+    () => sumMonthHeights(monthKeys, 0, openTargetIndex),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [listEpoch],
   );
@@ -258,7 +271,8 @@ export default function DietDatePickerModal({
       hasOpenedRef.current = true;
       const month = moment(selectedDate).format('YYYY-MM');
       const keys = buildDietMonthKeys(selectedDate, INITIAL_BEFORE, INITIAL_AFTER);
-      const offset = sumMonthHeights(keys, 0, INITIAL_BEFORE);
+      const selectedIndex = getSelectedMonthIndex(keys, selectedDate);
+      const offset = sumMonthHeights(keys, 0, selectedIndex);
       headerMonthRef.current = month;
       scrollOffsetRef.current = offset;
       setHeaderMonth(month);
@@ -296,7 +310,8 @@ export default function DietDatePickerModal({
     if (!visible || !modalMounted || listEpoch === 0) return;
 
     let cancelled = false;
-    const offset = sumMonthHeights(monthKeysRef.current, 0, INITIAL_BEFORE);
+    const selectedIndex = getSelectedMonthIndex(monthKeysRef.current, selectedDate);
+    const offset = sumMonthHeights(monthKeysRef.current, 0, selectedIndex);
 
     const reveal = () => {
       if (cancelled) return;
@@ -313,7 +328,7 @@ export default function DietDatePickerModal({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [listEpoch, modalMounted, startOpenAnimation, visible]);
+  }, [listEpoch, modalMounted, selectedDate, startOpenAnimation, visible]);
 
   // 打开弹窗：重置并默认拉取当年（及选中日所在年，若更早）
   useEffect(() => {
@@ -366,8 +381,14 @@ export default function DietDatePickerModal({
 
     if (minIndex <= EXTEND_EDGE) {
       extendingRef.current = true;
-      const nextKeys = shiftDietMonthKeys(monthKeysRef.current, 'before', MONTH_EXTEND_COUNT);
-      const prependHeight = sumMonthHeights(nextKeys, 0, MONTH_EXTEND_COUNT);
+      const prevKeys = monthKeysRef.current;
+      const nextKeys = shiftDietMonthKeys(prevKeys, 'before', MONTH_EXTEND_COUNT);
+      const prepended = nextKeys.length - prevKeys.length;
+      if (prepended <= 0) {
+        extendingRef.current = false;
+        return;
+      }
+      const prependHeight = sumMonthHeights(nextKeys, 0, prepended);
       setMonthKeys(nextKeys);
       const nextOffset = scrollOffsetRef.current + prependHeight;
       scrollOffsetRef.current = nextOffset;
@@ -485,7 +506,7 @@ export default function DietDatePickerModal({
                 keyExtractor={keyExtractor}
                 renderItem={renderItem}
                 showsVerticalScrollIndicator={false}
-                initialScrollIndex={INITIAL_BEFORE}
+                initialScrollIndex={openTargetIndex}
                 getItemLayout={getItemLayout}
                 onScroll={onScroll}
                 scrollEventThrottle={16}

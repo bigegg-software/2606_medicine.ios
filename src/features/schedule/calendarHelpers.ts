@@ -175,6 +175,49 @@ export function getTimelineAxisColor(items: CalendarTimelineItem[]): string {
   return CALENDAR_DAY_DOT_COLORS.other;
 }
 
+/** 已完成态：绿 */
+export const TIMELINE_STATUS_DONE_COLOR = '#6D925E';
+/** 待处理 / 未完成态：橙 */
+export const TIMELINE_STATUS_PENDING_COLOR = '#EE9C44';
+
+const TIMELINE_STATUS_DONE_LABELS = new Set([
+  '已记录',
+  '已服用',
+  '直播中',
+  '进行中',
+  '已报名',
+]);
+const TIMELINE_STATUS_PENDING_LABELS = new Set([
+  '未记录',
+  '未服用',
+  '未开始',
+  '去记录',
+  '已结束',
+  '已取消',
+  '未报名',
+]);
+
+export type TimelineStatusBtnTone = 'done' | 'pending' | 'default';
+
+/** 时间轴状态按钮文案 → 色调 */
+export function getTimelineStatusBtnTone(label?: string | null): TimelineStatusBtnTone {
+  const text = label?.trim() || '';
+  if (!text) return 'default';
+  if (TIMELINE_STATUS_DONE_LABELS.has(text)) return 'done';
+  if (TIMELINE_STATUS_PENDING_LABELS.has(text)) return 'pending';
+  // 后端自定义文案兜底
+  if (/直播中|进行中|已报名|已记录|已服用/.test(text)) return 'done';
+  if (/已结束|已取消|已下架|未开始|未报名|未记录|未服用|去记录/.test(text)) return 'pending';
+  return 'default';
+}
+
+export function getTimelineStatusBtnColor(label?: string | null): string {
+  const tone = getTimelineStatusBtnTone(label);
+  if (tone === 'done') return TIMELINE_STATUS_DONE_COLOR;
+  if (tone === 'pending') return TIMELINE_STATUS_PENDING_COLOR;
+  return '#3B74BD';
+}
+
 function parseDateTimeSortValue(value?: string) {
   const parsed = moment(value);
   if (!parsed.isValid()) return 0;

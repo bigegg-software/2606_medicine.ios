@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -36,6 +36,11 @@ type Props = NativeStackScreenProps<RootStackParamList, 'EmergencyAdd'>;
 const CONTACT_NAME_MAX_LENGTH = 20;
 const CONTACT_PHONE_MAX_LENGTH = 20;
 
+const EMERGENCY_ACCESSORY = {
+  name: 'emergencyAddNameDoneToolbar',
+  phone: 'emergencyAddPhoneDoneToolbar',
+} as const;
+
 function limitText(value: string, maxLength: number) {
   return value.slice(0, maxLength);
 }
@@ -44,10 +49,6 @@ export default function EmergencyAddPage({ route }: Props) {
   const contactId = route.params?.id;
   const isEdit = contactId != null;
   const navigation = useNavigation<Nav>();
-  const keyboardDoneAccessory = useMemo(
-    () => <KeyboardDoneAccessory useOverlay />,
-    [],
-  );
   const [contactName, setContactName] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [relationType, setRelationType] = useState('');
@@ -180,7 +181,17 @@ export default function EmergencyAddPage({ route }: Props) {
       style={styles.container}
       edges={[]}
       showHeaderBackground={false}
-      keyboardAccessory={keyboardDoneAccessory}>
+      keyboardAccessory={
+        Platform.OS === 'ios' ? (
+          <>
+            {Object.values(EMERGENCY_ACCESSORY).map(id => (
+              <KeyboardDoneAccessory key={id} nativeID={id} />
+            ))}
+          </>
+        ) : (
+          <KeyboardDoneAccessory />
+        )
+      }>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={styles.body}
@@ -200,6 +211,7 @@ export default function EmergencyAddPage({ route }: Props) {
               returnKeyType="done"
               blurOnSubmit
               onSubmitEditing={Keyboard.dismiss}
+              inputAccessoryViewID={EMERGENCY_ACCESSORY.name}
             />
           </Flex>
 
@@ -216,6 +228,7 @@ export default function EmergencyAddPage({ route }: Props) {
               returnKeyType="done"
               blurOnSubmit
               onSubmitEditing={Keyboard.dismiss}
+              inputAccessoryViewID={EMERGENCY_ACCESSORY.phone}
             />
           </Flex>
 

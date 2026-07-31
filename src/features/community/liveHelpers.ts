@@ -74,3 +74,54 @@ export function formatLiveWatchMethodText(platformLabel?: string | null) {
   const platform = platformLabel?.trim() || '第三方平台';
   return `跳转第三方平台 ${platform} 观看`;
 }
+
+/** 将富文本 HTML 包装为可自适应高度的 WebView 文档 */
+export function buildRichHtmlDocument(
+  html: string,
+  options?: { color?: string; fontSize?: number; lineHeight?: number },
+) {
+  const color = options?.color ?? '#333333';
+  const fontSize = options?.fontSize ?? 14;
+  const lineHeight = options?.lineHeight ?? 22;
+  return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  body {
+    color: ${color};
+    font-size: ${fontSize}px;
+    line-height: ${lineHeight}px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    -webkit-text-size-adjust: 100%;
+  }
+  img { max-width: 100%; height: auto; }
+  p { margin: 0 0 8px; }
+  ul, ol { padding-left: 1.2em; margin: 0 0 8px; }
+  li { margin-bottom: 4px; }
+  h1, h2, h3, h4 { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
+  a { color: #6D925E; }
+</style>
+</head>
+<body>${html}
+<script>
+  function postHeight() {
+    var h = Math.max(
+      document.body.scrollHeight || 0,
+      document.documentElement.scrollHeight || 0
+    );
+    if (window.ReactNativeWebView) {
+      window.ReactNativeWebView.postMessage(String(h));
+    }
+  }
+  postHeight();
+  window.addEventListener('load', postHeight);
+  setTimeout(postHeight, 50);
+  setTimeout(postHeight, 200);
+</script>
+</body>
+</html>`;
+}

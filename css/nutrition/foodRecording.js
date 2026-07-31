@@ -95,6 +95,9 @@ const styles = StyleSheet.create({
   rateTagBad: {
     borderColor: '#FB4550',
   },
+  rateTagMuted: {
+    borderColor: '#CCCCCC',
+  },
   rateTagText: {
     fontWeight: 'bold',
     fontSize: 11,
@@ -107,6 +110,9 @@ const styles = StyleSheet.create({
   },
   rateTagTextBad: {
     color: '#FB4550',
+  },
+  rateTagTextMuted: {
+    color: '#999999',
   },
   trendSection: {
     marginHorizontal: 12,
@@ -210,11 +216,11 @@ const styles = StyleSheet.create({
     height: 210,
   },
   trendEmpty: {
-    marginTop: 10,
+    // marginTop: 10,
     marginHorizontal: 12,
-    height: 190,
+    flex: 1,
     borderRadius: 12,
-    backgroundColor: '#FFFFFF',
+    // backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -222,6 +228,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 12,
     color: '#999999',
+  },
+  emptyWrap: {
+    paddingVertical: 40,
   },
   detailBox: {
     marginHorizontal: 12,

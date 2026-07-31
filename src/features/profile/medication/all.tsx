@@ -18,7 +18,7 @@ import { removeMedicationPlanById, type DrugPatientRuleInfo, type MedicationPlan
 import styles from '@/css/medication/all';
 import { AppTheme } from '@/common/theme';
 import PageLayout from '@/src/components/PageLayout';
-import NoData from '@/src/components/noData';
+import EmptyRecord from '@/src/components/EmptyRecord';
 import SwipeDeleteRow, { closeActiveSwipeRow } from '@/src/features/profile/healthRecord/components/SwipeDeleteRow';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
@@ -367,7 +367,7 @@ export default function MedicationAllPage() {
                     {activeTab === 'current' ? (
                         activePlans.length === 0 ? (
                             <View style={styles.emptyWrap}>
-                                <NoData text="暂无用药计划" />
+                                <EmptyRecord text="暂无用药计划" />
                             </View>
                         ) : (
                             activePlans.map(plan => (
@@ -397,7 +397,7 @@ export default function MedicationAllPage() {
                         )
                     ) : historyRules.length === 0 ? (
                         <View style={styles.emptyWrap}>
-                            <NoData text="暂无历史用药" />
+                            <EmptyRecord text="暂无历史用药" />
                         </View>
                     ) : (
                         <>

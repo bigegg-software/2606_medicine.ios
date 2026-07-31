@@ -16,6 +16,17 @@ export type DietCalendarDayCell = {
   inCurrentMonth: boolean;
 };
 
+/** 饮食日历最早可选月份 */
+export const DIET_CALENDAR_MIN_MONTH = '2026-06';
+/** 饮食日历最早可选日期 */
+export const DIET_CALENDAR_MIN_DATE = `${DIET_CALENDAR_MIN_MONTH}-01`;
+
+export function clampDietCalendarDate(date: string): string {
+  const value = date?.trim() || '';
+  if (!value) return DIET_CALENDAR_MIN_DATE;
+  return value < DIET_CALENDAR_MIN_DATE ? DIET_CALENDAR_MIN_DATE : value;
+}
+
 export function buildDietWeekDays(anchor: Moment | string = moment()): DietWeekDayItem[] {
   const start = moment(anchor).startOf('isoWeek');
   return Array.from({ length: 7 }, (_, index) => {
@@ -76,16 +87,18 @@ export function buildDietMonthKeys(center: Moment | string, before = 6, after = 
   const base = moment(center).startOf('month');
   return Array.from({ length: before + after + 1 }, (_, index) =>
     moment(base).add(index - before, 'month').format('YYYY-MM'),
-  );
+  ).filter(monthKey => monthKey >= DIET_CALENDAR_MIN_MONTH);
 }
 
 export function shiftDietMonthKeys(keys: string[], direction: 'before' | 'after', count = 6): string[] {
   if (keys.length === 0) return keys;
   if (direction === 'before') {
     const first = moment(keys[0], 'YYYY-MM');
+    if (keys[0] <= DIET_CALENDAR_MIN_MONTH) return keys;
     const prepend = Array.from({ length: count }, (_, index) =>
       moment(first).subtract(count - index, 'month').format('YYYY-MM'),
-    );
+    ).filter(monthKey => monthKey >= DIET_CALENDAR_MIN_MONTH);
+    if (prepend.length === 0) return keys;
     return [...prepend, ...keys];
   }
   const last = moment(keys[keys.length - 1], 'YYYY-MM');

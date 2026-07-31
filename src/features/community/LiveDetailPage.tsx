@@ -29,13 +29,13 @@ import { stripHtmlText } from './courseHelpers';
 import {
   formatLiveDailySchedule,
   formatLiveReserveCount,
-  formatLiveWatchingCount,
   formatLiveWatchMethodText,
   getLiveStatusStyle,
   getLiveStatusText,
   getLiveWatchUrl,
   toLiveId,
 } from './liveHelpers';
+import RichHtmlView from './components/RichHtmlView';
 
 type Route = RouteProp<RootStackParamList, 'LiveDetail'>;
 
@@ -142,7 +142,7 @@ export default function LiveDetailPage() {
             reserveCount: nextCount,
           };
         });
-        Alert.alert('提示', nextStatus ? '预约成功' : '已取消预约');
+        Toast.show(nextStatus ? '预约成功' : '已取消预约');
       } else {
         Alert.alert('失败', (res as { msg?: string }).msg ?? '请稍后重试');
       }
@@ -202,10 +202,9 @@ export default function LiveDetailPage() {
   const statusText = getLiveStatusText(live.status, live.statusName);
   const statusStyle = getLiveStatusStyle(live.status);
   const scheduleText = formatLiveDailySchedule(live.liveStartTime);
-  const detailText =
-    stripHtmlText(live.liveHighlights) ||
-    live.liveIntro?.trim() ||
-    '暂无直播详情';
+  const highlightsHtml = live.liveHighlights?.trim() || '';
+  const highlightsPlain = stripHtmlText(live.liveHighlights);
+  const detailFallback = live.liveIntro?.trim() || '暂无直播详情';
   const showReserveAction = live.status === 0;
   const watchUrl = getLiveWatchUrl(live);
 
@@ -307,10 +306,18 @@ export default function LiveDetailPage() {
               <View style={styles.sectionTitleBar} />
               <Text style={styles.sectionTitle}>简介</Text>
             </Flex>
-            <Text style={styles.detailText}>{detailText}</Text>
-            {live.liveIntro?.trim() && stripHtmlText(live.liveHighlights) ? (
-              <Text style={[styles.detailText, styles.detailBlock]}>{live.liveIntro.trim()}</Text>
+            {live.liveIntro?.trim() && highlightsPlain ? (
+              <Text style={styles.detailText}>{live.liveIntro.trim()}</Text>
             ) : null}
+            <Flex align="center" style={styles.sectionTitleRow}>
+              <View style={styles.sectionTitleBar} />
+              <Text style={styles.sectionTitle}>要点</Text>
+            </Flex>
+            {highlightsHtml ? (
+              <RichHtmlView html={highlightsHtml} style={styles.detailHtml} />
+            ) : (
+              <Text style={styles.detailText}>{detailFallback}</Text>
+            )}
           </View>
         </ScrollView>
 

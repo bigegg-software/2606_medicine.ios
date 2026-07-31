@@ -18,7 +18,7 @@ import {
 import styles from '@/css/medication/all';
 import { AppTheme } from '@/common/theme';
 import PageLayout from '@/src/components/PageLayout';
-import NoData from '@/src/components/noData';
+import EmptyRecord from '@/src/components/EmptyRecord';
 import moment from 'moment';
 
 const PAGE_SIZE = 20;
@@ -204,11 +204,12 @@ export default function MedicationAllPage() {
 
     // --- derived values ---
     const totalCount = takeCount + notTakeCount;
-    const takenPercent = totalCount > 0 ? (takeCount / totalCount) * 100 : 0;
-    const missedPercent = totalCount > 0 ? (notTakeCount / totalCount) * 100 : 0;
+    const hasMedicationPlan = totalCount > 0;
+    const takenPercent = hasMedicationPlan ? (takeCount / totalCount) * 100 : 0;
+    const missedPercent = hasMedicationPlan ? (notTakeCount / totalCount) * 100 : 0;
 
     // API returns rate as 1-100, normalize to 0-1 for SVG calculations
-    const rateFraction = adherenceRate / 100;
+    const rateFraction = hasMedicationPlan ? adherenceRate / 100 : 0;
 
     const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
@@ -268,7 +269,7 @@ export default function MedicationAllPage() {
                                 cy={51.5}
                                 r={45.5}
                                 stroke="#ECEDF1"
-                                strokeWidth={6}
+                                strokeWidth={8}
                                 fill="none"
                             />
                             <Circle
@@ -276,7 +277,7 @@ export default function MedicationAllPage() {
                                 cy={51.5}
                                 r={45.5}
                                 stroke="#0951AE"
-                                strokeWidth={6}
+                                strokeWidth={8}
                                 fill="none"
                                 strokeLinecap="round"
                                 strokeDasharray={`${2 * Math.PI * 45.5 * rateFraction} ${2 * Math.PI * 45.5}`}
@@ -286,14 +287,16 @@ export default function MedicationAllPage() {
                         </Svg>
                         <View style={styles.chartLabelWrap}>
                             <Text style={styles.chartLabel}>依从率</Text>
-                            <Text style={styles.chartValue}>{Math.round(adherenceRate)}%</Text>
+                            <Text style={styles.chartValue}>
+                                {hasMedicationPlan ? `${Math.round(adherenceRate)}%` : '--'}
+                            </Text>
                         </View>
                     </View>
                     <View style={styles.rightBox}>
                         <View style={styles.barRow}>
                             <Flex justify="between" style={styles.barLabelRow}>
                                 <Text style={styles.barLabel}>已服用</Text>
-                                <Text style={styles.barCount}>{takeCount}</Text>
+                                <Text style={styles.barCount}>{hasMedicationPlan ? takeCount : '--'}</Text>
                             </Flex>
                             <View style={styles.barTrack}>
                                 <View style={[styles.barFill, { width: `${takenPercent}%`, backgroundColor: '#6D925E' }]} />
@@ -302,7 +305,7 @@ export default function MedicationAllPage() {
                         <View style={[styles.barRow, { marginTop: 10 }]}>
                             <Flex justify="between" style={styles.barLabelRow}>
                                 <Text style={styles.barLabel}>未服用</Text>
-                                <Text style={styles.barCount}>{notTakeCount}</Text>
+                                <Text style={styles.barCount}>{hasMedicationPlan ? notTakeCount : '--'}</Text>
                             </Flex>
                             <View style={styles.barTrack}>
                                 <View style={[styles.barFill, { width: `${missedPercent}%`, backgroundColor: '#0951AE' }]} />
@@ -338,7 +341,11 @@ export default function MedicationAllPage() {
                 </View>
             ) : (
                 <ScrollView
-                    contentContainerStyle={styles.body}
+                    style={{ flex: 1 }}
+                    contentContainerStyle={[
+                        styles.body,
+                        historyDays.length === 0 && styles.bodyEmpty,
+                    ]}
                     keyboardShouldPersistTaps="handled"
                     onScroll={handleScroll}
                     scrollEventThrottle={200}
@@ -351,7 +358,7 @@ export default function MedicationAllPage() {
                     }>
                     {historyDays.length === 0 ? (
                         <View style={styles.emptyWrap}>
-                            <NoData text="暂无数据" />
+                            <EmptyRecord text="暂无数据" />
                         </View>
                     ) : (
                         historyDays.map((day, dayIndex) => {

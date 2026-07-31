@@ -35,7 +35,7 @@ export const FEEDBACK_FAQ_LIST: FeedbackFaqItem[] = [
     id: 'family-view-data',
     title: '家属视角下，能看到用户的所有数据吗？',
     answer:
-      '是的，切换家属视角后，您可以看到用户的体征、运动、营养、用药、安排等全部数据，但无法修改用户的个人信息，确保数据安全。',
+      '是的，切换家属视角后，您可以看到用户授权的健康、运动、营养、用药等全部数据，但无法修改用户的个人信息，确保数据安全。',
   },
   {
     id: 'how-to-get-points',
