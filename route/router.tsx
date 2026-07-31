@@ -517,7 +517,11 @@ export default function RootStack() {
       <Stack.Screen
         name="IdCardCameraPage"
         component={IdCardCameraPage}
-        options={{ title: '拍摄身份证', ...darkMediaScreenOptions }}
+        options={{
+          headerShown: false,
+          statusBarStyle: 'light',
+          contentStyle: { backgroundColor: '#000000' },
+        }}
       />
 
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
