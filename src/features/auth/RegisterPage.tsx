@@ -17,7 +17,7 @@ import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
-import { getAuthHomeRoute } from './utils/identityHelpers';
+import { getAuthHomeRoute, submitInitMemberType } from './utils/identityHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 
@@ -164,8 +164,14 @@ export default function RegisterPage() {
         if (data.refresh_token) await saveRefreshToken(data.refresh_token);
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
-        const identityPerspective = (await dispatch(fetchUserSession())) as string;
-        const homeRoute = getAuthHomeRoute(identityPerspective);
+        // TODO(temp): 新用户注册暂时默认 old，跳过 IdentitySelect；后期改回身份选择页
+        const initResult = await submitInitMemberType('old');
+        if (!initResult.ok) {
+          Alert.alert('注册失败', initResult.msg ?? '身份初始化失败，请稍后重试');
+          return;
+        }
+        await dispatch(fetchUserSession());
+        const homeRoute = initResult.homeRoute || getAuthHomeRoute('old');
         navigation.reset({ index: 0, routes: [{ name: homeRoute }] });
       } else {
         Alert.alert('注册失败', res.msg ?? res.message ?? '请检查信息后重试');
