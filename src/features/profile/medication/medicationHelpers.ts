@@ -150,7 +150,7 @@ export function formatMedicationPlanDate(date?: string) {
     return '--';
   }
   const parsed = moment(date, ['YYYY-MM-DD', 'YYYYMMDD', moment.ISO_8601], true);
-  return parsed.isValid() ? parsed.format('YYYY-MM-DD') : date;
+  return parsed.isValid() ? parsed.format('YYYY/MM/DD') : date;
 }
 
 export async function loadMyMedicationPlans(params?: { planType?: number }) {

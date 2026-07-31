@@ -1,7 +1,6 @@
 import React, { useCallback, useRef, useState, useEffect } from 'react';
 import { Text, View, ScrollView, ActivityIndicator, Image, RefreshControl, TouchableOpacity, Animated, LayoutChangeEvent, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { LinearGradient as RNLinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle } from 'react-native-svg';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -73,6 +72,7 @@ export default function MedicationAllPage() {
     const [pageNum, setPageNum] = useState(1);
     const [hasMore, setHasMore] = useState(true);
     const hasMoreRef = useRef(true);
+    const [expandedDays, setExpandedDays] = useState<Record<string, boolean>>({});
 
     const sliderAnim = useRef(new Animated.Value(0)).current;
     const sliderContainerRef = useRef<View>(null);
@@ -88,7 +88,7 @@ export default function MedicationAllPage() {
 
     const onSegmentLayout = useCallback((e: LayoutChangeEvent) => {
         const w = e.nativeEvent.layout.width;
-        setSegmentWidth(w / 2);
+        setSegmentWidth(Math.max(0, (w - 4) / 2));
     }, []);
 
     const getDateRange = useCallback(() => {
@@ -210,13 +210,6 @@ export default function MedicationAllPage() {
     // API returns rate as 1-100, normalize to 0-1 for SVG calculations
     const rateFraction = adherenceRate / 100;
 
-    const R = 45.5;
-    const CX = 51.5;
-    const CY = 51.5;
-    const endAngle = -Math.PI / 2 + 2 * Math.PI * rateFraction;
-    const dotX = CX + R * Math.cos(endAngle);
-    const dotY = CY + R * Math.sin(endAngle);
-
     const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
         const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
@@ -226,11 +219,10 @@ export default function MedicationAllPage() {
     }, [loadingMore, loadMore]);
 
     return (
-        <PageLayout style={styles.container} contentStyle={styles.pageBody}>
+        <PageLayout style={styles.container} contentStyle={styles.pageBody} showHeaderBackground={false}>
             <View style={[styles.medicationBox, { margin: 18, paddingVertical: 18 }]}>
                 <Flex justify="between">
                     <Flex>
-                        <Image style={styles.topImg} source={require('@/assets/images/medication/yp.png')} />
                         <Text style={styles.topText}>用药依从性</Text>
                     </Flex>
                     <View
@@ -241,11 +233,12 @@ export default function MedicationAllPage() {
                             style={[
                                 styles.sliderIndicator,
                                 {
+                                    width: segmentWidth || undefined,
                                     transform: [
                                         {
                                             translateX: sliderAnim.interpolate({
                                                 inputRange: [0, 1],
-                                                outputRange: [4, segmentWidth],
+                                                outputRange: [0, segmentWidth || 0],
                                             }),
                                         },
                                     ],
@@ -267,30 +260,35 @@ export default function MedicationAllPage() {
                     </View>
                 </Flex>
 
-                <Flex style={{ marginTop: 24, gap: 16 }}>
-                    <Flex style={styles.chartSvgWrap}>
+                <Flex align="center" style={{ marginTop: 24 }}>
+                    <View style={styles.chartSvgWrap}>
                         <Svg width={103} height={103} viewBox="0 0 103 103">
-                            <Defs>
-                                <LinearGradient id="progressGrad" x1="0%" y1="100%" x2="0%" y2="0%">
-                                    <Stop offset="0" stopColor="rgba(131,174,255,1)" />
-                                    <Stop offset="1" stopColor="rgba(79,134,238,1)" />
-                                </LinearGradient>
-                            </Defs>
-                            <Circle cx={51.5} cy={51.5} r={45.5} stroke="rgba(131,174,255,0.14)" strokeWidth={12} fill="none" />
                             <Circle
-                                cx={51.5} cy={51.5} r={45.5}
-                                stroke="url(#progressGrad)"
-                                strokeWidth={12} fill="none" strokeLinecap="round"
-                                strokeDasharray={`${2 * Math.PI * 45.5 * rateFraction} ${2 * Math.PI * 45.5}`}
-                                rotation="-90" origin="51.5,51.5"
+                                cx={51.5}
+                                cy={51.5}
+                                r={45.5}
+                                stroke="#ECEDF1"
+                                strokeWidth={6}
+                                fill="none"
                             />
-                            <Circle cx={dotX} cy={dotY} r={3} fill="#FFFFFF" />
+                            <Circle
+                                cx={51.5}
+                                cy={51.5}
+                                r={45.5}
+                                stroke="#0951AE"
+                                strokeWidth={6}
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeDasharray={`${2 * Math.PI * 45.5 * rateFraction} ${2 * Math.PI * 45.5}`}
+                                rotation="-90"
+                                origin="51.5,51.5"
+                            />
                         </Svg>
                         <View style={styles.chartLabelWrap}>
                             <Text style={styles.chartLabel}>依从率</Text>
                             <Text style={styles.chartValue}>{Math.round(adherenceRate)}%</Text>
                         </View>
-                    </Flex>
+                    </View>
                     <View style={styles.rightBox}>
                         <View style={styles.barRow}>
                             <Flex justify="between" style={styles.barLabelRow}>
@@ -298,11 +296,7 @@ export default function MedicationAllPage() {
                                 <Text style={styles.barCount}>{takeCount}</Text>
                             </Flex>
                             <View style={styles.barTrack}>
-                                <RNLinearGradient
-                                    colors={['#FFB867', '#FF8B07']}
-                                    start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-                                    style={[styles.barFill, { width: `${takenPercent}%` }]}
-                                />
+                                <View style={[styles.barFill, { width: `${takenPercent}%`, backgroundColor: '#6D925E' }]} />
                             </View>
                         </View>
                         <View style={[styles.barRow, { marginTop: 10 }]}>
@@ -311,39 +305,32 @@ export default function MedicationAllPage() {
                                 <Text style={styles.barCount}>{notTakeCount}</Text>
                             </Flex>
                             <View style={styles.barTrack}>
-                                <RNLinearGradient
-                                    colors={['#83AEFF', '#4F86EE']}
-                                    start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}
-                                    style={[styles.barFill, { width: `${missedPercent}%` }]}
-                                />
+                                <View style={[styles.barFill, { width: `${missedPercent}%`, backgroundColor: '#0951AE' }]} />
                             </View>
                         </View>
                     </View>
                 </Flex>
             </View>
 
-            <Flex justify='center' style={styles.navBox}>
-                {MEDICATION_NAV_LIST.map(item => (
-                    <TouchableOpacity
-                        style={styles.navCol}
-                        key={item.value}
-                        onPress={() => {
-                            if (item.value === activeNav) return;
-                            setActiveNav(item.value);
-                        }}>
-                        <View style={styles.navItemWrap}>
-                            <Text style={[styles.navText, activeNav === item.value && styles.activeNavText]}>
+            <View style={styles.navBox}>
+                {MEDICATION_NAV_LIST.map(item => {
+                    const active = activeNav === item.value;
+                    return (
+                        <TouchableOpacity
+                            style={[styles.navCol, active && styles.navColActive]}
+                            key={item.value}
+                            activeOpacity={1}
+                            onPress={() => {
+                                if (item.value === activeNav) return;
+                                setActiveNav(item.value);
+                            }}>
+                            <Text style={[styles.navText, active && styles.activeNavText]}>
                                 {item.label}
                             </Text>
-                            {activeNav === item.value ? (
-                                <View style={styles.navIndicatorWrap}>
-                                    <Image source={require('@/assets/images/user/btm.png')} style={styles.navIndicator} />
-                                </View>
-                            ) : null}
-                        </View>
-                    </TouchableOpacity>
-                ))}
-            </Flex>
+                        </TouchableOpacity>
+                    );
+                })}
+            </View>
 
             {!hasLoadedOnce && loading ? (
                 <View style={styles.center}>
@@ -367,30 +354,82 @@ export default function MedicationAllPage() {
                             <NoData text="暂无数据" />
                         </View>
                     ) : (
-                        <View style={styles.medicationBox}>
-                            {historyDays.map((day, dayIndex) => (
-                                <View key={day.yyyyMMdd ?? dayIndex}>
-                                    <Text style={styles.colTitle}>{formatDayLabel(day.yyyyMMdd)}</Text>
-                                    <View style={styles.listBox}>
-                                        {[...(day.list ?? [])].reverse().map((record) => (
-                                            <Flex justify="between" style={styles.listItem} key={record.medicationRecordId}>
-                                                <View>
-                                                    <Flex>
-                                                        <Text style={styles.listItemText}>{record.snapshotRule?.name}</Text>
-                                                        {/* <PlanTypeBadge isPrescription={record.snapshotRule?.planType === 1} /> */}
-                                                    </Flex>
-                                                    <Text style={styles.listItemDw}>{record.snapshotRule?.amount}{resolveDictLabel(dictMaps?.amountUnit ?? {}, record.snapshotRule?.amountUnit)}</Text>
-                                                </View>
-                                                <Text style={styles.listItemText}>{record.medicationPlanTime}</Text>
-                                            </Flex>
-                                        ))}
-                                    </View>
-                                    {dayIndex < historyDays.length - 1 ? (
-                                        <View style={[styles.rowLine, { marginBottom: 10 }]} />
+                        historyDays.map((day, dayIndex) => {
+                            const dayKey = day.yyyyMMdd ?? String(dayIndex);
+                            const expanded = expandedDays[dayKey] ?? true;
+                            return (
+                                <View style={[styles.dayCard, expanded && styles.dayCardExpanded]} key={dayKey}>
+                                    <TouchableOpacity
+                                        activeOpacity={0.7}
+                                        style={styles.daySectionHeader}
+                                        onPress={() => {
+                                            setExpandedDays(prev => ({
+                                                ...prev,
+                                                [dayKey]: !(prev[dayKey] ?? true),
+                                            }));
+                                        }}>
+                                        <Text style={styles.daySectionTitle}>{formatDayLabel(day.yyyyMMdd)}</Text>
+                                        <View style={styles.daySectionToggleBtn}>
+                                            <Image
+                                                style={styles.daySectionToggleIcon}
+                                                source={
+                                                    expanded
+                                                        ? require('@/assets/images/medication/icon_sq.png')
+                                                        : require('@/assets/images/medication/icon_zk.png')
+                                                }
+                                            />
+                                        </View>
+                                    </TouchableOpacity>
+                                    {expanded ? (
+                                        <View style={styles.listBox}>
+                                            {[...(day.list ?? [])].reverse().map((record, recordIndex, arr) => {
+                                                const taken = record.action === 1;
+                                                const isLast = recordIndex === arr.length - 1;
+                                                return (
+                                                    <View
+                                                        style={[styles.listItem, isLast && styles.listItemLast]}
+                                                        key={record.medicationRecordId}>
+                                                        <View style={styles.listItemLeft}>
+                                                            <Image
+                                                                style={styles.listItemIcon}
+                                                                source={require('@/assets/images/medication/icon_yp.png')}
+                                                            />
+                                                            <View style={styles.listItemContent}>
+                                                                <Flex>
+                                                                    <Text style={styles.listItemTitle} numberOfLines={1}>
+                                                                        {record.snapshotRule?.name}
+                                                                    </Text>
+                                                                    <View
+                                                                        style={[
+                                                                            styles.listItemStatus,
+                                                                            taken ? styles.listItemStatusTaken : styles.listItemStatusMissed,
+                                                                        ]}>
+                                                                        <Text
+                                                                            style={
+                                                                                taken
+                                                                                    ? styles.listItemStatusTextTaken
+                                                                                    : styles.listItemStatusTextMissed
+                                                                            }>
+                                                                            {taken ? '已服用' : '未服用'}
+                                                                        </Text>
+                                                                    </View>
+                                                                </Flex>
+
+                                                                <Text style={styles.listItemDose}>
+                                                                    {record.snapshotRule?.amount}
+                                                                    {resolveDictLabel(dictMaps?.amountUnit ?? {}, record.snapshotRule?.amountUnit)}
+                                                                </Text>
+                                                            </View>
+                                                        </View>
+                                                        <Text style={styles.listItemTime}>{record.medicationPlanTime}</Text>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
                                     ) : null}
                                 </View>
-                            ))}
-                        </View>
+                            );
+                        })
                     )}
 
                     {/* Load more footer */}

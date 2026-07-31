@@ -80,7 +80,6 @@ function MedicationPlanCard({
     onPress?: () => void;
     onDelete?: () => void;
 }) {
-    const isPrescription = plan.planType === 1;
     const usageText = formatMedicationUsageText(plan, dictMaps);
     const timeText = formatMedicationTimeList(plan.timeList);
     const dateText = formatMedicationPlanDate(plan.startDate ?? plan.createTime);
@@ -88,17 +87,20 @@ function MedicationPlanCard({
 
     const content = (
         <>
-            <Flex>
-                <Flex style={{ flex: 1 }}>
-                    <Text style={styles.medicationTitle}>{plan.name?.trim() || '--'}</Text>
-                    {/* <PlanTypeBadge isPrescription={isPrescription} /> */}
-                </Flex>
+            <Flex align="center" justify="between">
+                <Text style={styles.medicationTitle} numberOfLines={1}>
+                    {plan.name?.trim() || '--'}
+                </Text>
                 <Text style={styles.medicationTimeText}>{dateText}</Text>
             </Flex>
-            <Text style={styles.medicationUsageText}>用法：{usageText}</Text>
-            <Flex align="center" style={{ marginTop: 8 }}>
-                <Image source={require('@/assets/images/medication/time.png')} style={styles.medicationTime} />
-                <Text style={styles.medicationText}>服用时间：{timeText}</Text>
+            <View style={styles.medicationDivider} />
+            <Flex align="start" justify="between">
+                <Text style={styles.medicationMetaLabel}>用药方案</Text>
+                <Text style={styles.medicationMetaValue}>{usageText}</Text>
+            </Flex>
+            <Flex align="start" justify="between" style={styles.medicationMetaRow}>
+                <Text style={styles.medicationMetaLabel}>服用时间</Text>
+                <Text style={styles.medicationMetaValue}>{timeText}</Text>
             </Flex>
         </>
     );
@@ -320,7 +322,7 @@ export default function MedicationAllPage() {
         : !hasLoadedHistoryOnce && historyLoading;
 
     return (
-        <PageLayout style={styles.container} contentStyle={styles.pageBody}>
+        <PageLayout style={styles.container} contentStyle={styles.pageBody} showHeaderBackground={false}>
             {/* <Flex justify="center" style={styles.navBox}>
                 {ALL_MEDICATION_TABS.map(item => (
                     <TouchableOpacity
