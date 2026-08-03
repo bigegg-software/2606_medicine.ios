@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import { View, Text, Image, TouchableOpacity } from 'react-native';
-import { Flex } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/route/router';
@@ -28,35 +27,40 @@ function ScheduleCard({
   onPress?: () => void;
 }) {
   const content = (
-    <Flex align="start">
-      <Image style={assistantStyles.todayScheduleCardIcon} source={getTodayScheduleIcon(item)} />
-      <View style={assistantStyles.todayScheduleCardBody}>
-        <Flex align="center" justify="between">
-          <Flex align="center" style={{ flex: 1, flexWrap: 'wrap' }}>
-            <Text style={assistantStyles.todayScheduleCardTime}>{item.time}</Text>
-            <Text style={assistantStyles.todayScheduleCardTitle}>{item.title}</Text>
-            {item.kind === 'drug' && item.eventBasedLabel ? (
-              <Text style={calendarStyles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
-            ) : null}
-          </Flex>
-          {item.kind === 'drug' ? (
-            <Text
-              style={[
-                assistantStyles.todayScheduleCardStatus,
-                item.taken ? assistantStyles.todayScheduleCardStatusTaken : null,
-              ]}>
-              {item.taken ? '已服用' : item.canCheckIn ? '待服用' : '未服用'}
-            </Text>
+    <View style={assistantStyles.todayScheduleMealRow}>
+      <Image
+        style={[assistantStyles.todayScheduleCardIcon, assistantStyles.todayScheduleMealIcon]}
+        source={getTodayScheduleIcon(item)}
+      />
+      <View style={assistantStyles.todayScheduleMealBody}>
+        <View style={assistantStyles.todayScheduleMealTitleRow}>
+          <Text style={assistantStyles.todayScheduleMealTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {item.kind === 'drug' && item.eventBasedLabel ? (
+            <Text style={calendarStyles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
           ) : null}
-          {item.kind === 'ex' && item.progress != null ? (
-            <Text style={assistantStyles.todayScheduleCardProgress}>{item.progress}%</Text>
-          ) : null}
-        </Flex>
+        </View>
         {item.desc ? (
-          <Text style={assistantStyles.todayScheduleCardDesc}>{item.desc}</Text>
+          <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
+            {item.desc}
+          </Text>
+        ) : null}
+        {item.kind === 'drug' ? (
+          <Text
+            style={[
+              assistantStyles.todayScheduleCardStatusInline,
+              item.taken ? assistantStyles.todayScheduleCardStatusTaken : null,
+            ]}>
+            {item.taken ? '已服用' : item.canCheckIn ? '待服用' : '未服用'}
+          </Text>
+        ) : null}
+        {item.kind === 'ex' && item.progress != null ? (
+          <Text style={assistantStyles.todayScheduleCardProgressInline}>{item.progress}%</Text>
         ) : null}
       </View>
-    </Flex>
+      <Text style={assistantStyles.todayScheduleMealTime}>{item.time}</Text>
+    </View>
   );
 
   if (!onPress) {

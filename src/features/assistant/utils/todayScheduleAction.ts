@@ -152,9 +152,7 @@ function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleIte
 const TODAY_SCHEDULE_RECOMMEND_LIMIT = 3;
 
 function buildMealDesc(mealCard: MealCardData) {
-  return mealCard.foods.length
-    ? `${mealCard.foods.join('、')} · ${mealCard.calories}千卡`
-    : `${mealCard.calories}千卡`;
+  return mealCard.foods.length ? mealCard.foods.join(' ') : '';
 }
 
 function buildUpcomingMealItems(

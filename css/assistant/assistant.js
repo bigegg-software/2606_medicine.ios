@@ -241,6 +241,47 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  todayScheduleMealIcon: {
+    marginRight: 0,
+    marginTop: 0,
+  },
+  todayScheduleMealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    width: '100%',
+  },
+  todayScheduleMealBody: {
+    flexGrow: 1,
+    flexShrink: 1,
+    flexBasis: 0,
+    marginLeft: 12,
+    marginRight: 8,
+  },
+  todayScheduleMealTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  todayScheduleMealTitle: {
+    flexShrink: 1,
+    fontWeight: 'bold',
+    fontSize: 15,
+    color: '#333333',
+  },
+  todayScheduleMealTime: {
+    flexGrow: 0,
+    flexShrink: 0,
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#333333',
+  },
+  todayScheduleMealFoods: {
+    marginTop: 4,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+    lineHeight: 18,
+  },
   todayScheduleCardTime: {
     fontSize: 14,
     color: AppTheme.textSecondary,
@@ -263,6 +304,11 @@ const styles = StyleSheet.create({
     color: AppTheme.textSecondary,
     flexShrink: 0,
   },
+  todayScheduleCardStatusInline: {
+    marginTop: 4,
+    fontSize: 13,
+    color: AppTheme.textSecondary,
+  },
   todayScheduleCardStatusTaken: {
     color: '#34B69F',
   },
@@ -272,6 +318,12 @@ const styles = StyleSheet.create({
     color: AppTheme.primaryColor,
     fontWeight: '500',
     flexShrink: 0,
+  },
+  todayScheduleCardProgressInline: {
+    marginTop: 4,
+    fontSize: 14,
+    color: AppTheme.primaryColor,
+    fontWeight: '500',
   },
   medicationBadgeCF: {
     marginLeft: 6,
