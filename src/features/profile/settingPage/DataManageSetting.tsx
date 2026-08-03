@@ -31,7 +31,9 @@ export default function DataManageSettingPage() {
   const [acceptAiEnabled, setAcceptAiEnabled] = useState(true);
   const [autoSyncEnabled, setAutoSyncEnabled] = useState(true);
   const [syncRange, setSyncRange] = useState<SyncRange>('7d');
-  const [savingSync, setSavingSync] = useState(false);
+  const [savingAcceptAi, setSavingAcceptAi] = useState(false);
+  const [savingAutoSync, setSavingAutoSync] = useState(false);
+  const [savingSyncRange, setSavingSyncRange] = useState(false);
   const [syncRangePickerVisible, setSyncRangePickerVisible] = useState(false);
   const [acceptAiModalVisible, setAcceptAiModalVisible] = useState(false);
   const [pendingAcceptAi, setPendingAcceptAi] = useState(true);
@@ -39,21 +41,30 @@ export default function DataManageSettingPage() {
 
   useEffect(() => {
     setAcceptAiEnabled(userExtr?.acceptAi !== 0);
+  }, [userExtr?.acceptAi]);
+
+  useEffect(() => {
     setAutoSyncEnabled(userExtr?.autoSyncData !== 0);
+  }, [userExtr?.autoSyncData]);
+
+  useEffect(() => {
     setSyncRange(syncRangeFromDays(userExtr?.synWdataDays));
-  }, [userExtr?.acceptAi, userExtr?.autoSyncData, userExtr?.synWdataDays]);
+  }, [userExtr?.synWdataDays]);
 
   const syncRangeLabel = useMemo(
     () => SYNC_RANGE_OPTIONS.find(item => item.key === syncRange)?.label ?? '最近7天',
     [syncRange],
   );
 
-  const saveExtrSettings = useCallback(async (payload: {
-    acceptAi?: number;
-    autoSyncData?: number;
-    synWdataDays?: number;
-  }) => {
-    setSavingSync(true);
+  const saveExtrSettings = useCallback(async (
+    payload: {
+      acceptAi?: number;
+      autoSyncData?: number;
+      synWdataDays?: number;
+    },
+    setSaving: (saving: boolean) => void,
+  ) => {
+    setSaving(true);
     try {
       const res = await updateExtrInfo(payload);
       if (!isResourceApiOk(res as { code?: number })) {
@@ -75,12 +86,12 @@ export default function DataManageSettingPage() {
       Toast.show('保存设置失败', 1.5);
       return false;
     } finally {
-      setSavingSync(false);
+      setSaving(false);
     }
   }, [dispatch, userExtr]);
 
   const handleAcceptAiChange = useCallback((checked: boolean) => {
-    if (savingSync) return;
+    if (savingAcceptAi) return;
     if (checked) {
       setPendingAcceptAi(true);
       setAcceptAiModalVisible(true);
@@ -89,22 +100,22 @@ export default function DataManageSettingPage() {
     void (async () => {
       const prev = acceptAiEnabled;
       setAcceptAiEnabled(false);
-      const ok = await saveExtrSettings({ acceptAi: 0 });
+      const ok = await saveExtrSettings({ acceptAi: 0 }, setSavingAcceptAi);
       if (!ok) {
         setAcceptAiEnabled(prev);
       }
     })();
-  }, [acceptAiEnabled, saveExtrSettings, savingSync]);
+  }, [acceptAiEnabled, saveExtrSettings, savingAcceptAi]);
 
   const handleAcceptAiCancel = useCallback(() => {
-    if (savingSync) return;
+    if (savingAcceptAi) return;
     setAcceptAiModalVisible(false);
-  }, [savingSync]);
+  }, [savingAcceptAi]);
 
   const handleAcceptAiConfirm = useCallback(async () => {
     const prev = acceptAiEnabled;
     setAcceptAiEnabled(true);
-    const ok = await saveExtrSettings({ acceptAi: 1 });
+    const ok = await saveExtrSettings({ acceptAi: 1 }, setSavingAcceptAi);
     if (!ok) {
       setAcceptAiEnabled(prev);
       return;
@@ -113,28 +124,30 @@ export default function DataManageSettingPage() {
   }, [acceptAiEnabled, saveExtrSettings]);
 
   const handleAutoSyncChange = useCallback(async (checked: boolean) => {
+    if (savingAutoSync) return;
     const prev = autoSyncEnabled;
     setAutoSyncEnabled(checked);
-    const ok = await saveExtrSettings({ autoSyncData: checked ? 1 : 0 });
+    const ok = await saveExtrSettings({ autoSyncData: checked ? 1 : 0 }, setSavingAutoSync);
     if (!ok) {
       setAutoSyncEnabled(prev);
     }
-  }, [autoSyncEnabled, saveExtrSettings]);
+  }, [autoSyncEnabled, saveExtrSettings, savingAutoSync]);
 
   const handleSyncRangeChange = useCallback(async (next: SyncRange) => {
+    if (savingSyncRange) return false;
     const prev = syncRange;
     setSyncRange(next);
-    const ok = await saveExtrSettings({ synWdataDays: SYNC_RANGE_DAYS[next] });
+    const ok = await saveExtrSettings({ synWdataDays: SYNC_RANGE_DAYS[next] }, setSavingSyncRange);
     if (!ok) {
       setSyncRange(prev);
     }
     return ok;
-  }, [saveExtrSettings, syncRange]);
+  }, [saveExtrSettings, savingSyncRange, syncRange]);
 
   const handleOpenSyncRangePicker = useCallback(() => {
-    if (!autoSyncEnabled || savingSync) return;
+    if (savingSyncRange) return;
     setSyncRangePickerVisible(true);
-  }, [autoSyncEnabled, savingSync]);
+  }, [savingSyncRange]);
 
   const handleConfirmSyncDays = useCallback(async (days: number) => {
     const ok = await handleSyncRangeChange(syncRangeFromDays(days));
@@ -180,7 +193,7 @@ export default function DataManageSettingPage() {
                 checked={acceptAiEnabled}
                 onChange={handleAcceptAiChange}
                 color={AppTheme.primaryColor}
-                disabled={savingSync}
+                disabled={savingAcceptAi}
               />
             </View>
           </View>
@@ -203,16 +216,16 @@ export default function DataManageSettingPage() {
                 checked={autoSyncEnabled}
                 onChange={handleAutoSyncChange}
                 color={AppTheme.primaryColor}
-                disabled={savingSync}
+                disabled={savingAutoSync}
               />
             </View>
           </Flex>
           <View style={styles.rowLine} />
           <TouchableOpacity
             activeOpacity={0.7}
-            disabled={!autoSyncEnabled || savingSync}
+            disabled={savingSyncRange}
             onPress={handleOpenSyncRangePicker}
-            style={!autoSyncEnabled || savingSync ? { opacity: 0.5 } : undefined}>
+            style={savingSyncRange ? { opacity: 0.5 } : undefined}>
             <Flex justify="between" align="center" style={styles.settingRow}>
               <View style={styles.settingLeft}>
                 <Image
@@ -277,7 +290,7 @@ export default function DataManageSettingPage() {
       <AcceptAiPromptModal
         visible={acceptAiModalVisible}
         enabling={pendingAcceptAi}
-        saving={savingSync}
+        saving={savingAcceptAi}
         onCancel={handleAcceptAiCancel}
         onConfirm={() => {
           void handleAcceptAiConfirm();
@@ -293,7 +306,7 @@ export default function DataManageSettingPage() {
       <SyncDaysPickerModal
         visible={syncRangePickerVisible}
         initialValue={SYNC_RANGE_DAYS[syncRange]}
-        saving={savingSync}
+        saving={savingSyncRange}
         description="选择后将按该周期同步可穿戴设备数据"
         onCancel={() => setSyncRangePickerVisible(false)}
         onConfirm={days => {
