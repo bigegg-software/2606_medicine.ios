@@ -6,6 +6,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
 import GoalTargetModal from '../../components/GoalTargetModal';
+import VitalInfoModal from '@/src/features/home/components/VitalInfoModal';
+import { getVitalInfoContent } from '@/src/features/home/utils/vitalInfoContent';
 import VitalsDetailMoreSheet from '../components/VitalsDetailMoreSheet';
 import styles from '@/css/vitals/bloodPage';
 import {
@@ -21,6 +23,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 type Options = VitalsDetailMenuConfig & {
   onGoalSaved?: (target: number) => void;
+  /** 数据说明 key，默认使用 allRecordsType */
+  infoKey?: string;
 };
 
 export function useVitalsDetailMoreMenu({
@@ -28,6 +32,7 @@ export function useVitalsDetailMoreMenu({
   goalKind,
   goalDisabled = false,
   onGoalSaved,
+  infoKey,
 }: Options) {
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
@@ -35,10 +40,15 @@ export function useVitalsDetailMoreMenu({
   const [sheetVisible, setSheetVisible] = useState(false);
   const [goalVisible, setGoalVisible] = useState(false);
   const [savingGoal, setSavingGoal] = useState(false);
+  const [vitalInfoKey, setVitalInfoKey] = useState<string | null>(null);
   const pendingGoalOpenRef = useRef(false);
+  const pendingInfoOpenRef = useRef(false);
   const [goalTarget, setGoalTarget] = useState(() =>
     goalKind ? resolveGoalTargetValue(goalKind, userExtr) : 0,
   );
+
+  const resolvedInfoKey = infoKey ?? allRecordsType;
+  const hasDataInfo = Boolean(resolvedInfoKey && getVitalInfoContent(resolvedInfoKey));
 
   useEffect(() => {
     if (!goalKind) return;
@@ -67,11 +77,23 @@ export function useVitalsDetailMoreMenu({
     closeMenu();
   }, [closeMenu, goalDisabled, goalKind, userExtr]);
 
+  const handleDataInfo = useCallback(() => {
+    if (!hasDataInfo || !resolvedInfoKey) return;
+    pendingInfoOpenRef.current = true;
+    closeMenu();
+  }, [closeMenu, hasDataInfo, resolvedInfoKey]);
+
   const handleSheetDismissed = useCallback(() => {
-    if (!pendingGoalOpenRef.current) return;
-    pendingGoalOpenRef.current = false;
-    setGoalVisible(true);
-  }, []);
+    if (pendingGoalOpenRef.current) {
+      pendingGoalOpenRef.current = false;
+      setGoalVisible(true);
+      return;
+    }
+    if (pendingInfoOpenRef.current) {
+      pendingInfoOpenRef.current = false;
+      setVitalInfoKey(resolvedInfoKey ?? null);
+    }
+  }, [resolvedInfoKey]);
 
   const handleSaveGoal = useCallback(async (target: number) => {
     if (!goalKind || goalDisabled) return;
@@ -115,6 +137,13 @@ export function useVitalsDetailMoreMenu({
         disabled: goalDisabled,
       });
     }
+    if (hasDataInfo) {
+      actions.push({
+        key: 'data-info',
+        label: '数据说明',
+        onPress: handleDataInfo,
+      });
+    }
     if (allRecordsType) {
       actions.push({
         key: 'all-records',
@@ -123,7 +152,15 @@ export function useVitalsDetailMoreMenu({
       });
     }
     return actions;
-  }, [allRecordsType, goalDisabled, goalKind, handleAllRecords, handleSetGoal]);
+  }, [
+    allRecordsType,
+    goalDisabled,
+    goalKind,
+    handleAllRecords,
+    handleDataInfo,
+    handleSetGoal,
+    hasDataInfo,
+  ]);
 
   const goalModalConfig = goalKind ? getGoalTargetModalConfig(goalKind) : null;
 
@@ -152,6 +189,7 @@ export function useVitalsDetailMoreMenu({
           onConfirm={handleSaveGoal}
         />
       ) : null}
+      <VitalInfoModal vitalKey={vitalInfoKey} onClose={() => setVitalInfoKey(null)} />
     </>
   );
 
