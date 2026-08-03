@@ -130,7 +130,7 @@ export default function VitalsPage() {
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const synWdataDays = userExtr?.synWdataDays ?? 0;
   const [activeNav, setActiveNav] = useState<VitalsRange>('today');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [measureData, setMeasureData] = useState<Record<VitalKey, MeasureDataItem[]>>(EMPTY_MEASURE_DATA);
   const [latestMeasure, setLatestMeasure] = useState<LatestMeasureData>({});
   const [weightData, setWeightData] = useState<MeasureDataItem[]>([]);
@@ -155,6 +155,8 @@ export default function VitalsPage() {
   const pendingSyncDaysRef = useRef<number | null>(null);
   const syncAfterDayPickerRef = useRef(false);
   const promptAutoSyncAfterSyncRef = useRef(false);
+  const hasLoadedOnceRef = useRef(false);
+  const prevActiveNavRef = useRef(activeNav);
 
   useEffect(() => {
     if (userExtr?.sleepGoals != null && userExtr.sleepGoals > 0) {
@@ -170,8 +172,10 @@ export default function VitalsPage() {
 
   const chartLabels = useMemo(() => getChartLabels(activeNav), [activeNav]);
 
-  const loadMeasureData = useCallback(async () => {
-    setLoading(true);
+  const loadMeasureData = useCallback(async (mode: 'initial' | 'silent' = 'initial') => {
+    if (mode === 'initial') {
+      setLoading(true);
+    }
     const { startDate, endDate } = getDateRange(activeNav);
 
     const fetchWearableItems = async (type: WearableDataType, dateRange = { startDate, endDate }) => {
@@ -355,27 +359,28 @@ export default function VitalsPage() {
         setWearableActiveEnergy(activeEnergyItems);
       }
     } finally {
-      setLoading(false);
+      hasLoadedOnceRef.current = true;
+      if (mode === 'initial') {
+        setLoading(false);
+      }
     }
   }, [activeNav]);
 
   const loadMeasureDataRef = useRef(loadMeasureData);
   loadMeasureDataRef.current = loadMeasureData;
-  const hasMountedRef = useRef(false);
-
-  useEffect(() => {
-    loadMeasureData();
-  }, [loadMeasureData]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!hasMountedRef.current) {
-        hasMountedRef.current = true;
-        return;
-      }
-      loadMeasureDataRef.current();
+      void loadMeasureDataRef.current(hasLoadedOnceRef.current ? 'silent' : 'initial');
     }, []),
   );
+
+  useEffect(() => {
+    if (prevActiveNavRef.current === activeNav) return;
+    prevActiveNavRef.current = activeNav;
+    if (!hasLoadedOnceRef.current) return;
+    void loadMeasureData('initial');
+  }, [activeNav, loadMeasureData]);
 
   const bloodPressureSeries = useMemo(
     () => buildBloodPressureSeriesFromItems(measureData.bloodPressure, activeNav),
@@ -930,7 +935,7 @@ export default function VitalsPage() {
         Alert.alert('同步失败', res.msg ?? '请稍后重试');
         return;
       }
-      await loadMeasureDataRef.current();
+      await loadMeasureDataRef.current('silent');
     } catch {
       Alert.alert('错误', '健康数据同步失败，请稍后重试');
     }
@@ -1026,7 +1031,7 @@ export default function VitalsPage() {
         setSleepTarget(target);
         Alert.alert('成功', getGoalSaveSuccessMessage('sleep'));
         setShowSleepTargetModal(false);
-        await loadMeasureDataRef.current();
+        await loadMeasureDataRef.current('silent');
       } else {
         Alert.alert('失败', result.message);
       }
@@ -1045,7 +1050,7 @@ export default function VitalsPage() {
         setStepTarget(target);
         Alert.alert('成功', getGoalSaveSuccessMessage('steps'));
         setShowStepTargetModal(false);
-        await loadMeasureDataRef.current();
+        await loadMeasureDataRef.current('silent');
       } else {
         Alert.alert('失败', result.message);
       }
@@ -1064,7 +1069,7 @@ export default function VitalsPage() {
         setEnergyTarget(target);
         Alert.alert('成功', getGoalSaveSuccessMessage('energy'));
         setShowEnergyTargetModal(false);
-        await loadMeasureDataRef.current();
+        await loadMeasureDataRef.current('silent');
       } else {
         Alert.alert('失败', result.message);
       }

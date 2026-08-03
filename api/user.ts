@@ -136,3 +136,14 @@ export type InitMemberTypePayload = {
 /** 首次设置用户类型（老人/家属） */
 export const initMemberType = (data: InitMemberTypePayload) =>
   request.put<{ code?: number; msg?: string }>('/system/user/initMemberType', data);
+
+/** 发送注销账号短信验证码（使用当前登录用户绑定手机号） */
+export const sendDeleteAccountSmsCode = () =>
+  request.post<{ code?: number; msg?: string }>('/patient/account/deleteAccount/sms/code');
+
+/** 验证注销账号短信验证码，通过后注销当前登录账号 */
+export const verifyDeleteAccountSmsCode = (sureCode: string) =>
+  request.get<{ code?: number; msg?: string; data?: string }>(
+    '/patient/account/deleteAccount/verifySmsCode',
+    { params: { sureCode } },
+  );

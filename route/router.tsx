@@ -120,6 +120,7 @@ import FontSizeSettingPage from '@/src/features/profile/settingPage/FontSizeSett
 import SpeechSpeedSettingPage from '@/src/features/profile/settingPage/SpeechSpeedSetting';
 import NotificationSettingPage from '@/src/features/profile/settingPage/NotificationSetting';
 import DataManageSettingPage from '@/src/features/profile/settingPage/DataManageSetting';
+import DeleteAccountVerifyPage from '@/src/features/profile/settingPage/DeleteAccountVerifyPage';
 import AboutUs from '@/src/features/profile/aboutUs';
 import FeedbackPage from '@/src/features/feedback/index';
 
@@ -170,6 +171,7 @@ export type RootStackParamList = {
   SpeechSpeedSettingPage: undefined;
   NotificationSettingPage: undefined;
   DataManageSettingPage: undefined;
+  DeleteAccountVerifyPage: undefined;
   AuthenticationPage: undefined;
   IdCardCameraPage: { side: 'front' | 'back' };
   MessagePage: undefined;
@@ -517,6 +519,7 @@ export default function RootStack() {
       <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速', gestureEnabled: false }} />
       <Stack.Screen name="NotificationSettingPage" component={NotificationSettingPage} options={{ title: '消息通知' }} />
       <Stack.Screen name="DataManageSettingPage" component={DataManageSettingPage} options={{ title: '数据管理' }} />
+      <Stack.Screen name="DeleteAccountVerifyPage" component={DeleteAccountVerifyPage} options={{ title: '注销账户' }} />
       <Stack.Screen name="AuthenticationPage" component={AuthenticationPage} options={{ title: "实名认证" }} />
       <Stack.Screen
         name="IdCardCameraPage"

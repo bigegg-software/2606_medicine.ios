@@ -473,6 +473,86 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#FFFFFF',
     },
+    deleteAccountSheet: {
+        width: '100%',
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
+        paddingTop: 24,
+        paddingHorizontal: 20,
+    },
+    deleteAccountTitle: {
+        width: '100%',
+        fontWeight: '700',
+        fontSize: 18,
+        color: AppTheme.textPrimary,
+        lineHeight: 26,
+        textAlign: 'center',
+        marginBottom: 12,
+    },
+    deleteAccountScroll: {
+        width: '100%',
+        maxHeight: 420,
+        alignSelf: 'stretch',
+    },
+    deleteAccountScrollContent: {
+        paddingBottom: 8,
+    },
+    deleteAccountDesc: {
+        width: '100%',
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#666666',
+        lineHeight: 22,
+        textAlign: 'left',
+    },
+    deleteAccountSectionLabel: {
+        marginTop: 12,
+        marginBottom: 4,
+        color: AppTheme.textPrimary,
+        fontWeight: '600',
+    },
+    deleteAccountItem: {
+        width: '100%',
+        marginTop: 12,
+    },
+    deleteAccountIcon: {
+        width: 18,
+        height: 18,
+        marginRight:10,
+        flexShrink: 0,
+    },
+    deleteAccountItemText: {
+        flex: 1,
+        marginLeft: 10,
+    },
+    deleteAccountItemTitle: {
+        fontWeight: '600',
+        fontSize: 15,
+        color: '#333333',
+        lineHeight: 22,
+    },
+    deleteAccountItemDesc: {
+        marginTop: 2,
+        fontWeight: '400',
+        fontSize: 13,
+        color: '#888888',
+        lineHeight: 18,
+    },
+    deleteAccountConfirmBtn: {
+        marginTop: 20,
+        width: '100%',
+        height: 45,
+        borderRadius: 8,
+        backgroundColor: '#E85D5D',
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    deleteAccountConfirmText: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#FFFFFF',
+    },
 });
 
 export default styles;

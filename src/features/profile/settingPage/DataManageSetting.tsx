@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Switch, Toast } from '@ant-design/react-native';
 import { updateExtrInfo } from '@/api/user';
@@ -8,9 +10,11 @@ import { AppTheme } from '@/common/theme';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
+import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/profile/settings';
 import SyncDaysPickerModal from '@/src/features/profile/vitals/components/SyncDaysPickerModal';
 import AcceptAiPromptModal from './components/AcceptAiPromptModal';
+import DeleteAccountModal from './components/DeleteAccountModal';
 import {
   SYNC_RANGE_DAYS,
   SYNC_RANGE_OPTIONS,
@@ -18,7 +22,10 @@ import {
   type SyncRange,
 } from './utils/settingsHelpers';
 
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
 export default function DataManageSettingPage() {
+  const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const [acceptAiEnabled, setAcceptAiEnabled] = useState(true);
@@ -28,6 +35,7 @@ export default function DataManageSettingPage() {
   const [syncRangePickerVisible, setSyncRangePickerVisible] = useState(false);
   const [acceptAiModalVisible, setAcceptAiModalVisible] = useState(false);
   const [pendingAcceptAi, setPendingAcceptAi] = useState(true);
+  const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
 
   useEffect(() => {
     setAcceptAiEnabled(userExtr?.acceptAi !== 0);
@@ -135,6 +143,19 @@ export default function DataManageSettingPage() {
     }
   }, [handleSyncRangeChange]);
 
+  const handleOpenDeleteAccount = useCallback(() => {
+    setDeleteAccountVisible(true);
+  }, []);
+
+  const handleCancelDeleteAccount = useCallback(() => {
+    setDeleteAccountVisible(false);
+  }, []);
+
+  const handleConfirmDeleteAccount = useCallback(() => {
+    setDeleteAccountVisible(false);
+    navigation.navigate('DeleteAccountVerifyPage');
+  }, [navigation]);
+
   return (
     <PageLayout style={styles.container} showHeaderBackground={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -211,7 +232,7 @@ export default function DataManageSettingPage() {
             </Flex>
           </TouchableOpacity>
           <View style={styles.rowLine} />
-          <TouchableOpacity
+          {/* <TouchableOpacity
             activeOpacity={0.7}
             disabled={!autoSyncEnabled || savingSync}
             onPress={() => { }}
@@ -230,13 +251,11 @@ export default function DataManageSettingPage() {
                 source={require('@/assets/images/message/icon_right.png')}
               />
             </Flex>
-          </TouchableOpacity>
-          <View style={styles.rowLine} />
+          </TouchableOpacity> */}
+          {/* <View style={styles.rowLine} /> */}
           <TouchableOpacity
             activeOpacity={0.7}
-            disabled={!autoSyncEnabled || savingSync}
-            onPress={() => { }}
-            style={!autoSyncEnabled || savingSync ? { opacity: 0.5 } : undefined}>
+            onPress={handleOpenDeleteAccount}>
             <Flex justify="between" align="center" style={styles.settingRow}>
               <View style={styles.settingLeft}>
                 <Image
@@ -263,6 +282,12 @@ export default function DataManageSettingPage() {
         onConfirm={() => {
           void handleAcceptAiConfirm();
         }}
+      />
+
+      <DeleteAccountModal
+        visible={deleteAccountVisible}
+        onCancel={handleCancelDeleteAccount}
+        onConfirm={handleConfirmDeleteAccount}
       />
 
       <SyncDaysPickerModal
