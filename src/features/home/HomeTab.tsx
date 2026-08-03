@@ -703,7 +703,7 @@ export default function HomeTab() {
                   ) : (
                     <View style={styles.cfEmptyTextRow}>
                       <Text style={styles.cfEmptyTextInline}>暂无运动处方，请先</Text>
-                      <CompleteProfileLink color= '#6D925E' textStyle={styles.cfEmptyLink} />
+                      <CompleteProfileLink color='#6D925E' textStyle={styles.cfEmptyLink} />
                     </View>
                   )}
                 </View>
@@ -909,7 +909,7 @@ export default function HomeTab() {
                 ) : (
                   <View style={styles.yyEmptyTipTextRow}>
                     <Text style={styles.yyEmptyTipTextInline}>暂无营养处方，请先</Text>
-                    <CompleteProfileLink color= '#C98A41' textStyle={styles.yyEmptyTipLink} />
+                    <CompleteProfileLink color='#C98A41' textStyle={styles.yyEmptyTipLink} />
                   </View>
                 )}
               </Flex>

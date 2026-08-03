@@ -5,6 +5,16 @@ export type IdentityPerspective = 'old' | 'child';
 
 export type AuthHomeRoute = 'MainTabs' | 'FamilyTabs' | 'IdentitySelectPage';
 
+/**
+ * 身份选择页开关。
+ * - false：临时跳过 IdentitySelect，未设置身份时默认 old → MainTabs
+ * - true：恢复原逻辑（未设置身份 → IdentitySelectPage）
+ */
+export const ENABLE_IDENTITY_SELECT = false;
+
+/** 跳过身份选择时的默认用户类型 */
+export const DEFAULT_MEMBER_TYPE_WHEN_SKIP_SELECT: IdentityPerspective = 'old';
+
 export function normalizeIdentityPerspective(value?: string | null): IdentityPerspective | '' {
   const normalized = String(value ?? '').trim();
   if (normalized === 'old' || normalized === 'child') return normalized;
@@ -16,7 +26,7 @@ export function getAuthHomeRoute(identityPerspective?: string | null): AuthHomeR
   const perspective = normalizeIdentityPerspective(identityPerspective);
   if (perspective === 'old') return 'MainTabs';
   if (perspective === 'child') return 'FamilyTabs';
-  return 'IdentitySelectPage';
+  return ENABLE_IDENTITY_SELECT ? 'IdentitySelectPage' : 'MainTabs';
 }
 
 /** 当前身份展示文案 */
@@ -48,6 +58,41 @@ export async function submitInitMemberType(memberType: IdentityPerspective): Pro
   } catch {
     return { ok: false, msg: '网络错误，请稍后重试', homeRoute };
   }
+}
+
+/**
+ * 登录/注册成功后解析首页。
+ * 关闭身份选择时：未设置身份会自动 init 为默认用户类型。
+ * 开启身份选择时：未设置身份直接进入 IdentitySelectPage。
+ */
+export async function resolvePostAuthHomeRoute(identityPerspective?: string | null): Promise<{
+  ok: boolean;
+  msg?: string;
+  homeRoute: AuthHomeRoute;
+  /** 是否已在本函数内完成 memberType 初始化 */
+  didInitMemberType: boolean;
+}> {
+  if (ENABLE_IDENTITY_SELECT) {
+    return {
+      ok: true,
+      homeRoute: getAuthHomeRoute(identityPerspective),
+      didInitMemberType: false,
+    };
+  }
+
+  if (normalizeIdentityPerspective(identityPerspective)) {
+    return {
+      ok: true,
+      homeRoute: getAuthHomeRoute(identityPerspective),
+      didInitMemberType: false,
+    };
+  }
+
+  const initResult = await submitInitMemberType(DEFAULT_MEMBER_TYPE_WHEN_SKIP_SELECT);
+  return {
+    ...initResult,
+    didInitMemberType: initResult.ok,
+  };
 }
 
 /** 切换身份视角并返回目标首页 */

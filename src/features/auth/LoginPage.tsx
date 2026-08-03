@@ -17,7 +17,7 @@ import { isResourceApiOk, type LoginData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import PageLayout from '@/src/components/PageLayout';
 import KeyboardDoneAccessory from '@/src/components/KeyboardDoneAccessory';
-import { getAuthHomeRoute } from './utils/identityHelpers';
+import { resolvePostAuthHomeRoute } from './utils/identityHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -144,8 +144,15 @@ export default function LoginPage() {
         if (data.openid) await saveUserId(data.openid);
         dispatch({ type: SET_LOGIN, payload: true });
         const identityPerspective = (await dispatch(fetchUserSession())) as string;
-        const homeRoute = getAuthHomeRoute(identityPerspective);
-        navigation.reset({ index: 0, routes: [{ name: homeRoute }] });
+        const routeResult = await resolvePostAuthHomeRoute(identityPerspective);
+        if (!routeResult.ok) {
+          Alert.alert('登录失败', routeResult.msg ?? '身份初始化失败，请稍后重试');
+          return;
+        }
+        if (routeResult.didInitMemberType) {
+          await dispatch(fetchUserSession());
+        }
+        navigation.reset({ index: 0, routes: [{ name: routeResult.homeRoute }] });
       } else {
         Alert.alert('登录失败', res.msg ?? res.message ?? '请检查验证码');
       }

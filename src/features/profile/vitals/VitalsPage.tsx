@@ -140,7 +140,6 @@ export default function VitalsPage() {
   const [wearableOxygen, setWearableOxygen] = useState<WearableDataItem[]>([]);
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
-  const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
   const [showSleepTargetModal, setShowSleepTargetModal] = useState(false);
   const [showStepTargetModal, setShowStepTargetModal] = useState(false);
   const [showEnergyTargetModal, setShowEnergyTargetModal] = useState(false);
@@ -153,8 +152,9 @@ export default function VitalsPage() {
   const [dayPickerVisible, setDayPickerVisible] = useState(false);
   const [autoSyncPromptVisible, setAutoSyncPromptVisible] = useState(false);
   const [savingSynWdataDays, setSavingSynWdataDays] = useState(false);
-  const [pendingSyncDays, setPendingSyncDays] = useState<number | null>(null);
-  const openAutoSyncAfterDayPickerRef = useRef(false);
+  const pendingSyncDaysRef = useRef<number | null>(null);
+  const syncAfterDayPickerRef = useRef(false);
+  const promptAutoSyncAfterSyncRef = useRef(false);
 
   useEffect(() => {
     if (userExtr?.sleepGoals != null && userExtr.sleepGoals > 0) {
@@ -259,7 +259,6 @@ export default function VitalsPage() {
           latestOxygen,
           latestHeartRate,
           activeEnergyResult,
-          basalEnergyResult,
         ] = await Promise.all([
           Promise.all(
             VITAL_KEYS.map(async key => {
@@ -273,8 +272,8 @@ export default function VitalsPage() {
           fetchWearableItems(WEARABLE_DATA_TYPES.steps),
           fetchLatestWearable(WEARABLE_DATA_TYPES.oxygen),
           fetchLatestWearable(WEARABLE_DATA_TYPES.heartRate),
+          // 仅活动能量；不请求 basalEnergyBurned
           fetchWearableLatestAndDayItems(WEARABLE_DATA_TYPES.activeEnergy),
-          fetchWearableLatestAndDayItems(WEARABLE_DATA_TYPES.basalEnergy),
         ]);
 
         setMeasureData({
@@ -293,7 +292,6 @@ export default function VitalsPage() {
         setWearableOxygen(wrapWearableLatestItem(latestOxygen));
         setWearableHeartRate(wrapWearableLatestItem(latestHeartRate));
         setWearableActiveEnergy(pickWearableTodayOrDataDayItems(activeEnergyResult.dayItems, activeEnergyResult.latest));
-        setWearableBasalEnergy(pickWearableTodayOrDataDayItems(basalEnergyResult.dayItems, basalEnergyResult.latest));
       } else {
         setLatestMeasure({});
         setLatestWeight(undefined);
@@ -305,7 +303,6 @@ export default function VitalsPage() {
           oxygenItems,
           heartRateItems,
           activeEnergyItems,
-          basalEnergyItems,
         ] = await Promise.all([
           Promise.all(
             VITAL_KEYS.map(async key => {
@@ -344,7 +341,6 @@ export default function VitalsPage() {
           fetchWearableItems(WEARABLE_DATA_TYPES.oxygen),
           fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
           fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
-          fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
         ]);
 
         setMeasureData({
@@ -357,7 +353,6 @@ export default function VitalsPage() {
         setWearableOxygen(oxygenItems);
         setWearableHeartRate(heartRateItems);
         setWearableActiveEnergy(activeEnergyItems);
-        setWearableBasalEnergy(basalEnergyItems);
       }
     } finally {
       setLoading(false);
@@ -453,8 +448,8 @@ export default function VitalsPage() {
     [wearableSteps, activeNav, stepTarget],
   );
   const energySummary = useMemo(
-    () => getEnergySummary(wearableActiveEnergy, wearableBasalEnergy, activeNav, energyTarget),
-    [wearableActiveEnergy, wearableBasalEnergy, activeNav, energyTarget],
+    () => getEnergySummary(wearableActiveEnergy, [], activeNav, energyTarget),
+    [wearableActiveEnergy, activeNav, energyTarget],
   );
   const stepsBarData = useMemo(
     () => stepsSummary.barSeries.map(item => ({ label: item.label, value: item.value })),
@@ -473,8 +468,8 @@ export default function VitalsPage() {
     [energySummary.barSeries],
   );
   const energyDataTime = useMemo(
-    () => getEnergyDisplayDataTime(wearableActiveEnergy, wearableBasalEnergy, activeNav),
-    [wearableActiveEnergy, wearableBasalEnergy, activeNav],
+    () => getEnergyDisplayDataTime(wearableActiveEnergy, [], activeNav),
+    [wearableActiveEnergy, activeNav],
   );
   const energyChart = useMemo(
     () => <StepsChart data={energyBarData} hideXAxis metricLabel="活动消耗" valueUnit="千卡" />,
@@ -921,13 +916,16 @@ export default function VitalsPage() {
     weightSeries,
   ]);
 
-  const runHealthKitSync = useCallback(async (days: number | null) => {
+  const runHealthKitSync = useCallback(async (
+    days: number | null,
+    options?: { onAuthorized?: () => void },
+  ) => {
     if (uploading) return;
     try {
-      const res = (await updateHealthKit(days)) as { code?: number; msg?: string } | undefined;
+      const res = (await updateHealthKit(days, options)) as { code?: number; msg?: string } | undefined;
       if (res?.code == 500) {
         Toast.show(res.msg ?? '同步失败');
-        return
+        return;
       } else if (res && 'code' in res && res.code != null && !isResourceApiOk(res) && res.code !== 0) {
         Alert.alert('同步失败', res.msg ?? '请稍后重试');
         return;
@@ -937,12 +935,6 @@ export default function VitalsPage() {
       Alert.alert('错误', '健康数据同步失败，请稍后重试');
     }
   }, [uploading]);
-
-  const syncData = useCallback((days: number) => {
-    setTimeout(() => {
-      void runHealthKitSync(days);
-    }, 300);
-  }, [runHealthKitSync]);
 
   const handleUploadData = useCallback(() => {
     if (uploading) return;
@@ -969,8 +961,10 @@ export default function VitalsPage() {
         });
       }
 
-      setPendingSyncDays(days);
-      openAutoSyncAfterDayPickerRef.current = true;
+      pendingSyncDaysRef.current = days;
+      // 周期选择关闭后直接拉起健康授权/同步，避免再套一层弹窗挡住系统弹窗
+      syncAfterDayPickerRef.current = true;
+      promptAutoSyncAfterSyncRef.current = userExtr?.autoSyncData !== 1;
       setDayPickerVisible(false);
     } catch {
       Alert.alert('错误', '保存同步周期失败，请稍后重试');
@@ -980,34 +974,37 @@ export default function VitalsPage() {
   }, [dispatch, userExtr]);
 
   const handleDayPickerDismissed = useCallback(() => {
-    if (!openAutoSyncAfterDayPickerRef.current) return;
-    openAutoSyncAfterDayPickerRef.current = false;
-    setAutoSyncPromptVisible(true);
-  }, []);
+    if (!syncAfterDayPickerRef.current) return;
+    syncAfterDayPickerRef.current = false;
+    const days = pendingSyncDaysRef.current ?? 7;
+    pendingSyncDaysRef.current = null;
+
+    void runHealthKitSync(days, {
+      onAuthorized: () => {
+        if (!promptAutoSyncAfterSyncRef.current) return;
+        promptAutoSyncAfterSyncRef.current = false;
+        setAutoSyncPromptVisible(true);
+      },
+    });
+  }, [runHealthKitSync]);
 
   const handleDayPickerCancel = useCallback(() => {
-    openAutoSyncAfterDayPickerRef.current = false;
+    syncAfterDayPickerRef.current = false;
+    promptAutoSyncAfterSyncRef.current = false;
+    pendingSyncDaysRef.current = null;
     setDayPickerVisible(false);
   }, []);
 
   const handleAutoSyncClose = useCallback(() => {
     setAutoSyncPromptVisible(false);
-    setPendingSyncDays(null);
   }, []);
 
   const handleAutoSyncCancel = useCallback(() => {
-    const days = pendingSyncDays ?? (synWdataDays || 7);
     setAutoSyncPromptVisible(false);
-    syncData(days);
-    setPendingSyncDays(null);
-  }, [pendingSyncDays, synWdataDays, syncData]);
+  }, []);
 
   const handleAutoSyncConfirm = useCallback(async () => {
-    const days = pendingSyncDays ?? (synWdataDays || 7);
     setAutoSyncPromptVisible(false);
-    syncData(days);
-    setPendingSyncDays(null);
-
     try {
       const res = await updateExtrInfo({ autoSyncData: 1 });
       if (isResourceApiOk(res as { code?: number }) && userExtr) {
@@ -1019,7 +1016,7 @@ export default function VitalsPage() {
     } catch {
       /* silent */
     }
-  }, [dispatch, pendingSyncDays, synWdataDays, syncData, userExtr]);
+  }, [dispatch, userExtr]);
 
   const handleSaveSleepTarget = useCallback(async (target: number) => {
     setSavingSleep(true);

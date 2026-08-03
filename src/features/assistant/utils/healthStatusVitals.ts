@@ -147,7 +147,6 @@ export async function loadTodayHealthStatusVitals(): Promise<TodayHealthStatusVi
     latestOxygen,
     latestHeartRate,
     activeEnergyResult,
-    basalEnergyResult,
   ] = await Promise.all([
     Promise.all(
       VITAL_KEYS.map(async key => {
@@ -162,7 +161,6 @@ export async function loadTodayHealthStatusVitals(): Promise<TodayHealthStatusVi
     fetchLatestWearable(WEARABLE_DATA_TYPES.oxygen),
     fetchLatestWearable(WEARABLE_DATA_TYPES.heartRate),
     fetchWearableLatestAndDayItems(WEARABLE_DATA_TYPES.activeEnergy),
-    fetchWearableLatestAndDayItems(WEARABLE_DATA_TYPES.basalEnergy),
   ]);
 
   return {
@@ -185,9 +183,7 @@ export async function loadTodayHealthStatusVitals(): Promise<TodayHealthStatusVi
       activeEnergyResult.dayItems,
       activeEnergyResult.latest,
     ),
-    wearableBasalEnergy: pickWearableTodayOrDataDayItems(
-      basalEnergyResult.dayItems,
-      basalEnergyResult.latest,
-    ),
+    // 不再请求 basalEnergyBurned
+    wearableBasalEnergy: [],
   };
 }

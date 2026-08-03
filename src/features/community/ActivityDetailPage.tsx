@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation, useRoute } from '@react-navigation/native';
@@ -165,7 +165,7 @@ export default function ActivityDetailPage() {
             }
             : prev,
         );
-        Alert.alert('提示', nextJoined ? '报名成功' : '已取消报名');
+        Toast.show(nextJoined ? '报名成功' : '已取消报名');
       } else {
         Alert.alert('失败', (res as { msg?: string }).msg ?? '请稍后重试');
       }

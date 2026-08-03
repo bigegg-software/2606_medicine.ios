@@ -1024,10 +1024,20 @@ function isIncrementalEnergyDay(activeItems: WearableDataItem[], basalItems: Wea
   return activeKind || basalKind;
 }
 
+/** 能量数值：四舍五入保留两位小数 */
+function roundEnergyValue(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+function formatEnergyDisplayValue(value: number) {
+  if (!(value > 0)) return '--';
+  return roundEnergyValue(value).toFixed(2);
+}
+
 function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEnergyBurned' | 'basalEnergyBurned') {
   if (!item) return 0;
 
-  const fieldValue = Math.round(parseMeasureNumber(item[field]) ?? 0);
+  const fieldValue = roundEnergyValue(parseMeasureNumber(item[field]) ?? 0);
   const readings = flattenWearableOriginalData(item);
   if (!readings.length) return fieldValue;
 
@@ -1036,13 +1046,13 @@ function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEne
     .filter(value => value > 0);
   if (!values.length) return fieldValue;
 
-  const sumReadings = Math.round(values.reduce((sum, value) => sum + value, 0));
+  const sumReadings = roundEnergyValue(values.reduce((sum, value) => sum + value, 0));
   if (isIncrementalEnergyReadings(values, fieldValue)) {
     return fieldValue > 0 ? Math.max(fieldValue, sumReadings) : sumReadings;
   }
 
-  const maxReading = Math.round(Math.max(...values));
-  const lastReading = Math.round(values[values.length - 1]);
+  const maxReading = roundEnergyValue(Math.max(...values));
+  const lastReading = roundEnergyValue(values[values.length - 1]);
   return Math.max(fieldValue, maxReading, lastReading);
 }
 
@@ -1059,7 +1069,7 @@ function buildIncrementalEnergyTodayBarSeries(
       const existing = bucketMap.get(bucketKey);
       bucketMap.set(bucketKey, {
         label: hourStart.format('HH:mm'),
-        value: Math.round((existing?.value ?? 0) + value),
+        value: roundEnergyValue((existing?.value ?? 0) + value),
       });
     });
   };
@@ -1074,9 +1084,9 @@ function buildIncrementalEnergyTodayBarSeries(
 }
 
 function getDayEnergyTotalsFromItems(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
-  const active = Math.round(sumEnergyFromItem(getLatestWearableItem(activeItems), 'activeEnergyBurned'));
-  const basal = Math.round(sumEnergyFromItem(getLatestWearableItem(basalItems), 'basalEnergyBurned'));
-  return { active, basal, total: active + basal };
+  const active = roundEnergyValue(sumEnergyFromItem(getLatestWearableItem(activeItems), 'activeEnergyBurned'));
+  const basal = roundEnergyValue(sumEnergyFromItem(getLatestWearableItem(basalItems), 'basalEnergyBurned'));
+  return { active, basal, total: roundEnergyValue(active + basal) };
 }
 
 function appendEnergyBarRemainder(
@@ -1109,9 +1119,9 @@ export function getEnergyDisplay(activeItems: WearableDataItem[], basalItems: We
   const isDataToday = day.isSame(moment(), 'day');
 
   return {
-    total: total > 0 ? String(total) : '--',
-    active: active > 0 ? String(active) : '--',
-    basal: basal > 0 ? String(basal) : '--',
+    total: formatEnergyDisplayValue(total),
+    active: formatEnergyDisplayValue(active),
+    basal: formatEnergyDisplayValue(basal),
     dataDayLabel: isDataToday ? '' : day.format('M/D'),
   };
 }
@@ -1191,7 +1201,7 @@ export function buildEnergyBarSeries(
     const basalBucket = pickWearableDayItems(basalItems, range, index, labels.length);
     const active = sumEnergyFromItem(getLatestWearableItem(activeBucket), 'activeEnergyBurned');
     const basal = sumEnergyFromItem(getLatestWearableItem(basalBucket), 'basalEnergyBurned');
-    return { label, value: Math.round(active + basal) };
+    return { label, value: roundEnergyValue(active + basal) };
   });
 }
 
@@ -1221,17 +1231,17 @@ export function buildEnergyTodayBarSeries(
 
     events.forEach((event, index) => {
       if (event.kind === 'active') {
-        latestActive = Math.round(event.value);
+        latestActive = roundEnergyValue(event.value);
       } else {
-        latestBasal = Math.round(event.value);
+        latestBasal = roundEnergyValue(event.value);
       }
 
       const isLastAtSameTs =
         index === events.length - 1 || events[index + 1].ts.valueOf() !== event.ts.valueOf();
       if (!isLastAtSameTs) return;
 
-      const currentTotal = latestActive + latestBasal;
-      const delta = Math.max(0, currentTotal - previousTotal);
+      const currentTotal = roundEnergyValue(latestActive + latestBasal);
+      const delta = roundEnergyValue(Math.max(0, currentTotal - previousTotal));
       previousTotal = currentTotal;
       if (delta > 0) {
         bars.push({ label: event.ts.format('HH:mm'), value: delta });
@@ -1274,11 +1284,11 @@ export function getEnergySummary(
 
   if (range === 'today') {
     const display = getEnergyDisplay(activeItems, basalItems);
-    const activeNum = display.active !== '--' ? Number(display.active) : 0;
-    const { status, statusColor } = getEnergyCardStatus(activeNum, energyGoal);
+    // total = 活动 + 静息；VitalsPage 不传静息时 total 即活动消耗
+    const totalNum = display.total !== '--' ? Number(display.total) : 0;
+    const { status, statusColor } = getEnergyCardStatus(totalNum, energyGoal);
     return {
       ...display,
-      total: display.active,
       barSeries,
       unit: '千卡' as const,
       status,
@@ -1288,7 +1298,7 @@ export function getEnergySummary(
 
   const dailyTotals = barSeries.map(item => item.value).filter(value => value > 0);
   const average = dailyTotals.length
-    ? Math.round(dailyTotals.reduce((sum, value) => sum + value, 0) / dailyTotals.length)
+    ? roundEnergyValue(dailyTotals.reduce((sum, value) => sum + value, 0) / dailyTotals.length)
     : 0;
 
   if (average <= 0) {
@@ -1305,8 +1315,8 @@ export function getEnergySummary(
   }
 
   return {
-    total: String(average),
-    active: String(average),
+    total: formatEnergyDisplayValue(average),
+    active: formatEnergyDisplayValue(average),
     basal: '--',
     barSeries,
     totalLabel: '日均活动消耗',

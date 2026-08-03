@@ -1127,32 +1127,24 @@ export default function AllDataPage({ route }: Props) {
     setExpandedKey(null);
     try {
       if (isEnergyType) {
-        const [activeRes, basalRes] = await Promise.all([
-          getWearableDataDetailByCustomerLocalDate({
-            customerLocalDate: selectedDate,
-            type: WEARABLE_DATA_TYPES.activeEnergy,
-          }),
-          getWearableDataDetailByCustomerLocalDate({
-            customerLocalDate: selectedDate,
-            type: WEARABLE_DATA_TYPES.basalEnergy,
-          }),
-        ]);
+        const activeRes = await getWearableDataDetailByCustomerLocalDate({
+          customerLocalDate: selectedDate,
+          type: WEARABLE_DATA_TYPES.activeEnergy,
+        });
 
         const activeData = isResourceApiOk(activeRes)
           ? apiResourceData<WearableDataItem>(activeRes as unknown as WearableDataDetailResult)
           : undefined;
-        const basalData = isResourceApiOk(basalRes)
-          ? apiResourceData<WearableDataItem>(basalRes as unknown as WearableDataDetailResult)
-          : undefined;
-        const energyGoalsRaw = activeData?.energyGoals ?? basalData?.energyGoals;
+        const energyGoalsRaw = activeData?.energyGoals;
         const energyGoals = storeEnergyGoal != null
           ? resolveEnergyTarget(storeEnergyGoal)
           : energyGoalsRaw != null
             ? Number(energyGoalsRaw)
             : undefined;
 
-        setGoalSummary(buildEnergyGoalSummary(activeData, basalData, energyGoals));
-        setWearableRecords(buildEnergyWearableRecords(activeData, basalData, selectedDate, energyGoals));
+        // 不再请求 basalEnergyBurned
+        setGoalSummary(buildEnergyGoalSummary(activeData, undefined, energyGoals));
+        setWearableRecords(buildEnergyWearableRecords(activeData, undefined, selectedDate, energyGoals));
         return;
       }
 

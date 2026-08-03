@@ -70,7 +70,10 @@ async function uploadDeviceMeasureItems(items: BatchDeviceMeasureDataItem[]) {
   }
 }
 
-export default async function updateHealthKit(syncDays: number | null = null) {
+export default async function updateHealthKit(
+  syncDays: number | null = null,
+  options?: { onAuthorized?: () => void },
+) {
   if (Platform.OS !== 'ios') {
     Alert.alert('提示', '当前仅支持 iOS 健康数据同步');
     return;
@@ -90,11 +93,16 @@ export default async function updateHealthKit(syncDays: number | null = null) {
 
   const allResults: HealthBatchItem[] = [];
   const deviceMeasureItems: BatchDeviceMeasureDataItem[] = [];
-  const userRes = await getUserBaseInfo();
-  const userId =
-    (isResourceApiOk(userRes as { code?: number }) ? (userRes as { data?: { userId?: number } }).data?.userId : undefined) ??
-    state.user.info?.userId ??
-    (await AsyncStorage.getItem('userId'));
+  // 先用本地身份，避免网络请求挡住系统健康授权弹窗
+  let userId: string | number | null | undefined =
+    state.user.info?.userId ?? (await AsyncStorage.getItem('userId'));
+  void getUserBaseInfo()
+    .then(userRes => {
+      if (!isResourceApiOk(userRes as { code?: number })) return;
+      const nextId = (userRes as { data?: { userId?: number } }).data?.userId;
+      if (nextId != null) userId = nextId;
+    })
+    .catch(() => undefined);
   const synWdataDays = syncDays ?? state.user.userExtr?.synWdataDays ?? 7;
   const loginExpired = state.login.loginExpired;
   const batchNum = generateUUID();
@@ -244,6 +252,9 @@ export default async function updateHealthKit(syncDays: number | null = null) {
         reject(new Error(error));
         return;
       }
+
+      // 系统授权弹窗关闭后立刻回调，便于上层衔接下一个 RN 弹窗
+      options?.onAuthorized?.();
 
       for (let i = 0; i <= dayCount; i += 1) {
         const dayStartTime = startTime + i * 24 * 60 * 60 * 1000;

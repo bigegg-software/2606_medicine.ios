@@ -14,7 +14,7 @@ export type AutoSyncPromptModalProps = {
 
 export default function AutoSyncPromptModal({ visible, onClose, onCancel, onConfirm }: AutoSyncPromptModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.autoSyncDialogOverlay}>
         <View style={styles.autoSyncDialogBox}>
           <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.8}>
