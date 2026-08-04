@@ -108,27 +108,24 @@ export default function CommunityPage() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      ) 
-      // :
-      // !exerciseRule ? (
-      //   <View style={styles.emptyPrescription}>
-      //     <Image
-      //       source={require('@/assets/images/exercise/icon_yd_empty.png')}
-      //       style={styles.emptyPrescriptionIcon}
-      //     />
-      //     {profileComplete ? (
-      //       <Text style={styles.emptyPrescriptionText}>
-      //         暂无运动处方，如需开方，请联系工作人员
-      //       </Text>
-      //     ) : (
-      //       <Flex style={styles.emptyPrescriptionTextRow}>
-      //         <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
-      //         <CompleteProfileLink color='#6D925E' />
-      //       </Flex>
-      //     )}
-      //   </View>
-      // )
-       : activeNav === 0 ? (
+      ) : !exerciseRule ? (
+        <View style={styles.emptyPrescription}>
+          <Image
+            source={require('@/assets/images/exercise/icon_yd_empty.png')}
+            style={styles.emptyPrescriptionIcon}
+          />
+          {profileComplete ? (
+            <Text style={styles.emptyPrescriptionText}>
+              暂无运动处方，如需开方，请联系工作人员
+            </Text>
+          ) : (
+            <Flex style={styles.emptyPrescriptionTextRow}>
+              <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
+              <CompleteProfileLink color='#6D925E' />
+            </Flex>
+          )}
+        </View>
+      ) : activeNav === 0 ? (
         <TrainingPage />
       ) : (
         <PrescriptionPage />
