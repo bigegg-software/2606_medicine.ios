@@ -91,16 +91,31 @@ export default function MedicationAllPage() {
         setSegmentWidth(Math.max(0, (w - 4) / 2));
     }, []);
 
-    const getDateRange = useCallback(() => {
-        const end = new Date();
-        const start = new Date();
-        const days = historyRange === '7' ? 7 : 30;
-        start.setDate(end.getDate() - days + 1);
-        const fmt = (d: Date) => d.toISOString().slice(0, 10);
-        return { startDate: fmt(start), endDate: fmt(end) };
+    const getStatisDateRange = useCallback(() => {
+        const end = moment();
+        const start = moment().subtract(historyRange === '7' ? 6 : 29, 'day');
+        return {
+            startDate: start.format('YYYY-MM-DD'),
+            endDate: end.format('YYYY-MM-DD'),
+        };
     }, [historyRange]);
 
-    /** Initial / refresh / filter load — resets pagination */
+    const loadStatis = useCallback(async () => {
+        try {
+            const { startDate, endDate } = getStatisDateRange();
+            const statisRes = await getMedicationRecordStatis({ startDate, endDate });
+            if (isResourceApiOk(statisRes) && (statisRes as any).data) {
+                const s = (statisRes as any).data;
+                setTakeCount(s.takeCount ?? 0);
+                setNotTakeCount(s.notTakeCount ?? 0);
+                setAdherenceRate(s.rate ?? 0);
+            }
+        } catch {
+            // silent
+        }
+    }, [getStatisDateRange]);
+
+    /** Initial / refresh / filter load — resets pagination（列表不随 7/30 日范围变化） */
     const load = useCallback(async (mode: 'initial' | 'refresh' | 'silent' = 'initial') => {
         if (mode === 'initial') {
             setLoading(true);
@@ -108,13 +123,12 @@ export default function MedicationAllPage() {
             setRefreshing(true);
         }
         try {
-            const { startDate, endDate } = getDateRange();
             const actionParam = activeNav === 'all' ? undefined : (Number(activeNav) as MedicationRecordAction);
 
-            const [recordsRes, statisRes, maps] = await Promise.all([
-                getMedicationRecordAll({ startDate, endDate, pageSize: PAGE_SIZE, pageNum: 1, action: actionParam }),
-                getMedicationRecordStatis({ startDate, endDate }),
+            const [recordsRes, maps] = await Promise.all([
+                getMedicationRecordAll({ pageSize: PAGE_SIZE, pageNum: 1, action: actionParam }),
                 dictMapsRef.current ? Promise.resolve(dictMapsRef.current) : loadMedicationDictMaps(),
+                loadStatis(),
             ]);
 
             if (!dictMapsRef.current) {
@@ -136,13 +150,6 @@ export default function MedicationAllPage() {
             }
             setPageNum(1);
 
-            if (isResourceApiOk(statisRes) && (statisRes as any).data) {
-                const s = (statisRes as any).data;
-                setTakeCount(s.takeCount ?? 0);
-                setNotTakeCount(s.notTakeCount ?? 0);
-                setAdherenceRate(s.rate ?? 0);
-            }
-
             if (!hasLoadedOnceRef.current) {
                 hasLoadedOnceRef.current = true;
                 setHasLoadedOnce(true);
@@ -153,18 +160,21 @@ export default function MedicationAllPage() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [getDateRange, activeNav]);
+    }, [activeNav, loadStatis]);
 
     /** Pull-up load more */
     const loadMore = useCallback(async () => {
         if (!hasMoreRef.current || loadingMore) return;
         setLoadingMore(true);
         try {
-            const { startDate, endDate } = getDateRange();
             const actionParam = activeNav === 'all' ? undefined : (Number(activeNav) as MedicationRecordAction);
             const nextPage = pageNum + 1;
 
-            const res = await getMedicationRecordAll({ startDate, endDate, pageSize: PAGE_SIZE, pageNum: nextPage, action: actionParam });
+            const res = await getMedicationRecordAll({
+                pageSize: PAGE_SIZE,
+                pageNum: nextPage,
+                action: actionParam,
+            });
 
             if (isResourceApiOk(res) && (res as any).rows) {
                 const newRows = (res as any).rows;
@@ -183,10 +193,12 @@ export default function MedicationAllPage() {
         } finally {
             setLoadingMore(false);
         }
-    }, [getDateRange, activeNav, pageNum, loadingMore]);
+    }, [activeNav, pageNum, loadingMore]);
 
     const loadRef = useRef(load);
     loadRef.current = load;
+    const skipActiveNavEffectRef = useRef(true);
+    const skipRangeEffectRef = useRef(true);
 
     useFocusEffect(
         useCallback(() => {
@@ -197,10 +209,23 @@ export default function MedicationAllPage() {
         }, []),
     );
 
-    // reload when range or filter changes
+    // 顶部 7/30 日仅刷新依从性统计
     useEffect(() => {
+        if (skipRangeEffectRef.current) {
+            skipRangeEffectRef.current = false;
+            return;
+        }
+        void loadStatis();
+    }, [historyRange, loadStatis]);
+
+    // 全部 / 已服用 / 未服用 筛选刷新列表
+    useEffect(() => {
+        if (skipActiveNavEffectRef.current) {
+            skipActiveNavEffectRef.current = false;
+            return;
+        }
         void load('silent');
-    }, [historyRange, activeNav]);
+    }, [activeNav, load]);
 
     // --- derived values ---
     const totalCount = takeCount + notTakeCount;

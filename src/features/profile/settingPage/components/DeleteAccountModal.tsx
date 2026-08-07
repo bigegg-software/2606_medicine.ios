@@ -115,13 +115,26 @@ export default function DeleteAccountModal({
           ))}
         </ScrollView>
 
-        <TouchableOpacity
-          activeOpacity={0.8}
-          disabled={confirming}
-          onPress={handleConfirm}
-          style={[styles.deleteAccountConfirmBtn, confirming && { opacity: 0.6 }]}>
-          <Text style={styles.deleteAccountConfirmText}>删除账户</Text>
-        </TouchableOpacity>
+        <Flex style={[styles.deleteAccountBtnRow, confirming && { opacity: 0.6 }]}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            disabled={confirming}
+            onPress={handleConfirm}
+            style={styles.deleteAccountDeleteBtn}>
+            <Flex justify="center">
+              <Text style={styles.deleteAccountDeleteText}>删除账户</Text>
+            </Flex>
+          </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            disabled={confirming}
+            onPress={onCancel}
+            style={styles.deleteAccountKeepBtn}>
+            <Flex justify="center">
+              <Text style={styles.deleteAccountKeepText}>保留账户</Text>
+            </Flex>
+          </TouchableOpacity>
+        </Flex>
       </View>
     </BottomSheetModal>
   );

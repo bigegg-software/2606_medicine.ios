@@ -37,11 +37,11 @@ function resolveSourceName(sample: HealthKitSampleLike): string | undefined {
   return 'Apple Health';
 }
 
-function resolveGlucoseMeasurementStatus(sample: HealthKitSampleLike): string | undefined {
+function resolveGlucoseMeasurementStatus(sample: HealthKitSampleLike): string {
   const mealTime = sample.metadata?.HKBloodGlucoseMealTime;
   if (mealTime === 1) return '餐前';
   if (mealTime === 2) return '餐后';
-  return undefined;
+  return '空腹';
 }
 
 function buildBaseItem(
@@ -81,8 +81,7 @@ export function mapBloodGlucoseSamplesToDeviceItems(
     if (val == null) continue;
     const item = buildBaseItem('血糖', sample, val);
     if (!item) continue;
-    const status = resolveGlucoseMeasurementStatus(sample);
-    if (status) item.measurementStatus = status;
+    item.measurementStatus = resolveGlucoseMeasurementStatus(sample);
     items.push(item);
   }
   return items;

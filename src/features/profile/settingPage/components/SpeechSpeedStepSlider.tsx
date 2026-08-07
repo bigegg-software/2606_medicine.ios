@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   PanResponder,
+  Animated,
   type GestureResponderEvent,
   type PanResponderGestureState,
 } from 'react-native';
@@ -10,7 +11,6 @@ import {
   SPEECH_SPEED_OPTIONS,
   SPEECH_SPEED_MINOR_BETWEEN,
   getSpeechSpeedTickCount,
-  nearestSpeechSpeedOption,
   speechSpeedIndexToRate,
   speechSpeedRateToIndex,
   snapSpeechSpeedRate,
@@ -22,29 +22,63 @@ type Props = {
   onChange: (rate: number) => void;
 };
 
-const THUMB_WIDTH = 10;
+const THUMB_WIDTH = 14;
+const THUMB_SCALE_IDLE = 1;
+const THUMB_SCALE_DRAG = 1.45;
+const LABEL_SCALE_ACTIVE = 1.2;
 
 export default function SpeechSpeedStepSlider({ value, onChange }: Props) {
   const [trackWidth, setTrackWidth] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const trackRef = useRef<View>(null);
   const trackWidthRef = useRef(0);
   const trackPageXRef = useRef(0);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
 
+  const thumbScale = useRef(new Animated.Value(THUMB_SCALE_IDLE)).current;
+  const floatOpacity = useRef(new Animated.Value(0)).current;
+  const floatScale = useRef(new Animated.Value(0.85)).current;
+
   const tickCount = getSpeechSpeedTickCount();
   const lastIndex = tickCount - 1;
   const stepsPerSegment = SPEECH_SPEED_MINOR_BETWEEN + 1;
 
-  const index = useMemo(() => speechSpeedRateToIndex(value), [value]);
+  const snapped = useMemo(() => snapSpeechSpeedRate(value), [value]);
+  const index = useMemo(() => speechSpeedRateToIndex(snapped), [snapped]);
   const indexRef = useRef(index);
   indexRef.current = index;
 
-  const activeMajor = useMemo(() => nearestSpeechSpeedOption(value), [value]);
   const exactMajor = useMemo(
-    () => SPEECH_SPEED_OPTIONS.find(item => item.rate === snapSpeechSpeedRate(value)),
-    [value],
+    () => SPEECH_SPEED_OPTIONS.find(item => item.rate === snapped),
+    [snapped],
   );
+  const showFloatValue = !exactMajor;
+
+  useEffect(() => {
+    Animated.spring(thumbScale, {
+      toValue: dragging ? THUMB_SCALE_DRAG : showFloatValue ? 1.2 : THUMB_SCALE_IDLE,
+      useNativeDriver: true,
+      friction: 7,
+      tension: 120,
+    }).start();
+  }, [dragging, showFloatValue, thumbScale]);
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(floatOpacity, {
+        toValue: showFloatValue ? 1 : 0,
+        duration: 140,
+        useNativeDriver: true,
+      }),
+      Animated.spring(floatScale, {
+        toValue: showFloatValue ? (dragging ? 1.25 : 1.1) : 0.85,
+        useNativeDriver: true,
+        friction: 7,
+        tension: 140,
+      }),
+    ]).start();
+  }, [dragging, floatOpacity, floatScale, showFloatValue]);
 
   const updateByPageX = useCallback((pageX: number) => {
     const width = trackWidthRef.current;
@@ -70,11 +104,18 @@ export default function SpeechSpeedStepSlider({ value, onChange }: Props) {
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: () => true,
         onPanResponderGrant: (e: GestureResponderEvent) => {
+          setDragging(true);
           measureTrack();
           updateByPageX(e.nativeEvent.pageX);
         },
         onPanResponderMove: (e: GestureResponderEvent, _g: PanResponderGestureState) => {
           updateByPageX(e.nativeEvent.pageX);
+        },
+        onPanResponderRelease: () => {
+          setDragging(false);
+        },
+        onPanResponderTerminate: () => {
+          setDragging(false);
         },
       }),
     [measureTrack, updateByPageX],
@@ -91,8 +132,9 @@ export default function SpeechSpeedStepSlider({ value, onChange }: Props) {
     return marks;
   }, [lastIndex, stepsPerSegment, trackWidth]);
 
-  const thumbLeft =
-    trackWidth > 0 ? (index / lastIndex) * trackWidth - THUMB_WIDTH / 2 : -THUMB_WIDTH / 2;
+  const thumbCenterX =
+    trackWidth > 0 ? (index / lastIndex) * trackWidth : 0;
+  const thumbLeft = thumbCenterX - THUMB_WIDTH / 2;
 
   return (
     <View style={styles.speechSpeedSliderWrap}>
@@ -101,25 +143,47 @@ export default function SpeechSpeedStepSlider({ value, onChange }: Props) {
           {SPEECH_SPEED_OPTIONS.map(item => {
             const majorIndex = speechSpeedRateToIndex(item.rate);
             const centerX = trackWidth > 0 ? (majorIndex / lastIndex) * trackWidth : 0;
+            const active = exactMajor?.key === item.key;
             return (
-              <View
+              <Animated.View
                 key={`rate-${item.key}`}
                 style={[
                   styles.speechSpeedRateLabelWrap,
                   trackWidth > 0 ? { left: centerX } : null,
+                  active
+                    ? {
+                        transform: [{ scale: dragging ? LABEL_SCALE_ACTIVE * 1.08 : LABEL_SCALE_ACTIVE }],
+                      }
+                    : { opacity: showFloatValue ? 0.45 : 1 },
                 ]}
               >
                 <Text
                   style={[
                     styles.speechSpeedRateLabel,
-                    exactMajor?.key === item.key ? styles.speechSpeedRateLabelActive : null,
+                    active ? styles.speechSpeedRateLabelActive : null,
                   ]}
                 >
                   {item.rateLabel}
                 </Text>
-              </View>
+              </Animated.View>
             );
           })}
+
+          {trackWidth > 0 ? (
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.speechSpeedFloatValueWrap,
+                {
+                  left: thumbCenterX,
+                  opacity: floatOpacity,
+                  transform: [{ scale: floatScale }, { translateY: dragging ? -2 : 0 }],
+                },
+              ]}
+            >
+              <Text style={styles.speechSpeedFloatValueText}>{snapped.toFixed(1)}</Text>
+            </Animated.View>
+          ) : null}
         </View>
       </View>
 
@@ -140,9 +204,15 @@ export default function SpeechSpeedStepSlider({ value, onChange }: Props) {
               ]}
             />
           ))}
-          <View
+          <Animated.View
             pointerEvents="none"
-            style={[styles.speechSpeedSliderThumb, { left: thumbLeft }]}
+            style={[
+              styles.speechSpeedSliderThumb,
+              {
+                left: thumbLeft,
+                transform: [{ scale: thumbScale }],
+              },
+            ]}
           />
         </View>
       </View>
@@ -152,23 +222,29 @@ export default function SpeechSpeedStepSlider({ value, onChange }: Props) {
           {SPEECH_SPEED_OPTIONS.map(item => {
             const majorIndex = speechSpeedRateToIndex(item.rate);
             const centerX = trackWidth > 0 ? (majorIndex / lastIndex) * trackWidth : 0;
+            const active = exactMajor?.key === item.key;
             return (
-              <View
+              <Animated.View
                 key={`label-${item.key}`}
                 style={[
                   styles.speechSpeedBottomLabelWrap,
                   trackWidth > 0 ? { left: centerX } : null,
+                  active
+                    ? {
+                        transform: [{ scale: dragging ? LABEL_SCALE_ACTIVE * 1.08 : LABEL_SCALE_ACTIVE }],
+                      }
+                    : null,
                 ]}
               >
                 <Text
                   style={[
                     styles.speechSpeedBottomLabel,
-                    activeMajor.key === item.key ? styles.speechSpeedBottomLabelActive : null,
+                    active ? styles.speechSpeedBottomLabelActive : null,
                   ]}
                 >
                   {item.label}
                 </Text>
-              </View>
+              </Animated.View>
             );
           })}
         </View>

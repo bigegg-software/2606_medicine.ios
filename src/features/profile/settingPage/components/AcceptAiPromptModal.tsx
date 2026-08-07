@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -21,6 +21,13 @@ export default function AcceptAiPromptModal({
   onConfirm,
 }: AcceptAiPromptModalProps) {
   const insets = useSafeAreaInsets();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setAuthorized(false);
+    }
+  }, [visible]);
 
   return (
     <BottomSheetModal
@@ -97,6 +104,22 @@ export default function AcceptAiPromptModal({
                 <Text style={{ color: '#6D925E' }}>《隐私政策》</Text>。
               </Text>
             </View>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              disabled={saving}
+              onPress={() => setAuthorized(v => !v)}
+              style={styles.acceptAiAuthRow}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Image
+                style={styles.acceptAiAuthIcon}
+                source={
+                  authorized
+                    ? require('@/assets/images/login/icon_select.png')
+                    : require('@/assets/images/login/icon_unselected.png')
+                }
+              />
+              <Text style={styles.acceptAiAuthText}>授权AI数据处理服务</Text>
+            </TouchableOpacity>
           </ScrollView>
 
           <View style={styles.acceptAiBtnRow}>
@@ -109,9 +132,12 @@ export default function AcceptAiPromptModal({
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.8}
-              disabled={saving}
+              disabled={saving || !authorized}
               onPress={onConfirm}
-              style={[styles.acceptAiConfirmBtnWrap, saving && { opacity: 0.6 }]}>
+              style={[
+                styles.acceptAiConfirmBtnWrap,
+                (saving || !authorized) && { opacity: 0.6 },
+              ]}>
               <LinearGradient
                 colors={['#9BBD8E', '#6D925E']}
                 locations={[0, 1]}

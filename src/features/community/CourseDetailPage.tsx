@@ -27,6 +27,7 @@ import {
 import { buildDictLabelMap, DICT_TYPES, getDictDataByType, type DictDataItem } from '@/api/dict';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { formatCourseWatchingCount, stripHtmlText, toCourseId } from './courseHelpers';
+import RichHtmlView from './components/RichHtmlView';
 
 type Route = RouteProp<RootStackParamList, 'CourseDetail'>;
 
@@ -177,7 +178,10 @@ export default function CourseDetailPage() {
     );
   }
 
-  const detailText = stripHtmlText(course.courseDetail) || course.courseIntro || '暂无课程详情';
+  const introText = course.courseIntro?.trim() || '暂无课程简介';
+  const detailHtml = course.courseDetail?.trim() || '';
+  const detailPlain = stripHtmlText(course.courseDetail);
+  const detailFallback = '暂无课程详情';
   const courseTypeLabel = course.courseType
     ? (typeLabelMap[course.courseType] ?? course.courseType)
     : '';
@@ -212,15 +216,6 @@ export default function CourseDetailPage() {
 
         <View style={styles.body}>
           <Text style={styles.title}>{course.title || '课程详情'}</Text>
-          {/* {course.courseIntro ? (
-            <Text style={styles.intro}>{course.courseIntro}</Text>
-          ) : null} */}
-          {/* 
-          <View style={styles.statsRow}>
-            <Text style={styles.statText}>{formatCourseViewCount(course.viewCount)}</Text>
-            <Text style={styles.statText}>{course.likeCount ?? 0} 点赞</Text>
-            <Text style={styles.statText}>{course.favoriteCount ?? 0} 收藏</Text>
-          </View> */}
 
           <Flex style={styles.actionRow}>
             <TouchableOpacity
@@ -255,9 +250,19 @@ export default function CourseDetailPage() {
 
           <Flex align="center" style={styles.sectionTitleRow}>
             <View style={styles.sectionTitleBar} />
+            <Text style={styles.sectionTitle}>简介</Text>
+          </Flex>
+          <Text style={styles.detailText}>{introText}</Text>
+
+          <Flex align="center" style={styles.sectionTitleRow}>
+            <View style={styles.sectionTitleBar} />
             <Text style={styles.sectionTitle}>详情</Text>
           </Flex>
-          <Text style={styles.detailText}>{detailText}</Text>
+          {detailHtml && detailPlain ? (
+            <RichHtmlView html={detailHtml} style={styles.detailHtml} />
+          ) : (
+            <Text style={styles.detailText}>{detailFallback}</Text>
+          )}
         </View>
       </ScrollView>
     </PageLayout>

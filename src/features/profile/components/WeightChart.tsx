@@ -44,6 +44,7 @@ function buildOption(points: WeightPoint[], hideXAxis = false) {
 
   return {
     animation: false,
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
       triggerOn: 'click',
@@ -122,7 +123,8 @@ export default function WeightChart({ data, hideXAxis }: Props) {
   }, [option]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
+      <View style={styles.highlightBarWeight} pointerEvents="none" />
       <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );

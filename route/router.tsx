@@ -474,7 +474,7 @@ export default function RootStack() {
       <Stack.Screen name="WeightPage" component={WeightPage} options={{ title: "体重", showHeaderBackground: false }} />
       <Stack.Screen name="BloodLipidPage" component={BloodLipidPage} options={{ title: "血脂", showHeaderBackground: false }} />
       <Stack.Screen name="UricAcidPage" component={UricAcidPage} options={{ title: "尿酸", showHeaderBackground: false }} />
-      <Stack.Screen name="SortPage" component={SortPage} options={{ title: "体征监测", showHeaderBackground: false }} />
+      <Stack.Screen name="SortPage" component={SortPage} options={{ title: "健康数据", showHeaderBackground: false }} />
       <Stack.Screen name="CalendarPage" component={CalendarPage} options={{ title: "日历视图" }} />
       <Stack.Screen name="ScheduleHistoryPage" component={ScheduleHistoryPage} options={{ title: '历史计划' }} />
       <Stack.Screen
@@ -515,8 +515,8 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
-      <Stack.Screen name="FontSizeSettingPage" component={FontSizeSettingPage} options={{ title: '字体大小', gestureEnabled: false }} />
-      <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速', gestureEnabled: false }} />
+      <Stack.Screen name="FontSizeSettingPage" component={FontSizeSettingPage} options={{ title: '字体大小' }} />
+      <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速' }} />
       <Stack.Screen name="NotificationSettingPage" component={NotificationSettingPage} options={{ title: '消息通知' }} />
       <Stack.Screen name="DataManageSettingPage" component={DataManageSettingPage} options={{ title: '数据管理' }} />
       <Stack.Screen name="DeleteAccountVerifyPage" component={DeleteAccountVerifyPage} options={{ title: '注销账户' }} />

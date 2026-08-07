@@ -137,18 +137,18 @@ export function useVitalsDetailMoreMenu({
         disabled: goalDisabled,
       });
     }
-    if (hasDataInfo) {
-      actions.push({
-        key: 'data-info',
-        label: '数据说明',
-        onPress: handleDataInfo,
-      });
-    }
     if (allRecordsType) {
       actions.push({
         key: 'all-records',
         label: '全部记录',
         onPress: handleAllRecords,
+      });
+    }
+    if (hasDataInfo) {
+      actions.push({
+        key: 'data-info',
+        label: '数据说明',
+        onPress: handleDataInfo,
       });
     }
     return actions;

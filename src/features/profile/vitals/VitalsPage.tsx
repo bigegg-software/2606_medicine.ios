@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, type ImageSourcePropType } from 'react-native';
+import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert, DeviceEventEmitter, type ImageSourcePropType } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import GoalTargetModal from './components/GoalTargetModal';
@@ -10,7 +10,7 @@ import styles from '@/css/vitals/index';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppTheme } from '@/common/theme';
-import updateHealthKit from '@/utils/healthKit';
+import updateHealthKit, { HEALTH_KIT_SYNC_COMPLETED } from '@/utils/healthKit';
 import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
 import BloodPressureChart from '../components/BloodPressureChart';
@@ -372,6 +372,12 @@ export default function VitalsPage() {
   useFocusEffect(
     useCallback(() => {
       void loadMeasureDataRef.current(hasLoadedOnceRef.current ? 'silent' : 'initial');
+
+      // 同步上传完成后，仅在本页有焦点时刷新体征数据
+      const sub = DeviceEventEmitter.addListener(HEALTH_KIT_SYNC_COMPLETED, () => {
+        void loadMeasureDataRef.current('silent');
+      });
+      return () => sub.remove();
     }, []),
   );
 

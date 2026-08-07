@@ -1,5 +1,6 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions } from 'react-native';
 import { AppTheme } from '@/common/theme';
+const width = Dimensions.get('window').width;
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
@@ -67,11 +68,11 @@ const styles = StyleSheet.create({
     speechSpeedRateLabels: {
         position: 'relative',
         width: '100%',
-        height: 20,
+        height: 28,
     },
     speechSpeedRateLabelWrap: {
         position: 'absolute',
-        top: 0,
+        top: 4,
         width: 48,
         marginLeft: -24,
         alignItems: 'center',
@@ -84,16 +85,30 @@ const styles = StyleSheet.create({
     },
     speechSpeedRateLabelActive: {
         fontWeight: 'bold',
-        fontSize: 14,
+        fontSize: 16,
         color: '#000000',
+    },
+    speechSpeedFloatValueWrap: {
+        position: 'absolute',
+        top: 0,
+        width: 52,
+        marginLeft: -26,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    speechSpeedFloatValueText: {
+        fontWeight: 'bold',
+        fontSize: 18,
+        color: AppTheme.primaryColor,
+        textAlign: 'center',
     },
     speechSpeedSliderTrackHit: {
         marginVertical: 12,
-        height: 30,
+        height: 36,
         backgroundColor: '#F6F8FB',
         borderRadius: 8,
         paddingHorizontal: 15,
-        paddingVertical: 5,
+        paddingVertical: 8,
         justifyContent: 'center',
     },
     speechSpeedSliderTrack: {
@@ -119,17 +134,17 @@ const styles = StyleSheet.create({
     },
     speechSpeedSliderThumb: {
         position: 'absolute',
-        top: 0,
-        width: 10,
-        height: 20,
-        backgroundColor: '#999999',
+        top: -2,
+        width: 14,
+        height: 24,
+        backgroundColor: AppTheme.primaryColor,
         borderRadius: 25,
         zIndex: 2,
     },
     speechSpeedBottomLabels: {
         position: 'relative',
         width: '100%',
-        height: 22,
+        height: 26,
     },
     speechSpeedBottomLabelWrap: {
         position: 'absolute',
@@ -146,7 +161,7 @@ const styles = StyleSheet.create({
     },
     speechSpeedBottomLabelActive: {
         fontWeight: 'bold',
-        fontSize: 16,
+        fontSize: 18,
         color: '#000000',
     },
     optionBox: {
@@ -374,16 +389,16 @@ const styles = StyleSheet.create({
     },
     acceptAiSheet: {
         width: '100%',
-        borderTopLeftRadius: 18,
-        borderTopRightRadius: 18,
+        borderTopLeftRadius: 30,
+        borderTopRightRadius: 30,
         paddingTop: 18,
         paddingHorizontal: 20,
         alignItems: 'center',
         overflow: 'visible',
     },
     acceptAiTopImg: {
-        width: 310,
-        height: 17
+        width: width - 66,
+        height: ((width - 66) * 17) / 310,
     },
     acceptAiTitle: {
         marginTop: 48,
@@ -434,6 +449,24 @@ const styles = StyleSheet.create({
         marginLeft: 8,
         textAlign: 'left',
         flexShrink: 1,
+    },
+    acceptAiAuthRow: {
+        marginTop: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        alignSelf: 'stretch',
+    },
+    acceptAiAuthIcon: {
+        width: 18,
+        height: 18,
+        flexShrink: 0,
+    },
+    acceptAiAuthText: {
+        marginLeft: 8,
+        flexShrink: 1,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#999999',
     },
     acceptAiBtnRow: {
         marginTop: 20,
@@ -519,7 +552,7 @@ const styles = StyleSheet.create({
     deleteAccountIcon: {
         width: 18,
         height: 18,
-        marginRight:10,
+        marginRight: 10,
         flexShrink: 0,
     },
     deleteAccountItemText: {
@@ -539,19 +572,51 @@ const styles = StyleSheet.create({
         color: '#888888',
         lineHeight: 18,
     },
-    deleteAccountConfirmBtn: {
+    deleteAccountBtnRow: {
         marginTop: 20,
         width: '100%',
-        height: 45,
-        borderRadius: 8,
-        backgroundColor: '#E85D5D',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
         alignItems: 'center',
-        justifyContent: 'center',
+        gap: 12,
     },
-    deleteAccountConfirmText: {
-        fontWeight: 'bold',
+    deleteAccountDeleteBtn: {
+        flex: 1,
+        height: 51,
+        borderRadius: 8,
+        backgroundColor: 'rgba(251,69,80,0.06)',
+        borderWidth: 2,
+        borderColor: 'rgba(251,69,80,0.16)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.04,
+        shadowRadius: 15,
+        elevation: 2,
+    },
+    deleteAccountKeepBtn: {
+        flex: 1,
+        height: 51,
+        borderRadius: 8,
+        backgroundColor: '#FFFFFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.04,
+        shadowRadius: 15,
+        elevation: 2,
+    },
+    deleteAccountDeleteText: {
+        fontWeight: '500',
         fontSize: 16,
-        color: '#FFFFFF',
+        color: '#FB4550',
+    },
+    deleteAccountKeepText: {
+        fontWeight: '500',
+        fontSize: 16,
+        color: '#333333',
     },
 });
 

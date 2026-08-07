@@ -1,77 +1,92 @@
 import React, { useMemo } from 'react';
-import { View, Text } from 'react-native';
-import { Flex } from '@ant-design/react-native';
-import styles from '@/css/assistant/assistant';
-import type {
-  MedicationPlanGroupView,
-  MedicationPlanItemView,
-} from '@/src/features/profile/medication/medicationHelpers';
+import { View, Text, Image } from 'react-native';
+import calendarStyles from '@/css/schedule/calendar';
+import assistantStyles from '@/css/assistant/assistant';
+import { mapTodayMedicationGroupsToTimelineItems } from '@/src/features/schedule/calendarHelpers';
+import type { MedicationPlanGroupView } from '@/src/features/profile/medication/medicationHelpers';
 
-function PlanTypeBadge({ label, isPrescription }: { label: string; isPrescription: boolean }) {
+const DRUG_ICON = require('@/assets/images/schedule/yw.png');
+
+type Props = {
+  groups: MedicationPlanGroupView[];
+};
+
+function MedicationStatusBadge({
+  taken,
+  canCheckIn,
+}: {
+  taken: boolean;
+  canCheckIn?: boolean;
+}) {
+  const isTaken = Boolean(taken);
+  const label = isTaken ? '已服用' : canCheckIn ? '待服用' : '未服用';
+
   return (
-    <View style={isPrescription ? styles.medicationBadgeCF : styles.medicationBadgeGR}>
-      <Text style={isPrescription ? styles.medicationBadgeCFText : styles.medicationBadgeGRText}>
+    <View
+      style={
+        isTaken
+          ? assistantStyles.medicationStatusBadgeTaken
+          : assistantStyles.medicationStatusBadgePending
+      }>
+      <Text
+        style={
+          isTaken
+            ? assistantStyles.medicationStatusBadgeTakenText
+            : assistantStyles.medicationStatusBadgePendingText
+        }>
         {label}
       </Text>
     </View>
   );
 }
 
-function DoseStatus({ taken }: { taken: boolean }) {
-  return (
-    <Text style={taken ? styles.medicationReminderStatusTaken : styles.medicationReminderStatusPending}>
-      {taken ? '已服用' : '待服用'}
-    </Text>
-  );
-}
-
-function formatDoseLabel(doseText: string) {
-  const dose = doseText.split('，')[0]?.trim();
-  return dose || doseText || '--';
-}
-
-function flattenMedicationRows(groups: MedicationPlanGroupView[]): MedicationPlanItemView[] {
-  return groups.flatMap(group =>
-    group.items.map(item => ({
-      ...item,
-      medicationPlanTime: item.medicationPlanTime || group.timeLabel || group.time,
-    })),
-  );
-}
-
-type Props = {
-  groups: MedicationPlanGroupView[];
-};
-
 export default function MedicationReminderCards({ groups }: Props) {
-  const rows = useMemo(() => flattenMedicationRows(groups), [groups]);
+  const items = useMemo(() => mapTodayMedicationGroupsToTimelineItems(groups), [groups]);
 
-  if (rows.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
   return (
-    <View style={styles.medicationReminderBox}>
-      {rows.map((item, index) => (
-        <Flex
-          key={item.key}
-          align="center"
-          style={[styles.medicationReminderRow, index > 0 ? styles.medicationReminderRowGap : null]}>
-          <Flex align="center" style={styles.medicationReminderLeftCol}>
-            <Text style={styles.medicationReminderName} numberOfLines={1}>
-              {item.name}
-            </Text>
-            <PlanTypeBadge label={item.planTypeLabel} isPrescription={item.planType === 1} />
-          </Flex>
-          <View style={styles.medicationReminderCenterCol}>
-            <Text style={styles.medicationReminderDose}>{formatDoseLabel(item.doseText)}</Text>
+    <View style={assistantStyles.todayScheduleBox}>
+      {items.map((item, index) => {
+        const eventLabel = item.eventBasedLabel?.trim();
+        return (
+          <View
+            key={item.key}
+            style={[
+              assistantStyles.todayScheduleCard,
+              index > 0 ? assistantStyles.todayScheduleCardGap : null,
+            ]}>
+            <View style={assistantStyles.todayScheduleMealRow}>
+              <Image
+                style={[
+                  assistantStyles.todayScheduleCardIcon,
+                  assistantStyles.todayScheduleMealIcon,
+                ]}
+                source={DRUG_ICON}
+              />
+              <View style={assistantStyles.todayScheduleMealBody}>
+                <View style={assistantStyles.todayScheduleMealTitleRow}>
+                  <Text style={assistantStyles.todayScheduleMealTitle} numberOfLines={1}>
+                    {item.title}
+                  </Text>
+                  <MedicationStatusBadge taken={Boolean(item.taken)} canCheckIn={item.canCheckIn} />
+                  {eventLabel ? (
+                    <Text style={calendarStyles.taskCardMedicationType}>{eventLabel}</Text>
+                  ) : null}
+                </View>
+                {item.desc ? (
+                  <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
+                    {item.desc}
+                  </Text>
+                ) : null}
+              </View>
+              <Text style={assistantStyles.todayScheduleMealTime}>{item.time || '--'}</Text>
+            </View>
           </View>
-          <Flex align="center" style={styles.medicationReminderRightCol}>
-            <Text style={styles.medicationReminderTime}>{item.medicationPlanTime || '--'}</Text>
-            <DoseStatus taken={item.taken} />
-          </Flex>
-        </Flex>
-      ))}
+        );
+      })}
     </View>
   );
 }

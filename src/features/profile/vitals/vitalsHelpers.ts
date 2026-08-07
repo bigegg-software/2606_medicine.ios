@@ -717,6 +717,13 @@ function getOriginalReadingTimestamp(reading: WearableOriginalReading) {
   return parsed.isValid() ? parsed : null;
 }
 
+function getOriginalReadingEndTimestamp(reading: WearableOriginalReading) {
+  const dateStr = reading.endDate ?? reading.startDate;
+  if (!dateStr) return null;
+  const parsed = moment(dateStr);
+  return parsed.isValid() ? parsed : null;
+}
+
 type WearableTimedReading = { ts: moment.Moment; value: number };
 
 function collectWearableReadings(
@@ -730,7 +737,8 @@ function collectWearableReadings(
       const ts = getOriginalReadingTimestamp(reading);
       const value = parseValue(reading);
       if (ts && value != null && value > 0) {
-        readings.push({ ts, value: Math.round(value) });
+        // 保留小数：活动能量等可为亚千卡增量，Math.round 会丢数据
+        readings.push({ ts, value });
       }
     }
   }
@@ -739,7 +747,10 @@ function collectWearableReadings(
 }
 
 function collectHeartRateReadings(items: WearableDataItem[]) {
-  return collectWearableReadings(items, reading => parseMeasureNumber(reading.value));
+  return collectWearableReadings(items, reading => {
+    const raw = parseMeasureNumber(reading.value);
+    return raw != null ? Math.round(raw) : null;
+  });
 }
 
 function collectOxygenReadings(items: WearableDataItem[]) {
@@ -994,14 +1005,30 @@ export function getStepsSummary(items: WearableDataItem[], range: VitalsRange, s
   };
 }
 
+/**
+ * 判断 originalData 是「小时/片段增量」还是「累计快照」。
+ * Apple Watch 活动能量常见为增量：各段之和 ≈ 全日字段值，单段可超过全日 50%（例如运动时段）。
+ */
 function isIncrementalEnergyReadings(values: number[], fieldValue: number) {
   if (!values.length) return true;
+  if (values.length === 1) {
+    // 单点无法区分；优先信字段总值
+    return false;
+  }
+
   const sumReadings = values.reduce((sum, value) => sum + value, 0);
   const maxReading = Math.max(...values);
-  if (fieldValue <= 0) {
-    return sumReadings > maxReading * 1.5;
+
+  if (fieldValue > 0) {
+    const sumRatio = sumReadings / fieldValue;
+    const maxRatio = maxReading / fieldValue;
+    // 各段之和接近全日总值 → 增量
+    if (sumRatio >= 0.8 && sumRatio <= 1.25) return true;
+    // 单点接近全日总值 → 累计快照
+    if (maxRatio >= 0.85) return false;
   }
-  return sumReadings >= fieldValue * 0.85 && maxReading <= fieldValue * 0.5;
+
+  return sumReadings > maxReading * 1.5;
 }
 
 function isIncrementalEnergyDay(activeItems: WearableDataItem[], basalItems: WearableDataItem[]) {
@@ -1163,14 +1190,17 @@ export function getEnergyDisplayDataTime(activeItems: WearableDataItem[], basalI
   }
 
   const { activeItems: dayActive, basalItems: dayBasal } = resolveEnergyDisplayDay(activeItems, basalItems);
-  const events = [
-    ...collectWearableReadings(dayActive, reading => parseMeasureNumber(reading.value)),
-    ...collectWearableReadings(dayBasal, reading => parseMeasureNumber(reading.value)),
-  ].sort((a, b) => a.ts.valueOf() - b.ts.valueOf());
+  const endTimes: moment.Moment[] = [];
+  for (const item of [...dayActive, ...dayBasal]) {
+    for (const reading of flattenWearableOriginalData(item)) {
+      const ts = getOriginalReadingEndTimestamp(reading);
+      if (ts) endTimes.push(ts);
+    }
+  }
 
-  if (events.length) {
-    const ts = events[events.length - 1].ts;
-    return formatVitalsCardTimeOrDate(ts);
+  if (endTimes.length) {
+    endTimes.sort((a, b) => a.valueOf() - b.valueOf());
+    return formatVitalsCardTimeOrDate(endTimes[endTimes.length - 1]);
   }
 
   const bars = buildEnergyTodayBarSeries(activeItems, basalItems);

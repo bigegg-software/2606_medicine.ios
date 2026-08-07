@@ -308,7 +308,39 @@ function TimelineCardItem({
   onMedicationCheckIn: (item: CalendarTimelineItem) => void;
 }) {
   const isDietItem = item.kind === 'diet';
+  const isDrugItem = item.kind === 'drug';
   const isPressable = isDietItem || item.kind === 'activity' || item.kind === 'live';
+
+  if (isDrugItem) {
+    return (
+      <Flex style={styles.taskCard} align="center">
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={{ flex: 1 }}
+          onPress={() => onPressItem(item)}>
+          <Flex align="center">
+            <Image style={styles.taskCardIcon} source={TIMELINE_ICONS[item.kind]} />
+            <View style={{ flex: 1 }}>
+              <Flex align="center" style={{ flexWrap: 'wrap' }}>
+                <Text style={styles.taskCardTitle}>{item.title}</Text>
+                {item.eventBasedLabel ? (
+                  <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+                ) : null}
+              </Flex>
+              {item.desc ? (
+                <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
+              ) : null}
+            </View>
+          </Flex>
+        </TouchableOpacity>
+        <MedicationStatus
+          item={item}
+          checkingIn={checkingInKey === item.key}
+          onCheckIn={onMedicationCheckIn}
+        />
+      </Flex>
+    );
+  }
 
   return (
     <TouchableOpacity
@@ -323,21 +355,11 @@ function TimelineCardItem({
           <View style={{ flex: 1 }}>
             <Flex align="center" style={{ flexWrap: 'wrap' }}>
               <Text style={styles.taskCardTitle}>{item.title}</Text>
-              {item.kind === 'drug' && item.eventBasedLabel ? (
-                <Text style={styles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
-              ) : null}
             </Flex>
             {item.desc ? (
               <Text style={styles.taskCardDesc} numberOfLines={2}>{item.desc}</Text>
             ) : null}
           </View>
-          {item.kind === 'drug' ? (
-            <MedicationStatus
-              item={item}
-              checkingIn={checkingInKey === item.key}
-              onCheckIn={onMedicationCheckIn}
-            />
-          ) : null}
         </Flex>
       )}
     </TouchableOpacity>
@@ -355,7 +377,7 @@ function LiveTimelineCard({
     <View style={styles.mergedTimelineCard}>
       {items.map((item, itemIndex) => {
         const subtitle =
-          [item.liveAnchorName, item.livePlatform].filter(Boolean).join('  ') || item.desc;
+          [item.liveAnchorName, item.livePlatform].filter(Boolean).join('、') || item.desc;
         const statusText = getLiveStatusText(item.liveStatus, item.liveStatusName);
 
         return (
@@ -447,12 +469,14 @@ function MedicationTimelineCard({
   items,
   checkingInKey,
   checkingInAll,
+  onPressItem,
   onMedicationCheckIn,
   onMedicationCheckInAll,
 }: {
   items: CalendarTimelineItem[];
   checkingInKey: string | null;
   checkingInAll: boolean;
+  onPressItem: (item: CalendarTimelineItem) => void;
   onMedicationCheckIn: (item: CalendarTimelineItem) => void;
   onMedicationCheckInAll: (items: CalendarTimelineItem[]) => void;
 }) {
@@ -462,13 +486,18 @@ function MedicationTimelineCard({
   return (
     <View style={styles.mergedTimelineCard}>
       <Flex justify="between" align="center">
-        <Flex align="center">
-          <Image
-            style={styles.taskCardIcon}
-            source={require('@/assets/images/schedule/yy.png')}
-          />
-          <Text style={styles.taskCardTitle}>用药</Text>
-        </Flex>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => onPressItem(items[0])}
+          disabled={items.length === 0}>
+          <Flex align="center">
+            <Image
+              style={styles.taskCardIcon}
+              source={require('@/assets/images/schedule/yy.png')}
+            />
+            <Text style={styles.taskCardTitle}>用药</Text>
+          </Flex>
+        </TouchableOpacity>
         {canCheckInItems.length > 0 ? (
           <TouchableOpacity
             activeOpacity={0.7}
@@ -494,15 +523,16 @@ function MedicationTimelineCard({
         ) : null}
       </Flex>
 
-      {items.map((item, itemIndex) => (
+      {items.map(item => (
         <Flex
           key={item.key}
           justify="between"
           align="center"
-          style={[
-            styles.mergedTimelineCardItem,
-          ]}>
-          <View style={styles.mergedMedicationContent}>
+          style={styles.mergedTimelineCardItem}>
+          <TouchableOpacity
+            activeOpacity={0.7}
+            style={styles.mergedMedicationContent}
+            onPress={() => onPressItem(item)}>
             <Flex align="center" style={styles.mergedMedicationTitleRow}>
               <Text style={styles.mergedMedicationName} numberOfLines={1}>
                 {item.title}
@@ -513,7 +543,7 @@ function MedicationTimelineCard({
                 {item.desc}
               </Text>
             ) : null}
-          </View>
+          </TouchableOpacity>
           <MedicationStatus
             item={item}
             checkingIn={checkingInAll || checkingInKey === item.key}
@@ -584,6 +614,7 @@ function TimelineSection({
                         items={medicationItems}
                         checkingInKey={checkingInKey}
                         checkingInAll={checkingInGroupKey === group.key}
+                        onPressItem={onPressItem}
                         onMedicationCheckIn={onMedicationCheckIn}
                         onMedicationCheckInAll={items => onMedicationCheckInAll(items, group.key)}
                       />
@@ -849,6 +880,12 @@ export default function ScheduleCalendarPage() {
     setSelectedDate(clampScheduleCalendarDate(dateKey));
   }, []);
 
+  const handleChangeMonth = useCallback((nextMonth: Moment) => {
+    const month = clampScheduleCalendarMonth(nextMonth);
+    setCurrentMonth(month);
+    setSelectedDate(clampScheduleCalendarDate(month.format('YYYY-MM-DD')));
+  }, []);
+
   useEffect(() => {
     void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
@@ -911,6 +948,10 @@ export default function ScheduleCalendarPage() {
         strengthLevel: item.strengthLevel,
         taskIndex: item.exerciseTaskIndex,
       });
+      return;
+    }
+    if (item.kind === 'drug') {
+      navigation.navigate('Medication', { tab: 'medication' });
       return;
     }
     if (item.kind === 'activity' && item.activityId) {
@@ -1018,7 +1059,7 @@ export default function ScheduleCalendarPage() {
               disabled={!canGoPrevMonth}
               onPress={() => {
                 if (!canGoPrevMonth) return;
-                setCurrentMonth(m => clampScheduleCalendarMonth(moment(m).subtract(1, 'month')));
+                handleChangeMonth(moment(currentMonth).subtract(1, 'month'));
               }}
               style={[styles.navIconLeftWrap, !canGoPrevMonth && { opacity: 0.35 }]}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -1036,14 +1077,12 @@ export default function ScheduleCalendarPage() {
                 if (year === MIN_YEAR && month < MIN_MONTH) {
                   month = MIN_MONTH;
                 }
-                setCurrentMonth(
-                  clampScheduleCalendarMonth(
-                    moment({
-                      year,
-                      month: month - 1,
-                      date: 1,
-                    }),
-                  ),
+                handleChangeMonth(
+                  moment({
+                    year,
+                    month: month - 1,
+                    date: 1,
+                  }),
                 );
               }}>
               <TouchableOpacity activeOpacity={0.7} style={styles.dayTitleBtn}>
@@ -1052,7 +1091,7 @@ export default function ScheduleCalendarPage() {
             </Picker>
             <TouchableOpacity
               activeOpacity={0.7}
-              onPress={() => setCurrentMonth(m => moment(m).add(1, 'month'))}
+              onPress={() => handleChangeMonth(moment(currentMonth).add(1, 'month'))}
               style={styles.navIconRightWrap}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >

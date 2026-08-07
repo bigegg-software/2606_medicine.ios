@@ -186,6 +186,10 @@ export default function ProfileEditPage() {
       Alert.alert('提示', '请输入姓名');
       return;
     }
+    if (!form.gender.trim() || !(GENDERS as readonly string[]).includes(form.gender)) {
+      Alert.alert('提示', '请选择性别');
+      return;
+    }
     if (!form.height.trim()) {
       Alert.alert('提示', '请输入身高');
       return;
@@ -211,7 +215,7 @@ export default function ProfileEditPage() {
       const res = await updateUserBaseInfo({
         avatarOssId: form.avatarOssId,
         name: form.name.trim(),
-        gender: form.gender || undefined,
+        gender: form.gender,
         birthDate: form.birthDate || undefined,
         height,
         weight,
@@ -233,7 +237,7 @@ export default function ProfileEditPage() {
         initialWeightRef.current = weight;
       }
 
-      await dispatch(fetchUserBaseInfo());
+      await dispatch(fetchUserBaseInfo({ force: true }));
       Toast.show('资料已保存');
       // Alert.alert('成功', '资料已保存', [{ text: '确定', onPress: () => navigation.goBack() }]);
     } catch {

@@ -201,7 +201,7 @@ export default function DeleteAccountVerifyPage() {
                 </View>
 
                 <TouchableOpacity
-                  style={[styles.button, { backgroundColor: '#E85D5D' }, submitting && styles.buttonDisabled]}
+                  style={[styles.button, submitting && styles.buttonDisabled]}
                   disabled={submitting}
                   onPress={() => {
                     void confirmDelete();
@@ -210,7 +210,7 @@ export default function DeleteAccountVerifyPage() {
                     {submitting ? (
                       <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.buttonText}>确认注销</Text>
+                      <Text style={styles.buttonText}>确认删除</Text>
                     )}
                   </Flex>
                 </TouchableOpacity>

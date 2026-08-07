@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, Image, ActivityIndicator } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import styles from '@/css/exercise';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchUserBaseInfo } from '@/store/actions/user';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { formatExerciseUserInfoText } from './utils/exerciseHelpers';
 import TrainingPage from './components/TrainingPage';
@@ -18,6 +19,7 @@ import CompleteProfileLink from '@/src/features/profile/healthRecord/components/
 
 
 export default function CommunityPage() {
+  const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
@@ -48,8 +50,9 @@ export default function CommunityPage() {
 
   useFocusEffect(
     useCallback(() => {
+      void dispatch(fetchUserBaseInfo());
       void loadExerciseRule();
-    }, [loadExerciseRule]),
+    }, [dispatch, loadExerciseRule]),
   );
 
   const pageList = [

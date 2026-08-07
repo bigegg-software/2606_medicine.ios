@@ -453,7 +453,7 @@ function mapLiveTimelineItem(
   const platform = platformValue
     ? platformLabelMap[platformValue] ?? platformValue
     : undefined;
-  const subtitle = [anchor, platform].filter(Boolean).join('  ');
+  const subtitle = [anchor, platform].filter(Boolean).join('、');
   return {
     key: `live-${item.liveId ?? index}`,
     time: formatTimelineTime(item.liveStartTime),

@@ -65,6 +65,7 @@ function buildOption(points: BloodPressurePoint[], labels: string[], hideXAxis =
 
   return {
     animation: false,
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
       triggerOn: 'click',
@@ -183,7 +184,8 @@ export default function BloodPressureChart({ data, labels, hideXAxis }: Props) {
   }, [option]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
+      <View style={styles.highlightBar} pointerEvents="none" />
       <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );

@@ -227,6 +227,7 @@ export default function VitalsPage() {
 
         try {
             const detailItems = await loadBloodSugarDetailItems(range);
+            console.log(JSON.stringify(detailItems))
             if (detailItems == null) {
                 applyEmptyBloodSugarState(range, emptySetters);
                 return;

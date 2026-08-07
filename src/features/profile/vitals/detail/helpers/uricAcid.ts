@@ -141,7 +141,7 @@ export function getUricAcidChartReferenceLines(gender?: string | null) {
   const { normalMax } = getUricAcidReferenceLines(gender);
   return {
     safetyLineY: normalMax,
-    safetyLineLabel: `上线${normalMax}`,
+    safetyLineLabel: `上限${normalMax}`,
   };
 }
 

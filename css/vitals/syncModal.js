@@ -181,10 +181,11 @@ const styles = StyleSheet.create({
         elevation: 8,
     },
     autoSyncDialogLogo: {
-        width: 68,
-        height: 68,
+        width: 88,
+        height: 88,
         alignSelf: 'center',
-        marginBottom: 16,
+        marginTop: 20,
+        marginBottom: 30,
     },
     autoSyncDialogTitle: {
         fontWeight: '700',

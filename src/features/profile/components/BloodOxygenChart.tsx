@@ -90,6 +90,7 @@ function buildOption(points: BloodOxygenPoint[], categoryLabels: string[], hideX
 
   return {
     animation: false,
+    backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
       triggerOn: 'click',
@@ -167,7 +168,8 @@ export default function BloodOxygenChart({ data, labels, hideXAxis }: Props) {
   }, [option]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
+      <View style={styles.highlightBar} pointerEvents="none" />
       <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );

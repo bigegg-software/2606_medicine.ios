@@ -5,6 +5,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/route/router';
 import calendarStyles from '@/css/schedule/calendar';
 import assistantStyles from '@/css/assistant/assistant';
+import { MEAL_CATEGORY_BY_KEY } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import moment from 'moment';
 import {
   getTodayScheduleIcon,
   type TodayScheduleItem,
@@ -26,42 +28,93 @@ function ScheduleCard({
   showGap?: boolean;
   onPress?: () => void;
 }) {
-  const content = (
-    <View style={assistantStyles.todayScheduleMealRow}>
-      <Image
-        style={[assistantStyles.todayScheduleCardIcon, assistantStyles.todayScheduleMealIcon]}
-        source={getTodayScheduleIcon(item)}
-      />
-      <View style={assistantStyles.todayScheduleMealBody}>
-        <View style={assistantStyles.todayScheduleMealTitleRow}>
+  const isActivity = item.kind === 'activity';
+  const isLive = item.kind === 'live';
+  const location = item.location || (isActivity ? item.desc : '');
+  const liveSubtitle =
+    item.liveSubtitle
+    || [item.liveAnchorName, item.livePlatform].filter(Boolean).join('、');
+
+  let content: React.ReactNode;
+
+  if (isActivity) {
+    content = (
+      <View style={assistantStyles.todayScheduleMealRow}>
+        <Image
+          style={[assistantStyles.todayScheduleCardIcon, assistantStyles.todayScheduleMealIcon]}
+          source={getTodayScheduleIcon(item)}
+        />
+        <View style={assistantStyles.todayScheduleMealBody}>
           <Text style={assistantStyles.todayScheduleMealTitle} numberOfLines={1}>
             {item.title}
           </Text>
-          {item.kind === 'drug' && item.eventBasedLabel ? (
-            <Text style={calendarStyles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+          {location ? (
+            <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
+              {location}
+            </Text>
           ) : null}
         </View>
-        {item.desc ? (
-          <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
-            {item.desc}
-          </Text>
-        ) : null}
-        {item.kind === 'drug' ? (
-          <Text
-            style={[
-              assistantStyles.todayScheduleCardStatusInline,
-              item.taken ? assistantStyles.todayScheduleCardStatusTaken : null,
-            ]}>
-            {item.taken ? '已服用' : item.canCheckIn ? '待服用' : '未服用'}
-          </Text>
-        ) : null}
-        {item.kind === 'ex' && item.progress != null ? (
-          <Text style={assistantStyles.todayScheduleCardProgressInline}>{item.progress}%</Text>
-        ) : null}
+        <Text style={assistantStyles.todayScheduleMealTime}>{item.time}</Text>
       </View>
-      <Text style={assistantStyles.todayScheduleMealTime}>{item.time}</Text>
-    </View>
-  );
+    );
+  } else if (isLive) {
+    content = (
+      <View style={assistantStyles.todayScheduleMealRow}>
+        <Image
+          style={[assistantStyles.todayScheduleCardIcon, assistantStyles.todayScheduleMealIcon]}
+          source={getTodayScheduleIcon(item)}
+        />
+        <View style={assistantStyles.todayScheduleMealBody}>
+          <Text style={assistantStyles.todayScheduleMealTitle} numberOfLines={1}>
+            {item.title}
+          </Text>
+          {liveSubtitle ? (
+            <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={1}>
+              {liveSubtitle}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={assistantStyles.todayScheduleMealTime}>{item.time}</Text>
+      </View>
+    );
+  } else {
+    content = (
+      <View style={assistantStyles.todayScheduleMealRow}>
+        <Image
+          style={[assistantStyles.todayScheduleCardIcon, assistantStyles.todayScheduleMealIcon]}
+          source={getTodayScheduleIcon(item)}
+        />
+        <View style={assistantStyles.todayScheduleMealBody}>
+          <View style={assistantStyles.todayScheduleMealTitleRow}>
+            <Text style={assistantStyles.todayScheduleMealTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {item.kind === 'drug' && item.eventBasedLabel ? (
+              <Text style={calendarStyles.taskCardMedicationType}>{item.eventBasedLabel}</Text>
+            ) : null}
+          </View>
+          {item.desc ? (
+            <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
+              {item.desc}
+            </Text>
+          ) : null}
+          {item.kind === 'drug' ? (
+            <Text
+              style={[
+                assistantStyles.todayScheduleCardStatusInline,
+                item.taken ? assistantStyles.todayScheduleCardStatusTaken : null,
+              ]}>
+              {item.taken ? '已服用' : item.canCheckIn ? '待服用' : '未服用'}
+            </Text>
+          ) : null}
+          {item.kind === 'ex' && item.progress != null ? (
+            <Text style={assistantStyles.todayScheduleCardProgressInline}>{item.progress}%</Text>
+          ) : null}
+        </View>
+        <Text style={assistantStyles.todayScheduleMealTime}>{item.time}</Text>
+      </View>
+    );
+  }
 
   if (!onPress) {
     return (
@@ -85,6 +138,24 @@ export default function TodayScheduleCards({ payload }: Props) {
   const navigation = useNavigation<Nav>();
 
   const handleItemPress = useCallback((item: TodayScheduleItem) => {
+    if (item.kind === 'diet') {
+      const metaKey = item.mealCard?.key?.split('-')[0] ?? '';
+      const mealCategory = MEAL_CATEGORY_BY_KEY[metaKey];
+      if (mealCategory != null) {
+        navigation.navigate('MealRecognitionPage', { mealCategory });
+        return;
+      }
+      requestAnimationFrame(() => {
+        navigation.navigate('MealDayDetailPage', {
+          customerLocalDate: moment().format('YYYY-MM-DD'),
+        });
+      });
+      return;
+    }
+    if (item.kind === 'drug') {
+      navigation.navigate('Medication', { tab: 'medication' });
+      return;
+    }
     if (item.kind === 'activity' && item.activityId) {
       navigation.navigate('ActivityDetail', { id: item.activityId });
       return;
@@ -101,7 +172,10 @@ export default function TodayScheduleCards({ payload }: Props) {
   return (
     <View style={assistantStyles.todayScheduleBox}>
       {payload.items.map((item, index) => {
-        const canNavigate = (item.kind === 'activity' && item.activityId)
+        const canNavigate =
+          item.kind === 'diet'
+          || item.kind === 'drug'
+          || (item.kind === 'activity' && item.activityId)
           || (item.kind === 'live' && item.liveId);
 
         return (

@@ -16,7 +16,7 @@ export default function DietCheckInSuccessModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.signInOverlay}>
-        <View style={localStyles.column}>
+        <View style={localStyles.centerWrap}>
           <View style={styles.signInWrap}>
             <Image style={styles.imgModel} source={require('@/assets/images/user/model_rl.png')} />
             <LinearGradient
@@ -68,8 +68,9 @@ export default function DietCheckInSuccessModal({
 }
 
 const localStyles = StyleSheet.create({
-  column: {
+  centerWrap: {
     alignItems: 'center',
+    position: 'relative',
   },
   boxNoConfirm: {
     paddingBottom: 28,
@@ -79,7 +80,10 @@ const localStyles = StyleSheet.create({
     marginBottom: 4,
   },
   closeBtn: {
+    position: 'absolute',
+    top: '100%',
     marginTop: 40,
+    alignSelf: 'center',
   },
   closeIcon: {
     width: 45,

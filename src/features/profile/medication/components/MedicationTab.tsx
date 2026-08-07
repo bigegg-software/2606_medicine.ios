@@ -20,6 +20,7 @@ import {
     loadMedicationDictMaps,
     loadMedicationHistory,
     loadMedicationPlanGroups,
+    limitMedicationHistoryDays,
     submitMedicationCheckIn,
     type DrugTipSettings,
     type MedicationDictMaps,
@@ -121,8 +122,23 @@ export default function MedicationTab() {
         [planGroups],
     );
 
+    const previewHistoryDays = useMemo(
+        () => limitMedicationHistoryDays(historyDays, 5),
+        [historyDays],
+    );
+
     useEffect(() => {
-        setTipSettings(buildDrugTipSettingsFromUserExtr(userExtr));
+        const next = buildDrugTipSettingsFromUserExtr(userExtr);
+        setTipSettings(prev => {
+            if (
+                prev.drugIsTip === next.drugIsTip
+                && prev.drugBeforeTipTime === next.drugBeforeTipTime
+                && prev.drugTipTypes.join(',') === next.drugTipTypes.join(',')
+            ) {
+                return prev;
+            }
+            return next;
+        });
     }, [userExtr]);
 
     const reminderEnabled = tipSettings.drugIsTip === 1;
@@ -138,16 +154,18 @@ export default function MedicationTab() {
             merged.drugIsTip = 0;
         }
 
+        const previous = tipSettings;
+        setTipSettings(merged);
         setSavingTip(true);
         try {
             const payload = buildUpdateDrugTipInfoPayload(merged);
             const res = await updateDrugTipInfo(payload);
             if (!isResourceApiOk(res as any)) {
+                setTipSettings(previous);
                 Toast.show((res as any)?.msg || '保存提醒设置失败', 1.5);
                 return;
             }
 
-            setTipSettings(merged);
             if (userExtr) {
                 dispatch({
                     type: SET_USER_EXTR,
@@ -160,6 +178,7 @@ export default function MedicationTab() {
                 });
             }
         } catch {
+            setTipSettings(previous);
             Toast.show('保存提醒设置失败', 1.5);
         } finally {
             setSavingTip(false);
@@ -169,8 +188,9 @@ export default function MedicationTab() {
     const handleAdvanceTimeChange = useCallback((value: string) => {
         const minutes = Number(value);
         if (minutes !== 5 && minutes !== 10 && minutes !== 15) return;
-        void saveDrugTipInfo({ drugBeforeTipTime: minutes, drugIsTip: 1 });
-    }, [saveDrugTipInfo]);
+        if (String(tipSettings.drugBeforeTipTime) === value) return;
+        void saveDrugTipInfo({ drugBeforeTipTime: minutes });
+    }, [saveDrugTipInfo, tipSettings.drugBeforeTipTime]);
 
     const handleTipTypeToggle = useCallback((value: string) => {
         const selected = tipSettings.drugTipTypes.includes(value);
@@ -178,10 +198,7 @@ export default function MedicationTab() {
             ? tipSettings.drugTipTypes.filter(item => item !== value)
             : [...tipSettings.drugTipTypes, value];
 
-        void saveDrugTipInfo({
-            drugTipTypes,
-            drugIsTip: drugTipTypes.length > 0 ? 1 : 0,
-        });
+        void saveDrugTipInfo({ drugTipTypes });
     }, [saveDrugTipInfo, tipSettings.drugTipTypes]);
 
     const handleReminderSwitch = useCallback((checked: boolean) => {
@@ -432,9 +449,9 @@ export default function MedicationTab() {
                 <Flex justify="between" align="center" style={styles.reminderModule}>
                     <Text style={styles.colTitle}>开启用药提醒</Text>
                     <Switch
+                        style={styles.reminderSwitch}
                         checked={reminderEnabled}
                         onChange={handleReminderSwitch}
-                        disabled={savingTip}
                         color={AppTheme.primaryColor}
                     />
                 </Flex>
@@ -506,17 +523,34 @@ export default function MedicationTab() {
                         </Flex>
                     </TouchableOpacity>
                 </Flex>
-                {historyDays.length > 0 ? (
+                {previewHistoryDays.length > 0 ? (
                     <View style={styles.contentModule}>
-                        {historyDays.map((day, dayIndex) => (
+                        {previewHistoryDays.map((day, dayIndex) => (
                             <View key={day.key} style={dayIndex > 0 ? { marginTop: 12 } : undefined}>
                                 <Text style={styles.colTitle}>{formatDayLabel(day.label)}</Text>
                                 <View style={styles.listBox}>
-                                    {[...day.items].reverse().map(item => (
-                                        <Flex justify="between" style={styles.listItem} key={item.key}>
-                                            <Flex>
-                                                <Text style={styles.listItemText}>{item.name}</Text>
-                                                {/* <PlanTypeBadge isPrescription={item.isPrescription} /> */}
+                                    {day.items.map(item => (
+                                        <Flex justify="between" align="center" style={styles.listItem} key={item.key}>
+                                            <Flex align="center" style={{ flexShrink: 1 }}>
+                                                <Text style={styles.listItemText} numberOfLines={1}>
+                                                    {item.name}
+                                                </Text>
+                                                <View
+                                                    style={[
+                                                        styles.listItemStatus,
+                                                        item.taken
+                                                            ? styles.listItemStatusTaken
+                                                            : styles.listItemStatusMissed,
+                                                    ]}>
+                                                    <Text
+                                                        style={
+                                                            item.taken
+                                                                ? styles.listItemStatusTextTaken
+                                                                : styles.listItemStatusTextMissed
+                                                        }>
+                                                        {item.taken ? '已服用' : '未服用'}
+                                                    </Text>
+                                                </View>
                                             </Flex>
                                             <Text style={styles.listItemText}>{item.timeText}</Text>
                                         </Flex>
@@ -526,7 +560,7 @@ export default function MedicationTab() {
                         ))}
                     </View>
                 ) : null}
-                {!loading && historyDays.length === 0 ? (
+                {!loading && previewHistoryDays.length === 0 ? (
                     <View style={styles.contentModule}>
                         <Text style={styles.leftText}>暂无服药记录</Text>
                     </View>

@@ -29,6 +29,7 @@ import { buildSignButtonLabel, isSignedTodayByBjDate } from './utils/signInHelpe
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
 import { formatSyncRangeLabel, formatVoiceSpeedLabel } from './settingPage/utils/settingsHelpers';
+import { parseNotificationSettings } from '@/src/utils/notificationSettingsHelpers';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import {
   getFamilyBindStatusMeta,
@@ -76,6 +77,7 @@ export default function ProfilePage() {
   const { label: fontSizeLabel } = useFontSize();
   const dataManageLabel = formatSyncRangeLabel(userExtr?.synWdataDays, userExtr?.autoSyncData);
   const speechSpeedLabel = formatVoiceSpeedLabel(userExtr?.voiceSpeed);
+  const notificationEnabled = parseNotificationSettings(userExtr).enabled;
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
   const [signInVisible, setSignInVisible] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -155,10 +157,6 @@ export default function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    dispatch(fetchUserSession());
-  }, [dispatch]);
-
-  useEffect(() => {
     void (async () => {
       try {
         const options = await loadRelationTypeOptions();
@@ -171,11 +169,12 @@ export default function ProfilePage() {
 
   useFocusEffect(
     useCallback(() => {
+      void dispatch(fetchUserSession());
       void loadSignTip();
       void loadSignStatus();
       void loadIdentityAuthStatus();
       void loadFamilyList();
-    }, [loadFamilyList, loadIdentityAuthStatus, loadSignStatus, loadSignTip]),
+    }, [dispatch, loadFamilyList, loadIdentityAuthStatus, loadSignStatus, loadSignTip]),
   );
 
   const handleSignIn = useCallback(async () => {
@@ -276,7 +275,7 @@ export default function ProfilePage() {
     ]);
   };
 
-  const name = getDisplayUserName(user);
+  const name = getDisplayUserName(user, systemUser);
   const avatarOssUrl = String(user?.avatarOssUrl ?? '');
   const defaultAvatar = getDefaultAvatarByGender(user?.gender);
   if (loading && user == null) {
@@ -540,7 +539,9 @@ export default function ProfilePage() {
                 <Image style={styles.imgItem} source={require('@/assets/images/user/tip.png')} />
                 <View style={styles.familyItemContent}>
                   <Text style={styles.familyItemName}>消息通知</Text>
-                  <Text style={styles.familyItemRelation}>已开启</Text>
+                  <Text style={styles.familyItemRelation}>
+                    {notificationEnabled ? '已开启' : '已关闭'}
+                  </Text>
                 </View>
               </Flex>
               <Image

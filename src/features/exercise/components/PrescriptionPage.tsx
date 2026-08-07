@@ -355,7 +355,7 @@ export default function NutritionPrescriptionPage() {
                                 <Flex align="center" justify="between" style={styles.prescriptionTimelineHeader}>
                                     <Text style={styles.prescriptionTimelineVersion}>V1</Text>
                                     <Text style={styles.prescriptionTimelineTime}>2026/06/01</Text>
-                                </Flex>
+             </Flex>
                                 <View style={styles.prescriptionTimelineCard}>
                                     <Text style={styles.prescriptionTimelineCardTitle}>初始处方生成</Text>
                                     <Text style={styles.prescriptionTimelineCardDesc}>
@@ -380,7 +380,7 @@ export default function NutritionPrescriptionPage() {
                     </View>
                 </View>
 
-            </ScrollView>
+          </ScrollView>
         </View>
     )
 }

@@ -244,11 +244,11 @@ export default function BloodLipidPage() {
                         <View style={[styles.rowBox, { marginTop: 10 }]}>
                             <Flex justify="between">
                                 <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>指标对比</Text>
-                                <Flex style={[styles.status1Box, { borderColor: tcGoalProgressStatus.color }]}>
+                                {/* <Flex style={[styles.status1Box, { borderColor: tcGoalProgressStatus.color }]}>
                                     <Text style={[styles.status1Text, { color: tcGoalProgressStatus.color }]}>
                                         {tcGoalProgressStatus.text}
                                     </Text>
-                                </Flex>
+                                </Flex> */}
                             </Flex>
                             <Flex style={styles.dbBox}>
                                 <Flex style={styles.dbBoxItem}>
@@ -265,12 +265,12 @@ export default function BloodLipidPage() {
                                 const isImproved = row.outcome === 'improved';
                                 const isWorsened = row.outcome === 'worsened';
                                 return (
-                                    <Flex key={row.key} justify="between" style={styles.dbCol}>
-                                        <View>
+                                    <Flex key={row.key} align="center" style={styles.dbCol}>
+                                        <View style={styles.dbColSection}>
                                             <Text style={styles.dbColTitle}>{row.shortLabel}</Text>
                                             <Text style={styles.dbColTitle1}>{row.fullLabel}</Text>
                                         </View>
-                                        <Flex>
+                                        <Flex align="center" justify="center" style={styles.dbColSection}>
                                             <Text style={styles.dbColValue}>{row.initialText}</Text>
                                             <Image
                                                 style={styles.dbColImg}
@@ -278,7 +278,7 @@ export default function BloodLipidPage() {
                                             />
                                             <Text style={styles.dbColValue1}>{row.recentText}</Text>
                                         </Flex>
-                                        <Flex>
+                                        <Flex align="center" justify="end" style={styles.dbColSection}>
                                             <Text
                                                 style={isWorsened ? styles.dbRightValue_1 : styles.dbRightValue}
                                             >

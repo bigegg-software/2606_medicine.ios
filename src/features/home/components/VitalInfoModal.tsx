@@ -166,14 +166,12 @@ export default function VitalInfoModal({ vitalKey, onClose }: VitalInfoModalProp
   const levels = content?.levels ?? [];
   const table = content?.table;
   const sections = content?.sections ?? [];
-  const sheetMaxHeight = Math.round(windowHeight * 0.8);
+  const sheetHeight = Math.round(windowHeight * 0.55);
   const bottomPad = Math.max(insets.bottom, 16);
-  // title + divider + paddings + button area，保证「知道了」始终贴在弹层底部可见
-  const scrollMaxHeight = Math.max(120, sheetMaxHeight - 20 - 21 - 16 - 1 - 16 - 48 - bottomPad);
 
   return (
     <BottomSheetModal visible={visible} onClose={onClose}>
-      <View style={[styles.sheet, { paddingBottom: bottomPad }]}>
+      <View style={[styles.sheet, { height: sheetHeight, paddingBottom: bottomPad }]}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{content?.title ?? ''}</Text>
           <TouchableOpacity
@@ -186,7 +184,7 @@ export default function VitalInfoModal({ vitalKey, onClose }: VitalInfoModalProp
         </View>
         <View style={styles.divider} />
         <ScrollView
-          style={[styles.scroll, { maxHeight: scrollMaxHeight }]}
+          style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
@@ -218,7 +216,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
-    paddingTop: 20,
+    paddingTop: 12,
     paddingHorizontal: SHEET_PADDING_H,
     overflow: 'hidden',
   },
@@ -247,13 +245,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   divider: {
-    marginTop: 16,
+    marginTop: 12,
     height: 1,
     backgroundColor: 'rgba(23,63,125,0.08)',
     flexShrink: 0,
   },
   scroll: {
-    flexGrow: 0,
+    flex: 1,
+    flexGrow: 1,
     flexShrink: 1,
   },
   scrollContent: {

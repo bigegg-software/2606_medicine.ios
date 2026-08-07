@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -89,17 +89,89 @@ function formatUpdateTime(dataTime?: string) {
   return dataTime ? `更新于${dataTime}` : '';
 }
 
+function VitalSlide({
+  slide,
+  width,
+  onPress,
+}: {
+  slide: HealthStatusVitalSlide;
+  width: number;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      activeOpacity={0.85}
+      style={[styles.healthStatusSlide, { width }]}
+      onPress={onPress}>
+      <Flex justify="between" align="center" style={styles.healthStatusContent}>
+        <View style={styles.healthStatusInfo}>
+          <Flex align="end">
+            <Text style={styles.healthValue}>{slide.value}</Text>
+            {slide.unit ? (
+              <Text style={styles.healthValueUnit}> {slide.unit}</Text>
+            ) : null}
+          </Flex>
+          <Flex style={styles.healthStatusValueWrap}>
+            <Text style={styles.healthStatusValueTitle}>{slide.key}</Text>
+            {slide.status ? (
+              <Text style={[styles.healthStatusValueTitle, { color: slide.statusColor }]}>
+                ·{slide.status}
+              </Text>
+            ) : null}
+          </Flex>
+        </View>
+        <View style={styles.healthStatusChart}>{renderChart(slide.chart)}</View>
+      </Flex>
+    </TouchableOpacity>
+  );
+}
+
 export default function HealthStatusCards({ slides }: { slides: HealthStatusVitalSlide[] }) {
   const navigation = useNavigation<Nav>();
+  const scrollRef = useRef<ScrollView>(null);
   const [slideWidth, setSlideWidth] = useState(0);
   const [activeIndex, setActiveIndex] = useState(0);
+  const loopEnabled = slides.length > 1;
+
+  const loopSlides = useMemo(() => {
+    if (!loopEnabled) return slides;
+    return [slides[slides.length - 1], ...slides, slides[0]];
+  }, [loopEnabled, slides]);
 
   const activeSlide = slides[activeIndex];
 
+  const scrollToLoopIndex = useCallback((loopIndex: number, animated: boolean) => {
+    if (slideWidth <= 0) return;
+    scrollRef.current?.scrollTo({ x: loopIndex * slideWidth, animated });
+  }, [slideWidth]);
+
+  useEffect(() => {
+    if (!loopEnabled || slideWidth <= 0) return;
+    scrollToLoopIndex(1, false);
+  }, [loopEnabled, scrollToLoopIndex, slideWidth, slides.length]);
+
   const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     if (slideWidth <= 0) return;
-    const nextIndex = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
-    setActiveIndex(Math.max(0, Math.min(nextIndex, slides.length - 1)));
+    const loopIndex = Math.round(event.nativeEvent.contentOffset.x / slideWidth);
+
+    if (!loopEnabled) {
+      setActiveIndex(Math.max(0, Math.min(loopIndex, slides.length - 1)));
+      return;
+    }
+
+    if (loopIndex <= 0) {
+      setActiveIndex(slides.length - 1);
+      scrollToLoopIndex(slides.length, false);
+      return;
+    }
+
+    if (loopIndex >= slides.length + 1) {
+      setActiveIndex(0);
+      scrollToLoopIndex(1, false);
+      return;
+    }
+
+    setActiveIndex(loopIndex - 1);
   };
 
   if (!slides.length) {
@@ -121,37 +193,19 @@ export default function HealthStatusCards({ slides }: { slides: HealthStatusVita
           onLayout={event => setSlideWidth(event.nativeEvent.layout.width)}>
           {slideWidth > 0 ? (
             <ScrollView
+              ref={scrollRef}
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={handleMomentumScrollEnd}
               scrollEventThrottle={16}>
-              {slides.map(slide => (
-                <TouchableOpacity
-                  key={slide.key}
-                  activeOpacity={0.85}
-                  style={[styles.healthStatusSlide, { width: slideWidth }]}
-                  onPress={() => navigation.navigate(VITAL_ROUTE_MAP[slide.key])}>
-                  <Flex justify="between" align="center" style={styles.healthStatusContent}>
-                    <View style={styles.healthStatusInfo}>
-                      <Flex align="end">
-                        <Text style={styles.healthValue}>{slide.value}</Text>
-                        {slide.unit ? (
-                          <Text style={styles.healthValueUnit}> {slide.unit}</Text>
-                        ) : null}
-                      </Flex>
-                      <Flex style={styles.healthStatusValueWrap}>
-                        <Text style={styles.healthStatusValueTitle}>{slide.key}</Text>
-                        {slide.status ? (
-                          <Text style={[styles.healthStatusValueTitle, { color: slide.statusColor }]}>
-                            ·{slide.status}
-                          </Text>
-                        ) : null}
-                      </Flex>
-                    </View>
-                    <View style={styles.healthStatusChart}>{renderChart(slide.chart)}</View>
-                  </Flex>
-                </TouchableOpacity>
+              {loopSlides.map((slide, index) => (
+                <VitalSlide
+                  key={`${slide.key}-${index}`}
+                  slide={slide}
+                  width={slideWidth}
+                  onPress={() => navigation.navigate(VITAL_ROUTE_MAP[slide.key])}
+                />
               ))}
             </ScrollView>
           ) : null}

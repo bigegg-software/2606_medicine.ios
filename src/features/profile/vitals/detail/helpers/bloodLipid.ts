@@ -174,11 +174,11 @@ function getHdlStatusLabel(value: number) {
 
 const BLOOD_LIPID_REFERENCE: Record<
   BloodLipidMetricKey,
-  { value: number; labelPrefix: '上线' | '下限' }
+  { value: number; labelPrefix: '上限' | '下限' }
 > = {
-  TC: { value: 5.2, labelPrefix: '上线' },
-  TG: { value: 1.7, labelPrefix: '上线' },
-  'LDL-C': { value: 3.4, labelPrefix: '上线' },
+  TC: { value: 5.2, labelPrefix: '上限' },
+  TG: { value: 1.7, labelPrefix: '上限' },
+  'LDL-C': { value: 3.4, labelPrefix: '上限' },
   'HDL-C': { value: 1.0, labelPrefix: '下限' },
 };
 
@@ -292,13 +292,22 @@ export function buildBloodLipidDetailYAxis(
   const { safetyLineY } = getBloodLipidChartReferenceLines(metricKey);
   const peak = values.length ? Math.max(...values, safetyLineY) : safetyLineY;
   const floor = values.length ? Math.min(...values, safetyLineY) : 0;
-  const padding = 0.5;
-  const span = peak - floor + padding * 2;
-  const interval = span > 3 ? 1 : 0.5;
+  const padding = Math.max(0.5, (peak - floor) * 0.08);
+  const span = Math.max(peak - floor + padding * 2, 1);
+  const interval = resolveBloodLipidYAxisInterval(span);
   const min = Math.max(0, Math.floor((floor - padding) / interval) * interval);
   const max = Math.max(min + interval * 4, Math.ceil((peak + padding) / interval) * interval);
 
   return { min, max, interval };
+}
+
+/** 按跨度选择刻度间隔，避免极值（如 100）导致 Y 轴标签堆叠 */
+function resolveBloodLipidYAxisInterval(span: number) {
+  const candidates = [0.5, 1, 2, 5, 10, 20, 25, 50, 100];
+  for (const interval of candidates) {
+    if (span <= interval * 5) return interval;
+  }
+  return candidates[candidates.length - 1];
 }
 
 function isValidDetailPoint(point?: BloodLipidDetailPoint) {

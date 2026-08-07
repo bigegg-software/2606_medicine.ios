@@ -13,6 +13,12 @@ import { getInUseExPatientRuleInfo, type ExPatientRuleRatio } from '@/api/schedu
 import { buildSignedChatPayload, saveChatAction } from '@/api/assistant';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import {
+  buildDictLabelMap,
+  DICT_TYPES,
+  getDictDataByType,
+  type DictDataItem,
+} from '@/api/dict';
+import {
   mapTodayMedicationGroupsToTimelineItems,
   type CalendarTimelineItem,
 } from '@/src/features/schedule/calendarHelpers';
@@ -50,7 +56,12 @@ export type TodayScheduleItem = {
   taken?: boolean;
   medicationKey?: string;
   activityId?: string;
+  location?: string;
   liveId?: string;
+  liveAnchorName?: string;
+  livePlatform?: string;
+  /** 主播姓名、观看平台 */
+  liveSubtitle?: string;
   progress?: number;
   exerciseType?: string;
   exerciseChildType?: string;
@@ -75,8 +86,8 @@ const MEAL_WINDOW_BY_KEY: Record<string, { start: number; end: number }> = {
 const TIMELINE_ICONS: Record<TodayScheduleItem['kind'], number> = {
   diet: require('@/assets/images/schedule/yw.png'),
   drug: require('@/assets/images/schedule/yw.png'),
-  activity: require('@/assets/images/schedule/exercise4.png'),
-  live: require('@/assets/images/schedule/exercise3.png'),
+  activity: require('@/assets/images/assistant/icon_hd.png'),
+  live: require('@/assets/images/assistant/icon_zb.png'),
   ex: require('@/assets/images/schedule/exercise2.png'),
 };
 
@@ -132,7 +143,15 @@ function sortScheduleItems(items: TodayScheduleItem[]) {
   return [...regular, ...exercise];
 }
 
+function formatLiveSubtitle(anchor?: string, platform?: string) {
+  return [anchor?.trim(), platform?.trim()].filter(Boolean).join('、');
+}
+
 function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleItem {
+  const liveSubtitle =
+    item.kind === 'live'
+      ? formatLiveSubtitle(item.liveAnchorName, item.livePlatform) || undefined
+      : undefined;
   return {
     key: item.key,
     time: item.time,
@@ -145,7 +164,11 @@ function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleIte
     taken: item.taken,
     medicationKey: item.key,
     activityId: item.activityId,
+    location: item.activityLocation || (item.kind === 'activity' ? item.desc : undefined),
     liveId: item.liveId,
+    liveAnchorName: item.liveAnchorName,
+    livePlatform: item.livePlatform,
+    liveSubtitle,
   };
 }
 
@@ -239,37 +262,62 @@ function mapActivityTimelineItem(item: DailyActivityItem, index: number): Calend
     desc: location || remark || item.statusName?.trim() || '社区活动',
     kind: 'activity',
     activityId: item.activityId != null ? String(item.activityId) : undefined,
+    activityLocation: location,
     sortValue: sortValue || index + 100,
     period: sortValue < 12 * 60 ? 'morning' : 'afternoon',
   };
 }
 
-function mapLiveTimelineItem(item: DailyLiveItem, index: number): CalendarTimelineItem {
+function mapLiveTimelineItem(
+  item: DailyLiveItem,
+  index: number,
+  platformLabelMap: Record<string, string> = {},
+): CalendarTimelineItem {
   const sortValue = (() => {
     const parsed = moment(item.liveStartTime);
     return parsed.isValid() ? parsed.hours() * 60 + parsed.minutes() : 0;
   })();
   const anchor = item.anchorName?.trim();
-  const intro = item.liveIntro?.trim();
+  const platformValue = item.livePlatform?.trim();
+  const platform = platformValue
+    ? platformLabelMap[platformValue] ?? platformValue
+    : undefined;
+  const subtitle = formatLiveSubtitle(anchor, platform);
   return {
     key: `live-${item.liveId ?? index}`,
     time: moment(item.liveStartTime).isValid()
       ? moment(item.liveStartTime).format('H:mm')
       : '—',
     title: item.title?.trim() || '直播',
-    desc: anchor ? `${anchor}${intro ? ` · ${intro}` : ''}` : intro || item.statusName?.trim() || '直播',
+    desc: subtitle,
     kind: 'live',
     liveId: item.liveId != null ? String(item.liveId) : undefined,
+    liveAnchorName: anchor,
+    livePlatform: platform,
     sortValue: sortValue || index + 200,
     period: sortValue < 12 * 60 ? 'morning' : 'afternoon',
   };
 }
 
+async function loadLivePlatformLabelMap(): Promise<Record<string, string>> {
+  try {
+    const res = await getDictDataByType(DICT_TYPES.livePlatform);
+    const dictRes = res as unknown as { code?: number; data?: DictDataItem[] };
+    if (isResourceApiOk(dictRes)) {
+      return buildDictLabelMap(dictRes.data);
+    }
+  } catch {
+    // ignore
+  }
+  return {};
+}
+
 async function fetchTimelineItems(currentMinutes: number) {
   const today = getTodayDate();
-  const [activityRes, liveRes] = await Promise.all([
+  const [activityRes, liveRes, platformLabelMap] = await Promise.all([
     getDailyActivityListByDate({ customerLocalDate: today }),
     getDailyLiveListByDate({ customerLocalDate: today }),
+    loadLivePlatformLabelMap(),
   ]);
 
   const activities = isResourceApiOk(activityRes as unknown as { code?: number })
@@ -280,7 +328,7 @@ async function fetchTimelineItems(currentMinutes: number) {
   const lives = isResourceApiOk(liveRes as unknown as { code?: number })
     ? (apiResourceData<DailyLiveItem[]>(
       liveRes as unknown as { code?: number; data?: DailyLiveItem[] },
-    ) ?? []).map(mapLiveTimelineItem)
+    ) ?? []).map((item, index) => mapLiveTimelineItem(item, index, platformLabelMap))
     : [];
 
   return [...activities, ...lives]

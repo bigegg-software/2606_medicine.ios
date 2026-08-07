@@ -10,11 +10,26 @@ import {
   parseVoiceSpeed,
 } from '@/src/features/profile/settingPage/utils/settingsHelpers';
 import {
-  isAssistantSpeaking,
+  isAssistantSpeechPaused,
+  pauseOrStopAssistantSpeech,
   resolveSpeechRate,
+  resumeAssistantSpeech,
   speakPlainText,
   stopAssistantSpeech,
+  stripMarkdownForSpeech,
+  type SpeakProgress,
 } from './assistantSpeechHelpers';
+
+type ResumeState = {
+  key: string;
+  plain: string;
+  chunkIndex: number;
+};
+
+type PausedState = {
+  key: string;
+  plain: string;
+};
 
 export function useAssistantSpeech() {
   const dispatch = useDispatch<AppDispatch>();
@@ -25,6 +40,8 @@ export function useAssistantSpeech() {
   const rateRef = useRef(parseVoiceSpeed(userExtr?.voiceSpeed));
   const speakingKeyRef = useRef<string | null>(null);
   const speechEnabledRef = useRef(isVoiceBroadcastOn(userExtr?.isVoiceBroadcast));
+  const resumeRef = useRef<ResumeState | null>(null);
+  const pausedRef = useRef<PausedState | null>(null);
   const userExtrRef = useRef(userExtr);
   userExtrRef.current = userExtr;
 
@@ -56,10 +73,51 @@ export function useAssistantSpeech() {
     return { rate, enabled };
   }, []);
 
-  const stop = useCallback(async () => {
-    await stopAssistantSpeech();
-    setSpeakingKey(null);
+  const clearResume = useCallback(() => {
+    resumeRef.current = null;
   }, []);
+
+  const clearPaused = useCallback(() => {
+    pausedRef.current = null;
+  }, []);
+
+  const saveResume = useCallback((key: string, progress: SpeakProgress | null) => {
+    if (!progress?.plain) {
+      resumeRef.current = null;
+      return;
+    }
+    // chunkIndex=0 表示停在首句，续播仍从头句开始（与重新播放一致）
+    if (progress.chunkIndex <= 0) {
+      resumeRef.current = null;
+      return;
+    }
+    resumeRef.current = {
+      key,
+      plain: progress.plain,
+      chunkIndex: progress.chunkIndex,
+    };
+  }, []);
+
+  const stop = useCallback(async () => {
+    const key = speakingKeyRef.current;
+    const result = await pauseOrStopAssistantSpeech();
+
+    if (key) {
+      if (result.mode === 'paused' && result.progress) {
+        pausedRef.current = {
+          key,
+          plain: result.progress.plain,
+        };
+        clearResume();
+      } else {
+        clearPaused();
+        saveResume(key, result.progress);
+      }
+    }
+
+    setSpeakingKey(null);
+    speakingKeyRef.current = null;
+  }, [clearPaused, clearResume, saveResume]);
 
   const setEnabled = useCallback(async (enabled: boolean) => {
     if (savingEnabled) return speechEnabledRef.current;
@@ -85,8 +143,11 @@ export function useAssistantSpeech() {
         });
       }
       if (!enabled) {
+        clearResume();
+        clearPaused();
         await stopAssistantSpeech();
         setSpeakingKey(null);
+        speakingKeyRef.current = null;
       }
       return enabled;
     } catch {
@@ -95,7 +156,7 @@ export function useAssistantSpeech() {
     } finally {
       setSavingEnabled(false);
     }
-  }, [dispatch, savingEnabled]);
+  }, [clearPaused, clearResume, dispatch, savingEnabled]);
 
   const toggleEnabled = useCallback(async () => {
     return setEnabled(!speechEnabledRef.current);
@@ -106,6 +167,17 @@ export function useAssistantSpeech() {
     if (!plainReady) return;
     if (!options?.force && !speechEnabledRef.current) return;
 
+    const plain = stripMarkdownForSpeech(plainReady);
+    const resume = resumeRef.current;
+    const canResume =
+      resume != null
+      && resume.key === key
+      && resume.plain === plain
+      && resume.chunkIndex > 0;
+    const startChunkIndex = canResume ? resume.chunkIndex : 0;
+    clearResume();
+    clearPaused();
+
     await stopAssistantSpeech();
     setSpeakingKey(key);
     speakingKeyRef.current = key;
@@ -115,37 +187,63 @@ export function useAssistantSpeech() {
 
     await speakPlainText(plainReady, {
       rate,
+      startChunkIndex,
       onDone: () => {
+        clearResume();
+        clearPaused();
         if (speakingKeyRef.current === key) {
           setSpeakingKey(null);
+          speakingKeyRef.current = null;
         }
       },
-      onStopped: () => {
+      onStopped: progress => {
+        saveResume(key, progress);
         if (speakingKeyRef.current === key) {
           setSpeakingKey(null);
+          speakingKeyRef.current = null;
         }
       },
       onError: () => {
+        clearResume();
+        clearPaused();
         if (speakingKeyRef.current === key) {
           setSpeakingKey(null);
+          speakingKeyRef.current = null;
         }
       },
     });
-  }, []);
+  }, [clearPaused, clearResume, saveResume]);
 
   const toggle = useCallback(
     async (key: string, text: string) => {
+      const plain = stripMarkdownForSpeech(text);
+
+      // 正在播报同一条 → 暂停/停止并记进度
       if (speakingKeyRef.current === key) {
-        const stillSpeaking = await isAssistantSpeaking();
-        if (stillSpeaking || speakingKeyRef.current === key) {
-          await stop();
+        await stop();
+        return;
+      }
+
+      // iOS/Web：同一条处于暂停 → 原生 resume（精确续播）
+      if (
+        pausedRef.current?.key === key
+        && pausedRef.current.plain === plain
+        && isAssistantSpeechPaused()
+      ) {
+        const ok = await resumeAssistantSpeech();
+        if (ok) {
+          setSpeakingKey(key);
+          speakingKeyRef.current = key;
+          clearPaused();
           return;
         }
+        clearPaused();
       }
-      // 气泡手动播报不受总开关限制
+
+      // Android 或 pause 失败：按句子分片续播
       await speak(key, text, { force: true });
     },
-    [speak, stop],
+    [clearPaused, speak, stop],
   );
 
   return {

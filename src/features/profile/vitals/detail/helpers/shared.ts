@@ -203,11 +203,18 @@ export function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'ac
     .filter(value => value > 0);
   if (!values.length) return fieldValue;
 
-  const sumReadings = Math.round(values.reduce((sum, value) => sum + value, 0));
+  const sumReadings = Math.round(values.reduce((sum, value) => sum + value, 0) * 100) / 100;
   const maxReading = Math.max(...values);
-  const isIncremental = fieldValue <= 0
-    ? sumReadings > maxReading * 1.5
-    : sumReadings >= fieldValue * 0.85 && maxReading <= fieldValue * 0.5;
+  const isIncremental = (() => {
+    if (values.length === 1) return false;
+    if (fieldValue > 0) {
+      const sumRatio = sumReadings / fieldValue;
+      const maxRatio = maxReading / fieldValue;
+      if (sumRatio >= 0.8 && sumRatio <= 1.25) return true;
+      if (maxRatio >= 0.85) return false;
+    }
+    return sumReadings > maxReading * 1.5;
+  })();
 
   if (isIncremental) {
     return fieldValue > 0 ? Math.max(fieldValue, sumReadings) : sumReadings;

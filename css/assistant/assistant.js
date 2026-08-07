@@ -232,9 +232,9 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   todayScheduleCardIcon: {
-    width: 36,
-    height: 36,
-    marginRight: 10,
+    width: 28,
+    height: 28,
+    marginRight: 12,
     marginTop: 2,
   },
   todayScheduleCardBody: {
@@ -261,6 +261,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  todayScheduleActivityTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  todayScheduleLiveMetaRow: {
+    marginTop: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
   },
   todayScheduleMealTitle: {
     flexShrink: 1,
@@ -311,6 +324,34 @@ const styles = StyleSheet.create({
   },
   todayScheduleCardStatusTaken: {
     color: '#34B69F',
+  },
+  medicationStatusBadgeTaken: {
+    marginLeft: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 25,
+    backgroundColor: 'rgba(109,146,94,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  medicationStatusBadgeTakenText: {
+    fontWeight: 'bold',
+    fontSize: 11,
+    color: '#6D925E',
+  },
+  medicationStatusBadgePending: {
+    marginLeft: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 25,
+    backgroundColor: 'rgba(238,156,68,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  medicationStatusBadgePendingText: {
+    fontWeight: 'bold',
+    fontSize: 11,
+    color: '#EE9C44',
   },
   todayScheduleCardProgress: {
     marginLeft: 8,

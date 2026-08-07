@@ -40,19 +40,20 @@ export const fetchUserInfo = () => async (dispatch: AppDispatch) => {
   }
 };
 
-export const fetchUserBaseInfo = () => async (dispatch: AppDispatch, getState: () => RootState) => {
-  if (getState().user.loading) return;
+export const fetchUserBaseInfo = (options?: { force?: boolean }) =>
+  async (dispatch: AppDispatch, getState: () => RootState) => {
+    if (!options?.force && getState().user.loading) return;
 
-  dispatch({ type: SET_USER_LOADING, payload: true });
-  try {
-    const res = await getUserBaseInfo();
-    await applyUserBaseInfo(dispatch, res);
-  } catch {
-    /* ignore */
-  } finally {
-    dispatch({ type: SET_USER_LOADING, payload: false });
-  }
-};
+    dispatch({ type: SET_USER_LOADING, payload: true });
+    try {
+      const res = await getUserBaseInfo();
+      await applyUserBaseInfo(dispatch, res);
+    } catch {
+      /* ignore */
+    } finally {
+      dispatch({ type: SET_USER_LOADING, payload: false });
+    }
+  };
 
 export const fetchUserSession = () => async (dispatch: AppDispatch) => {
   dispatch({ type: SET_USER_LOADING, payload: true });

@@ -5,39 +5,41 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/vitals/syncModal';
 
-export type AutoSyncPromptModalProps = {
+export type RevokeAiPromptModalProps = {
   visible: boolean;
   saving?: boolean;
-  onClose: () => void;
   onCancel: () => void;
   onConfirm: () => void;
 };
 
-export default function AutoSyncPromptModal({
+export default function RevokeAiPromptModal({
   visible,
   saving = false,
-  onClose,
   onCancel,
   onConfirm,
-}: AutoSyncPromptModalProps) {
+}: RevokeAiPromptModalProps) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.autoSyncDialogOverlay}>
         <View style={styles.autoSyncDialogBox}>
           <TouchableOpacity
             style={styles.closeBtn}
-            onPress={onClose}
+            onPress={onCancel}
             activeOpacity={0.8}
             disabled={saving}>
             <MaterialIcons name="close" size={22} color={AppTheme.textSecondary} />
           </TouchableOpacity>
           <Image style={styles.autoSyncDialogLogo} source={require('@/assets/images/login/logo.png')} />
-          <Text style={styles.autoSyncDialogTitle}>是否自动同步数据？</Text>
-          <Text style={[styles.autoSyncDialogDesc, { textAlign: 'left' }]}>
-            每天首次打开应用时，自动同步可穿戴设备数据。
+          <Text style={styles.autoSyncDialogTitle}>关闭 AI 数据处理授权？</Text>
+          <Text style={[styles.autoSyncDialogDesc, { textAlign: 'left' }]}>关闭后：</Text>
+          <Text style={[styles.autoSyncDialogDesc, { textAlign: 'left', marginTop: 4 }]}>
+            • AI 生成的分析功能将不可用
+          </Text>
+          <Text style={[styles.autoSyncDialogDesc, { textAlign: 'left', marginTop: 4 }]}>
+            • 不会再向 AI 服务提供商发送新的数据
           </Text>
           <Text style={[styles.autoSyncDialogDesc, { textAlign: 'left', marginTop: 8 }]}>
-            您可以在「设置 → 数据管理」中关闭此功能。
+            您可以随时在设置中重新开启。
           </Text>
           <Flex justify="between" style={styles.autoSyncDialogBtnBox}>
             <TouchableOpacity
@@ -56,7 +58,7 @@ export default function AutoSyncPromptModal({
               style={{ width: '48%', opacity: saving ? 0.6 : 1 }}>
               <Flex justify="center" style={[styles.autoSyncRightBtn, { width: '100%' }]}>
                 <Text style={styles.autoSyncRightText}>
-                  {saving ? '保存中...' : '确定'}
+                  {saving ? '保存中...' : '撤销授权'}
                 </Text>
               </Flex>
             </TouchableOpacity>

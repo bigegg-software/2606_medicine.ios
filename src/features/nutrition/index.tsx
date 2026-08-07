@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -11,12 +11,14 @@ import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/die
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { formatDietHeaderInfo } from './components/utils/dietMealHelpers';
 import { AppTheme } from '@/common/theme';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchUserBaseInfo } from '@/store/actions/user';
 import type { RootStackParamList } from '@/route/router';
 
 type Route = RouteProp<RootStackParamList, 'NutritionPage'>;
 
 export default function NutritionPage() {
+  const dispatch = useDispatch<AppDispatch>();
   const navigation: any = useNavigation();
   const { params } = useRoute<Route>();
   const user = useSelector((s: RootState) => s.user.info);
@@ -57,8 +59,9 @@ export default function NutritionPage() {
 
   useFocusEffect(
     useCallback(() => {
+      void dispatch(fetchUserBaseInfo());
       void loadDietRule();
-    }, [loadDietRule]),
+    }, [dispatch, loadDietRule]),
   );
 
   const onPressNav = useCallback((index: number) => {

@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
   },
   headerDivider: {
     height: 1,
+    marginBottom: 20,
     backgroundColor: 'rgba(0,0,0,0.06)',
   },
   titleRow: {

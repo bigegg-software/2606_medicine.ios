@@ -64,6 +64,7 @@ export type MedicationHistoryItemView = {
   planTypeLabel: string;
   isPrescription: boolean;
   timeText: string;
+  taken: boolean;
 };
 
 export type MedicationHistoryDayView = {
@@ -120,6 +121,61 @@ export function formatMedicationDoseText(
     return `${dose}，每日${frequency}次`;
   }
   return dose;
+}
+
+/** 用药摘要：用药x天，每日x次，每次x单位 */
+export function formatMedicationSummaryText(
+  plan?: {
+    amount?: string;
+    amountUnit?: string;
+    medicationFrequency?: number;
+    courseTreatment?: number;
+    startDate?: string;
+    endDate?: string;
+  },
+  dictMaps?: MedicationDictMaps,
+) {
+  const parts: string[] = [];
+  const daysText = resolveMedicationDaysText(plan);
+  if (daysText) {
+    parts.push(`用药${daysText}`);
+  }
+
+  const frequency = Number(plan?.medicationFrequency);
+  if (Number.isFinite(frequency) && frequency > 0) {
+    parts.push(`每日${frequency}次`);
+  }
+
+  const amount = plan?.amount?.trim() || '--';
+  const unit = resolveDictLabel(dictMaps?.amountUnit ?? {}, plan?.amountUnit);
+  parts.push(`每次${amount}${unit || ''}`);
+
+  return parts.join('，');
+}
+
+function resolveMedicationDaysText(
+  plan?: {
+    courseTreatment?: number;
+    startDate?: string;
+    endDate?: string;
+  },
+) {
+  const course = Number(plan?.courseTreatment);
+  if (Number.isFinite(course) && course > 0) {
+    return `${Math.floor(course)}天`;
+  }
+  if (plan?.courseTreatment === 0) {
+    return '长期';
+  }
+
+  const start = plan?.startDate?.trim() ? moment(plan.startDate) : null;
+  const end = plan?.endDate?.trim() ? moment(plan.endDate) : null;
+  if (start?.isValid() && end?.isValid()) {
+    const days = end.diff(start, 'days') + 1;
+    if (days > 0) return `${days}天`;
+  }
+
+  return '';
 }
 
 export function formatMedicationUsageText(
@@ -350,19 +406,18 @@ function formatHistoryDayLabel(yyyyMMdd?: string) {
 export function mapMedicationHistoryRows(rows: MedicationRecordDayGroup[]): MedicationHistoryDayView[] {
   return rows
     .map(group => {
-      const items = (group.list ?? [])
-        .filter(item => item.action === 1)
-        .map((item, index) => {
-          const plan = item.snapshotRule;
-          const planType = plan?.planType ?? 0;
-          return {
-            key: `${group.yyyyMMdd ?? ''}-${item.medicationRecordId ?? index}`,
-            name: plan?.name?.trim() || '--',
-            planTypeLabel: getMedicationPlanTypeLabel(planType),
-            isPrescription: planType === 1,
-            timeText: formatRecordTime(item.actionTime ?? item.medicationPlanTime),
-          };
-        });
+      const items = (group.list ?? []).map((item, index) => {
+        const plan = item.snapshotRule;
+        const planType = plan?.planType ?? 0;
+        return {
+          key: `${group.yyyyMMdd ?? ''}-${item.medicationRecordId ?? index}`,
+          name: plan?.name?.trim() || '--',
+          planTypeLabel: getMedicationPlanTypeLabel(planType),
+          isPrescription: planType === 1,
+          timeText: formatRecordTime(item.actionTime ?? item.medicationPlanTime),
+          taken: isMedicationTaken(item.action),
+        };
+      });
 
       if (items.length === 0) return null;
 
@@ -373,6 +428,23 @@ export function mapMedicationHistoryRows(rows: MedicationRecordDayGroup[]): Medi
       };
     })
     .filter((group): group is MedicationHistoryDayView => group != null);
+}
+
+/** 按展示顺序截取最近 N 条服药记录（日内倒序） */
+export function limitMedicationHistoryDays(
+  days: MedicationHistoryDayView[],
+  limit = 5,
+): MedicationHistoryDayView[] {
+  let remaining = limit;
+  const result: MedicationHistoryDayView[] = [];
+  for (const day of days) {
+    if (remaining <= 0) break;
+    const items = [...day.items].reverse().slice(0, remaining);
+    if (items.length === 0) continue;
+    result.push({ ...day, items });
+    remaining -= items.length;
+  }
+  return result;
 }
 
 export function mapMedicationProgress(data?: { takeCount?: number; notTakeCount?: number; rate?: number } | null): MedicationProgressView {
@@ -523,7 +595,6 @@ export async function loadMedicationHistory(limitDays = 7) {
 
   try {
     const res = await getMedicationRecordAll({
-      action: 1,
       startDate,
       endDate,
       pageSize: Math.max(limitDays, 7),

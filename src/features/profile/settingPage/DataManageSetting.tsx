@@ -13,7 +13,9 @@ import { SET_USER_EXTR } from '@/store/type/user';
 import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/profile/settings';
 import SyncDaysPickerModal from '@/src/features/profile/vitals/components/SyncDaysPickerModal';
+import AutoSyncPromptModal from '@/src/features/profile/vitals/components/AutoSyncPromptModal';
 import AcceptAiPromptModal from './components/AcceptAiPromptModal';
+import RevokeAiPromptModal from './components/RevokeAiPromptModal';
 import DeleteAccountModal from './components/DeleteAccountModal';
 import {
   SYNC_RANGE_DAYS,
@@ -37,6 +39,8 @@ export default function DataManageSettingPage() {
   const [syncRangePickerVisible, setSyncRangePickerVisible] = useState(false);
   const [acceptAiModalVisible, setAcceptAiModalVisible] = useState(false);
   const [pendingAcceptAi, setPendingAcceptAi] = useState(true);
+  const [revokeAiModalVisible, setRevokeAiModalVisible] = useState(false);
+  const [autoSyncModalVisible, setAutoSyncModalVisible] = useState(false);
   const [deleteAccountVisible, setDeleteAccountVisible] = useState(false);
 
   useEffect(() => {
@@ -97,15 +101,8 @@ export default function DataManageSettingPage() {
       setAcceptAiModalVisible(true);
       return;
     }
-    void (async () => {
-      const prev = acceptAiEnabled;
-      setAcceptAiEnabled(false);
-      const ok = await saveExtrSettings({ acceptAi: 0 }, setSavingAcceptAi);
-      if (!ok) {
-        setAcceptAiEnabled(prev);
-      }
-    })();
-  }, [acceptAiEnabled, saveExtrSettings, savingAcceptAi]);
+    setRevokeAiModalVisible(true);
+  }, [savingAcceptAi]);
 
   const handleAcceptAiCancel = useCallback(() => {
     if (savingAcceptAi) return;
@@ -123,15 +120,53 @@ export default function DataManageSettingPage() {
     setAcceptAiModalVisible(false);
   }, [acceptAiEnabled, saveExtrSettings]);
 
-  const handleAutoSyncChange = useCallback(async (checked: boolean) => {
+  const handleRevokeAiCancel = useCallback(() => {
+    if (savingAcceptAi) return;
+    setRevokeAiModalVisible(false);
+  }, [savingAcceptAi]);
+
+  const handleRevokeAiConfirm = useCallback(async () => {
+    const prev = acceptAiEnabled;
+    setAcceptAiEnabled(false);
+    const ok = await saveExtrSettings({ acceptAi: 0 }, setSavingAcceptAi);
+    if (!ok) {
+      setAcceptAiEnabled(prev);
+      return;
+    }
+    setRevokeAiModalVisible(false);
+  }, [acceptAiEnabled, saveExtrSettings]);
+
+  const handleAutoSyncChange = useCallback((checked: boolean) => {
     if (savingAutoSync) return;
+    if (checked) {
+      setAutoSyncModalVisible(true);
+      return;
+    }
+    void (async () => {
+      const prev = autoSyncEnabled;
+      setAutoSyncEnabled(false);
+      const ok = await saveExtrSettings({ autoSyncData: 0 }, setSavingAutoSync);
+      if (!ok) {
+        setAutoSyncEnabled(prev);
+      }
+    })();
+  }, [autoSyncEnabled, saveExtrSettings, savingAutoSync]);
+
+  const handleAutoSyncCancel = useCallback(() => {
+    if (savingAutoSync) return;
+    setAutoSyncModalVisible(false);
+  }, [savingAutoSync]);
+
+  const handleAutoSyncConfirm = useCallback(async () => {
     const prev = autoSyncEnabled;
-    setAutoSyncEnabled(checked);
-    const ok = await saveExtrSettings({ autoSyncData: checked ? 1 : 0 }, setSavingAutoSync);
+    setAutoSyncEnabled(true);
+    const ok = await saveExtrSettings({ autoSyncData: 1 }, setSavingAutoSync);
     if (!ok) {
       setAutoSyncEnabled(prev);
+      return;
     }
-  }, [autoSyncEnabled, saveExtrSettings, savingAutoSync]);
+    setAutoSyncModalVisible(false);
+  }, [autoSyncEnabled, saveExtrSettings]);
 
   const handleSyncRangeChange = useCallback(async (next: SyncRange) => {
     if (savingSyncRange) return false;
@@ -294,6 +329,25 @@ export default function DataManageSettingPage() {
         onCancel={handleAcceptAiCancel}
         onConfirm={() => {
           void handleAcceptAiConfirm();
+        }}
+      />
+
+      <RevokeAiPromptModal
+        visible={revokeAiModalVisible}
+        saving={savingAcceptAi}
+        onCancel={handleRevokeAiCancel}
+        onConfirm={() => {
+          void handleRevokeAiConfirm();
+        }}
+      />
+
+      <AutoSyncPromptModal
+        visible={autoSyncModalVisible}
+        saving={savingAutoSync}
+        onClose={handleAutoSyncCancel}
+        onCancel={handleAutoSyncCancel}
+        onConfirm={() => {
+          void handleAutoSyncConfirm();
         }}
       />
 

@@ -374,11 +374,15 @@ const styles = StyleSheet.create({
     },
     dbCol: {
         marginTop: 10,
-        height: 50,
+        minHeight: 50,
         paddingHorizontal: 15,
         paddingVertical: 7,
         backgroundColor: "#F6F8FB",
-        borderRadius: 8
+        borderRadius: 8,
+        width: '100%',
+    },
+    dbColSection: {
+        width: '33.33%',
     },
     dbColTitle: {
         fontWeight: "bold",
@@ -398,7 +402,8 @@ const styles = StyleSheet.create({
     dbColImg: {
         width: 14,
         height: 10,
-        marginHorizontal: 15
+        marginHorizontal: 8,
+        flexShrink: 0,
     },
     dbColValue1: {
         fontWeight: "bold",
@@ -419,6 +424,7 @@ const styles = StyleSheet.create({
         width: 9,
         height: 13,
         marginLeft: 7,
+        flexShrink: 0,
     },
 
     dbRightValue1: {

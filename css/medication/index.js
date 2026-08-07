@@ -36,6 +36,11 @@ const styles = StyleSheet.create({
         backgroundColor: '#F6F8FB',
         borderRadius: 8,
     },
+    reminderSwitch: {
+        width: 44,
+        height: 22,
+        flexShrink: 0,
+    },
     medicationTimelineRow: {
         marginTop: 18,
         flexDirection: 'row',
@@ -129,7 +134,33 @@ const styles = StyleSheet.create({
     listItemText: {
         fontWeight: 400,
         fontSize: 14,
-        color: AppTheme.textSecondary
+        color: AppTheme.textSecondary,
+        flexShrink: 1,
+    },
+    listItemStatus: {
+        marginLeft: 4,
+        paddingHorizontal: 4,
+        paddingVertical: 2,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 4,
+        borderWidth: 1,
+        flexShrink: 0,
+    },
+    listItemStatusTaken: {
+        borderColor: '#6D925E',
+    },
+    listItemStatusMissed: {
+        borderColor: '#EE9C44',
+    },
+    listItemStatusTextTaken: {
+        fontWeight: 'bold',
+        fontSize: 12,
+        color: '#6D925E',
+    },
+    listItemStatusTextMissed: {
+        fontWeight: 'bold',
+        fontSize: 12,
+        color: '#EE9C44',
     },
     leftText: {
         fontWeight: 400,

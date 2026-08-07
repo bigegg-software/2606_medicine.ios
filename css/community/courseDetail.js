@@ -105,6 +105,11 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontSize: 16, fontWeight: '600', color: AppTheme.textPrimary },
   detailText: { marginTop: 12, fontSize: 14, color: AppTheme.textPrimary, lineHeight: 22 },
+  detailHtml: {
+    marginTop: 12,
+    width: '100%',
+    backgroundColor: 'transparent',
+  },
   emptyText: { marginTop: 40, textAlign: 'center', fontSize: 14, color: AppTheme.textSecondary },
 });
 

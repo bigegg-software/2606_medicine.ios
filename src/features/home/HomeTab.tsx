@@ -19,7 +19,7 @@ import MiniSparkline from './components/MiniSparkline';
 import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
-import { fetchUserInfo } from '@/store/actions/user';
+import { fetchUserBaseInfo, fetchUserInfo } from '@/store/actions/user';
 // import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppDispatch, RootState } from '@/store/store';
 import { getInUseDietPatientRuleInfo, type DietMealItem, type DietPatientRuleInfo } from '@/api/dietPatientRule';
@@ -450,6 +450,7 @@ export default function HomeTab() {
 
   useFocusEffect(
     useCallback(() => {
+      void dispatch(fetchUserBaseInfo());
       void loadMealData();
       void loadVitalsData();
       void loadExercisePrescription();
@@ -459,7 +460,7 @@ export default function HomeTab() {
         void loadVitalsData();
       });
       return () => sub.remove();
-    }, [loadExercisePrescription, loadMealData, loadVitalsData]),
+    }, [dispatch, loadExercisePrescription, loadMealData, loadVitalsData]),
   );
 
   // useEffect(()=>{

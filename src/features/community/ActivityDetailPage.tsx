@@ -66,7 +66,7 @@ function InfoRow({
   const content = (
     <Flex align="center" style={styles.infoRow}>
       <Image source={icon} style={styles.infoIcon} />
-      <Text style={styles.infoText}>{text}</Text>
+      <Text style={styles.infoText} numberOfLines={1}>{text}</Text>
       {showArrow ? (
         <Image
           source={require('@/assets/images/community/icon_right.png')}
@@ -340,15 +340,9 @@ export default function ActivityDetailPage() {
               />
             </View>
 
-            {noticeText ? (
-              <Flex align="start" style={styles.noticeBox}>
-                <Image
-                  source={require('@/assets/images/community/icon_warn.png')}
-                  style={styles.noticeIcon}
-                />
-                <Text style={styles.noticeText}>{noticeText}</Text>
-              </Flex>
-            ) : null}
+
+            <SectionHeader title="简介" />
+            <DetailTextBlock text={noticeText || '暂无简介'} />
 
             <SectionHeader title="详情" />
             <DetailTextBlock text={introText} />
