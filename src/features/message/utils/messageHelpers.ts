@@ -31,6 +31,7 @@ export type MessageCategoryKey =
   | 'health'
   | 'questionnaire'
   | 'activity'
+  | 'live'
   | 'system'
   | 'meal'
   | 'medication';
@@ -69,6 +70,11 @@ const CATEGORY_META: Record<MessageCategoryKey, MessageCategoryMeta> = {
     key: 'activity',
     label: '活动通知',
     icon: require('@/assets/images/message/icon_hd.png'),
+  },
+  live: {
+    key: 'live',
+    label: '直播通知',
+    icon: require('@/assets/images/assistant/icon_zb.png'),
   },
   system: {
     key: 'system',
@@ -131,11 +137,13 @@ export function resolveMessageCategory(type?: string): MessageCategoryMeta {
   ) {
     return CATEGORY_META.questionnaire;
   }
+  if (matchType(type, ['live_'])) {
+    return CATEGORY_META.live;
+  }
   if (
     matchType(type, [
       'activiey_cancel',
       'activity_',
-      'live_',
       'health_activity',
     ])
   ) {
