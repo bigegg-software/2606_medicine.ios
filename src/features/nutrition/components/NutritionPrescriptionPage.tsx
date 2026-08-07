@@ -39,9 +39,12 @@ import {
   formatFoodEquivText,
   nutrientGramsToCalories,
 } from './utils/nutritionPrescriptionHelpers';
+import { buildTwoLineCollapsedText } from './utils/expandableTextHelpers';
 
 const ICON_COLLAPSE = require('@/assets/images/nutrition/sq.png');
 const ICON_EXPAND = require('@/assets/images/nutrition/dk.png');
+const JC_TEXT_FONT_SIZE = 14;
+const JC_EXPAND_RESERVE_FALLBACK = 52;
 
 const PRESCRIPTION_TABS = [
   { label: '生活方式建议', value: 'lifestyle' },
@@ -70,7 +73,36 @@ function ExpandableMonitorCard({
   contentStyle: object | object[];
 }) {
   const [expanded, setExpanded] = useState(false);
-  const [canExpand, setCanExpand] = useState(false);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [expandReserve, setExpandReserve] = useState(JC_EXPAND_RESERVE_FALLBACK);
+  const [collapsed, setCollapsed] = useState<{
+    needsExpand: boolean;
+    firstLine: string;
+    secondLine: string;
+  }>({ needsExpand: false, firstLine: text, secondLine: '' });
+
+  useEffect(() => {
+    setExpanded(false);
+    setCollapsed({ needsExpand: false, firstLine: text, secondLine: '' });
+  }, [text]);
+
+  const handleMeasureLayout = (lines: Array<{ text: string }>) => {
+    if (containerWidth <= 0) return;
+    const next = buildTwoLineCollapsedText(text, lines, containerWidth, {
+      fontSize: JC_TEXT_FONT_SIZE,
+      expandReserve,
+    });
+    setCollapsed(prev => {
+      if (
+        prev.needsExpand === next.needsExpand &&
+        prev.firstLine === next.firstLine &&
+        prev.secondLine === next.secondLine
+      ) {
+        return prev;
+      }
+      return next;
+    });
+  };
 
   return (
     <LinearGradient
@@ -91,46 +123,76 @@ function ExpandableMonitorCard({
           </Flex>
         ) : null}
       </Flex>
-      <View style={styles.jcTextWrap}>
-        {!expanded ? (
+      <View
+        style={styles.jcTextWrap}
+        onLayout={e => {
+          const width = Math.floor(e.nativeEvent.layout.width);
+          if (width > 0 && width !== containerWidth) setContainerWidth(width);
+        }}
+      >
+        {/* 测量「icon + 展开」实际宽度 */}
+        <View
+          pointerEvents="none"
+          style={styles.jcExpandMeasure}
+          onLayout={e => {
+            const width = Math.ceil(e.nativeEvent.layout.width);
+            if (width > 0 && width !== expandReserve) setExpandReserve(width);
+          }}
+        >
+          <Flex align="center">
+            <Image tintColor="#6D925E" style={styles.jcExpandIcon} source={ICON_EXPAND} />
+            <Text style={styles.jcExpandText}>展开</Text>
+          </Flex>
+        </View>
+
+        {/* 全量文本测行，用于计算第一行铺满 & 是否需要展开 */}
+        {containerWidth > 0 && !expanded ? (
           <Text
-            style={[styles.jcText, styles.jcTextMeasure]}
-            onTextLayout={e => {
-              if (e.nativeEvent.lines.length > 2) {
-                setCanExpand(true);
-              }
-            }}
+            key={`measure-${containerWidth}-${expandReserve}`}
+            style={[styles.jcText, styles.jcTextMeasure, { width: containerWidth }]}
+            onTextLayout={e => handleMeasureLayout(e.nativeEvent.lines)}
           >
             {text}
           </Text>
         ) : null}
-        <Text style={styles.jcText} numberOfLines={expanded ? undefined : 2}>
-          {text}
-        </Text>
-        {canExpand || expanded ? (
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.jcExpandBtn}
-            onPress={() => setExpanded(prev => !prev)}
-          >
-            <LinearGradient
-              colors={['rgba(254,255,255,0)', '#FEFFFF', '#FEFFFF']}
-              locations={[0, 0.35, 1]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.jcExpandGradient}
+
+        {expanded ? (
+          <>
+            <Text style={styles.jcText}>{text}</Text>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={styles.jcExpandBtnExpanded}
+              onPress={() => setExpanded(false)}
             >
-              <Flex align="center">
-                <Image
-                  tintColor="#6D925E"
-                  style={styles.jcExpandIcon}
-                  source={expanded ? ICON_EXPAND : ICON_COLLAPSE}
-                />
-                <Text style={styles.jcExpandText}>{expanded ? '收起' : '展开'}</Text>
+              <Flex align="center" style={styles.jcExpandInner}>
+                <Image tintColor="#6D925E" style={styles.jcExpandIcon} source={ICON_EXPAND} />
+                <Text style={styles.jcExpandText}>收起</Text>
               </Flex>
-            </LinearGradient>
-          </TouchableOpacity>
-        ) : null}
+            </TouchableOpacity>
+          </>
+        ) : collapsed.needsExpand ? (
+          <>
+            <Text style={styles.jcText}>{collapsed.firstLine}</Text>
+            <Flex align="center" style={styles.jcSecondLine}>
+              <Text style={styles.jcText}>
+                {collapsed.secondLine}
+                ...
+              </Text>
+              <TouchableOpacity
+                activeOpacity={0.7}
+                style={styles.jcExpandInline}
+                onPress={() => setExpanded(true)}
+              >
+                <Flex align="center" style={styles.jcExpandInner}>
+                  <Image tintColor="#6D925E" style={styles.jcExpandIcon} source={ICON_COLLAPSE} />
+                  <Text style={styles.jcExpandText}>展开</Text>
+                </Flex>
+              </TouchableOpacity>
+            </Flex>
+          </>
+        ) : (
+          <Text style={styles.jcText}>{text}</Text>
+        )}
       </View>
     </LinearGradient>
   );

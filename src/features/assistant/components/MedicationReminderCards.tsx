@@ -1,11 +1,16 @@
-import React, { useMemo } from 'react';
-import { View, Text, Image } from 'react-native';
+import React, { useCallback, useMemo } from 'react';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/route/router';
 import calendarStyles from '@/css/schedule/calendar';
 import assistantStyles from '@/css/assistant/assistant';
 import { mapTodayMedicationGroupsToTimelineItems } from '@/src/features/schedule/calendarHelpers';
 import type { MedicationPlanGroupView } from '@/src/features/profile/medication/medicationHelpers';
 
 const DRUG_ICON = require('@/assets/images/schedule/yw.png');
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 type Props = {
   groups: MedicationPlanGroupView[];
@@ -41,7 +46,12 @@ function MedicationStatusBadge({
 }
 
 export default function MedicationReminderCards({ groups }: Props) {
+  const navigation = useNavigation<Nav>();
   const items = useMemo(() => mapTodayMedicationGroupsToTimelineItems(groups), [groups]);
+
+  const handlePress = useCallback(() => {
+    navigation.navigate('Medication', { tab: 'medication' });
+  }, [navigation]);
 
   if (items.length === 0) {
     return null;
@@ -52,8 +62,10 @@ export default function MedicationReminderCards({ groups }: Props) {
       {items.map((item, index) => {
         const eventLabel = item.eventBasedLabel?.trim();
         return (
-          <View
+          <TouchableOpacity
             key={item.key}
+            activeOpacity={0.85}
+            onPress={handlePress}
             style={[
               assistantStyles.todayScheduleCard,
               index > 0 ? assistantStyles.todayScheduleCardGap : null,
@@ -84,7 +96,7 @@ export default function MedicationReminderCards({ groups }: Props) {
               </View>
               <Text style={assistantStyles.todayScheduleMealTime}>{item.time || '--'}</Text>
             </View>
-          </View>
+          </TouchableOpacity>
         );
       })}
     </View>

@@ -313,7 +313,7 @@ export default function LiveDetailPage() {
               <View style={styles.sectionTitleBar} />
               <Text style={styles.sectionTitle}>要点</Text>
             </Flex>
-            {highlightsHtml ? (
+            {highlightsHtml && highlightsPlain ? (
               <RichHtmlView html={highlightsHtml} style={styles.detailHtml} />
             ) : (
               <Text style={styles.detailText}>{detailFallback}</Text>

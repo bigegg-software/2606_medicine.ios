@@ -24,6 +24,16 @@ type BlockNode =
   | { type: 'image'; src: string }
   | { type: 'spacer' };
 
+type TextToken = { kind: 'text'; value: string };
+type TagToken = {
+  kind: 'tag';
+  name: string;
+  closing: boolean;
+  selfClosing: boolean;
+  attrs: string;
+};
+type Token = TextToken | TagToken;
+
 const BLOCK_TAGS = new Set([
   'p',
   'div',
@@ -39,6 +49,19 @@ const BLOCK_TAGS = new Set([
   'ol',
   'li',
   'blockquote',
+  'table',
+  'thead',
+  'tbody',
+  'tfoot',
+  'tr',
+  'td',
+  'th',
+  'figure',
+  'figcaption',
+  'header',
+  'footer',
+  'main',
+  'aside',
 ]);
 
 function decodeEntities(input: string) {
@@ -66,11 +89,8 @@ function getAttr(attrs: string, name: string) {
   return match?.[1]?.trim() ?? '';
 }
 
-function tokenize(html: string) {
-  const tokens: Array<
-    | { kind: 'text'; value: string }
-    | { kind: 'tag'; name: string; closing: boolean; selfClosing: boolean; attrs: string }
-  > = [];
+function tokenize(html: string): Token[] {
+  const tokens: Token[] = [];
   const re = /<!--[\s\S]*?-->|<\/?([a-zA-Z0-9]+)([^>]*)>/g;
   let last = 0;
   let match: RegExpExecArray | null;
@@ -96,6 +116,20 @@ function tokenize(html: string) {
   return tokens;
 }
 
+function isTag(token: Token | undefined): token is TagToken {
+  return !!token && token.kind === 'tag';
+}
+
+function isClosing(token: Token | undefined, name?: string): boolean {
+  return isTag(token) && token.closing && (name == null || token.name === name);
+}
+
+function isOpenBlock(token: Token | undefined, exclude?: string): token is TagToken {
+  return (
+    isTag(token) && !token.closing && BLOCK_TAGS.has(token.name) && token.name !== exclude
+  );
+}
+
 function pushInline(target: InlineNode[], node: InlineNode) {
   if (node.type === 'text') {
     if (!node.text) return;
@@ -108,8 +142,24 @@ function pushInline(target: InlineNode[], node: InlineNode) {
   target.push(node);
 }
 
+function isEmptyInline(nodes: InlineNode[]): boolean {
+  return nodes.every(node => {
+    if (node.type === 'text') return !node.text.trim();
+    if (node.type === 'br') return true;
+    if (
+      node.type === 'link' ||
+      node.type === 'bold' ||
+      node.type === 'italic' ||
+      node.type === 'underline'
+    ) {
+      return isEmptyInline(node.children);
+    }
+    return false;
+  });
+}
+
 function parseInlineChildren(
-  tokens: ReturnType<typeof tokenize>,
+  tokens: Token[],
   start: number,
   stopTags: Set<string>,
 ): { nodes: InlineNode[]; next: number } {
@@ -164,7 +214,6 @@ function parseInlineChildren(
       i = child.next + 1;
       continue;
     }
-    // span / unknown inline: unwrap children
     const child = parseInlineChildren(tokens, i + 1, new Set([token.name]));
     child.nodes.forEach(n => pushInline(nodes, n));
     i = child.next + 1;
@@ -172,38 +221,33 @@ function parseInlineChildren(
   return { nodes, next: i };
 }
 
-function isEmptyInline(nodes: InlineNode[]): boolean {
-  return nodes.every(node => {
-    if (node.type === 'text') return !node.text.trim();
-    if (node.type === 'br') return true;
-    if (node.type === 'link' || node.type === 'bold' || node.type === 'italic' || node.type === 'underline') {
-      return isEmptyInline(node.children);
-    }
-    return false;
-  });
+/** 跳过当前闭合标签（若匹配） */
+function skipClose(tokens: Token[], index: number, name: string) {
+  return isClosing(tokens[index], name) ? index + 1 : index;
 }
 
-/** 将 HTML 解析为可原生渲染的块节点 */
-export function parseRichHtml(html?: string | null): BlockNode[] {
-  const source = html?.trim();
-  if (!source) return [];
+function flushPending(blocks: BlockNode[], pending: InlineNode[]) {
+  if (!pending.length || isEmptyInline(pending)) return [] as InlineNode[];
+  blocks.push({ type: 'paragraph', children: [...pending] });
+  return [] as InlineNode[];
+}
 
-  const tokens = tokenize(source);
+/**
+ * 解析块级内容到 stopTags 闭合为止。
+ * 支持嵌套 div/p/section 等，避免子块被跳过导致空白。
+ */
+function parseBlocks(
+  tokens: Token[],
+  start: number,
+  stopTags: Set<string> | null,
+): { blocks: BlockNode[]; next: number } {
   const blocks: BlockNode[] = [];
   let pending: InlineNode[] = [];
+  let i = start;
 
-  const flushPending = () => {
-    if (!pending.length || isEmptyInline(pending)) {
-      pending = [];
-      return;
-    }
-    blocks.push({ type: 'paragraph', children: pending });
-    pending = [];
-  };
-
-  let i = 0;
   while (i < tokens.length) {
     const token = tokens[i];
+
     if (token.kind === 'text') {
       pushInline(pending, { type: 'text', text: decodeEntities(token.value) });
       i += 1;
@@ -211,6 +255,7 @@ export function parseRichHtml(html?: string | null): BlockNode[] {
     }
 
     if (token.closing) {
+      if (stopTags?.has(token.name)) break;
       i += 1;
       continue;
     }
@@ -222,7 +267,7 @@ export function parseRichHtml(html?: string | null): BlockNode[] {
     }
 
     if (token.name === 'img') {
-      flushPending();
+      pending = flushPending(blocks, pending);
       const src = getAttr(token.attrs, 'src');
       if (src) blocks.push({ type: 'image', src });
       i += 1;
@@ -230,20 +275,34 @@ export function parseRichHtml(html?: string | null): BlockNode[] {
     }
 
     if (token.name === 'ul' || token.name === 'ol') {
-      flushPending();
+      pending = flushPending(blocks, pending);
       const ordered = token.name === 'ol';
+      const listName = token.name;
       const items: InlineNode[][] = [];
       i += 1;
       while (i < tokens.length) {
         const cur = tokens[i];
-        if (cur.kind === 'tag' && cur.closing && cur.name === (ordered ? 'ol' : 'ul')) {
+        if (isClosing(cur, listName)) {
           i += 1;
           break;
         }
-        if (cur.kind === 'tag' && !cur.closing && cur.name === 'li') {
-          const child = parseInlineChildren(tokens, i + 1, new Set(['li']));
-          items.push(child.nodes);
-          i = child.next + 1;
+        if (isTag(cur) && !cur.closing && cur.name === 'li') {
+          const inline = parseInlineChildren(tokens, i + 1, new Set(['li']));
+          let nodes = inline.nodes;
+          let next = inline.next;
+          // li 内还有嵌套块时，继续解析并把段落文本并入该项
+          while (isOpenBlock(tokens[next], 'li')) {
+            const nested = parseBlocks(tokens, next, new Set(['li']));
+            nested.blocks.forEach(block => {
+              if (block.type === 'paragraph' || block.type === 'heading') {
+                if (nodes.length) pushInline(nodes, { type: 'br' });
+                block.children.forEach(n => pushInline(nodes, n));
+              }
+            });
+            next = nested.next;
+          }
+          items.push(nodes);
+          i = skipClose(tokens, next, 'li');
           continue;
         }
         i += 1;
@@ -253,25 +312,77 @@ export function parseRichHtml(html?: string | null): BlockNode[] {
     }
 
     if (/^h[1-6]$/.test(token.name)) {
-      flushPending();
+      pending = flushPending(blocks, pending);
       const level = Number(token.name.slice(1));
-      const child = parseInlineChildren(tokens, i + 1, new Set([token.name]));
-      if (!isEmptyInline(child.nodes)) {
-        blocks.push({ type: 'heading', level, children: child.nodes });
+      const name = token.name;
+      const inline = parseInlineChildren(tokens, i + 1, new Set([name]));
+      let children = inline.nodes;
+      let next = inline.next;
+      while (isOpenBlock(tokens[next])) {
+        const nested = parseBlocks(tokens, next, new Set([name]));
+        nested.blocks.forEach(block => {
+          if (block.type === 'paragraph' || block.type === 'heading') {
+            if (children.length) pushInline(children, { type: 'br' });
+            block.children.forEach(n => pushInline(children, n));
+          }
+        });
+        next = nested.next;
       }
-      i = child.next + 1;
+      if (!isEmptyInline(children)) {
+        blocks.push({ type: 'heading', level, children });
+      }
+      i = skipClose(tokens, next, name);
       continue;
     }
 
-    if (token.name === 'p' || token.name === 'div' || token.name === 'section' || token.name === 'blockquote') {
-      flushPending();
-      const child = parseInlineChildren(tokens, i + 1, new Set([token.name]));
-      if (!isEmptyInline(child.nodes)) {
-        blocks.push({ type: 'paragraph', children: child.nodes });
+    // 常见容器：递归解析子树，修复 <div><p>…</p></div> 丢内容
+    if (
+      token.name === 'p' ||
+      token.name === 'div' ||
+      token.name === 'section' ||
+      token.name === 'article' ||
+      token.name === 'blockquote' ||
+      token.name === 'figure' ||
+      token.name === 'figcaption' ||
+      token.name === 'td' ||
+      token.name === 'th' ||
+      token.name === 'header' ||
+      token.name === 'footer' ||
+      token.name === 'main' ||
+      token.name === 'aside' ||
+      token.name === 'table' ||
+      token.name === 'thead' ||
+      token.name === 'tbody' ||
+      token.name === 'tfoot' ||
+      token.name === 'tr'
+    ) {
+      pending = flushPending(blocks, pending);
+      const name = token.name;
+      const stop = new Set([name]);
+      const inline = parseInlineChildren(tokens, i + 1, stop);
+      const hasNestedBlock = isOpenBlock(tokens[inline.next]);
+
+      if (hasNestedBlock) {
+        if (!isEmptyInline(inline.nodes)) {
+          blocks.push({ type: 'paragraph', children: inline.nodes });
+        }
+        const nested = parseBlocks(tokens, inline.next, stop);
+        if (nested.blocks.length) {
+          blocks.push(...nested.blocks);
+        } else if (isEmptyInline(inline.nodes)) {
+          blocks.push({ type: 'spacer' });
+        }
+        i = skipClose(tokens, nested.next, name);
+      } else if (!isEmptyInline(inline.nodes)) {
+        blocks.push({ type: 'paragraph', children: inline.nodes });
+        i = skipClose(tokens, inline.next, name);
       } else {
-        blocks.push({ type: 'spacer' });
+        // 空段落（如 <p><br></p>）保留间距，纯包装容器不插 spacer
+        if (name === 'p' || name === 'blockquote') {
+          blocks.push({ type: 'spacer' });
+        }
+        i = skipClose(tokens, inline.next, name);
       }
-      i = child.next + 1;
       continue;
     }
 
@@ -280,11 +391,24 @@ export function parseRichHtml(html?: string | null): BlockNode[] {
       continue;
     }
 
-    // unwrap unknown container
-    i += 1;
+    // 未知容器：解包子节点
+    pending = flushPending(blocks, pending);
+    const nested = parseBlocks(tokens, i + 1, new Set([token.name]));
+    blocks.push(...nested.blocks);
+    i = skipClose(tokens, nested.next, token.name);
   }
 
-  flushPending();
+  flushPending(blocks, pending);
+  return { blocks, next: i };
+}
+
+/** 将 HTML 解析为可原生渲染的块节点 */
+export function parseRichHtml(html?: string | null): BlockNode[] {
+  const source = html?.trim();
+  if (!source) return [];
+
+  const tokens = tokenize(source);
+  const { blocks } = parseBlocks(tokens, 0, null);
   return blocks.filter((block, index, arr) => {
     if (block.type !== 'spacer') return true;
     return index > 0 && index < arr.length - 1;

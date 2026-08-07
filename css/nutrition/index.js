@@ -507,31 +507,42 @@ const styles = StyleSheet.create({
     position: 'absolute',
     opacity: 0,
     left: 0,
-    right: 0,
     zIndex: -1,
   },
-  jcExpandBtn: {
+  jcExpandMeasure: {
     position: 'absolute',
-    right: 0,
-    bottom: 0,
+    opacity: 0,
+    left: 0,
+    top: 0,
+    zIndex: -1,
+  },
+  jcSecondLine: {
+    minHeight: 22,
+  },
+  jcExpandInline: {
+    marginLeft: 2,
+    height: 22,
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  jcExpandBtnExpanded: {
+    alignSelf: 'flex-end',
+    marginTop: 4,
     height: 22,
     justifyContent: 'center',
   },
-  jcExpandGradient: {
+  jcExpandInner: {
     height: 22,
-    paddingLeft: 20,
-    justifyContent: 'center',
   },
   jcExpandText: {
     fontWeight: 500,
     fontSize: 14,
     color: '#6D925E',
-    marginRight: 2,
   },
   jcExpandIcon: {
     width: 11,
     height: 11,
-    marginRight: 6,
+    marginRight: 4,
   },
   mealBottomBar: {
     position: 'absolute',
