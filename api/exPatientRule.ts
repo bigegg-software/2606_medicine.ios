@@ -6,14 +6,50 @@ export type ExPatientRuleRatio = {
   strengthLevel?: string;
   ratio?: number;
   duration?: number;
+  /** FITT-VP 参数，key 由前端约定 */
+  fittVp?: Record<string, unknown>;
+};
+
+export type ExPatientRuleAiAnalysis = {
+  title?: string;
+  summary?: string;
+};
+
+/** 周训练安排中的单个动作项 */
+export type ExWeekTrainingItem = {
+  exVideoId?: string | number;
+  duration?: number;
+  kcal?: number;
+  /** duration_min | group_number | keep_second_number */
+  timerType?: string;
+  durationMinVal?: number;
+  groupVal?: number;
+  numberVal?: number;
+  keepSecondVal?: number;
+};
+
+export type ExWeekTrainingMainBlock = {
+  cardioList?: ExWeekTrainingItem[];
+  strengthList?: ExWeekTrainingItem[];
+  flexibilityList?: ExWeekTrainingItem[];
+  balanceList?: ExWeekTrainingItem[];
+};
+
+/** 每周训练安排：day 1=周一 ... 7=周日 */
+export type ExWeekTrainingSchedule = {
+  day?: number;
+  isRest?: boolean;
+  hotList?: ExWeekTrainingItem[];
+  mainList?: ExWeekTrainingMainBlock[];
+  coldList?: ExWeekTrainingItem[];
 };
 
 export type ExPatientRuleInfo = {
-  exPatientRuleId?: string;
-  patientUserId?: string;
+  exPatientRuleId?: string | number;
+  patientUserId?: string | number;
   patientUserName?: string;
   prescriptionName?: string;
-  recoveryUserId?: string;
+  recoveryUserId?: string | number;
   recoveryUserName?: string;
   recoveryOrgName?: string;
   diagnosis?: string;
@@ -22,8 +58,19 @@ export type ExPatientRuleInfo = {
   exTemplateId?: string;
   needExerciseDuration?: number;
   needExerciseFrequency?: number;
+  weekDuration?: number;
+  weekKcal?: number;
+  firstAdvanceWeeks?: string;
+  strengthLevel?: string;
   ruleRatioList?: ExPatientRuleRatio[];
   remark?: string;
+  extraRemark?: string;
+  /** 调整处方的原因（编辑时填写） */
+  adjustReason?: string;
+  /** 完成处方的总结（完成时填写） */
+  completeSummary?: string;
+  aiAnalysis?: ExPatientRuleAiAnalysis;
+  weekTrainingScheduleList?: ExWeekTrainingSchedule[];
   status?: number;
   progress?: number;
   progressInfo?: {
@@ -68,3 +115,18 @@ export type ExPatientRuleListResult = {
 
 export const getExPatientRuleList = (params: ExPatientRuleListParams) =>
   request.get<ExPatientRuleListResult>('/patient/exPatientRule/list', { params });
+
+/** 主训练四模块整体完成率（按处方起止日期），完成率 0-100 */
+export type ExPatientRuleModuleCompleteRate = {
+  exPatientRuleId?: number | string;
+  cardioCompleteRate?: number;
+  strengthCompleteRate?: number;
+  flexibilityCompleteRate?: number;
+  balanceCompleteRate?: number;
+};
+
+export const getExPatientRuleModuleCompleteRate = (exPatientRuleId: string) =>
+  request.get<{ code?: number; msg?: string; data?: ExPatientRuleModuleCompleteRate }>(
+    '/patient/exPatientRule/moduleCompleteRate',
+    { params: { exPatientRuleId } },
+  );

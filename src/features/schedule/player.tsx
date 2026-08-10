@@ -90,7 +90,7 @@ export default function PlayerPage() {
     const [isTraining, setIsTraining] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const viewedVideoIdsRef = useRef<Set<number>>(new Set());
+    const viewedVideoIdsRef = useRef<Set<string>>(new Set());
     const sessionElapsedRef = useRef(0);
     const prescriptionContextRef = useRef<PrescriptionContext>({});
     const activeVideoRef = useRef<ExVideoInfo | undefined>(undefined);
@@ -462,8 +462,10 @@ export default function PlayerPage() {
     useEventListener(player, 'playingChange', ({ isPlaying }) => {
         if (!isPlaying) return;
 
-        const videoId = activeVideoRef.current?.exVideoId;
-        if (videoId == null || viewedVideoIdsRef.current.has(videoId)) return;
+        const rawVideoId = activeVideoRef.current?.exVideoId;
+        if (rawVideoId == null || rawVideoId === '') return;
+        const videoId = String(rawVideoId);
+        if (viewedVideoIdsRef.current.has(videoId)) return;
 
         viewedVideoIdsRef.current.add(videoId);
         postExRecordVideoView(videoId).catch(() => undefined);

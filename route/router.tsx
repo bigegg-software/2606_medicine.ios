@@ -46,6 +46,7 @@ import ScheduleHistoryPage from '@/src/features/schedule/scheduleHistoryPage';
 import ScheduleHistoryDetailPage from '@/src/features/schedule/ScheduleHistoryDetailPage';
 import TrainingStatsPage from '@/src/features/schedule/TrainingStatsPage';
 import PlayerPage from '@/src/features/schedule/player';
+import ExercisePlayerPage from '@/src/features/exercise/player';
 import TestingPage from '@/src/features/schedule/testing/index';
 import TestingResultsPage from '@/src/features/schedule/testing/results';
 import TestingRecordPage from '@/src/features/schedule/testing/record';
@@ -216,6 +217,23 @@ export type RootStackParamList = {
     exerciseChildType?: string;
     strengthLevel?: string;
     taskIndex?: number;
+  } | undefined;
+  ExercisePlayerPage: {
+    exerciseType?: string;
+    exerciseChildType?: string;
+    strengthLevel?: string;
+    taskIndex?: number;
+    exVideoId?: string;
+    title?: string;
+    ruleSubtitle?: string;
+    /** 训练阶段 hot.热身 main.主训练 cold.冷身 */
+    trainingPhase?: 'hot' | 'main' | 'cold';
+    groupVal?: number;
+    /** duration_min | group_number | keep_second_number */
+    timerType?: string;
+    /** 历史日期只读查看 */
+    readOnly?: boolean;
+    customerLocalDate?: string;
   } | undefined;
   TestingPage: { id: string },
   TestingResultsPage: { healthTestItemId: string; recordOnly?: boolean },
@@ -484,6 +502,7 @@ export default function RootStack() {
       />
       <Stack.Screen name="TrainingStatsPage" component={TrainingStatsPage} options={{ title: '训练统计' }} />
       <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
+      <Stack.Screen name="ExercisePlayerPage" component={ExercisePlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
       <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false }} />
       <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />

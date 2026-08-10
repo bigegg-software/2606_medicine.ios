@@ -1,18 +1,11 @@
-import moment from 'moment';
-import type { DayTypeDetailItem, ExPatientRuleRatio } from '@/api/schedule';
-import { getDayTypeListDetailByCustomerLocalDate } from '@/api/schedule';
+import type { ExPatientRuleRatio } from '@/api/schedule';
 import { getExVideoFrontList, type ExVideoInfo } from '@/api/exVideo';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { apiResourceData } from '@/src/utils/apiHelpers';
 
 export type TodayExerciseDuration = {
   completedMinutes: number;
   targetMinutes: number;
 };
-
-function toQueryId(id?: string | number | null) {
-  if (id == null || id === '') return undefined;
-  return String(id);
-}
 
 function parseStrengthLevelValue(value?: string) {
   const num = Number(value);
@@ -84,37 +77,16 @@ export async function loadPlayerVideos(rule?: ExPatientRuleRatio): Promise<ExVid
   return sortVideosForRule(dedupeVideos(videos), rule.strengthLevel);
 }
 
+/** dayTypeListDetailByCustomerLocalDate 已下线，暂用处方目标时长兜底 */
 export async function loadTodayExerciseDuration(
-  exPatientRuleId?: string | number,
-  exerciseType?: string,
+  _exPatientRuleId?: string | number,
+  _exerciseType?: string,
   fallbackTargetMinutes?: number,
 ): Promise<TodayExerciseDuration> {
-  const ruleId = toQueryId(exPatientRuleId);
-  const typeKey = exerciseType?.trim();
-  const fallback = fallbackTargetMinutes ?? 0;
-
-  if (!ruleId || !typeKey) {
-    return { completedMinutes: 0, targetMinutes: fallback };
-  }
-
-  try {
-    const res = await getDayTypeListDetailByCustomerLocalDate({
-      exPatientRuleId: ruleId,
-      customerLocalDate: moment().format('YYYY-MM-DD'),
-    });
-    if (!isResourceApiOk(res)) {
-      return { completedMinutes: 0, targetMinutes: fallback };
-    }
-
-    const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
-    const item = list.find(entry => entry.exerciseType?.trim() === typeKey);
-    return {
-      completedMinutes: item?.typeSumExerciseDuration ?? 0,
-      targetMinutes: item?.typeNeedExerciseDuration ?? fallback,
-    };
-  } catch {
-    return { completedMinutes: 0, targetMinutes: fallback };
-  }
+  return {
+    completedMinutes: 0,
+    targetMinutes: fallbackTargetMinutes ?? 0,
+  };
 }
 
 export function formatDurationFromSeconds(totalSeconds: number) {

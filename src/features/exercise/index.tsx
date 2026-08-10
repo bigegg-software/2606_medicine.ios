@@ -17,8 +17,7 @@ import { AppTheme } from '@/common/theme';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 
-
-export default function CommunityPage() {
+export default function ExercisePage() {
   const dispatch = useDispatch<AppDispatch>();
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
@@ -30,10 +29,13 @@ export default function CommunityPage() {
   const [activeNav, setActiveNav] = useState(0);
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
   const [loading, setLoading] = useState(true);
+  /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
+  const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
 
   const loadExerciseRule = useCallback(async () => {
     try {
       const res = await getInUseExPatientRuleInfo();
+      console.log('res', res);
       if (!isResourceApiOk(res as unknown as { code?: number })) {
         setExerciseRule(null);
         return;
@@ -55,19 +57,22 @@ export default function CommunityPage() {
     }, [dispatch, loadExerciseRule]),
   );
 
+  const onPressNav = useCallback((index: number) => {
+    setActiveNav(index);
+    setMountedTabs(prev => (prev[index] ? prev : { ...prev, [index]: true }));
+  }, []);
+
   const pageList = [
     {
       title: '今日训练',
-      component: 'TrainingPage',
       icon: require('@/assets/images/exercise/model.png'),
-
     },
     {
       title: '运动处方',
-      component: 'PrescriptionPage',
       icon: require('@/assets/images/exercise/sport.png'),
-    }
-  ]
+    },
+  ];
+
   return (
     <PageLayout style={styles.container} edges={[]}>
       <View style={styles.topBox}>
@@ -88,22 +93,22 @@ export default function CommunityPage() {
               <Text style={styles.brText}>本人</Text>
             </Flex>
             <Text style={styles.topInfoText}>{infoText}</Text>
-            {/* <Text style={styles.topInfoText}>56岁 | 男 | 高血压 | 支架术后 | 目标76kg</Text> */}
           </Flex>
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>
-
       </View>
       <Flex style={styles.navBox}>
         {pageList.map((page, index) => (
           <Flex
-            key={index}
+            key={page.title}
             style={[styles.navItem, activeNav === index && styles.activeNavItem]}
-            justify='center'
-            onPress={() => setActiveNav(index)}
+            justify="center"
+            onPress={() => onPressNav(index)}
           >
             <Image style={styles.navIcon} source={page.icon} />
-            <Text style={[styles.navText, activeNav === index && styles.activeNavText]}>{page.title}</Text>
+            <Text style={[styles.navText, activeNav === index && styles.activeNavText]}>
+              {page.title}
+            </Text>
           </Flex>
         ))}
       </Flex>
@@ -111,29 +116,36 @@ export default function CommunityPage() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      )
-      //  : !exerciseRule ? (
-      //   <View style={styles.emptyPrescription}>
-      //     <Image
-      //       source={require('@/assets/images/exercise/icon_yd_empty.png')}
-      //       style={styles.emptyPrescriptionIcon}
-      //     />
-      //     {profileComplete ? (
-      //       <Text style={styles.emptyPrescriptionText}>
-      //         暂无运动处方，如需开方，请联系工作人员
-      //       </Text>
-      //     ) : (
-      //       <Flex style={styles.emptyPrescriptionTextRow}>
-      //         <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
-      //         <CompleteProfileLink color='#6D925E' />
-      //       </Flex>
-      //     )}
-      //   </View>
-      // )
-       : activeNav === 0 ? (
-        <TrainingPage />
+      ) : !exerciseRule ? (
+        <View style={styles.emptyPrescription}>
+          <Image
+            source={require('@/assets/images/exercise/icon_yd_empty.png')}
+            style={styles.emptyPrescriptionIcon}
+          />
+          {profileComplete ? (
+            <Text style={styles.emptyPrescriptionText}>
+              暂无运动处方，如需开方，请联系工作人员
+            </Text>
+          ) : (
+            <Flex style={styles.emptyPrescriptionTextRow}>
+              <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
+              <CompleteProfileLink color="#6D925E" />
+            </Flex>
+          )}
+        </View>
       ) : (
-        <PrescriptionPage />
+        <View style={{ flex: 1 }}>
+          {mountedTabs[0] ? (
+            <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
+              <TrainingPage exerciseRule={exerciseRule} />
+            </View>
+          ) : null}
+          {mountedTabs[1] ? (
+            <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
+              <PrescriptionPage exerciseRule={exerciseRule} />
+            </View>
+          ) : null}
+        </View>
       )}
     </PageLayout>
   );

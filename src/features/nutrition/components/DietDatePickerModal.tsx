@@ -45,6 +45,16 @@ type Props = {
   onSelect: (date: string) => void;
   /** 传入则按上传状态展示主题色点；默认餐食打卡三色点 */
   uploadMarker?: DatePickerUploadMarker;
+  /**
+   * 自定义按年日打点（如运动打卡）。
+   * 与 uploadMarker / 餐食互斥，优先于二者。
+   */
+  dayRecordMarker?: {
+    color: string;
+    title: string;
+    label: string;
+    loadByYear: (year: number) => Promise<Record<string, boolean> | null>;
+  };
 };
 
 const INITIAL_BEFORE = 8;
@@ -174,6 +184,7 @@ export default function DietDatePickerModal({
   onClose,
   onSelect,
   uploadMarker,
+  dayRecordMarker,
 }: Props) {
   const listRef = useRef<FlatList<string>>(null);
   const extendingRef = useRef(false);
@@ -197,8 +208,15 @@ export default function DietDatePickerModal({
   const loadedEatYearsRef = useRef<Set<number>>(new Set());
   const loadingEatYearsRef = useRef<Set<number>>(new Set());
   const todayKey = useMemo(() => moment().format('YYYY-MM-DD'), []);
-  const isUploadMode = Boolean(uploadMarker);
-  const uploadDotColor = uploadMarker?.color ?? '#6D925E';
+  const isCustomDayRecordMode = Boolean(dayRecordMarker);
+  const isUploadMode = Boolean(uploadMarker) && !isCustomDayRecordMode;
+  const uploadDotColor = dayRecordMarker?.color
+    ?? uploadMarker?.color
+    ?? '#6D925E';
+  const recordTitle = dayRecordMarker?.title
+    ?? (isUploadMode ? '数据上传记录：' : '餐食打卡记录：');
+  const recordLegendLabel = dayRecordMarker?.label
+    ?? (isUploadMode ? '已上传' : '');
 
   monthKeysLenRef.current = monthKeys.length;
   monthKeysRef.current = monthKeys;
@@ -222,7 +240,13 @@ export default function DietDatePickerModal({
 
     loadingEatYearsRef.current.add(year);
     try {
-      if (uploadMarker) {
+      if (dayRecordMarker) {
+        const nextMap = await dayRecordMarker.loadByYear(year);
+        if (nextMap) {
+          loadedEatYearsRef.current.add(year);
+          setUploadMap(prev => ({ ...prev, ...nextMap }));
+        }
+      } else if (uploadMarker) {
         const nextMap = await loadUploadMarkerMapByYear(uploadMarker, year);
         if (nextMap) {
           loadedEatYearsRef.current.add(year);
@@ -238,14 +262,14 @@ export default function DietDatePickerModal({
     } finally {
       loadingEatYearsRef.current.delete(year);
     }
-  }, [uploadMarker]);
+  }, [dayRecordMarker, uploadMarker]);
 
   const dayDotColors = useCallback((dateKey: string) => {
-    if (uploadMarker) {
+    if (dayRecordMarker || uploadMarker) {
       return uploadMap[dateKey] ? [uploadDotColor] : [];
     }
     return getDayMealEatDots(eatMap[dateKey]);
-  }, [eatMap, uploadDotColor, uploadMap, uploadMarker]);
+  }, [dayRecordMarker, eatMap, uploadDotColor, uploadMap, uploadMarker]);
 
   const startOpenAnimation = useCallback(() => {
     overlayAnim.setValue(0);
@@ -343,7 +367,7 @@ export default function DietDatePickerModal({
     if (selectedYear < currentYear) {
       void ensureMarkerYearLoaded(selectedYear);
     }
-  }, [ensureMarkerYearLoaded, modalMounted, selectedDate, visible, uploadMarker?.source, uploadMarker?.type]);
+  }, [dayRecordMarker, ensureMarkerYearLoaded, modalMounted, selectedDate, visible, uploadMarker?.source, uploadMarker?.type]);
 
   // 滚动切换月份：往年懒加载；未来年不请求
   useEffect(() => {
@@ -469,13 +493,13 @@ export default function DietDatePickerModal({
               </View>
               <Flex style={styles.recordBox} justify="between" align="center">
                 <Text style={styles.recordText}>
-                  {isUploadMode ? '数据上传记录：' : '餐食打卡记录：'}
+                  {recordTitle}
                 </Text>
                 <Flex align="center" style={styles.recordLegend}>
-                  {isUploadMode ? (
+                  {isCustomDayRecordMode || isUploadMode ? (
                     <Flex align="center" style={styles.recordLegendItem}>
                       <View style={[styles.recordLegendDot, { backgroundColor: uploadDotColor }]} />
-                      <Text style={styles.recordLegendText}>已上传</Text>
+                      <Text style={styles.recordLegendText}>{recordLegendLabel}</Text>
                     </Flex>
                   ) : (
                     MEAL_EAT_LEGEND.map(item => (

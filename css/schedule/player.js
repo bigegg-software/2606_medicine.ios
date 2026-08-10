@@ -101,6 +101,41 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333333',
   },
+  playerRuleSubtitle: {
+    marginLeft: 12,
+    flexShrink: 0,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  playerGroupRow: {
+    marginTop: 12,
+  },
+  playerGroupTag: {
+    height: 32,
+    marginRight: 8,
+    marginBottom: 8,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  playerGroupTagDone: {
+    backgroundColor: 'rgba(109,146,94,0.15)',
+    borderColor: '#6D925E',
+  },
+  playerGroupTagText: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#333333',
+  },
+  playerGroupTagTextDone: {
+    color: '#6D925E',
+    fontWeight: 'bold',
+  },
   tjBtnImg: {
     width: 12,
     height: 12

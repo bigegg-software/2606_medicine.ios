@@ -1,6 +1,5 @@
 import moment, { type Moment } from 'moment';
 import {
-  getDayTypeListDetailByCustomerLocalDate,
   getInUseExPatientRuleInfo,
   type DayTypeDetailItem,
   type InUseExPatientRule,
@@ -771,48 +770,47 @@ async function loadDietTimelineItems(customerLocalDate: string): Promise<Calenda
 
 async function loadExerciseTimelineItems(
   customerLocalDate: string,
-  exPatientRuleId: string,
+  _exPatientRuleId: string,
   dictMaps?: ScheduleDictMaps,
 ): Promise<CalendarTimelineItem[]> {
   try {
-    const res = await getDayTypeListDetailByCustomerLocalDate({
+    // dayTypeListDetailByCustomerLocalDate 已下线：今日用在用处方目标时长拼时间轴，完成量暂为 0
+    if (customerLocalDate !== moment().format('YYYY-MM-DD')) return [];
+
+    const ruleRes = await getInUseExPatientRuleInfo();
+    if (!isResourceApiOk(ruleRes as { code?: number })) return [];
+
+    const prescription = apiResourceData<InUseExPatientRule>(
+      ruleRes as { code?: number; data?: InUseExPatientRule },
+    );
+    const ratioList = prescription?.ruleRatioList ?? [];
+    const list: DayTypeDetailItem[] = ratioList.map(rule => ({
       customerLocalDate,
-      exPatientRuleId,
+      exerciseType: rule.exerciseType,
+      exerciseChildType: rule.exerciseChildType,
+      typeNeedExerciseDuration: rule.duration ?? 0,
+      typeSumExerciseDuration: 0,
+      childTypeList: (rule.exerciseChildType ?? '')
+        .split(',')
+        .map(item => item.trim())
+        .filter(Boolean)
+        .map(exerciseChildType => ({ exerciseChildType })),
+    }));
+
+    return mapDayTypeExerciseTimelineItems(list, dictMaps).map(item => {
+      const typeKey = item.exerciseType?.trim();
+      if (!typeKey) return item;
+      const taskIndex = ratioList.findIndex(rule => rule.exerciseType?.trim() === typeKey);
+      if (taskIndex < 0) return item;
+      const rule = ratioList[taskIndex];
+      return {
+        ...item,
+        exerciseType: rule.exerciseType,
+        exerciseChildType: rule.exerciseChildType,
+        strengthLevel: rule.strengthLevel,
+        exerciseTaskIndex: taskIndex,
+      };
     });
-    if (!isResourceApiOk(res)) return [];
-
-    const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
-    let items = mapDayTypeExerciseTimelineItems(list, dictMaps);
-
-    if (customerLocalDate === moment().format('YYYY-MM-DD')) {
-      try {
-        const ruleRes = await getInUseExPatientRuleInfo();
-        if (isResourceApiOk(ruleRes as { code?: number })) {
-          const prescription = apiResourceData<InUseExPatientRule>(ruleRes as { code?: number; data?: InUseExPatientRule });
-          const ratioList = prescription?.ruleRatioList ?? [];
-          items = items.map(item => {
-            const typeKey = item.exerciseType?.trim();
-            if (!typeKey) return item;
-            const taskIndex = ratioList.findIndex(
-              rule => rule.exerciseType?.trim() === typeKey,
-            );
-            if (taskIndex < 0) return item;
-            const rule = ratioList[taskIndex];
-            return {
-              ...item,
-              exerciseType: rule.exerciseType,
-              exerciseChildType: rule.exerciseChildType,
-              strengthLevel: rule.strengthLevel,
-              exerciseTaskIndex: taskIndex,
-            };
-          });
-        }
-      } catch {
-        // keep base items
-      }
-    }
-
-    return items;
   } catch {
     return [];
   }

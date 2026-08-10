@@ -1,7 +1,7 @@
 import request from '@/utils/axios';
 
 export type ExVideoInfo = {
-  exVideoId?: number;
+  exVideoId?: number | string;
   coverOssId?: number;
   coverOssUrl?: string;
   videoOssId?: number;
@@ -19,6 +19,14 @@ export type ExVideoInfo = {
   displayStatus?: number;
   viewCount?: number;
   duration?: number;
+  trainingPhase?: string;
+  timerType?: string;
+  durationMinVal?: number;
+  groupVal?: number;
+  numberVal?: number;
+  keepSecondVal?: number;
+  restBetweenGroupSeconds?: number;
+  exerciseBodyParts?: string[];
   createTime?: string;
   updateTime?: string;
 };
@@ -37,3 +45,9 @@ export type ExVideoFrontListResult = {
 
 export const getExVideoFrontList = (params: ExVideoFrontListParams) =>
   request.get<ExVideoFrontListResult>('/patient/exVideo/frontList', { params });
+
+export const getExVideoInfo = (exVideoId: string) =>
+  request.get<{ code?: number; msg?: string; data?: ExVideoInfo }>(
+    '/patient/exVideo/getInfo',
+    { params: { exVideoId: String(exVideoId) } },
+  );

@@ -75,36 +75,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999999',
   },
-  calendarBox: { marginTop: 18, height: 64, paddingHorizontal: 13 },
+  calendarBox: { marginTop: 18, height: 72, paddingHorizontal: 13 },
   calendarCol: { width: 38, height: '100%', borderRadius: 25, backgroundColor: 'transparent' },
   calendarColActive: { backgroundColor: 'rgba(109,146,94,0.12)' },
   calendarTitle: {
     fontWeight: 'bold',
     fontSize: 13,
     color: '#666666',
-    marginTop: 12,
+    marginTop: 8,
     textAlign: 'center',
   },
   calendarTitleActive: {
     fontWeight: 'bold',
     fontSize: 13,
     color: AppTheme.primaryColor,
-    marginTop: 12,
+    marginTop: 8,
     textAlign: 'center',
   },
   calendarSubtitle: {
     fontWeight: 500,
     fontSize: 18,
-    marginTop: 5,
+    marginTop: 4,
     color: AppTheme.textPrimary,
     textAlign: 'center',
   },
   calendarSubtitleActive: {
     fontWeight: 500,
     fontSize: 18,
-    marginTop: 5,
+    marginTop: 4,
     color: AppTheme.primaryColor,
     textAlign: 'center',
+  },
+  calendarDotWrap: {
+    marginTop: 2,
+    minHeight: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
   },
   calendarImage: { width: 22, height: 22, marginTop: 5, margin: 'auto' },
   trainingStatRow: {
@@ -220,7 +231,7 @@ const styles = StyleSheet.create({
   },
   trainingExerciseCard: {
     marginTop: 12,
-    height: 80,
+    minHeight: 80,
     padding: 15,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
@@ -392,6 +403,7 @@ const styles = StyleSheet.create({
   mainTrainingSetTag: {
     height: 27,
     marginRight: 8,
+    marginBottom: 8,
     paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 25,
@@ -401,6 +413,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 2,
   },
+  mainTrainingSetTagDone: {
+    backgroundColor: 'rgba(109,146,94,0.15)',
+    borderColor: '#6D925E',
+  },
   mainTrainingSetTagLast: {
     marginRight: 0,
   },
@@ -408,6 +424,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 12,
     color: '#333333',
+  },
+  mainTrainingSetTagTextDone: {
+    color: '#6D925E',
+    fontWeight: 'bold',
   },
   mainTrainingSetDurationIcon: {
     width: 11,

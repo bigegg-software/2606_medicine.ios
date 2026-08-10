@@ -334,6 +334,38 @@ const styles = StyleSheet.create({
   prescriptionTimeline: {
     marginTop: 21,
   },
+  prescriptionTimelineEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 16,
+    backgroundColor: '#F6F8FB',
+    borderRadius: 12,
+  },
+  prescriptionTimelineEmptyIcon: {
+    width: 56,
+    height: 56,
+  },
+  prescriptionTimelineEmptyTitle: {
+    marginTop: 12,
+    fontWeight: '600',
+    fontSize: 15,
+    color: '#666666',
+    textAlign: 'center',
+  },
+  prescriptionTimelineEmptyDesc: {
+    marginTop: 6,
+    fontWeight: '500',
+    fontSize: 13,
+    lineHeight: 18,
+    color: '#999999',
+    textAlign: 'center',
+  },
+  prescriptionTimelineLoading: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 36,
+  },
   prescriptionTimelineItem: {
     flexDirection: 'row',
     alignItems: 'stretch',

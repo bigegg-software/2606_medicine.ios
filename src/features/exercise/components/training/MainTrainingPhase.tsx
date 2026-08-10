@@ -1,296 +1,319 @@
-import React from 'react';
-import { View, Text, Image } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/exercise';
+import type { InUseExPatientRule } from '@/api/schedule';
+import type { RootStackParamList } from '@/route/router';
 import TrainingPlayerRing from './TrainingPlayerRing';
+import {
+  buildMainTrainingModules,
+  formatChineseGroupLabel,
+  formatClockFromMinutes,
+  formatGoalMinutesText,
+  formatMainTrainingFittTip,
+  formatTrainingPhaseSubtitle,
+  type MainTrainingTypeModule,
+  type TrainingPhaseExerciseCard,
+} from '../../utils/trainingPhaseHelpers';
 
-export default function MainTrainingPhase() {
+type Props = {
+  dayRule?: InUseExPatientRule | null;
+  selectedDate: string;
+  readOnly?: boolean;
+};
+
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function resolveTaskIndex(dayRule: InUseExPatientRule | null | undefined, exerciseType: string) {
+  const list = dayRule?.ruleRatioList ?? [];
+  const matched = list.findIndex(item => item.exerciseType?.trim() === exerciseType);
+  return matched >= 0 ? matched : undefined;
+}
+
+function StrengthSetRow({ card }: { card: TrainingPhaseExerciseCard }) {
+  const totalGroups = Math.max(0, card.groupVal || 0);
+  if (totalGroups <= 0) return null;
+
   return (
-    <View style={styles.trainingPhaseContent}>
-      <View style={styles.mainTrainingModule}>
-        <Flex align="center" justify="between">
-          <Flex align="center" style={{ flexShrink: 1 }}>
-            <Image
-              style={styles.mainTrainingModuleIcon}
-              tintColor={"#333"}
-              source={require('@/assets/images/exercise/exercise3.png')}
-            />
-            <View style={styles.mainTrainingModuleTitleWrap}>
-              <LinearGradient
-                colors={['#6D925E', 'rgba(109,146,94,0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.mainTrainingModuleUnderline}
-              />
-              <Text style={styles.mainTrainingModuleTitle}>有氧·心肺耐力</Text>
-            </View>
-          </Flex>
-          <Flex align="center" style={styles.mainTrainingModuleTagRow}>
-            <View style={styles.mainTrainingModuleTag}>
-              <Text style={styles.mainTrainingModuleTagText}>快走/慢跑</Text>
-            </View>
-            <View style={styles.mainTrainingModuleTag}>
-              <Text style={styles.mainTrainingModuleTagText}>RPE 5-6/10</Text>
-            </View>
-          </Flex>
-        </Flex>
-
-        <Flex align="center" style={styles.mainTrainingHrRow}>
-          <Image
-            style={styles.mainTrainingHrIcon}
-            source={require('@/assets/images/exercise/xl.png')}
-          />
-          <View style={styles.mainTrainingHrInfo}>
-            <Flex align="center" justify="between">
-              <Text style={styles.mainTrainingHrLabel}>目标区间 125–140</Text>
-              <View style={styles.mainTrainingHrBadge}>
-                <Text style={styles.mainTrainingHrBadgeText}>区间内</Text>
-              </View>
-            </Flex>
-            <Text style={styles.mainTrainingHrValue}>
-              150
-              <Text style={styles.mainTrainingHrUnit}> bpm</Text>
+    <Flex align="center" style={styles.mainTrainingSetRow} wrap="wrap">
+      {Array.from({ length: totalGroups }, (_, index) => {
+        const groupNo = index + 1;
+        const done = card.completedGroups.includes(groupNo);
+        return (
+          <View
+            key={`${card.key}-set-${index}`}
+            style={[styles.mainTrainingSetTag, done && styles.mainTrainingSetTagDone]}>
+            <Text
+              style={[
+                styles.mainTrainingSetTagText,
+                done && styles.mainTrainingSetTagTextDone,
+              ]}>
+              {formatChineseGroupLabel(groupNo)}
             </Text>
           </View>
-        </Flex>
-        <View style={styles.mainTrainingDivider} />
-        <Flex justify="center" align="center" style={styles.mainTrainingPlayerRow}>
-          <Image style={styles.mainTrainingPlayerSideIcon}
-            source={require('@/assets/images/exercise/icon_refresh.png')}
-          />
-          <View style={styles.mainTrainingPlayerCenter}>
-            <TrainingPlayerRing progress={35} />
-            <View style={styles.mainTrainingPlayerCenterText} pointerEvents="none">
-              <Text style={styles.mainTrainingPlayerTime}>00:20:00</Text>
-              <Text style={styles.mainTrainingPlayerGoal}>目标20分钟</Text>
-            </View>
-          </View>
-          <Image style={styles.mainTrainingPlayerSideIcon}
-            source={require('@/assets/images/exercise/icon_start.png')}
-          />
-        </Flex>
+        );
+      })}
+    </Flex>
+  );
+}
 
-        <Flex align="center" style={styles.mainTrainingCheckIn}>
-          <Image
-            style={styles.mainTrainingCheckInIcon}
-            source={require('@/assets/images/exercise/icon_dk.png')}
-          />
-          <Text style={styles.mainTrainingCheckInText}>戳我打卡</Text>
-        </Flex>
-      </View>
-      <View style={styles.mainTrainingModule}>
-        <Flex align="center" justify="between">
-          <Flex align="center" style={{ flexShrink: 1 }}>
-            <Image
-              style={styles.mainTrainingModuleIcon}
-              tintColor={"#333"}
-              source={require('@/assets/images/exercise/exercise2.png')}
-            />
-            <View style={styles.mainTrainingModuleTitleWrap}>
-              <LinearGradient
-                colors={['#6D925E', 'rgba(109,146,94,0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.mainTrainingModuleUnderline}
-              />
-              <Text style={styles.mainTrainingModuleTitle}>抗阻·力量</Text>
-            </View>
-          </Flex>
-          <Flex align="center" style={styles.mainTrainingModuleTagRow}>
-            <View style={styles.mainTrainingModuleTag}>
-              <Text style={styles.mainTrainingModuleTagText}>60-70% 1RM</Text>
-            </View>
-            <View style={styles.mainTrainingModuleTag}>
-              <Text style={styles.mainTrainingModuleTagText}>RPE 6-7</Text>
-            </View>
-          </Flex>
-        </Flex>
-        <View style={styles.mainTrainingActionRow}>
-          <Flex align="center">
-            <Image
-              style={styles.mainTrainingActionThumb}
-              source={require('@/assets/images/exercise/dtls.png')}
-            />
-            <View style={styles.mainTrainingActionInfo}>
-              <Flex align="center" justify="between">
-                <Text style={styles.mainTrainingActionTitle}>深蹲</Text>
-                <Text style={styles.mainTrainingSetProgress}>
-                  1
-                  <Text style={styles.mainTrainingSetProgressTotal}>/3</Text>
-                </Text>
-              </Flex>
-              <Text style={styles.mainTrainingActionDesc}>3 组 × 12 次 · 背阔肌</Text>
-            </View>
-          </Flex>
-          <Flex align="center" style={styles.mainTrainingSetRow}>
-            <Image
-              style={styles.mainTrainingSetDoneIcon}
-              source={require('@/assets/images/exercise/icon_wc.png')}
-            />
-            <View style={styles.mainTrainingSetTag}>
-              <Text style={styles.mainTrainingSetTagText}>第2组</Text>
-            </View>
-            <View style={styles.mainTrainingSetTag}>
-              <Text style={styles.mainTrainingSetTagText}>第3组</Text>
-            </View>
-            <Flex align="center" style={styles.mainTrainingSetTag}>
-              <Image
-                style={styles.mainTrainingSetDurationIcon}
-                source={require('@/assets/images/exercise/icon_time.png')}
-              />
-              <Text style={styles.mainTrainingSetTagText}>60s</Text>
-            </Flex>
-          </Flex>
+function ActionCardRow({
+  card,
+  onPressTimer,
+  readOnly = false,
+}: {
+  card: TrainingPhaseExerciseCard;
+  onPressTimer: (card: TrainingPhaseExerciseCard) => void;
+  readOnly?: boolean;
+}) {
+  const showSets = card.groupVal > 0;
+  const allGroupsDone = card.groupVal > 0
+    && Array.from({ length: card.groupVal }, (_, index) => index + 1)
+      .every(groupNo => card.completedGroups.includes(groupNo));
+
+  return (
+    <View style={styles.mainTrainingActionRow}>
+      <Flex align="center">
+        <Image style={styles.mainTrainingActionThumb} source={card.coverSource} />
+        <View style={styles.mainTrainingActionInfo}>
+          <Text style={styles.mainTrainingActionTitle} numberOfLines={1}>
+            {card.title}
+          </Text>
+          <Text style={styles.mainTrainingActionDesc} numberOfLines={2}>
+            {card.ruleText}
+          </Text>
         </View>
-        <View style={styles.mainTrainingActionDivider} />
-        <View style={styles.mainTrainingActionRow}>
-          <Flex align="center">
+        <TouchableOpacity activeOpacity={0.75} onPress={() => onPressTimer(card)}>
+          <Flex align="center" style={styles.mainTrainingActionTimer}>
             <Image
-              style={styles.mainTrainingActionThumb}
-              source={require('@/assets/images/exercise/dtls.png')}
+              style={styles.mainTrainingActionTimerIcon}
+              source={
+                readOnly || allGroupsDone
+                  ? require('@/assets/images/exercise/icon_wc.png')
+                  : require('@/assets/images/exercise/icon_jsq.png')
+              }
             />
-            <View style={styles.mainTrainingActionInfo}>
-              <Flex align="center" justify="between">
-                <Text style={styles.mainTrainingActionTitle}>深蹲</Text>
-                <Text style={styles.mainTrainingSetProgress}>
-                  1
-                  <Text style={styles.mainTrainingSetProgressTotal}>/3</Text>
+            <Text style={styles.mainTrainingActionTimerText}>
+              {readOnly ? '查看' : allGroupsDone ? '完成' : '开始'}
+            </Text>
+          </Flex>
+        </TouchableOpacity>
+      </Flex>
+      {showSets ? <StrengthSetRow card={card} /> : null}
+    </View>
+  );
+}
+
+function CardioModule({
+  module,
+  onOpenPlayer,
+  readOnly = false,
+}: {
+  module: MainTrainingTypeModule;
+  onOpenPlayer: (card?: TrainingPhaseExerciseCard) => void;
+  readOnly?: boolean;
+}) {
+  const primary = module.cards[0];
+  const goalMinutes = primary?.durationMinutes ?? 0;
+
+  return (
+    <View style={styles.mainTrainingModule}>
+      <Flex align="center" justify="between">
+        <Flex align="center" style={{ flexShrink: 1 }}>
+          <Image
+            style={styles.mainTrainingModuleIcon}
+            tintColor="#333"
+            source={module.icon}
+          />
+          <View style={styles.mainTrainingModuleTitleWrap}>
+            <LinearGradient
+              colors={['#6D925E', 'rgba(109,146,94,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.mainTrainingModuleUnderline}
+            />
+            <Text style={styles.mainTrainingModuleTitle}>{module.title}</Text>
+          </View>
+        </Flex>
+      </Flex>
+
+      {primary?.timerType === 'duration_min' ? (
+        <>
+          <View style={styles.mainTrainingDivider} />
+          <Flex justify="center" align="center" style={styles.mainTrainingPlayerRow}>
+            <Image
+              style={styles.mainTrainingPlayerSideIcon}
+              source={require('@/assets/images/exercise/icon_refresh.png')}
+            />
+            <View style={styles.mainTrainingPlayerCenter}>
+              <TrainingPlayerRing progress={0} />
+              <View style={styles.mainTrainingPlayerCenterText} pointerEvents="none">
+                <Text style={styles.mainTrainingPlayerTime}>
+                  {formatClockFromMinutes(goalMinutes)}
                 </Text>
-              </Flex>
-              <Text style={styles.mainTrainingActionDesc}>3 组 × 12 次 · 背阔肌</Text>
+                <Text style={styles.mainTrainingPlayerGoal}>
+                  {formatGoalMinutesText(goalMinutes)}
+                </Text>
+              </View>
             </View>
-          </Flex>
-          <Flex align="center" style={styles.mainTrainingSetRow}>
-            <View style={styles.mainTrainingSetTag}>
-              <Text style={styles.mainTrainingSetTagText}>第1组</Text>
-            </View>
-            <View style={styles.mainTrainingSetTag}>
-              <Text style={styles.mainTrainingSetTagText}>第2组</Text>
-            </View>
-            <View style={styles.mainTrainingSetTag}>
-              <Text style={styles.mainTrainingSetTagText}>第3组</Text>
-            </View>
-            <Flex align="center" style={styles.mainTrainingSetTag}>
+            <TouchableOpacity activeOpacity={0.75} onPress={() => onOpenPlayer(primary)}>
               <Image
-                style={styles.mainTrainingSetDurationIcon}
-                source={require('@/assets/images/exercise/icon_time.png')}
+                style={styles.mainTrainingPlayerSideIcon}
+                source={require('@/assets/images/exercise/icon_start.png')}
               />
-              <Text style={styles.mainTrainingSetTagText}>60s</Text>
-            </Flex>
+            </TouchableOpacity>
           </Flex>
+        </>
+      ) : null}
+
+      {module.cards.map((card, index) => (
+        <View key={card.key}>
+          {index > 0 || primary?.timerType === 'duration_min' ? (
+            <View style={styles.mainTrainingActionDivider} />
+          ) : null}
+          <ActionCardRow card={card} onPressTimer={onOpenPlayer} readOnly={readOnly} />
         </View>
+      ))}
+    </View>
+  );
+}
+
+function TypeModule({
+  module,
+  onOpenPlayer,
+  readOnly = false,
+}: {
+  module: MainTrainingTypeModule;
+  onOpenPlayer: (card?: TrainingPhaseExerciseCard) => void;
+  readOnly?: boolean;
+}) {
+  if (module.key === 'cardio') {
+    return <CardioModule module={module} onOpenPlayer={onOpenPlayer} readOnly={readOnly} />;
+  }
+
+  return (
+    <View style={styles.mainTrainingModule}>
+      <Flex align="center" justify="between">
+        <Flex align="center" style={{ flexShrink: 1 }}>
+          <Image
+            style={styles.mainTrainingModuleIcon}
+            tintColor="#333"
+            source={module.icon}
+          />
+          <View style={styles.mainTrainingModuleTitleWrap}>
+            <LinearGradient
+              colors={['#6D925E', 'rgba(109,146,94,0)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.mainTrainingModuleUnderline}
+            />
+            <Text style={styles.mainTrainingModuleTitle}>{module.title}</Text>
+          </View>
+          {module.tipText ? (
+            <Text style={styles.mainTrainingModuleTipText}>{module.tipText}</Text>
+          ) : null}
+        </Flex>
+      </Flex>
+
+      {module.cards.map((card, index) => (
+        <View key={card.key}>
+          {index > 0 ? <View style={styles.mainTrainingActionDivider} /> : null}
+          <ActionCardRow card={card} onPressTimer={onOpenPlayer} readOnly={readOnly} />
+        </View>
+      ))}
+    </View>
+  );
+}
+
+export default function MainTrainingPhase({ dayRule = null, selectedDate, readOnly = false }: Props) {
+  const navigation = useNavigation<Nav>();
+  const [loading, setLoading] = useState(true);
+  const [isRest, setIsRest] = useState(false);
+  const [modules, setModules] = useState<MainTrainingTypeModule[]>([]);
+  const fittTip = formatMainTrainingFittTip(dayRule);
+
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      setLoading(true);
+      void buildMainTrainingModules(dayRule, selectedDate)
+        .then(result => {
+          if (cancelled) return;
+          setIsRest(result.isRest);
+          setModules(result.modules);
+          setLoading(false);
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setIsRest(false);
+          setModules([]);
+          setLoading(false);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }, [dayRule, selectedDate]),
+  );
+
+  const openPlayer = (exerciseType: string, card?: TrainingPhaseExerciseCard) => {
+    const rule = dayRule?.ruleRatioList?.find(item => item.exerciseType?.trim() === exerciseType);
+    navigation.navigate('ExercisePlayerPage', {
+      exerciseType,
+      exerciseChildType: rule?.exerciseChildType,
+      strengthLevel: rule?.strengthLevel,
+      taskIndex: resolveTaskIndex(dayRule, exerciseType),
+      exVideoId: card?.exVideoId,
+      title: card?.title,
+      ruleSubtitle: card ? formatTrainingPhaseSubtitle(card) : undefined,
+      trainingPhase: 'main',
+      groupVal: card?.groupVal,
+      timerType: card?.timerType,
+      readOnly,
+      customerLocalDate: selectedDate,
+    });
+  };
+
+  if (loading) {
+    return (
+      <View style={[styles.trainingPhaseContent, { paddingVertical: 28, alignItems: 'center' }]}>
+        <ActivityIndicator color="#6D925E" />
       </View>
-      <View style={styles.mainTrainingModule}>
-        <Flex align="center" justify="between">
-          <Flex align="center" style={{ flexShrink: 1 }}>
-            <Image
-              style={styles.mainTrainingModuleIcon}
-              tintColor={"#333"}
-              source={require('@/assets/images/exercise/exercise1.png')}
-            />
-            <View style={styles.mainTrainingModuleTitleWrap}>
-              <LinearGradient
-                colors={['#6D925E', 'rgba(109,146,94,0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.mainTrainingModuleUnderline}
-              />
-              <Text style={styles.mainTrainingModuleTitle}>柔韧性</Text>
-            </View>
-            <Text style={styles.mainTrainingModuleTipText}>拉伸至轻微紧绷感</Text>
-          </Flex>
-        </Flex>
-        <Flex align="center" style={styles.mainTrainingActionRow}>
-          <Image
-            style={styles.mainTrainingActionThumb}
-            source={require('@/assets/images/exercise/dtls.png')}
-          />
-          <View style={styles.mainTrainingActionInfo}>
-            <Text style={styles.mainTrainingActionTitle}>腘绳肌静态拉伸</Text>
-            <Text style={styles.mainTrainingActionDesc}>保持 30s × 2 · 大腿后侧</Text>
-          </View>
-          <Flex align="center" style={styles.mainTrainingActionTimer}>
-            <Image
-              style={styles.mainTrainingActionTimerIcon}
-              source={require('@/assets/images/exercise/icon_jsq.png')}
-            />
-            <Text style={styles.mainTrainingActionTimerText}>计时</Text>
-          </Flex>
-        </Flex>
-        <Flex align="center" style={styles.mainTrainingActionRow}>
-          <Image
-            style={styles.mainTrainingActionThumb}
-            source={require('@/assets/images/exercise/dtls.png')}
-          />
-          <View style={styles.mainTrainingActionInfo}>
-            <Text style={styles.mainTrainingActionTitle}>胸部开肩拉伸</Text>
-            <Text style={styles.mainTrainingActionDesc}>保持 25s × 2 · 胸 · 肩</Text>
-          </View>
-          <Flex align="center" style={styles.mainTrainingActionTimer}>
-            <Image
-              style={styles.mainTrainingActionTimerIcon}
-              source={require('@/assets/images/exercise/icon_wc.png')}
-            />
-            <Text style={styles.mainTrainingActionTimerText}>完成</Text>
-          </Flex>
-        </Flex>
-        <Flex align="center" style={styles.mainTrainingActionRow}>
-          <Image
-            style={styles.mainTrainingActionThumb}
-            source={require('@/assets/images/exercise/dtls.png')}
-          />
-          <View style={styles.mainTrainingActionInfo}>
-            <Text style={styles.mainTrainingActionTitle}>猫牛式脊柱活动</Text>
-            <Text style={styles.mainTrainingActionDesc}>保持 20s × 3 · 脊柱</Text>
-          </View>
-          <Flex align="center" style={styles.mainTrainingActionTimer}>
-            <Image
-              style={styles.mainTrainingActionTimerIcon}
-              source={require('@/assets/images/exercise/icon_jsq.png')}
-            />
-            <Text style={styles.mainTrainingActionTimerText}>计时</Text>
-          </Flex>
-        </Flex>
+    );
+  }
+
+  if (isRest) {
+    return (
+      <View style={styles.trainingPhaseContent}>
+        <Text style={[styles.trainingExerciseDuration, { marginTop: 16, textAlign: 'center' }]}>
+          今日为休息日，暂无主训练安排
+        </Text>
       </View>
-      <View style={styles.mainTrainingModule}>
-        <Flex align="center" justify="between">
-          <Flex align="center" style={{ flexShrink: 1 }}>
-            <Image
-              style={styles.mainTrainingModuleIcon}
-              tintColor={"#333"}
-              source={require('@/assets/images/exercise/exercise4.png')}
-            />
-            <View style={styles.mainTrainingModuleTitleWrap}>
-              <LinearGradient
-                colors={['#6D925E', 'rgba(109,146,94,0)']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={styles.mainTrainingModuleUnderline}
-              />
-              <Text style={styles.mainTrainingModuleTitle}>平衡·神经运动</Text>
-            </View>
-            <Text style={styles.mainTrainingModuleTipText}>安全第一，可扶墙保护</Text>
-          </Flex>
-        </Flex>
-        <Flex align="center" style={styles.mainTrainingActionRow}>
-          <Image
-            style={styles.mainTrainingActionThumb}
-            source={require('@/assets/images/exercise/dtls.png')}
-          />
-          <View style={styles.mainTrainingActionInfo}>
-            <Text style={styles.mainTrainingActionTitle}>单腿站立</Text>
-            <Text style={styles.mainTrainingActionDesc}>30s · 扶墙保护，逐步松手</Text>
-          </View>
-          <Flex align="center" style={styles.mainTrainingActionTimer}>
-            <Image
-              style={styles.mainTrainingActionTimerIcon}
-              source={require('@/assets/images/exercise/icon_wc.png')}
-            />
-            <Text style={styles.mainTrainingActionTimerText}>计时</Text>
-          </Flex>
-        </Flex>
+    );
+  }
+
+  if (modules.length === 0) {
+    return (
+      <View style={styles.trainingPhaseContent}>
+        <Text style={[styles.trainingExerciseDuration, { marginTop: 16, textAlign: 'center' }]}>
+          暂无主训练项目
+        </Text>
       </View>
+    );
+  }
+
+  return (
+    <View style={styles.trainingPhaseContent}>
+      {modules.map(module => (
+        <TypeModule
+          key={module.key}
+          module={module}
+          onOpenPlayer={card => openPlayer(module.key, card)}
+          readOnly={readOnly}
+        />
+      ))}
 
       <View style={styles.mainTrainingTipBox}>
         <Flex align="center">
@@ -300,12 +323,8 @@ export default function MainTrainingPhase() {
           />
           <Text style={styles.mainTrainingTipTitle}>处方依据（ACSM FITT-VP）</Text>
         </Flex>
-        <Text style={styles.mainTrainingTipText}>
-          F 每周5天·I中等强度·T 20min·V ≥150min/周·P每2–4周进阶
-          F 每周5天·I中等强度·T 20min·V ≥150min/周·P每2–4周进阶
-        </Text>
+        <Text style={styles.mainTrainingTipText}>{fittTip}</Text>
       </View>
     </View>
   );
 }
-

@@ -1,43 +1,66 @@
-import React, { useState } from 'react'
-import { View, Text, Image, ScrollView, ImageBackground, TouchableOpacity, type ImageSourcePropType } from 'react-native'
+import React, { useCallback, useEffect, useState } from 'react'
+import {
+    View,
+    Text,
+    Image,
+    ScrollView,
+    ImageBackground,
+    TouchableOpacity,
+    ActivityIndicator,
+} from 'react-native'
 import { Flex } from '@ant-design/react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import styles from '@/css/exercise/prescription'
+import type { InUseExPatientRule } from '@/api/schedule'
+import {
+    EXERCISE_TYPE_ORDER,
+    buildPrescriptionTypeSections,
+    buildPrescriptionWeightItems,
+    formatFirstAdvanceWeeksStat,
+    formatPrescriptionGeneratedText,
+    formatPrescriptionNextAssessText,
+    formatWeekDurationStat,
+    formatWeekKcalStat,
+    getAiAnalysisSummary,
+    getAiAnalysisTitle,
+} from '../utils/prescriptionHelpers'
+import {
+    loadPrescriptionTimelineItems,
+    type PrescriptionTimelineItem,
+} from '../utils/prescriptionTimelineHelpers'
 
 const ICON_COLLAPSE = require('@/assets/images/nutrition/sq.png')
 const ICON_EXPAND = require('@/assets/images/nutrition/dk.png')
 
-const PRESCRIPTION_TYPES: ReadonlyArray<{
-    key: string
-    title: string
-    icon: ImageSourcePropType
-}> = [
-        {
-            key: 'aerobic',
-            title: '有氧·心肺耐力',
-            icon: require('@/assets/images/exercise/exercise3.png'),
-        },
-        {
-            key: 'strength',
-            title: '抗阻·力量',
-            icon: require('@/assets/images/exercise/exercise2.png'),
-        },
-        {
-            key: 'flexibility',
-            title: '柔韧性',
-            icon: require('@/assets/images/exercise/exercise1.png'),
-        },
-        {
-            key: 'balance',
-            title: '平衡·神经运动',
-            icon: require('@/assets/images/exercise/exercise4.png'),
-        },
-    ]
+type Props = {
+    exerciseRule?: InUseExPatientRule | null
+}
 
-export default function NutritionPrescriptionPage() {
+export default function PrescriptionPage({ exerciseRule }: Props) {
+    const typeSections = buildPrescriptionTypeSections(exerciseRule)
+    const weightItems = buildPrescriptionWeightItems(exerciseRule)
+
     const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(() =>
-        Object.fromEntries(PRESCRIPTION_TYPES.map(item => [item.key, true])),
+        Object.fromEntries(EXERCISE_TYPE_ORDER.map(key => [key, false])),
     )
+    const [timelineItems, setTimelineItems] = useState<PrescriptionTimelineItem[]>([])
+    const [timelineLoading, setTimelineLoading] = useState(true)
+
+    const loadTimeline = useCallback(async () => {
+        setTimelineLoading(true)
+        try {
+            const items = await loadPrescriptionTimelineItems()
+            setTimelineItems(items)
+        } catch {
+            setTimelineItems([])
+        } finally {
+            setTimelineLoading(false)
+        }
+    }, [])
+
+    useEffect(() => {
+        void loadTimeline()
+    }, [loadTimeline])
 
     const toggleType = (key: string) => {
         setExpandedMap(prev => ({
@@ -45,6 +68,16 @@ export default function NutritionPrescriptionPage() {
             [key]: !prev[key],
         }))
     }
+
+    const generatedText = formatPrescriptionGeneratedText(exerciseRule)
+    const nextAssessText = formatPrescriptionNextAssessText(exerciseRule)
+    const weekDurationText = formatWeekDurationStat(exerciseRule?.weekDuration)
+    const weekKcalText = formatWeekKcalStat(exerciseRule?.weekKcal)
+    const firstAdvanceText = formatFirstAdvanceWeeksStat(exerciseRule?.firstAdvanceWeeks)
+    const aiTitle = getAiAnalysisTitle(exerciseRule)
+    const aiSummary = getAiAnalysisSummary(exerciseRule)
+    const weightBarItems = weightItems.filter(item => item.ratio > 0)
+    const barSegments = weightBarItems.length > 0 ? weightBarItems : weightItems
 
     return (
         <View style={{ flex: 1 }}>
@@ -58,14 +91,14 @@ export default function NutritionPrescriptionPage() {
                             style={styles.prescriptionMetaIcon}
                             source={require('@/assets/images/exercise/icon_file.png')}
                         />
-                        <Text style={styles.prescriptionMetaText}>生成 2026年7月11日</Text>
+                        <Text style={styles.prescriptionMetaText}>{generatedText}</Text>
                     </Flex>
                     <Flex align="center" style={{ marginLeft: 6, flexShrink: 1 }}>
                         <Image
                             style={styles.prescriptionMetaIcon}
                             source={require('@/assets/images/exercise/icon_up.png')}
                         />
-                        <Text style={styles.prescriptionMetaTextGreen}>下次评估 2026年7月25日</Text>
+                        <Text style={styles.prescriptionMetaTextGreen}>{nextAssessText}</Text>
                     </Flex>
                 </Flex>
 
@@ -85,27 +118,23 @@ export default function NutritionPrescriptionPage() {
                             </View>
                         </View>
                         <View style={styles.prescriptionSectionBody}>
-                            <Text style={styles.prescriptionSectionBodyTitle}>
-                                本方案以有氧为主、力量为辅，兼顾柔韧与平衡
-                            </Text>
-                            <Text style={styles.prescriptionSectionBodyDesc}>
-                                基于你的减脂目标与中级体能水平，AI 将有氧权重设为最高以提升能量消耗，配合抗阻训练保留瘦体重，避免代谢下降。柔韧与神经平衡作为基础保障，降低损伤风险。
-                            </Text>
+                            <Text style={styles.prescriptionSectionBodyTitle}>{aiTitle}</Text>
+                            <Text style={styles.prescriptionSectionBodyDesc}>{aiSummary}</Text>
 
                             <Flex style={styles.prescriptionSectionStats}>
                                 <View style={styles.prescriptionSectionStatItem}>
                                     <View style={styles.prescriptionSectionStatBadge}>
                                         <Text style={styles.prescriptionSectionStatBadgeText}>最低训练量</Text>
                                     </View>
-                                    <Text style={styles.prescriptionSectionStatTitle}>≥150</Text>
+                                    <Text style={styles.prescriptionSectionStatTitle}>{weekDurationText}</Text>
                                     <Text style={styles.prescriptionSectionStatValue}>每周总量（分钟）</Text>
                                 </View>
                                 <View style={styles.prescriptionSectionStatItem}>
-                                    <Text style={styles.prescriptionSectionStatTitle}>≈2100</Text>
+                                    <Text style={styles.prescriptionSectionStatTitle}>{weekKcalText}</Text>
                                     <Text style={styles.prescriptionSectionStatValue}>预估周消耗（Kcal）</Text>
                                 </View>
                                 <View style={styles.prescriptionSectionStatItem}>
-                                    <Text style={styles.prescriptionSectionStatTitle}>2-4</Text>
+                                    <Text style={styles.prescriptionSectionStatTitle}>{firstAdvanceText}</Text>
                                     <Text style={styles.prescriptionSectionStatValue}>首次进阶（周）后</Text>
                                 </View>
                             </Flex>
@@ -129,55 +158,68 @@ export default function NutritionPrescriptionPage() {
                         </Flex>
                     </Flex>
                     <Flex style={styles.prescriptionWeightBar}>
-                        <View style={[styles.prescriptionWeightBarSeg, styles.prescriptionWeightBarSegFirst, { flex: 45, backgroundColor: '#6D925E' }]} />
-                        <View style={[styles.prescriptionWeightBarSeg, { flex: 15, backgroundColor: '#FB4550' }]} />
-                        <View style={[styles.prescriptionWeightBarSeg, { flex: 15, backgroundColor: '#EE9C44' }]} />
-                        <View style={[styles.prescriptionWeightBarSeg, styles.prescriptionWeightBarSegLast, { flex: 10, backgroundColor: '#72A1C5' }]} />
+                        {barSegments.map((item, index) => (
+                            <View
+                                key={item.key}
+                                style={[
+                                    styles.prescriptionWeightBarSeg,
+                                    index === 0 && styles.prescriptionWeightBarSegFirst,
+                                    index === barSegments.length - 1 && styles.prescriptionWeightBarSegLast,
+                                    {
+                                        flex: Math.max(item.ratio, 1),
+                                        backgroundColor: item.color,
+                                    },
+                                ]}
+                            />
+                        ))}
                     </Flex>
                     <Flex style={styles.prescriptionWeightLegendRow}>
-                        <Flex align="center" justify="between" style={styles.prescriptionWeightLegendItem}>
-                            <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
-                                <View style={[styles.prescriptionWeightDot, { backgroundColor: '#6D925E' }]} />
-                                <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>有氧·心肺耐力</Text>
+                        {weightItems.slice(0, 2).map(item => (
+                            <Flex
+                                key={item.key}
+                                align="center"
+                                justify="between"
+                                style={styles.prescriptionWeightLegendItem}>
+                                <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
+                                    <View style={[styles.prescriptionWeightDot, { backgroundColor: item.color }]} />
+                                    <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>
+                                        {item.title}
+                                    </Text>
+                                </Flex>
+                                <Text style={styles.prescriptionWeightLegendValue}>{item.ratioText}</Text>
                             </Flex>
-                            <Text style={styles.prescriptionWeightLegendValue}>45%</Text>
-                        </Flex>
-                        <Flex align="center" justify="between" style={styles.prescriptionWeightLegendItem}>
-                            <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
-                                <View style={[styles.prescriptionWeightDot, { backgroundColor: '#FB4550' }]} />
-                                <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>抗阻·力量</Text>
-                            </Flex>
-                            <Text style={styles.prescriptionWeightLegendValue}>15%</Text>
-                        </Flex>
+                        ))}
                     </Flex>
                     <Flex style={styles.prescriptionWeightLegendRow}>
-                        <Flex align="center" justify="between" style={styles.prescriptionWeightLegendItem}>
-                            <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
-                                <View style={[styles.prescriptionWeightDot, { backgroundColor: '#EE9C44' }]} />
-                                <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>柔韧性</Text>
+                        {weightItems.slice(2, 4).map(item => (
+                            <Flex
+                                key={item.key}
+                                align="center"
+                                justify="between"
+                                style={styles.prescriptionWeightLegendItem}>
+                                <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
+                                    <View style={[styles.prescriptionWeightDot, { backgroundColor: item.color }]} />
+                                    <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>
+                                        {item.title}
+                                    </Text>
+                                </Flex>
+                                <Text style={styles.prescriptionWeightLegendValue}>{item.ratioText}</Text>
                             </Flex>
-                            <Text style={styles.prescriptionWeightLegendValue}>15%</Text>
-                        </Flex>
-                        <Flex align="center" justify="between" style={styles.prescriptionWeightLegendItem}>
-                            <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
-                                <View style={[styles.prescriptionWeightDot, { backgroundColor: '#72A1C5' }]} />
-                                <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>平衡·神经运动</Text>
-                            </Flex>
-                            <Text style={styles.prescriptionWeightLegendValue}>10%</Text>
-                        </Flex>
+                        ))}
                     </Flex>
                 </View>
+
                 <ImageBackground
                     source={require('@/assets/images/schedule/calendarBack.png')}
-                    style={styles.backImage1}
-                >
-                    <Flex justify='between' style={{ flex: 1, paddingHorizontal: 20 }}>
+                    style={styles.backImage1}>
+                    <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
                         <Text style={styles.prescriptionWeightTitle}>FITT-VP 处方明细</Text>
                         <Text style={styles.prescriptionWeightTagText}>四类分层·六要素</Text>
                     </Flex>
                 </ImageBackground>
-                {PRESCRIPTION_TYPES.map((item, index) => {
-                    const expanded = expandedMap[item.key] !== false
+
+                {typeSections.map((item, index) => {
+                    const expanded = expandedMap[item.key] === true
                     return (
                         <View
                             key={item.key}
@@ -203,7 +245,7 @@ export default function NutritionPrescriptionPage() {
                                             <Text style={styles.prescriptionTypeTitle}>{item.title}</Text>
                                         </View>
                                         <View style={styles.prescriptionTypePercent}>
-                                            <Text style={styles.prescriptionTypePercentText}>30%</Text>
+                                            <Text style={styles.prescriptionTypePercentText}>{item.ratioText}</Text>
                                         </View>
                                     </Flex>
                                     <Image
@@ -214,67 +256,18 @@ export default function NutritionPrescriptionPage() {
                             </TouchableOpacity>
                             {expanded ? (
                                 <View style={styles.prescriptionTypeBody}>
-                                    <Flex align="center" style={styles.prescriptionTypeItem}>
-                                        <Image
-                                            style={styles.prescriptionTypeItemIcon}
-                                            source={require('@/assets/images/exercise/icon_f.png')}
-                                        />
-                                        <View style={styles.prescriptionTypeItemInfo}>
-                                            <Text style={styles.prescriptionTypeItemTitle}>频率</Text>
-                                            <Text style={styles.prescriptionTypeItemValue}>每周5天（中等强度）</Text>
-                                        </View>
-                                    </Flex>
-                                    <Flex align="center" style={styles.prescriptionTypeItem}>
-                                        <Image
-                                            style={styles.prescriptionTypeItemIcon}
-                                            source={require('@/assets/images/exercise/icon_i.png')}
-                                        />
-                                        <View style={styles.prescriptionTypeItemInfo}>
-                                            <Text style={styles.prescriptionTypeItemTitle}>强度</Text>
-                                            <Text style={styles.prescriptionTypeItemValue}>目标心率 125–140 bpm · RPE 5–6/0</Text>
-                                        </View>
-                                    </Flex>
-                                    <Flex align="center" style={styles.prescriptionTypeItem}>
-                                        <Image
-                                            style={styles.prescriptionTypeItemIcon}
-                                            source={require('@/assets/images/exercise/icon_t.png')}
-                                        />
-                                        <View style={styles.prescriptionTypeItemInfo}>
-                                            <Text style={styles.prescriptionTypeItemTitle}>时间</Text>
-                                            <Text style={styles.prescriptionTypeItemValue}>每次 30–60 分钟</Text>
-                                        </View>
-                                    </Flex>
-                                    <Flex align="center" style={styles.prescriptionTypeItem}>
-                                        <Image
-                                            style={styles.prescriptionTypeItemIcon}
-                                            source={require('@/assets/images/exercise/icon_tt.png')}
-                                        />
-                                        <View style={styles.prescriptionTypeItemInfo}>
-                                            <Text style={styles.prescriptionTypeItemTitle}>类型</Text>
-                                            <Text style={styles.prescriptionTypeItemValue}>快走/慢跑/游泳/骑行</Text>
-                                        </View>
-                                    </Flex>
-                                    <Flex align="center" style={styles.prescriptionTypeItem}>
-                                        <Image
-                                            style={styles.prescriptionTypeItemIcon}
-                                            source={require('@/assets/images/exercise/icon_v.png')}
-                                        />
-                                        <View style={styles.prescriptionTypeItemInfo}>
-                                            <Text style={styles.prescriptionTypeItemTitle}>总量</Text>
-                                            <Text style={styles.prescriptionTypeItemValue}>每周 ≥150 分钟中等强度</Text>
-                                        </View>
-                                    </Flex>
-                                    <Flex align="center" style={styles.prescriptionTypeItem}>
-                                        <Image
-                                            style={styles.prescriptionTypeItemIcon}
-                                            source={require('@/assets/images/exercise/icon_p.png')}
-                                        />
-                                        <View style={styles.prescriptionTypeItemInfo}>
-                                            <Text style={styles.prescriptionTypeItemTitle}>进阶</Text>
-                                            <Text style={styles.prescriptionTypeItemValue}>每 2–4 周：先增时间 → 再增强度</Text>
-                                        </View>
-                                    </Flex>
-
+                                    {item.fittItems.map(fitt => (
+                                        <Flex key={fitt.key} align="center" style={styles.prescriptionTypeItem}>
+                                            <Image
+                                                style={styles.prescriptionTypeItemIcon}
+                                                source={fitt.icon}
+                                            />
+                                            <View style={styles.prescriptionTypeItemInfo}>
+                                                <Text style={styles.prescriptionTypeItemTitle}>{fitt.label}</Text>
+                                                <Text style={styles.prescriptionTypeItemValue}>{fitt.value}</Text>
+                                            </View>
+                                        </Flex>
+                                    ))}
                                 </View>
                             ) : null}
                         </View>
@@ -300,72 +293,72 @@ export default function NutritionPrescriptionPage() {
                     </Flex>
 
                     <View style={styles.prescriptionTimeline}>
-                        <View style={styles.prescriptionTimelineItem}>
-                            <View style={styles.prescriptionTimelineAxis}>
-                                <View style={styles.prescriptionTimelineDotWrap}>
-                                    <View style={styles.prescriptionTimelineDot} />
-                                </View>
-                                <View style={styles.prescriptionTimelineLine} />
+                        {timelineLoading ? (
+                            <View style={styles.prescriptionTimelineLoading}>
+                                <ActivityIndicator color="#6D925E" />
                             </View>
-                            <View style={styles.prescriptionTimelineMain}>
-                                <Flex align="center" justify="between" style={styles.prescriptionTimelineHeader}>
-                                    <Flex align="center">
-                                        <Text style={styles.prescriptionTimelineVersion}>V3</Text>
-                                        <View style={styles.prescriptionTimelineActiveBadge}>
-                                            <Text style={styles.prescriptionTimelineActiveBadgeText}>生效中</Text>
+                        ) : timelineItems.length === 0 ? (
+                            <View style={styles.prescriptionTimelineEmpty}>
+                                <Image
+                                    style={styles.prescriptionTimelineEmptyIcon}
+                                    source={require('@/assets/images/exercise/icon_yd_empty.png')}
+                                />
+                                <Text style={styles.prescriptionTimelineEmptyTitle}>暂无处方演变记录</Text>
+                                <Text style={styles.prescriptionTimelineEmptyDesc}>
+                                    处方调整后，版本变化将在此展示
+                                </Text>
+                            </View>
+                        ) : (
+                            timelineItems.map((item, index) => {
+                                const isLast = index === timelineItems.length - 1
+                                return (
+                                    <View
+                                        key={item.key}
+                                        style={[
+                                            styles.prescriptionTimelineItem,
+                                            isLast && styles.prescriptionTimelineItemLast,
+                                        ]}>
+                                        <View style={styles.prescriptionTimelineAxis}>
+                                            <View style={styles.prescriptionTimelineDotWrap}>
+                                                <View style={styles.prescriptionTimelineDot} />
+                                            </View>
+                                            {!isLast ? <View style={styles.prescriptionTimelineLine} /> : null}
                                         </View>
-                                    </Flex>
-                                    <Text style={styles.prescriptionTimelineTime}>2026/07/11</Text>
-                                </Flex>
-                                <View style={styles.prescriptionTimelineCard}>
-                                    <Text style={styles.prescriptionTimelineCardTitle}>有氧时间  15min → 20min</Text>
-                                    <Text style={styles.prescriptionTimelineCardDesc}>
-                                        静息心率下降，心肺适应良好，按进阶策略增加时间
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                        <View style={styles.prescriptionTimelineItem}>
-                            <View style={styles.prescriptionTimelineAxis}>
-                                <View style={styles.prescriptionTimelineDotWrap}>
-                                    <View style={styles.prescriptionTimelineDot} />
-                                </View>
-                                <View style={styles.prescriptionTimelineLine} />
-                            </View>
-                            <View style={styles.prescriptionTimelineMain}>
-                                <Flex align="center" justify="between" style={styles.prescriptionTimelineHeader}>
-                                    <Text style={styles.prescriptionTimelineVersion}>V2</Text>
-                                    <Text style={styles.prescriptionTimelineTime}>2026/06/20</Text>
-                                </Flex>
-                                <View style={styles.prescriptionTimelineCard}>
-                                    <Text style={styles.prescriptionTimelineCardTitle}>力量负荷 +2.5kg</Text>
-                                    <Text style={styles.prescriptionTimelineCardDesc}>
-                                        当前负荷可轻松完成 3 组，触发进阶
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
-                        <View style={[styles.prescriptionTimelineItem, styles.prescriptionTimelineItemLast]}>
-                            <View style={styles.prescriptionTimelineAxis}>
-                                <View style={styles.prescriptionTimelineDotWrap}>
-                                    <View style={styles.prescriptionTimelineDot} />
-                                </View>
-                            </View>
-                            <View style={[styles.prescriptionTimelineMain, styles.prescriptionTimelineItemLastMain]}>
-                                <Flex align="center" justify="between" style={styles.prescriptionTimelineHeader}>
-                                    <Text style={styles.prescriptionTimelineVersion}>V1</Text>
-                                    <Text style={styles.prescriptionTimelineTime}>2026/06/01</Text>
-                                </Flex>
-                                <View style={styles.prescriptionTimelineCard}>
-                                    <Text style={styles.prescriptionTimelineCardTitle}>初始处方生成</Text>
-                                    <Text style={styles.prescriptionTimelineCardDesc}>
-                                        基于 Onboarding 评估，从中低强度阈值起步
-                                    </Text>
-                                </View>
-                            </View>
-                        </View>
+                                        <View
+                                            style={[
+                                                styles.prescriptionTimelineMain,
+                                                isLast && styles.prescriptionTimelineItemLastMain,
+                                            ]}>
+                                            <Flex
+                                                align="center"
+                                                justify="between"
+                                                style={styles.prescriptionTimelineHeader}>
+                                                <Flex align="center">
+                                                    <Text style={styles.prescriptionTimelineVersion}>
+                                                        {item.versionLabel}
+                                                    </Text>
+                                                    {item.isActive ? (
+                                                        <View style={styles.prescriptionTimelineActiveBadge}>
+                                                            <Text style={styles.prescriptionTimelineActiveBadgeText}>
+                                                                生效中
+                                                            </Text>
+                                                        </View>
+                                                    ) : null}
+                                                </Flex>
+                                                <Text style={styles.prescriptionTimelineTime}>{item.dateText}</Text>
+                                            </Flex>
+                                            <View style={styles.prescriptionTimelineCard}>
+                                                <Text style={styles.prescriptionTimelineCardTitle}>{item.title}</Text>
+                                                {item.desc ? (
+                                                    <Text style={styles.prescriptionTimelineCardDesc}>{item.desc}</Text>
+                                                ) : null}
+                                            </View>
+                                        </View>
+                                    </View>
+                                )
+                            })
+                        )}
                     </View>
-
                 </View>
 
                 <View style={styles.prescriptionDisclaimer}>
@@ -379,7 +372,6 @@ export default function NutritionPrescriptionPage() {
                         </Text>
                     </View>
                 </View>
-
             </ScrollView>
         </View>
     )

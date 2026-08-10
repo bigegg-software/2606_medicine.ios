@@ -1,4 +1,8 @@
 import request from '@/utils/axios';
+import type {
+  ExPatientRuleAiAnalysis,
+  ExWeekTrainingSchedule,
+} from './exPatientRule';
 import type { HealthGoalTarget } from './healthGoal';
 
 export type ExPatientRuleRatio = {
@@ -7,6 +11,8 @@ export type ExPatientRuleRatio = {
   strengthLevel?: string;
   ratio?: number;
   duration?: number;
+  /** FITT-VP 参数，key 由前端约定 */
+  fittVp?: Record<string, unknown>;
 };
 
 export type ProgressInfo = {
@@ -20,8 +26,16 @@ export type InUseExPatientRule = {
   exPatientRuleId?: string | number;
   prescriptionName?: string;
   diagnosis?: string;
+  fitnessLevel?: string;
+  trainingGoals?: string[];
+  targetWeight?: number;
   startDate?: string;
   endDate?: string;
+  extraRemark?: string;
+  strengthLevel?: string;
+  weekDuration?: number;
+  weekKcal?: number;
+  firstAdvanceWeeks?: string;
   progress?: number;
   status?: number;
   ruleRatioList?: ExPatientRuleRatio[];
@@ -29,6 +43,12 @@ export type InUseExPatientRule = {
   healthGoalTargetList?: HealthGoalTarget[];
   progressInfo?: ProgressInfo;
   remark?: string;
+  adjustReason?: string;
+  completeSummary?: string;
+  aiAnalysis?: ExPatientRuleAiAnalysis;
+  weekTrainingScheduleList?: ExWeekTrainingSchedule[];
+  createTime?: string;
+  updateTime?: string;
 };
 
 export type HistoryExPatientRule = {
@@ -90,17 +110,6 @@ export type DayTypeDetailItem = {
   childTypeList?: DayTypeChildItem[];
 };
 
-export type DayTypeDetailParams = {
-  customerLocalDate: string;
-  exPatientRuleId: string;
-};
-
-export type DayTypeDetailResult = {
-  code?: number;
-  msg?: string;
-  data?: DayTypeDetailItem[];
-};
-
 export type ExerciseTypeStatisItem = {
   exerciseType?: string;
   complateRatio?: number;
@@ -120,9 +129,6 @@ export const getHistoryExPatientRuleList = (params: HistoryListParams) =>
 
 export const getScheduleWeekCalendarList = (params: WeekCalendarParams) =>
   request.get<WeekCalendarResult>('/patient/exRecordDay/dayCalendarList', { params });
-
-export const getDayTypeListDetailByCustomerLocalDate = (params: DayTypeDetailParams) =>
-  request.get<DayTypeDetailResult>('/patient/exRecordDayType/dayTypeListDetailByCustomerLocalDate', { params });
 
 export const getExerciseTypeStatis = (params: { exPatientRuleId: string }) =>
   request.get<ExerciseTypeStatisResult>('/patient/exRecordDay/exerciseTypeStatis', { params });

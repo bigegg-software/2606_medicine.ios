@@ -10,7 +10,10 @@ import type { UserBaseInfo } from '@/api/patient';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { getExRecordDayStatis, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import {
-  getDayTypeListDetailByCustomerLocalDate,
+  getExPatientRuleModuleCompleteRate,
+  type ExPatientRuleModuleCompleteRate,
+} from '@/api/exPatientRule';
+import {
   getExerciseTypeStatis,
   getHistoryExPatientRuleList,
   getScheduleWeekCalendarList,
@@ -341,26 +344,13 @@ export type DayTrainingDetailItem = {
   icon: number;
 };
 
+/** dayTypeListDetailByCustomerLocalDate 已下线，暂无分类型日详情数据源 */
 export async function loadDayTrainingDetails(
-  exPatientRuleId: string | number | undefined,
-  customerLocalDate: string,
-  dictMaps?: ScheduleDictMaps,
+  _exPatientRuleId: string | number | undefined,
+  _customerLocalDate: string,
+  _dictMaps?: ScheduleDictMaps,
 ): Promise<DayTrainingDetailItem[]> {
-  const ruleId = toQueryId(exPatientRuleId);
-  if (!ruleId) return [];
-
-  try {
-    const res = await getDayTypeListDetailByCustomerLocalDate({
-      exPatientRuleId: ruleId,
-      customerLocalDate,
-    });
-    if (!isResourceApiOk(res)) return [];
-
-    const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
-    return list.map((item, index) => toDayTrainingDetailItem(item, index, dictMaps));
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 export function toDayTrainingDetailItem(
@@ -445,28 +435,57 @@ export async function loadExerciseTypeRingProgress(
   }
 }
 
+/** dayTypeListDetailByCustomerLocalDate 已下线，改用 exerciseTypeStatis 完成比例 */
 export async function loadTodayTaskProgressMap(
   exPatientRuleId?: string | number,
-  customerLocalDate = moment().format('YYYY-MM-DD'),
+  _customerLocalDate = moment().format('YYYY-MM-DD'),
 ): Promise<Record<string, number>> {
   const ruleId = toQueryId(exPatientRuleId);
   if (!ruleId) return {};
 
   try {
-    const res = await getDayTypeListDetailByCustomerLocalDate({
-      exPatientRuleId: ruleId,
-      customerLocalDate,
-    });
+    const res = await getExerciseTypeStatis({ exPatientRuleId: ruleId });
     if (!isResourceApiOk(res)) return {};
 
-    const list = apiResourceData<DayTypeDetailItem[]>(res as any) ?? [];
+    const list = apiResourceData<ExerciseTypeStatisItem[]>(res as any) ?? [];
     const map: Record<string, number> = {};
     for (const item of list) {
       const typeKey = item.exerciseType?.trim();
       if (!typeKey) continue;
-      map[typeKey] = calcDayTypeProgress(item.typeNeedExerciseDuration, item.typeSumExerciseDuration);
+      map[typeKey] = normalizeProgress(item.complateRatio);
     }
     return map;
+  } catch {
+    return {};
+  }
+}
+
+/** 处方主训练四模块整体完成率 → exerciseType progressMap（0-100） */
+export function toModuleCompleteRateProgressMap(
+  data?: ExPatientRuleModuleCompleteRate | null,
+): Record<string, number> {
+  if (!data) return {};
+  return {
+    cardio: normalizeProgress(data.cardioCompleteRate),
+    strength: normalizeProgress(data.strengthCompleteRate),
+    flexibility: normalizeProgress(data.flexibilityCompleteRate),
+    balance: normalizeProgress(data.balanceCompleteRate),
+  };
+}
+
+/** 首页运动处方卡片：按处方起止日期的四模块整体完成率 */
+export async function loadModuleCompleteRateProgressMap(
+  exPatientRuleId?: string | number,
+): Promise<Record<string, number>> {
+  const ruleId = toQueryId(exPatientRuleId);
+  if (!ruleId) return {};
+
+  try {
+    const res = await getExPatientRuleModuleCompleteRate(ruleId);
+    if (!isResourceApiOk(res as { code?: number })) return {};
+    return toModuleCompleteRateProgressMap(
+      apiResourceData<ExPatientRuleModuleCompleteRate>(res as { data?: ExPatientRuleModuleCompleteRate }),
+    );
   } catch {
     return {};
   }

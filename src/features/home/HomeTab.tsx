@@ -67,8 +67,8 @@ import {
 import {
   buildExercisePrescriptionMetrics,
   enrichHealthGoalTargets,
+  loadModuleCompleteRateProgressMap,
   loadScheduleDictMaps,
-  loadTodayTaskProgressMap,
   type ScheduleDictMaps,
 } from '@/src/features/schedule/scheduleHelpers';
 import {
@@ -430,7 +430,7 @@ export default function HomeTab() {
       }
       setExercisePrescription(prescription);
       const progressMap = prescription?.exPatientRuleId != null
-        ? await loadTodayTaskProgressMap(prescription.exPatientRuleId).catch(() => ({}))
+        ? await loadModuleCompleteRateProgressMap(prescription.exPatientRuleId).catch(() => ({}))
         : {};
       setExerciseProgressMap(progressMap);
       const goalDisplay = await loadHomePrescriptionGoalDisplay(prescription, userId);
