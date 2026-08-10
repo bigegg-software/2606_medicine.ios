@@ -1,0 +1,13 @@
+{
+  "name": "polar-ble",
+  "version": "1.0.0",
+  "description": "Polar H10 BLE native bridge for medicine app",
+  "main": "src/index.js",
+  "react-native": "src/index.js",
+  "license": "MIT",
+  "private": true,
+  "peerDependencies": {
+    "react": "*",
+    "react-native": "*"
+  }
+}

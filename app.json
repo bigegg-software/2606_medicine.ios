@@ -22,13 +22,17 @@
         "NSSpeechRecognitionUsageDescription": "需要语音识别权限以将语音转换为文字",
         "NSHealthShareUsageDescription": "用于同步 Apple 健康数据到您的健康档案",
         "NSHealthUpdateUsageDescription": "用于同步 Apple 健康数据到您的健康档案",
+        "NSBluetoothAlwaysUsageDescription": "用于连接 Polar H10 等蓝牙心率设备，进行运动心率与 ECG 监测",
+        "NSBluetoothPeripheralUsageDescription": "用于连接 Polar H10 等蓝牙心率设备，进行运动心率与 ECG 监测",
+        "NSBluetoothUsageDescription": "用于连接 Polar H10 等蓝牙心率设备，进行运动心率与 ECG 监测",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true
         },
         "UIViewControllerBasedStatusBarAppearance": true,
         "ITSAppUsesNonExemptEncryption": false,
         "UIBackgroundModes": [
-          "remote-notification"
+          "remote-notification",
+          "bluetooth-central"
         ]
       }
     },
@@ -86,7 +90,12 @@
     "android": {
       "package": "com.bigegg.medicine",
       "permissions": [
-        "RECORD_AUDIO"
+        "RECORD_AUDIO",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT",
+        "android.permission.BLUETOOTH_SCAN",
+        "android.permission.ACCESS_FINE_LOCATION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#C45C4B",

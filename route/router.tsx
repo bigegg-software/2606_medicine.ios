@@ -40,6 +40,9 @@ import ProfileEditPage from '@/src/features/profile/healthRecord/ProfileEditPage
 // AI健康管家
 import AssistantPage from '@/src/features/assistant/AssistantPage';
 
+// 测试页
+import PolarDeviceTestPage from '@/src/test/polarDevice';
+
 // 里程碑
 import CalendarPage from '@/src/features/schedule/calendarPage';
 import ScheduleHistoryPage from '@/src/features/schedule/scheduleHistoryPage';
@@ -292,6 +295,7 @@ export type RootStackParamList = {
     skipFillOthers?: boolean;
   } | undefined;
   AssistantPage: { chatId?: string; startNew?: boolean } | undefined;
+  PolarDeviceTestPage: undefined;
   MyFamily: undefined;
   MyFamilyAdd: undefined;
   FamilyDetail: { id: string };
@@ -462,6 +466,7 @@ export default function RootStack() {
         options={{ title: '家人邀请' }}
       />
       <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="PolarDeviceTestPage" component={PolarDeviceTestPage} options={{ title: 'Polar H10 测试' }} />
       <Stack.Screen name="FeedbackPage" component={FeedbackPage} options={{ title: "帮助与反馈" }} />
       <Stack.Screen name="HealthRecord" component={HealthRecord} options={{ title: "健康档案" }} />
       <Stack.Screen name="Emergency" component={Emergency} options={{ title: "紧急联系人" }} />
