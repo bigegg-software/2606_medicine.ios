@@ -144,7 +144,7 @@ export default function LiveDetailPage() {
         });
         Toast.show(nextStatus ? '预约成功' : '已取消预约');
       } else {
-        Alert.alert('失败', (res as { msg?: string }).msg ?? '请稍后重试');
+        Toast.show('操作太频繁了,请稍后再试');
       }
     } catch {
       Alert.alert('失败', '请稍后重试');

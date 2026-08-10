@@ -1,4 +1,5 @@
 import { StyleSheet } from 'react-native';
+import { AppFonts } from '@/common/fonts';
 import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
@@ -16,9 +17,9 @@ const styles = StyleSheet.create({
     mapRightBox: { marginLeft: 17, flex: 1 },
     mapBoxItemTitle: { fontWeight: 500, fontSize: 16, color: AppTheme.textPrimary, },
     mapRightBtn: { height: 19, backgroundColor: "#00C950", borderRadius: 16, },
-    mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF",  paddingHorizontal: 7, },
-    wbmBtn: {  backgroundColor: "#0951AE", borderRadius: 4, },
-    wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF",paddingHorizontal: 7,paddingVertical:2 },
+    mapRightText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", paddingHorizontal: 7, },
+    wbmBtn: { backgroundColor: "#0951AE", borderRadius: 4, },
+    wbmText: { fontWeight: 400, fontSize: 12, color: "#FFFFFF", paddingHorizontal: 7, paddingVertical: 2 },
     activityStatusTag: {
         height: 22,
         paddingHorizontal: 8,
@@ -284,9 +285,15 @@ const styles = StyleSheet.create({
         width: 40,
         justifyContent: 'center',
     },
-    rankNumIcon: {
-        width: 25,
-        height: 25,
+    rankNumText: {
+        width: 40,
+        fontFamily: AppFonts.puHuiTiBold,
+        fontSize: 22,
+        lineHeight: 28,
+        color: '#A4A4A4',
+        textAlign: 'left',
+        fontStyle: 'italic',
+        transform: [{ skewX: '-12deg' }],
     },
     rankingItemText2: {
         fontWeight: 500,

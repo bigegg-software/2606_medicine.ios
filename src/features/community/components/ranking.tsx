@@ -9,6 +9,7 @@ import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootState } from '@/store/store';
 
 import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+
 const PODIUM_FRAMES = [
     require('@/assets/images/community/image2.png'),
     require('@/assets/images/community/image1.png'),
@@ -29,37 +30,12 @@ const PODIUM_SCORE_COLORS: Record<number, string> = {
     2: '#EC8E63',
 };
 
-const RANK_NUM_ICONS: Record<number, ImageSourcePropType> = {
-    1: require('@/assets/images/community/num1.png'),
-    2: require('@/assets/images/community/num2.png'),
-    3: require('@/assets/images/community/num3.png'),
-    4: require('@/assets/images/community/num4.png'),
-    5: require('@/assets/images/community/num5.png'),
-    6: require('@/assets/images/community/num6.png'),
-    7: require('@/assets/images/community/num7.png'),
-    8: require('@/assets/images/community/num8.png'),
-    9: require('@/assets/images/community/num9.png'),
-    10: require('@/assets/images/community/num10.png'),
-};
-
-function parseRankNumber(rank: number | string) {
-    const num = typeof rank === 'number' ? rank : Number.parseInt(rank, 10);
-    return Number.isFinite(num) ? num : null;
-}
-
 function RankBadge({ rank, labelStyle }: { rank: number | string; labelStyle?: object }) {
-    const rankNum = parseRankNumber(rank);
-    const icon = rankNum != null ? RANK_NUM_ICONS[rankNum] : undefined;
-
-    if (icon) {
-        return (
-            <View style={styles.rankNumWrap}>
-                <Image source={icon} style={styles.rankNumIcon} />
-            </View>
-        );
-    }
-
-    return <Text style={[styles.numBox, labelStyle]}>{rank}</Text>;
+    return (
+        <View style={styles.rankNumWrap}>
+            <Text style={[styles.rankNumText, labelStyle]}>{rank}</Text>
+        </View>
+    );
 }
 
 type RankingRowProps = {

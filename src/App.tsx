@@ -130,6 +130,11 @@ export default function App() {
   const [ready, setReady] = useState(false);
   const [fontsLoaded] = useFonts({
     antoutline: require('@ant-design/icons-react-native/fonts/antoutline.ttf'),
+    'AlibabaPuHuiTi-Light': require('@/assets/fonts/Alibaba-PuHuiTi-Light.ttf'),
+    'AlibabaPuHuiTi-Regular': require('@/assets/fonts/Alibaba-PuHuiTi-Regular.ttf'),
+    'AlibabaPuHuiTi-Medium': require('@/assets/fonts/Alibaba-PuHuiTi-Medium.ttf'),
+    'AlibabaPuHuiTi-Bold': require('@/assets/fonts/Alibaba-PuHuiTi-Bold.ttf'),
+    'AlibabaPuHuiTi-Heavy': require('@/assets/fonts/Alibaba-PuHuiTi-Heavy.ttf'),
   });
 
   useEffect(() => {
