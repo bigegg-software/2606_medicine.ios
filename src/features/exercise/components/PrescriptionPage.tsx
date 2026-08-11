@@ -40,9 +40,12 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
     const typeSections = buildPrescriptionTypeSections(exerciseRule)
     const weightItems = buildPrescriptionWeightItems(exerciseRule)
 
-    const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(() =>
-        Object.fromEntries(EXERCISE_TYPE_ORDER.map(key => [key, false])),
-    )
+    const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(() => {
+        const firstKey = buildPrescriptionTypeSections(exerciseRule)[0]?.key
+        return Object.fromEntries(
+            EXERCISE_TYPE_ORDER.map(key => [key, Boolean(firstKey) && key === firstKey]),
+        )
+    })
     const [timelineItems, setTimelineItems] = useState<PrescriptionTimelineItem[]>([])
     const [timelineLoading, setTimelineLoading] = useState(true)
 

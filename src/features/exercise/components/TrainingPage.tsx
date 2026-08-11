@@ -87,8 +87,12 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     /** 主训练每项均至少有进度（半完成，如 2/12 分钟、1/10 组次） */
     const [mainAllProgressed, setMainAllProgressed] = useState(false);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
-    const isHistory = moment(selectedDate).isBefore(moment(), 'day');
-    const isToday = selectedDate === moment().format('YYYY-MM-DD');
+    const isPast = moment(selectedDate).isBefore(moment(), 'day');
+    const isFuture = moment(selectedDate).isAfter(moment(), 'day');
+    const isToday = !isPast && !isFuture;
+    /** 非今日仅只读，不可执行 */
+    const readOnly = !isToday;
+    const dateMode = isPast ? 'past' : isFuture ? 'future' : 'today';
 
     const exerciseDayRecordMarker = useMemo(() => ({
         color: EXERCISE_CHECK_IN_DOT_COLOR,
@@ -255,15 +259,27 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
             setActivePhase('cooldown');
             return;
         }
-        if (isHistory) return;
+        if (!isToday) return;
         void onFinishSign();
-    }, [activePhase, isHistory, onFinishSign]);
+    }, [activePhase, isToday, onFinishSign]);
 
-    const bottomAction = isHistory
+    const bottomAction = !isToday
         ? activePhase === 'warmup'
-            ? { label: '查看主训练', showIcon: true, icon: PHASE_NEXT_ICON, disabled: false, dimmed: false }
+            ? {
+                label: isPast ? '查看主训练' : '进入主训练',
+                showIcon: true,
+                icon: PHASE_NEXT_ICON,
+                disabled: false,
+                dimmed: false,
+            }
             : activePhase === 'main'
-                ? { label: '查看冷身', showIcon: true, icon: PHASE_NEXT_ICON, disabled: false, dimmed: false }
+                ? {
+                    label: isPast ? '查看冷身' : '进入冷身',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                }
                 : null
         : activePhase === 'warmup'
             ? { label: '进入主训练', showIcon: true, icon: PHASE_NEXT_ICON, disabled: false, dimmed: false }
@@ -394,7 +410,8 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                         key={`warmup-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}`}
                         dayRule={dayRule}
                         selectedDate={selectedDate}
-                        readOnly={isHistory}
+                        readOnly={readOnly}
+                        dateMode={dateMode}
                     />
                 ) : null}
                 {activePhase === 'main' ? (
@@ -402,7 +419,8 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                         key={`main-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}`}
                         dayRule={dayRule}
                         selectedDate={selectedDate}
-                        readOnly={isHistory}
+                        readOnly={readOnly}
+                        dateMode={dateMode}
                     />
                 ) : null}
                 {activePhase === 'cooldown' ? (
@@ -410,7 +428,8 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                         key={`cooldown-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}`}
                         dayRule={dayRule}
                         selectedDate={selectedDate}
-                        readOnly={isHistory}
+                        readOnly={readOnly}
+                        dateMode={dateMode}
                     />
                 ) : null}
             </ScrollView>
@@ -441,7 +460,7 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                                 />
                             ) : null}
                             <Text style={styles.bottomBarButtonTextLeft}>
-                                {signing && activePhase === 'cooldown' && !isHistory
+                                {signing && activePhase === 'cooldown' && isToday
                                     ? '打卡中...'
                                     : bottomAction.label}
                             </Text>

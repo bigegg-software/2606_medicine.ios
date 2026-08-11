@@ -18,11 +18,13 @@ import type { RootStackParamList } from '@/route/router';
 import {
   attachTrainingPhaseCompleteInfo,
   buildTrainingPhaseCards,
+  canPressTrainingAction,
   formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
   isTrainingActionCompleted,
   shouldShowTrainingActionIcon,
   sumTrainingPhaseMinutes,
+  type TrainingActionDateMode,
   type TrainingPhaseExerciseCard,
 } from '../../utils/trainingPhaseHelpers';
 import {
@@ -53,8 +55,9 @@ type Props = {
   dayRule?: InUseExPatientRule | null;
   selectedDate: string;
   config: TrainingPhaseListConfig;
-  /** 历史日期只读 */
+  /** 非今日只读，不可执行 */
   readOnly?: boolean;
+  dateMode?: TrainingActionDateMode;
 };
 
 export default function TrainingPhaseListPanel({
@@ -62,6 +65,7 @@ export default function TrainingPhaseListPanel({
   selectedDate,
   config,
   readOnly = false,
+  dateMode = 'today',
 }: Props) {
   const navigation = useNavigation<Nav>();
   const [bannerWidth, setBannerWidth] = useState(0);
@@ -118,6 +122,7 @@ export default function TrainingPhaseListPanel({
   };
 
   const openPlayer = (card: TrainingPhaseExerciseCard) => {
+    if (!canPressTrainingAction(card, dateMode)) return;
     navigation.navigate('ExercisePlayerPage', {
       exVideoId: card.exVideoId,
       title: card.title,
@@ -187,8 +192,9 @@ export default function TrainingPhaseListPanel({
             ? scheduleGroupVal > 1
             : scheduleGroupVal > 0;
           const actionCompleted = isTrainingActionCompleted(item);
-          const actionText = formatTrainingActionButtonText(item, { readOnly });
-          const showActionIcon = shouldShowTrainingActionIcon(item, { readOnly });
+          const actionText = formatTrainingActionButtonText(item, { dateMode });
+          const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
+          const actionPressable = canPressTrainingAction(item, dateMode);
           return (
             <View key={item.key} style={styles.trainingExerciseCard}>
               <Flex align="center">
@@ -201,13 +207,21 @@ export default function TrainingPhaseListPanel({
                     {formatTrainingPhaseSubtitle(item)}
                   </Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.75} onPress={() => openPlayer(item)}>
-                  <Flex align="center" style={styles.mainTrainingActionTimer}>
+                <TouchableOpacity
+                  activeOpacity={actionPressable ? 0.75 : 1}
+                  disabled={!actionPressable}
+                  onPress={() => openPlayer(item)}>
+                  <Flex
+                    align="center"
+                    style={[
+                      styles.mainTrainingActionTimer,
+                      !actionPressable ? { opacity: 0.45 } : null,
+                    ]}>
                     {showActionIcon ? (
                       <Image
                         style={styles.mainTrainingActionTimerIcon}
                         source={
-                          readOnly || actionCompleted
+                          actionCompleted
                             ? require('@/assets/images/exercise/icon_wc.png')
                             : require('@/assets/images/exercise/icon_jsq.png')
                         }

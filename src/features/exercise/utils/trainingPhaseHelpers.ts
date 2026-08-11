@@ -146,17 +146,24 @@ export function formatTrainingPhaseSubtitle(card: TrainingPhaseExerciseCard) {
 }
 
 /** 列表右侧操作文案：计时类型显示进度分钟，其它按组完成态 */
+export type TrainingActionDateMode = 'today' | 'past' | 'future';
+
 export function formatTrainingActionButtonText(
   card: TrainingPhaseExerciseCard,
-  options?: { readOnly?: boolean },
+  options?: { dateMode?: TrainingActionDateMode },
 ) {
-  if (options?.readOnly) return '查看';
+  const dateMode = options?.dateMode ?? 'today';
+
+  // 未来：展示「开始」，由列表侧禁用点击
+  if (dateMode === 'future') return '开始';
 
   if (card.timerType === 'duration_min') {
     const done = Math.max(0, Math.round(Number(card.completedMinutes) || 0));
     const target = Math.max(0, Math.round(Number(card.durationMinutes) || 0));
     if (target > 0 && done >= target) return '完成';
     if (done > 0) return `${done}/${target}分钟`;
+    // 过去未开始：显示 0/目标
+    if (dateMode === 'past' && target > 0) return `0/${target}分钟`;
     return '开始';
   }
 
@@ -166,7 +173,20 @@ export function formatTrainingActionButtonText(
   const allDone = Array.from({ length: scheduleGroupVal }, (_, index) =>
     isGroupDisplayDone(index, card.groupCounts, target, card.completedGroups),
   ).every(Boolean);
+  // 过去未全部完成：统一展示「开始」（列表侧置灰不可点）
+  if (dateMode === 'past' && !allDone) return '开始';
   return allDone ? '完成' : '开始';
+}
+
+/** 非今日：仅「全部完成」可点进只读详情；未来与未完成均不可点（显示置灰开始） */
+export function canPressTrainingAction(
+  card: TrainingPhaseExerciseCard,
+  dateMode: TrainingActionDateMode = 'today',
+) {
+  if (dateMode === 'today') return true;
+  if (dateMode === 'future') return false;
+  // 过去：有部分进度（如 10/12 + 第二组/第三组）仍视为未完成，按钮为置灰「开始」
+  return isTrainingActionCompleted(card);
 }
 
 /** 列表右侧是否显示完成图标 */
@@ -206,16 +226,24 @@ export function isMainTrainingAllProgressStarted(modules: MainTrainingTypeModule
   return cards.every(isTrainingActionProgressStarted);
 }
 
-/** 计时进度（如 1/2分钟）不显示 icon，开始/完成才显示 */
+/** 计时进度（如 1/2分钟、0/12分钟）不显示 icon，开始/完成才显示 */
 export function shouldShowTrainingActionIcon(
   card: TrainingPhaseExerciseCard,
-  options?: { readOnly?: boolean },
+  options?: { dateMode?: TrainingActionDateMode },
 ) {
-  if (options?.readOnly) return true;
-  if (card.timerType !== 'duration_min') return true;
+  const dateMode = options?.dateMode ?? 'today';
+  if (dateMode === 'future') return true;
   if (isTrainingActionCompleted(card)) return true;
-  const done = Math.max(0, Math.round(Number(card.completedMinutes) || 0));
-  return done <= 0;
+
+  if (card.timerType === 'duration_min') {
+    // 过去未开始的 0/N、进行中的 N/M 都不显示 icon
+    if (dateMode === 'past') return false;
+    const done = Math.max(0, Math.round(Number(card.completedMinutes) || 0));
+    return done <= 0;
+  }
+
+  // 组别：过去未完成也显示「开始」icon（置灰）
+  return true;
 }
 
 const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
