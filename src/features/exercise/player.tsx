@@ -22,7 +22,7 @@ import {
   recordKcal,
   type ExRecordTrainingPhase,
 } from '@/api/exRecord';
-import type { ExVideoInfo } from '@/api/exVideo';
+import { recordExVideoView, type ExVideoInfo } from '@/api/exVideo';
 import type { ExPatientRuleRatio } from '@/api/schedule';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
@@ -38,7 +38,9 @@ import GroupCountInputModal from './components/training/GroupCountInputModal';
 import { formatChineseGroupLabel } from './utils/trainingPhaseHelpers';
 import {
   calcExerciseKcal,
+  calcGroupRestProgressPercent,
   calcTrainingProgressPercent,
+  canPressGroupCountTag,
   deriveCompleteGroupsFromCounts,
   findNextGroupInputIndex,
   formatSessionDuration,
@@ -53,6 +55,7 @@ import {
   resolveDurationSaveGroupTotal,
   resolveGroupInputMeta,
   resolvePlayerScheduleRule,
+  resolveRestBetweenGroupSeconds,
   resolveSaveGroupTargetCount,
   sessionSecondsToRecordMinutes,
   setGroupCountAtIndex,
@@ -97,14 +100,22 @@ export default function ExercisePlayerPage() {
   const [groupCounts, setGroupCounts] = useState<number[]>([]);
   const [markingGroup, setMarkingGroup] = useState(false);
   const [groupInputIndex, setGroupInputIndex] = useState<number | null>(null);
+  /** 组间休息倒计时中 */
+  const [isGroupResting, setIsGroupResting] = useState(false);
+  const [groupRestRemainingSeconds, setGroupRestRemainingSeconds] = useState(0);
+  /** 组间休息倒计时是否在走（暂停/播放只控计时，不控视频） */
+  const [isGroupRestTimerRunning, setIsGroupRestTimerRunning] = useState(false);
 
   const sessionElapsedRef = useRef(0);
   const prescriptionContextRef = useRef<PrescriptionContext>({});
   const videoRef = useRef<ExVideoInfo | null>(null);
   const groupCountsRef = useRef<number[]>([]);
   const isTrainingRef = useRef(false);
+  const isGroupRestingRef = useRef(false);
+  const groupRestTotalSecondsRef = useRef(0);
   const isSubmittingSessionRef = useRef(false);
   const hasAutoStartedRef = useRef(false);
+  const hasRecordedViewRef = useRef(false);
   const allowExitRef = useRef(false);
   const todayDurationRef = useRef(todayDuration);
   const targetMinutesRef = useRef(0);
@@ -114,6 +125,7 @@ export default function ExercisePlayerPage() {
   videoRef.current = video;
   groupCountsRef.current = groupCounts;
   isTrainingRef.current = isTraining;
+  isGroupRestingRef.current = isGroupResting;
   todayDurationRef.current = todayDuration;
 
   const videoUrl = video?.videoOssUrl?.trim() || null;
@@ -134,10 +146,20 @@ export default function ExercisePlayerPage() {
     return todayDuration.targetMinutes || activeRule?.duration || 0;
   })();
   targetMinutesRef.current = targetMinutes;
-  const progressPercent = calcTrainingProgressPercent(sessionElapsedSeconds, targetMinutes);
-  const sessionTimeText = formatSessionDuration(sessionElapsedSeconds);
+  const restBetweenGroupSeconds = resolveRestBetweenGroupSeconds(video?.restBetweenGroupSeconds);
+  const progressPercent = isGroupResting
+    ? calcGroupRestProgressPercent(groupRestRemainingSeconds, groupRestTotalSecondsRef.current)
+    : calcTrainingProgressPercent(sessionElapsedSeconds, targetMinutes);
+  const sessionTimeText = isGroupResting
+    ? formatSessionDuration(groupRestRemainingSeconds)
+    : formatSessionDuration(sessionElapsedSeconds);
   const headerDurationText = `${todayDuration.completedMinutes}/${targetMinutes || 0}分钟`;
-  const ruleSubtitle = route.params?.ruleSubtitle?.trim() || '';
+  const ruleSubtitle = (() => {
+    const raw = route.params?.ruleSubtitle?.trim() || '';
+    if (!raw) return '';
+    // 仅展示「20分钟」「10次 x 3组」，不展示部位等后缀
+    return raw.split(' · ')[0]?.trim() || raw;
+  })();
   const scheduleRule = resolvePlayerScheduleRule({
     routeGroupVal: route.params?.groupVal,
     routeNumberVal: route.params?.numberVal,
@@ -165,6 +187,15 @@ export default function ExercisePlayerPage() {
     : saveGroupTotal > 0
       ? `${completedGroupCount}/${saveGroupTotal}组`
       : '';
+  const nextSaveGroupIndex = !isDurationTimer && saveGroupTotal > 0
+    ? findNextGroupInputIndex(groupCounts, saveGroupTotal)
+    : -1;
+  const saveRecordButtonLabel = markingGroup
+    ? '保存中...'
+    : nextSaveGroupIndex >= 0
+      ? `保存数据·第${nextSaveGroupIndex + 1}组`
+      : '保存数据';
+  const saveRecordDisabled = markingGroup || submitting || isGroupResting;
   const readOnly = Boolean(route.params?.readOnly);
   const customerLocalDate = route.params?.customerLocalDate?.trim()
     || moment().format('YYYY-MM-DD');
@@ -319,6 +350,12 @@ export default function ExercisePlayerPage() {
     setLoading(true);
     setIsTraining(false);
     hasAutoStartedRef.current = false;
+    hasRecordedViewRef.current = false;
+    isGroupRestingRef.current = false;
+    groupRestTotalSecondsRef.current = 0;
+    setIsGroupResting(false);
+    setGroupRestRemainingSeconds(0);
+    setIsGroupRestTimerRunning(false);
     setSessionElapsedSeconds(0);
 
     try {
@@ -440,14 +477,25 @@ export default function ExercisePlayerPage() {
   }, [headerRightText, navigation, pageTitle]);
 
   useEffect(() => {
-    if (readOnly || !isTraining) return undefined;
+    if (readOnly || !isTraining || isGroupResting) return undefined;
 
     const timer = setInterval(() => {
       setSessionElapsedSeconds(prev => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isTraining, readOnly]);
+  }, [isGroupResting, isTraining, readOnly]);
+
+  // 组间休息倒计时（可由暂停/播放暂停或继续，不控视频）
+  useEffect(() => {
+    if (readOnly || !isGroupResting || !isGroupRestTimerRunning) return undefined;
+
+    const timer = setInterval(() => {
+      setGroupRestRemainingSeconds(prev => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isGroupRestTimerRunning, isGroupResting, readOnly]);
 
   useEffect(() => {
     if (loading || !videoUrl || hasAutoStartedRef.current) return;
@@ -460,8 +508,67 @@ export default function ExercisePlayerPage() {
     }
   }, [loading, player, readOnly, videoUrl]);
 
+  // 进入播放页且视频就绪后上报一次播放量
+  useEffect(() => {
+    if (loading || !videoUrl || hasRecordedViewRef.current) return;
+    const exVideoId = video?.exVideoId != null
+      ? String(video.exVideoId)
+      : route.params?.exVideoId?.trim();
+    if (!exVideoId) return;
+
+    hasRecordedViewRef.current = true;
+    recordExVideoView(exVideoId).catch(() => undefined);
+  }, [loading, route.params?.exVideoId, video?.exVideoId, videoUrl]);
+
+  const finishGroupRest = useCallback(() => {
+    if (!isGroupRestingRef.current) return;
+    isGroupRestingRef.current = false;
+    groupRestTotalSecondsRef.current = 0;
+    setIsGroupResting(false);
+    setGroupRestRemainingSeconds(0);
+    setIsGroupRestTimerRunning(false);
+    setSessionElapsedSeconds(0);
+    safePlayVideoPlayer(player);
+    isTrainingRef.current = true;
+    setIsTraining(true);
+  }, [player]);
+
+  // 倒计时归零后自动结束休息并恢复训练
+  useEffect(() => {
+    if (!isGroupResting || groupRestRemainingSeconds > 0) return;
+    finishGroupRest();
+  }, [finishGroupRest, groupRestRemainingSeconds, isGroupResting]);
+
+  const startGroupRest = useCallback((seconds: number) => {
+    const restSeconds = resolveRestBetweenGroupSeconds(seconds);
+    if (restSeconds <= 0) {
+      setSessionElapsedSeconds(0);
+      setIsGroupRestTimerRunning(false);
+      safePlayVideoPlayer(player);
+      isTrainingRef.current = true;
+      setIsTraining(true);
+      return;
+    }
+
+    groupRestTotalSecondsRef.current = restSeconds;
+    isGroupRestingRef.current = true;
+    setGroupRestRemainingSeconds(restSeconds);
+    setIsGroupResting(true);
+    setIsGroupRestTimerRunning(true);
+    setSessionElapsedSeconds(0);
+    safePauseVideoPlayer(player);
+    isTrainingRef.current = false;
+    setIsTraining(false);
+  }, [player]);
+
   const handleToggleTraining = useCallback(() => {
     if (readOnly || submitting) return;
+
+    // 组间休息：暂停/播放只控制休息倒计时，不控制视频
+    if (isGroupRestingRef.current) {
+      setIsGroupRestTimerRunning(prev => !prev);
+      return;
+    }
 
     if (isTraining) {
       safePauseVideoPlayer(player);
@@ -477,18 +584,12 @@ export default function ExercisePlayerPage() {
 
   const handleResetTimer = useCallback(() => {
     if (readOnly || submitting) return;
-    setSessionElapsedSeconds(0);
-  }, [readOnly, submitting]);
-
-  const handleSubmitTraining = useCallback(() => {
-    if (readOnly) return;
-    if (!isDurationTimer) {
-      allowExitRef.current = true;
-      navigation.goBack();
+    if (isGroupRestingRef.current) {
+      setGroupRestRemainingSeconds(groupRestTotalSecondsRef.current);
       return;
     }
-    showEndTrainingConfirm();
-  }, [isDurationTimer, navigation, readOnly, showEndTrainingConfirm]);
+    setSessionElapsedSeconds(0);
+  }, [readOnly, submitting]);
 
   const handleCloseGroupInput = useCallback(() => {
     setGroupInputIndex(null);
@@ -654,10 +755,8 @@ export default function ExercisePlayerPage() {
       }
 
       if (options?.resumeTraining) {
-        setSessionElapsedSeconds(0);
-        safePlayVideoPlayer(player);
-        isTrainingRef.current = true;
-        setIsTraining(true);
+        // 保存上一组后进入组间休息；休息结束再续播并开始训练计时
+        startGroupRest(resolveRestBetweenGroupSeconds(currentVideo?.restBetweenGroupSeconds));
       } else if (exerciseDuration > 0) {
         setSessionElapsedSeconds(0);
       }
@@ -680,20 +779,34 @@ export default function ExercisePlayerPage() {
     route.params?.exVideoId,
     sessionElapsedSeconds,
     showShortSessionAlert,
+    startGroupRest,
     submitting,
     timerType,
     totalGroups,
     trainingPhase,
   ]);
 
-  const handlePressIncompleteGroup = useCallback((index: number) => {
-    if (readOnly || isDurationTimer || markingGroup || submitting) return;
-    const count = Math.max(0, Math.round(Number(groupCountsRef.current[index]) || 0));
+  const handlePressGroupTag = useCallback((index: number) => {
+    if (readOnly || isDurationTimer || markingGroup || submitting || isGroupRestingRef.current) return;
+    const groupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
     const target = resolveSaveGroupTargetCount(timerType, groupTargetCount);
-    // 仅未达标进度可再编辑（1/10、5/10）；已达标（10/10、11/10）不可点
-    if (count <= 0 || isGroupCountDone(count, target)) return;
+    // 当前待录入组 / 未达标进度可点；已达标不可点
+    if (!canPressGroupCountTag(index, groupCountsRef.current, groupTotal, target)) return;
+
+    safePauseVideoPlayer(player);
+    isTrainingRef.current = false;
+    setIsTraining(false);
     setGroupInputIndex(index);
-  }, [groupTargetCount, isDurationTimer, markingGroup, readOnly, submitting, timerType]);
+  }, [
+    groupTargetCount,
+    isDurationTimer,
+    markingGroup,
+    player,
+    readOnly,
+    submitting,
+    timerType,
+    totalGroups,
+  ]);
 
   const handleSaveGroupInput = useCallback((value: number) => {
     if (readOnly || groupInputIndex == null) return;
@@ -726,7 +839,7 @@ export default function ExercisePlayerPage() {
 
   /** 底部「保存数据」：计时类型只传时长；其它类型按序录入下一组 */
   const handleSaveRecord = useCallback(() => {
-    if (readOnly || markingGroup || submitting) return;
+    if (readOnly || markingGroup || submitting || isGroupRestingRef.current) return;
 
     if (isDurationTimer) {
       const sessionSeconds = sessionElapsedRef.current;
@@ -777,6 +890,16 @@ export default function ExercisePlayerPage() {
     timerType,
     totalGroups,
   ]);
+
+  /** 结束计时：默认与「保存数据」一致；组间休息时提前结束休息 */
+  const handleSubmitTraining = useCallback(() => {
+    if (readOnly) return;
+    if (isGroupRestingRef.current) {
+      finishGroupRest();
+      return;
+    }
+    handleSaveRecord();
+  }, [finishGroupRest, handleSaveRecord, readOnly]);
 
   if (loading) {
     return (
@@ -864,7 +987,7 @@ export default function ExercisePlayerPage() {
             </Flex>
           </View>
           <Flex direction="column" style={styles.progressBoxWrap}>
-            <Text style={styles.progressTitle}>训练时间</Text>
+            <Text style={styles.progressTitle}>{isGroupResting ? '组间休息' : '训练时间'}</Text>
             <Text style={styles.progressText}>
               {readOnly
                 ? formatSessionDuration((todayDuration.completedMinutes || 0) * 60)
@@ -904,7 +1027,7 @@ export default function ExercisePlayerPage() {
                   <Image
                     style={styles.btnImg}
                     source={
-                      isTraining
+                      (isGroupResting ? isGroupRestTimerRunning : isTraining)
                         ? require('@/assets/images/player/stop.png')
                         : require('@/assets/images/player/play.png')
                     }
@@ -931,8 +1054,8 @@ export default function ExercisePlayerPage() {
                 targetCount={saveGroupTargetCount}
                 groupCounts={groupCounts}
                 complateGroups={null}
-                readOnly={readOnly || isDurationTimer}
-                onPressGroup={handlePressIncompleteGroup}
+                readOnly={readOnly || isDurationTimer || isGroupResting}
+                onPressGroup={handlePressGroupTag}
               />
               {!readOnly ? (
                 <Flex align="center" style={styles.playerGroupTipBox}>
@@ -943,7 +1066,7 @@ export default function ExercisePlayerPage() {
                   <Text style={styles.playerGroupTipText}>
                     {isDurationTimer
                       ? '点击下方保存数据，将记录本次计时分钟'
-                      : '未达标组别可点击修改；也可点下方保存数据按组依次填写'}
+                      : `点击组别依次记录每组完成情况；组间休息${restBetweenGroupSeconds}秒`}
                   </Text>
                 </Flex>
               ) : null}
@@ -1009,13 +1132,13 @@ export default function ExercisePlayerPage() {
               { paddingBottom: Math.max(insets.bottom, 8) },
             ]}>
             <TouchableOpacity
-              style={[exerciseStyles.bottomBarButtonLeft, { marginRight: 0, opacity: markingGroup || submitting ? 0.55 : 1 }]}
+              style={[exerciseStyles.bottomBarButtonLeft, { marginRight: 0, opacity: saveRecordDisabled ? 0.55 : 1 }]}
               activeOpacity={0.7}
-              disabled={markingGroup || submitting}
+              disabled={saveRecordDisabled}
               onPress={handleSaveRecord}>
               <Flex justify="center" align="center" style={{ flex: 1 }}>
                 <Text style={exerciseStyles.bottomBarButtonTextLeft}>
-                  {markingGroup ? '保存中...' : '保存数据'}
+                  {saveRecordButtonLabel}
                 </Text>
               </Flex>
             </TouchableOpacity>

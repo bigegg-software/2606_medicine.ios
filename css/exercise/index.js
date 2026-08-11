@@ -329,6 +329,8 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
   mainTrainingModuleTipText: {
+    flexShrink: 1,
+    flexGrow: 1,
     marginLeft: 6,
     fontWeight: 500,
     fontSize: 12,
@@ -548,8 +550,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#C98A41',
   },
-  mainTrainingTipText: {
+  mainTrainingTipList: {
     marginTop: 8,
+  },
+  mainTrainingTipItemGap: {
+    marginTop: 10,
+  },
+  mainTrainingTipBullet: {
+    width: 14,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#C98A41',
+    lineHeight: 20,
+  },
+  mainTrainingTipText: {
+    flex: 1,
     fontWeight: '500',
     fontSize: 13,
     color: '#C98A41',

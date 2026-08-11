@@ -38,8 +38,8 @@ export type InUseExPatientRule = {
   firstAdvanceWeeks?: string;
   progress?: number;
   status?: number;
-  /** 处方版本号 */
-  version?: number;
+  /** 处方版本号，如 1.1、1.2 */
+  version?: number | string;
   ruleRatioList?: ExPatientRuleRatio[];
   healthGoalIds?: number[];
   healthGoalTargetList?: HealthGoalTarget[];

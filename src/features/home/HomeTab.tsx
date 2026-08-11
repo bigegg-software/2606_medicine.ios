@@ -230,7 +230,6 @@ export default function HomeTab() {
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableRestingHeartRate, setWearableRestingHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
-  const [wearableBasalEnergy, setWearableBasalEnergy] = useState<WearableDataItem[]>([]);
   const [exercisePrescription, setExercisePrescription] = useState<InUseExPatientRule | null>(null);
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
@@ -313,8 +312,8 @@ export default function HomeTab() {
   }, [bloodGlucose]);
 
   const energySummary = useMemo(
-    () => getEnergySummary(wearableActiveEnergy, wearableBasalEnergy, 'today'),
-    [wearableActiveEnergy, wearableBasalEnergy],
+    () => getEnergySummary(wearableActiveEnergy, [], 'today'),
+    [wearableActiveEnergy],
   );
   const energyTarget = userExtr?.energyGoals ?? 2000;
   const energyTotal = energySummary.total === '--' ? 0 : Number(energySummary.total);
@@ -371,7 +370,7 @@ export default function HomeTab() {
     };
 
     try {
-      const [glucoseRes, heartRateItems, restingHeartRateItems, activeEnergyItems, basalEnergyItems] = await Promise.all([
+      const [glucoseRes, heartRateItems, restingHeartRateItems, activeEnergyItems] = await Promise.all([
         getMeasureDataDetailByDateRange({
           startDate,
           endDate,
@@ -380,7 +379,6 @@ export default function HomeTab() {
         fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
         fetchWearableItems(WEARABLE_DATA_TYPES.restingHeartRate),
         fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
-        fetchWearableItems(WEARABLE_DATA_TYPES.basalEnergy),
       ]);
 
       if (isResourceApiOk(glucoseRes as { code?: number })) {
@@ -395,13 +393,11 @@ export default function HomeTab() {
       setWearableHeartRate(heartRateItems);
       setWearableRestingHeartRate(restingHeartRateItems);
       setWearableActiveEnergy(activeEnergyItems);
-      setWearableBasalEnergy(basalEnergyItems);
     } catch {
       setBloodGlucose([]);
       setWearableHeartRate([]);
       setWearableRestingHeartRate([]);
       setWearableActiveEnergy([]);
-      setWearableBasalEnergy([]);
     }
   }, []);
 

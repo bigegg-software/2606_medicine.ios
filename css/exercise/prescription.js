@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   prescriptionSectionStatBadge: {
     position: 'absolute',
     top: -16,
-    right: -30,
+    right: -10,
     height: 16,
     paddingHorizontal: 5,
     backgroundColor: '#EE9C44',
@@ -293,7 +293,6 @@ const styles = StyleSheet.create({
   },
   prescriptionTypeItem: {
     marginTop: 8,
-    height: 66,
     padding: 15,
     backgroundColor: '#F6F8FB',
     borderRadius: 8,
@@ -328,6 +327,7 @@ const styles = StyleSheet.create({
   prescriptionTypeItemValue: {
     marginTop: 6,
     fontWeight: '500',
+    lineHeight:20,
     fontSize: 13,
     color: '#999999',
   },

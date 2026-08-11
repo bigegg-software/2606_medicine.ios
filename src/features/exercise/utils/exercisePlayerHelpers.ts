@@ -259,6 +259,27 @@ export function findNextGroupInputIndex(counts: number[], totalGroups: number) {
   return next < totalGroups ? next : -1;
 }
 
+/**
+ * 组别标签是否可点：
+ * - 已达标（10/10）不可点
+ * - 未达标进度（1/10）可再编辑
+ * - 无进度时仅「当前待录入组」可点（如全 0 可点第一组）
+ */
+export function canPressGroupCountTag(
+  index: number,
+  counts: number[],
+  totalGroups: number,
+  targetCount: number,
+) {
+  const list = normalizeGroupCounts(counts, totalGroups);
+  if (index < 0 || index >= list.length) return false;
+  const count = list[index] || 0;
+  const target = Math.max(0, Math.round(Number(targetCount) || 0));
+  if (isGroupCountDone(count, target)) return false;
+  if (count > 0) return true;
+  return index === findNextGroupInputIndex(list, totalGroups);
+}
+
 /** 点击累加某一组完成次数 */
 export function bumpGroupCountAtIndex(counts: number[], index: number, totalGroups: number) {
   const next = normalizeGroupCounts(counts, totalGroups);
@@ -306,6 +327,22 @@ export function formatSessionDuration(totalSeconds: number) {
 export function calcTrainingProgressPercent(elapsedSeconds: number, targetMinutes: number) {
   const targetSeconds = Math.max(targetMinutes * 60, 1);
   return Math.min(100, (Math.max(0, elapsedSeconds) / targetSeconds) * 100);
+}
+
+/** 组间休息秒数；无效或 ≤0 返回 0（跳过休息） */
+export function resolveRestBetweenGroupSeconds(
+  restBetweenGroupSeconds?: number | string | null,
+) {
+  const seconds = Math.round(Number(restBetweenGroupSeconds) || 0);
+  return seconds > 0 ? seconds : 0;
+}
+
+/** 组间休息进度：已休息占比 */
+export function calcGroupRestProgressPercent(remainingSeconds: number, totalSeconds: number) {
+  const total = Math.max(0, Math.round(Number(totalSeconds) || 0));
+  if (total <= 0) return 0;
+  const remaining = Math.max(0, Math.round(Number(remainingSeconds) || 0));
+  return Math.min(100, ((total - remaining) / total) * 100);
 }
 
 /** 接口 exerciseDuration 单位为分钟，仅统计完整分钟（不足 1 分钟返回 0）。 */

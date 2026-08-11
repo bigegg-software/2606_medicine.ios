@@ -28,6 +28,10 @@ import {
     loadPrescriptionTimelineItems,
     type PrescriptionTimelineItem,
 } from '../utils/prescriptionTimelineHelpers'
+import {
+    loadStrengthLevelLabelMap,
+    resolveStrengthLevelLabel,
+} from '../utils/exerciseHelpers'
 
 const ICON_COLLAPSE = require('@/assets/images/nutrition/sq.png')
 const ICON_EXPAND = require('@/assets/images/nutrition/dk.png')
@@ -48,22 +52,51 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
     })
     const [timelineItems, setTimelineItems] = useState<PrescriptionTimelineItem[]>([])
     const [timelineLoading, setTimelineLoading] = useState(true)
+    const [strengthLevelLabel, setStrengthLevelLabel] = useState('')
 
     const loadTimeline = useCallback(async () => {
+        const ruleId = exerciseRule?.exPatientRuleId
+        if (ruleId == null || String(ruleId).trim() === '') {
+            setTimelineItems([])
+            setTimelineLoading(false)
+            return
+        }
+
         setTimelineLoading(true)
         try {
-            const items = await loadPrescriptionTimelineItems()
+            const items = await loadPrescriptionTimelineItems(ruleId, exerciseRule?.version)
             setTimelineItems(items)
         } catch {
             setTimelineItems([])
         } finally {
             setTimelineLoading(false)
         }
-    }, [])
+    }, [exerciseRule?.exPatientRuleId, exerciseRule?.version])
 
     useEffect(() => {
         void loadTimeline()
     }, [loadTimeline])
+
+    useEffect(() => {
+        let cancelled = false
+        const level = exerciseRule?.strengthLevel
+        if (level == null || String(level).trim() === '') {
+            setStrengthLevelLabel('')
+            return
+        }
+        void loadStrengthLevelLabelMap()
+            .then(map => {
+                if (cancelled) return
+                setStrengthLevelLabel(resolveStrengthLevelLabel(level, map))
+            })
+            .catch(() => {
+                if (cancelled) return
+                setStrengthLevelLabel(String(level).trim())
+            })
+        return () => {
+            cancelled = true
+        }
+    }, [exerciseRule?.strengthLevel])
 
     const toggleType = (key: string) => {
         setExpandedMap(prev => ({
@@ -126,9 +159,13 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
 
                             <Flex style={styles.prescriptionSectionStats}>
                                 <View style={styles.prescriptionSectionStatItem}>
-                                    <View style={styles.prescriptionSectionStatBadge}>
-                                        <Text style={styles.prescriptionSectionStatBadgeText}>最低训练量</Text>
-                                    </View>
+                                    {strengthLevelLabel ? (
+                                        <View style={styles.prescriptionSectionStatBadge}>
+                                            <Text style={styles.prescriptionSectionStatBadgeText}>
+                                                {strengthLevelLabel}
+                                            </Text>
+                                        </View>
+                                    ) : null}
                                     <Text style={styles.prescriptionSectionStatTitle}>{weekDurationText}</Text>
                                     <Text style={styles.prescriptionSectionStatValue}>每周总量（分钟）</Text>
                                 </View>

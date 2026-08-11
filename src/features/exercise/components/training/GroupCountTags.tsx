@@ -2,7 +2,10 @@ import React from 'react';
 import { Image, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import styles from '@/css/exercise';
-import { isGroupCountDone } from '../../utils/exercisePlayerHelpers';
+import {
+  canPressGroupCountTag,
+  isGroupCountDone,
+} from '../../utils/exercisePlayerHelpers';
 import { formatChineseGroupLabel } from '../../utils/trainingPhaseHelpers';
 
 type Props = {
@@ -18,8 +21,9 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** 组别标签：无记录「第N组」；有次数显示 3/10（无 icon）；达标才显示完成 icon。
- *  未达标进度（如 1/10、5/10）可点击再编辑；已达标（10/10、11/10）不可点。
+/**
+ * 组别标签：无记录「第N组」；有次数显示 3/10（无 icon）；达标才显示完成 icon。
+ * 可点：当前待录入组、未达标进度；不可点：已达标、未到序的空组。
  */
 export default function GroupCountTags({
   totalGroups,
@@ -41,8 +45,9 @@ export default function GroupCountTags({
         const count = Math.max(0, Math.round(Number(groupCounts[index]) || 0));
         const hasProgress = count > 0;
         const targetMet = isGroupCountDone(count, target);
-        /** 有进度且未达标：可再次输入保存 */
-        const canEdit = Boolean(onPressGroup) && !readOnly && hasProgress && !targetMet;
+        const canEdit = Boolean(onPressGroup)
+          && !readOnly
+          && canPressGroupCountTag(index, groupCounts, safeTotal, target);
         const label = hasProgress
           ? (target > 0 ? `${count}/${target}` : String(count))
           : formatChineseGroupLabel(index + 1);

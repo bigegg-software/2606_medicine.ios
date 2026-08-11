@@ -66,6 +66,28 @@ const MAIN_TYPE_TIP: Partial<Record<ExerciseTypeKey, string>> = {
   balance: '安全第一，可扶墙保护',
 };
 
+/** 主训练类型旁提示：优先显示处方强度，超出由 UI 省略 */
+export function resolveMainTrainingModuleTipText(
+  typeKey: ExerciseTypeKey,
+  rule?: InUseExPatientRule | null,
+  strengthLevelMap?: Record<string, string>,
+) {
+  const ratio = (rule?.ruleRatioList ?? []).find(
+    item => item.exerciseType?.trim() === typeKey,
+  );
+  const fitt = ratio?.fittVp ?? {};
+  const intensity = String(fitt.I ?? fitt.intensity ?? fitt['强度'] ?? '').trim();
+  if (intensity) return intensity;
+
+  const levelKey = ratio?.strengthLevel?.trim();
+  if (levelKey) {
+    const label = strengthLevelMap?.[levelKey]?.trim() || levelKey;
+    if (label) return label;
+  }
+
+  return MAIN_TYPE_TIP[typeKey] ?? '';
+}
+
 /** 取选中日期对应的周训练安排（day: 1=周一 ... 7=周日） */
 export function getWeekScheduleForDate(
   list: ExWeekTrainingSchedule[] | undefined,
@@ -519,6 +541,19 @@ export async function buildMainTrainingModules(
   const modules: MainTrainingTypeModule[] = [];
   const exPatientRuleId = rule?.exPatientRuleId;
   const bodyPartLabelMap = await loadExerciseBodyPartLabelMap();
+  let strengthLevelMap: Record<string, string> = {};
+  try {
+    const strengthRes = await getDictDataByType(DICT_TYPES.strengthLevel);
+    if (isResourceApiOk(strengthRes as unknown as { code?: number })) {
+      strengthLevelMap = buildDictLabelMap(
+        apiResourceData<DictDataItem[]>(
+          strengthRes as unknown as { code?: number; data?: DictDataItem[] },
+        ),
+      );
+    }
+  } catch {
+    strengthLevelMap = {};
+  }
 
   for (const typeKey of MAIN_TYPE_ORDER) {
     const items = merged[typeKey];
@@ -535,7 +570,7 @@ export async function buildMainTrainingModules(
       key: typeKey,
       title: EXERCISE_TYPE_META[typeKey].title,
       icon: EXERCISE_TYPE_META[typeKey].icon,
-      tipText: MAIN_TYPE_TIP[typeKey] ?? '',
+      tipText: resolveMainTrainingModuleTipText(typeKey, rule, strengthLevelMap),
       cards,
     });
   }
@@ -543,7 +578,7 @@ export async function buildMainTrainingModules(
   return { isRest: false, modules };
 }
 
-export function formatMainTrainingFittTip(rule?: InUseExPatientRule | null) {
+export function formatMainTrainingFittTipLines(rule?: InUseExPatientRule | null) {
   const ratios = rule?.ruleRatioList ?? [];
   const parts: string[] = [];
   for (const item of ratios) {
@@ -567,7 +602,11 @@ export function formatMainTrainingFittTip(rule?: InUseExPatientRule | null) {
       .join('·');
     if (detail) parts.push(`${label}：${detail}`);
   }
-  return parts.join('\n') || '本方案依据 ACSM FITT-VP 框架制定，按处方执行即可。';
+  return parts.length > 0 ? parts : ['本方案依据 ACSM FITT-VP 框架制定，按处方执行即可。'];
+}
+
+export function formatMainTrainingFittTip(rule?: InUseExPatientRule | null) {
+  return formatMainTrainingFittTipLines(rule).join('\n');
 }
 
 export function formatGoalMinutesText(minutes: number) {

@@ -53,3 +53,11 @@ export const getExVideoInfo = (exVideoId: string) =>
     '/patient/exVideo/getInfo',
     { params: { exVideoId: String(exVideoId) } },
   );
+
+/** 视频播放量埋点（播放量 +1） */
+export const recordExVideoView = (exVideoId: string) =>
+  request.post<{ code?: number; msg?: string }>(
+    '/patient/exVideo/recordView',
+    undefined,
+    { params: { exVideoId: String(exVideoId) } },
+  );

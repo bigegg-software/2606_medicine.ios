@@ -11,7 +11,7 @@ import GroupCountTags from './GroupCountTags';
 import {
   buildMainTrainingModules,
   canPressTrainingAction,
-  formatMainTrainingFittTip,
+  formatMainTrainingFittTipLines,
   formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
   isTrainingActionCompleted,
@@ -125,7 +125,7 @@ function TypeModule({
   return (
     <View style={styles.mainTrainingModule}>
       <Flex align="center" justify="between">
-        <Flex align="center" style={{ flexShrink: 1 }}>
+        <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
           <Image
             style={styles.mainTrainingModuleIcon}
             tintColor="#333"
@@ -141,7 +141,12 @@ function TypeModule({
             <Text style={styles.mainTrainingModuleTitle}>{module.title}</Text>
           </View>
           {module.tipText ? (
-            <Text style={styles.mainTrainingModuleTipText}>{module.tipText}</Text>
+            <Text
+              style={styles.mainTrainingModuleTipText}
+              numberOfLines={1}
+              ellipsizeMode="tail">
+              {module.tipText}
+            </Text>
           ) : null}
         </Flex>
       </Flex>
@@ -171,7 +176,7 @@ export default function MainTrainingPhase({
   const [loading, setLoading] = useState(true);
   const [isRest, setIsRest] = useState(false);
   const [modules, setModules] = useState<MainTrainingTypeModule[]>([]);
-  const fittTip = formatMainTrainingFittTip(dayRule);
+  const fittTipLines = formatMainTrainingFittTipLines(dayRule);
 
   useFocusEffect(
     useCallback(() => {
@@ -266,7 +271,17 @@ export default function MainTrainingPhase({
           />
           <Text style={styles.mainTrainingTipTitle}>处方依据（ACSM FITT-VP）</Text>
         </Flex>
-        <Text style={styles.mainTrainingTipText}>{fittTip}</Text>
+        <View style={styles.mainTrainingTipList}>
+          {fittTipLines.map((line, index) => (
+            <Flex
+              key={`fitt-tip-${index}`}
+              align="start"
+              style={index > 0 ? styles.mainTrainingTipItemGap : undefined}>
+              <Text style={styles.mainTrainingTipBullet}>·</Text>
+              <Text style={styles.mainTrainingTipText}>{line}</Text>
+            </Flex>
+          ))}
+        </View>
       </View>
     </View>
   );

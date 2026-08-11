@@ -12,18 +12,20 @@ import type { UserExtr } from '@/api/user';
 import { getExRecordDayCalendarList, getExRecordDayStatis, type ExRecordDayCalendarItem, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 
-/** 运动页顶栏：年龄 | 性别 | 目标体重 */
+/** 运动页顶栏：年龄 | 性别 | 诊断 | 目标体重 */
 export function formatExerciseUserInfoText(
   user?: UserBaseInfo | null,
   userExtr?: UserExtr | null,
+  diagnosis?: string | null,
 ) {
   const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
   const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
   const gender = user?.gender?.trim() || '';
+  const diagnosisText = diagnosis?.trim() || '';
   const weightGoal = Number(userExtr?.weightGoals);
   const goalText =
     Number.isFinite(weightGoal) && weightGoal > 0 ? `目标${weightGoal}kg` : '';
-  return [age, gender, goalText].filter(Boolean).join(' | ') || '--';
+  return [age, gender, diagnosisText, goalText].filter(Boolean).join(' | ') || '--';
 }
 
 const EXERCISE_TYPE_LABELS: Record<string, string> = {
@@ -49,6 +51,30 @@ function resolveDictLabel(map: Record<string, string> | undefined, value?: strin
   const key = value?.trim();
   if (!key) return '';
   return map?.[key] ?? key;
+}
+
+/** 强度等级字典标签（dict: strength_level） */
+export function resolveStrengthLevelLabel(
+  strengthLevel?: string | number | null,
+  labelMap?: Record<string, string>,
+) {
+  const key = strengthLevel != null ? String(strengthLevel).trim() : '';
+  if (!key) return '';
+  return resolveDictLabel(labelMap, key);
+}
+
+export async function loadStrengthLevelLabelMap(): Promise<Record<string, string>> {
+  try {
+    const res = await getDictDataByType(DICT_TYPES.strengthLevel);
+    if (!isResourceApiOk(res as unknown as { code?: number })) return {};
+    return buildDictLabelMap(
+      apiResourceData<DictDataItem[]>(
+        res as unknown as { code?: number; data?: DictDataItem[] },
+      ),
+    );
+  } catch {
+    return {};
+  }
 }
 
 export async function loadExerciseDictMaps(): Promise<ExerciseDictMaps> {
