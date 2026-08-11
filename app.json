@@ -81,7 +81,8 @@
         }
       ],
       "expo-video",
-      "expo-font"
+      "expo-font",
+      "@lottiefiles/dotlottie-react-native/plugin"
     ],
     "android": {
       "package": "com.bigegg.medicine",

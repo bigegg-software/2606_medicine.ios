@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   prescriptionTypeItemValue: {
     marginTop: 6,
     fontWeight: '500',
-    lineHeight:20,
+    lineHeight: 20,
     fontSize: 13,
     color: '#999999',
   },
