@@ -7,17 +7,21 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/exercise';
 import type { InUseExPatientRule } from '@/api/schedule';
 import type { RootStackParamList } from '@/route/router';
-import TrainingPlayerRing from './TrainingPlayerRing';
+import GroupCountTags from './GroupCountTags';
 import {
   buildMainTrainingModules,
-  formatChineseGroupLabel,
-  formatClockFromMinutes,
-  formatGoalMinutesText,
   formatMainTrainingFittTip,
+  formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
+  isTrainingActionCompleted,
+  shouldShowTrainingActionIcon,
   type MainTrainingTypeModule,
   type TrainingPhaseExerciseCard,
 } from '../../utils/trainingPhaseHelpers';
+import {
+  resolveGroupTargetCount,
+  resolveScheduleGroupVal,
+} from '../../utils/exercisePlayerHelpers';
 
 type Props = {
   dayRule?: InUseExPatientRule | null;
@@ -33,33 +37,6 @@ function resolveTaskIndex(dayRule: InUseExPatientRule | null | undefined, exerci
   return matched >= 0 ? matched : undefined;
 }
 
-function StrengthSetRow({ card }: { card: TrainingPhaseExerciseCard }) {
-  const totalGroups = Math.max(0, card.groupVal || 0);
-  if (totalGroups <= 0) return null;
-
-  return (
-    <Flex align="center" style={styles.mainTrainingSetRow} wrap="wrap">
-      {Array.from({ length: totalGroups }, (_, index) => {
-        const groupNo = index + 1;
-        const done = card.completedGroups.includes(groupNo);
-        return (
-          <View
-            key={`${card.key}-set-${index}`}
-            style={[styles.mainTrainingSetTag, done && styles.mainTrainingSetTagDone]}>
-            <Text
-              style={[
-                styles.mainTrainingSetTagText,
-                done && styles.mainTrainingSetTagTextDone,
-              ]}>
-              {formatChineseGroupLabel(groupNo)}
-            </Text>
-          </View>
-        );
-      })}
-    </Flex>
-  );
-}
-
 function ActionCardRow({
   card,
   onPressTimer,
@@ -69,10 +46,15 @@ function ActionCardRow({
   onPressTimer: (card: TrainingPhaseExerciseCard) => void;
   readOnly?: boolean;
 }) {
-  const showSets = card.groupVal > 0;
-  const allGroupsDone = card.groupVal > 0
-    && Array.from({ length: card.groupVal }, (_, index) => index + 1)
-      .every(groupNo => card.completedGroups.includes(groupNo));
+  const scheduleGroupVal = resolveScheduleGroupVal(card);
+  // 计时类型仅多组时展示组别；单组不显示
+  const showSets = card.timerType === 'duration_min'
+    ? scheduleGroupVal > 1
+    : scheduleGroupVal > 0;
+  const targetCount = card.timerType === 'duration_min' ? 0 : resolveGroupTargetCount(card);
+  const actionCompleted = isTrainingActionCompleted(card);
+  const actionText = formatTrainingActionButtonText(card, { readOnly });
+  const showActionIcon = shouldShowTrainingActionIcon(card, { readOnly });
 
   return (
     <View style={styles.mainTrainingActionRow}>
@@ -88,95 +70,29 @@ function ActionCardRow({
         </View>
         <TouchableOpacity activeOpacity={0.75} onPress={() => onPressTimer(card)}>
           <Flex align="center" style={styles.mainTrainingActionTimer}>
-            <Image
-              style={styles.mainTrainingActionTimerIcon}
-              source={
-                readOnly || allGroupsDone
-                  ? require('@/assets/images/exercise/icon_wc.png')
-                  : require('@/assets/images/exercise/icon_jsq.png')
-              }
-            />
-            <Text style={styles.mainTrainingActionTimerText}>
-              {readOnly ? '查看' : allGroupsDone ? '完成' : '开始'}
-            </Text>
+            {showActionIcon ? (
+              <Image
+                style={styles.mainTrainingActionTimerIcon}
+                source={
+                  readOnly || actionCompleted
+                    ? require('@/assets/images/exercise/icon_wc.png')
+                    : require('@/assets/images/exercise/icon_jsq.png')
+                }
+              />
+            ) : null}
+            <Text style={styles.mainTrainingActionTimerText}>{actionText}</Text>
           </Flex>
         </TouchableOpacity>
       </Flex>
-      {showSets ? <StrengthSetRow card={card} /> : null}
-    </View>
-  );
-}
-
-function CardioModule({
-  module,
-  onOpenPlayer,
-  readOnly = false,
-}: {
-  module: MainTrainingTypeModule;
-  onOpenPlayer: (card?: TrainingPhaseExerciseCard) => void;
-  readOnly?: boolean;
-}) {
-  const primary = module.cards[0];
-  const goalMinutes = primary?.durationMinutes ?? 0;
-
-  return (
-    <View style={styles.mainTrainingModule}>
-      <Flex align="center" justify="between">
-        <Flex align="center" style={{ flexShrink: 1 }}>
-          <Image
-            style={styles.mainTrainingModuleIcon}
-            tintColor="#333"
-            source={module.icon}
-          />
-          <View style={styles.mainTrainingModuleTitleWrap}>
-            <LinearGradient
-              colors={['#6D925E', 'rgba(109,146,94,0)']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              style={styles.mainTrainingModuleUnderline}
-            />
-            <Text style={styles.mainTrainingModuleTitle}>{module.title}</Text>
-          </View>
-        </Flex>
-      </Flex>
-
-      {primary?.timerType === 'duration_min' ? (
-        <>
-          <View style={styles.mainTrainingDivider} />
-          <Flex justify="center" align="center" style={styles.mainTrainingPlayerRow}>
-            <Image
-              style={styles.mainTrainingPlayerSideIcon}
-              source={require('@/assets/images/exercise/icon_refresh.png')}
-            />
-            <View style={styles.mainTrainingPlayerCenter}>
-              <TrainingPlayerRing progress={0} />
-              <View style={styles.mainTrainingPlayerCenterText} pointerEvents="none">
-                <Text style={styles.mainTrainingPlayerTime}>
-                  {formatClockFromMinutes(goalMinutes)}
-                </Text>
-                <Text style={styles.mainTrainingPlayerGoal}>
-                  {formatGoalMinutesText(goalMinutes)}
-                </Text>
-              </View>
-            </View>
-            <TouchableOpacity activeOpacity={0.75} onPress={() => onOpenPlayer(primary)}>
-              <Image
-                style={styles.mainTrainingPlayerSideIcon}
-                source={require('@/assets/images/exercise/icon_start.png')}
-              />
-            </TouchableOpacity>
-          </Flex>
-        </>
+      {showSets ? (
+        <GroupCountTags
+          totalGroups={scheduleGroupVal}
+          targetCount={targetCount}
+          groupCounts={card.groupCounts}
+          complateGroups={card.completedGroups}
+          readOnly
+        />
       ) : null}
-
-      {module.cards.map((card, index) => (
-        <View key={card.key}>
-          {index > 0 || primary?.timerType === 'duration_min' ? (
-            <View style={styles.mainTrainingActionDivider} />
-          ) : null}
-          <ActionCardRow card={card} onPressTimer={onOpenPlayer} readOnly={readOnly} />
-        </View>
-      ))}
     </View>
   );
 }
@@ -190,10 +106,6 @@ function TypeModule({
   onOpenPlayer: (card?: TrainingPhaseExerciseCard) => void;
   readOnly?: boolean;
 }) {
-  if (module.key === 'cardio') {
-    return <CardioModule module={module} onOpenPlayer={onOpenPlayer} readOnly={readOnly} />;
-  }
-
   return (
     <View style={styles.mainTrainingModule}>
       <Flex align="center" justify="between">
@@ -270,7 +182,10 @@ export default function MainTrainingPhase({ dayRule = null, selectedDate, readOn
       ruleSubtitle: card ? formatTrainingPhaseSubtitle(card) : undefined,
       trainingPhase: 'main',
       groupVal: card?.groupVal,
-      timerType: card?.timerType,
+      numberVal: card?.numberVal,
+      keepSecondVal: card?.keepSecondVal,
+      durationMinutes: card?.durationMinutes,
+      timerType: card?.timerType || undefined,
       readOnly,
       customerLocalDate: selectedDate,
     });

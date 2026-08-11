@@ -14,6 +14,14 @@ import {
     loadExerciseCheckInMapByYear,
     type ExerciseCheckInMap,
 } from '../utils/exerciseCheckInHelpers';
+import {
+    emptyExerciseDayStatView,
+    formatExerciseStatCompleteRate,
+    formatExerciseStatMinutes,
+    loadExerciseDayStat,
+    resolveExerciseStatProgressPercent,
+    type ExerciseDayStatView,
+} from '../utils/exerciseDayStatHelpers';
 import { loadExPatientRuleForDate } from '../utils/exerciseRuleDateHelpers';
 import WarmupPhase from './training/WarmupPhase';
 import MainTrainingPhase from './training/MainTrainingPhase';
@@ -54,19 +62,19 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [activePhase, setActivePhase] = useState<TrainingPhaseKey>('warmup');
     const [checkInMap, setCheckInMap] = useState<ExerciseCheckInMap>({});
+    const [dayStat, setDayStat] = useState<ExerciseDayStatView>(emptyExerciseDayStatView);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
     const isHistory = moment(selectedDate).isBefore(moment(), 'day');
 
     const exerciseDayRecordMarker = useMemo(() => ({
         color: EXERCISE_CHECK_IN_DOT_COLOR,
-        title: '运动打卡记录：',
-        label: '已打卡',
         loadByYear: loadExerciseCheckInMapByYear,
     }), []);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
         const rule = await loadExPatientRuleForDate(date, inUseRule);
         setDayRule(rule);
+        return rule;
     }, []);
 
     const loadWeekCheckIn = useCallback(async (date: string) => {
@@ -76,11 +84,31 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
         setCheckInMap(prev => ({ ...prev, ...map }));
     }, []);
 
+    const loadDayStat = useCallback(async (
+        date: string,
+        rule?: InUseExPatientRule | null,
+    ) => {
+        const exPatientRuleId = rule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId;
+        const next = await loadExerciseDayStat({
+            exPatientRuleId,
+            customerLocalDate: date,
+        });
+        setDayStat(next);
+    }, [exerciseRule?.exPatientRuleId]);
+
     useFocusEffect(
         useCallback(() => {
-            void loadDayRule(selectedDate, exerciseRule);
-            void loadWeekCheckIn(selectedDate);
-        }, [exerciseRule, loadDayRule, loadWeekCheckIn, selectedDate]),
+            let cancelled = false;
+            void (async () => {
+                const rule = await loadDayRule(selectedDate, exerciseRule);
+                if (cancelled) return;
+                void loadWeekCheckIn(selectedDate);
+                void loadDayStat(selectedDate, rule);
+            })();
+            return () => {
+                cancelled = true;
+            };
+        }, [exerciseRule, loadDayRule, loadDayStat, loadWeekCheckIn, selectedDate]),
     );
 
     const onPressDatePicker = () => {
@@ -172,7 +200,9 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                             style={styles.trainingStatIcon}
                             source={require('@/assets/images/exercise/icon_fz.png')}
                         />
-                        <Text style={styles.trainingStatValue}>--</Text>
+                        <Text style={styles.trainingStatValue}>
+                            {formatExerciseStatMinutes(dayStat.sumMinutes)}
+                        </Text>
                         <Text style={styles.trainingStatLabel}>分钟</Text>
                     </View>
                     <View style={styles.trainingStatCard}>
@@ -188,12 +218,21 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                             style={styles.trainingStatIcon}
                             source={require('@/assets/images/exercise/icon_wcd.png')}
                         />
-                        <Text style={styles.trainingStatValue}>--</Text>
+                        <Text style={styles.trainingStatValue}>
+                            {formatExerciseStatCompleteRate(dayStat.mainCompleteRate)}
+                        </Text>
                         <Text style={styles.trainingStatLabel}>完成度</Text>
                     </View>
                 </View>
                 <View style={styles.trainingProgressTrack}>
-                    <View style={[styles.trainingProgressFill, { width: '0%' }]} />
+                    <View
+                        style={[
+                            styles.trainingProgressFill,
+                            {
+                                width: `${resolveExerciseStatProgressPercent(dayStat.mainCompleteRate)}%` as `${number}%`,
+                            },
+                        ]}
+                    />
                 </View>
 
                 <View style={styles.trainingPhaseTabBox}>

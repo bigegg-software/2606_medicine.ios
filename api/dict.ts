@@ -30,6 +30,8 @@ export const DICT_TYPES = {
   strengthChildType: 'strength_child_type',
   flexibilityChildType: 'flexibility_child_type',
   balanceChildType: 'balance_child_type',
+  /** 运动部位 */
+  exerciseBodyPart: 'exercise_body_part',
   courseType: 'course_type',
   liveType: 'live_type',
   livePlatform: 'live_platform',

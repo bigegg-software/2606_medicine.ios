@@ -1,5 +1,11 @@
 import moment from 'moment';
 import type { ImageSourcePropType } from 'react-native';
+import {
+  buildDictLabelMap,
+  DICT_TYPES,
+  getDictDataByType,
+  type DictDataItem,
+} from '@/api/dict';
 import type { ExRecordTrainingPhase } from '@/api/exRecord';
 import { getExVideoInfo, type ExVideoInfo } from '@/api/exVideo';
 import type {
@@ -11,8 +17,14 @@ import type { InUseExPatientRule } from '@/api/schedule';
 import { EXERCISE_TYPE_META, type ExerciseTypeKey } from './prescriptionHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
+  isGroupDisplayDone,
   loadExRecordVideoCompleteInfo,
   normalizeCompleteGroups,
+  normalizeGroupCounts,
+  resolveDisplayCompleteGroups,
+  resolveDurationSaveGroupTotal,
+  resolveGroupTargetCount,
+  resolveScheduleGroupVal,
 } from './exercisePlayerHelpers';
 
 const DEFAULT_THUMB = require('@/assets/images/exercise/ydkz.png');
@@ -33,6 +45,10 @@ export type TrainingPhaseExerciseCard = {
   bodyPartText: string;
   /** 当日已完成组号列表 */
   completedGroups: number[];
+  /** 每组完成次数，下标 0 对应第 1 组 */
+  groupCounts: number[];
+  /** 当日该视频累计锻炼分钟 */
+  completedMinutes: number;
 };
 
 export type MainTrainingTypeModule = {
@@ -98,31 +114,86 @@ export function formatTrainingItemRuleText(item: ExWeekTrainingItem) {
   return '--';
 }
 
-/** 列表副标题：类型在前，组数在后（不含部位） */
+/** 列表副标题：分钟/次数/组别，后接部位类型（与主训练卡片一致） */
 export function formatTrainingPhaseSubtitle(card: TrainingPhaseExerciseCard) {
+  let base = '';
   if (card.timerType === 'group_number') {
     if (card.numberVal > 0 && card.groupVal > 0) {
-      return `${card.numberVal}次 x ${card.groupVal}组`;
+      base = `${card.numberVal}次 x ${card.groupVal}组`;
+    } else if (card.numberVal > 0) {
+      base = `${card.numberVal}次`;
+    } else if (card.groupVal > 0) {
+      base = `${card.groupVal}组`;
     }
-    if (card.numberVal > 0) return `${card.numberVal}次`;
-    if (card.groupVal > 0) return `${card.groupVal}组`;
-  }
-  if (card.timerType === 'keep_second_number') {
+  } else if (card.timerType === 'keep_second_number') {
     if (card.keepSecondVal > 0 && card.groupVal > 0) {
-      return `${card.keepSecondVal}秒 x ${card.groupVal}组`;
+      base = `${card.keepSecondVal}秒 x ${card.groupVal}组`;
+    } else if (card.keepSecondVal > 0 && card.numberVal > 0) {
+      base = `${card.keepSecondVal}秒 x ${card.numberVal}组`;
+    } else if (card.keepSecondVal > 0) {
+      base = `${card.keepSecondVal}秒`;
     }
-    if (card.keepSecondVal > 0 && card.numberVal > 0) {
-      return `${card.keepSecondVal}秒 x ${card.numberVal}组`;
-    }
-    if (card.keepSecondVal > 0) return `${card.keepSecondVal}秒`;
+  } else if (card.timerType === 'duration_min' && card.durationMinutes > 0) {
+    base = card.groupVal > 0
+      ? `${card.durationMinutes}分钟 x ${card.groupVal}组`
+      : `${card.durationMinutes}分钟`;
+  } else {
+    base = card.ruleText.split(' · ')[0] || '--';
   }
-  if (card.timerType === 'duration_min' && card.durationMinutes > 0) {
-    if (card.groupVal > 0) {
-      return `${card.durationMinutes}分钟 x ${card.groupVal}组`;
-    }
-    return `${card.durationMinutes}分钟`;
+
+  if (!base || base === '--') return card.ruleText || '--';
+  return card.bodyPartText ? `${base} · ${card.bodyPartText}` : base;
+}
+
+/** 列表右侧操作文案：计时类型显示进度分钟，其它按组完成态 */
+export function formatTrainingActionButtonText(
+  card: TrainingPhaseExerciseCard,
+  options?: { readOnly?: boolean },
+) {
+  if (options?.readOnly) return '查看';
+
+  if (card.timerType === 'duration_min') {
+    const done = Math.max(0, Math.round(Number(card.completedMinutes) || 0));
+    const target = Math.max(0, Math.round(Number(card.durationMinutes) || 0));
+    if (target > 0 && done >= target) return '完成';
+    if (done > 0) return `${done}/${target}分钟`;
+    return '开始';
   }
-  return card.ruleText.split(' · ')[0] || '--';
+
+  const scheduleGroupVal = resolveScheduleGroupVal(card);
+  if (scheduleGroupVal <= 0) return '开始';
+  const target = resolveGroupTargetCount(card);
+  const allDone = Array.from({ length: scheduleGroupVal }, (_, index) =>
+    isGroupDisplayDone(index, card.groupCounts, target, card.completedGroups),
+  ).every(Boolean);
+  return allDone ? '完成' : '开始';
+}
+
+/** 列表右侧是否显示完成图标 */
+export function isTrainingActionCompleted(card: TrainingPhaseExerciseCard) {
+  if (card.timerType === 'duration_min') {
+    const done = Math.max(0, Math.round(Number(card.completedMinutes) || 0));
+    const target = Math.max(0, Math.round(Number(card.durationMinutes) || 0));
+    return target > 0 && done >= target;
+  }
+  const scheduleGroupVal = resolveScheduleGroupVal(card);
+  if (scheduleGroupVal <= 0) return false;
+  const target = resolveGroupTargetCount(card);
+  return Array.from({ length: scheduleGroupVal }, (_, index) =>
+    isGroupDisplayDone(index, card.groupCounts, target, card.completedGroups),
+  ).every(Boolean);
+}
+
+/** 计时进度（如 1/2分钟）不显示 icon，开始/完成才显示 */
+export function shouldShowTrainingActionIcon(
+  card: TrainingPhaseExerciseCard,
+  options?: { readOnly?: boolean },
+) {
+  if (options?.readOnly) return true;
+  if (card.timerType !== 'duration_min') return true;
+  if (isTrainingActionCompleted(card)) return true;
+  const done = Math.max(0, Math.round(Number(card.completedMinutes) || 0));
+  return done <= 0;
 }
 
 const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
@@ -144,9 +215,31 @@ export function formatChineseGroupLabel(index: number) {
   return `第${n}组`;
 }
 
-function formatBodyPartText(parts?: string[]) {
+function formatBodyPartText(parts?: string[], labelMap?: Record<string, string>) {
   if (!Array.isArray(parts) || parts.length === 0) return '';
-  return parts.map(item => String(item).trim()).filter(Boolean).join(' · ');
+  return parts
+    .map(item => {
+      const key = String(item).trim();
+      if (!key) return '';
+      return labelMap?.[key] ?? key;
+    })
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** 加载运动部位字典 exercise_body_part → { dictValue: dictLabel } */
+export async function loadExerciseBodyPartLabelMap(): Promise<Record<string, string>> {
+  try {
+    const res = await getDictDataByType(DICT_TYPES.exerciseBodyPart);
+    if (!isResourceApiOk(res as unknown as { code?: number })) return {};
+    return buildDictLabelMap(
+      apiResourceData<DictDataItem[]>(
+        res as unknown as { code?: number; data?: DictDataItem[] },
+      ),
+    );
+  } catch {
+    return {};
+  }
 }
 
 function resolveDurationMinutes(item: ExWeekTrainingItem) {
@@ -173,22 +266,28 @@ async function fetchVideoInfo(exVideoId: string): Promise<ExVideoInfo | null> {
 
 export async function buildTrainingPhaseCards(
   items: ExWeekTrainingItem[] | undefined,
+  bodyPartLabelMap?: Record<string, string>,
 ): Promise<TrainingPhaseExerciseCard[]> {
   const list = items ?? [];
   if (list.length === 0) return [];
 
-  const videos = await Promise.all(
-    list.map(item => {
-      const id = item.exVideoId != null ? String(item.exVideoId) : '';
-      return id ? fetchVideoInfo(id) : Promise.resolve(null);
-    }),
-  );
+  const [videos, labelMap] = await Promise.all([
+    Promise.all(
+      list.map(item => {
+        const id = item.exVideoId != null ? String(item.exVideoId) : '';
+        return id ? fetchVideoInfo(id) : Promise.resolve(null);
+      }),
+    ),
+    bodyPartLabelMap
+      ? Promise.resolve(bodyPartLabelMap)
+      : loadExerciseBodyPartLabelMap(),
+  ]);
 
   return list.map((item, index) => {
     const exVideoId = item.exVideoId != null ? String(item.exVideoId) : `idx-${index}`;
     const video = videos[index];
     const coverUrl = video?.coverOssUrl?.trim();
-    const bodyPartText = formatBodyPartText(video?.exerciseBodyParts);
+    const bodyPartText = formatBodyPartText(video?.exerciseBodyParts, labelMap);
     const ruleText = formatTrainingItemRuleText(item);
     return {
       key: `${exVideoId}-${index}`,
@@ -209,11 +308,13 @@ export async function buildTrainingPhaseCards(
         : 0,
       bodyPartText,
       completedGroups: [],
+      groupCounts: [],
+      completedMinutes: 0,
     };
   });
 }
 
-/** 为列表卡片批量回填当日完成组数 */
+/** 为列表卡片批量回填当日完成组数 / 每组次数 */
 export async function attachTrainingPhaseCompleteInfo(
   cards: TrainingPhaseExerciseCard[],
   options: {
@@ -227,10 +328,20 @@ export async function attachTrainingPhaseCompleteInfo(
     ? String(options.exPatientRuleId).trim()
     : '';
   if (!exPatientRuleId || cards.length === 0) {
-    return cards.map(card => ({
-      ...card,
-      completedGroups: normalizeCompleteGroups(card.completedGroups),
-    }));
+    return cards.map(card => {
+      const totalGroups = resolveDurationSaveGroupTotal(
+        resolveScheduleGroupVal(card),
+        card.timerType,
+      );
+      const groupCounts = normalizeGroupCounts(card.groupCounts, totalGroups);
+      const target = card.timerType === 'duration_min' ? 0 : resolveGroupTargetCount(card);
+      return {
+        ...card,
+        groupCounts,
+        completedGroups: resolveDisplayCompleteGroups(groupCounts, target, card.completedGroups),
+        completedMinutes: Math.max(0, Math.round(Number(card.completedMinutes) || 0)),
+      };
+    });
   }
 
   const infos = await Promise.all(
@@ -245,10 +356,40 @@ export async function attachTrainingPhaseCompleteInfo(
     ),
   );
 
-  return cards.map((card, index) => ({
-    ...card,
-    completedGroups: normalizeCompleteGroups(infos[index]?.complateGroups),
-  }));
+  return cards.map((card, index) => {
+    const info = infos[index];
+    const target = card.timerType === 'duration_min' ? 0 : resolveGroupTargetCount(card);
+    const totalGroups = resolveDurationSaveGroupTotal(
+      resolveScheduleGroupVal(card),
+      card.timerType,
+    );
+    let groupCounts = normalizeGroupCounts(info?.complateGroupCounts, totalGroups);
+    if (groupCounts.every(count => count <= 0)) {
+      const legacyGroups = normalizeCompleteGroups(info?.complateGroups);
+      if (legacyGroups.length > 0) {
+        groupCounts = normalizeGroupCounts([], totalGroups);
+        for (const groupNo of legacyGroups) {
+          if (groupNo >= 1 && groupNo <= totalGroups) {
+            groupCounts[groupNo - 1] = target > 0 ? target : 1;
+          }
+        }
+      }
+    }
+    const completed = Number(info?.exerciseDuration);
+    const fromGroupMinutes = groupCounts.reduce((sum, item) => sum + Math.max(0, item), 0);
+    const completedMinutes = card.timerType === 'duration_min'
+      ? (Number.isFinite(completed) && completed > 0
+        ? Math.round(completed)
+        : fromGroupMinutes)
+      : (Number.isFinite(completed) && completed > 0 ? Math.round(completed) : 0);
+    return {
+      ...card,
+      groupCounts,
+      // complateGroups 为空时，按最后非0前的组推断已完成
+      completedGroups: resolveDisplayCompleteGroups(groupCounts, target, info?.complateGroups),
+      completedMinutes,
+    };
+  });
 }
 
 export function sumTrainingPhaseMinutes(cards: TrainingPhaseExerciseCard[]) {
@@ -319,11 +460,12 @@ export async function buildMainTrainingModules(
   const merged = mergeMainBlocks(schedule?.mainList);
   const modules: MainTrainingTypeModule[] = [];
   const exPatientRuleId = rule?.exPatientRuleId;
+  const bodyPartLabelMap = await loadExerciseBodyPartLabelMap();
 
   for (const typeKey of MAIN_TYPE_ORDER) {
     const items = merged[typeKey];
     if (!items.length) continue;
-    const baseCards = await buildTrainingPhaseCards(items);
+    const baseCards = await buildTrainingPhaseCards(items, bodyPartLabelMap);
     if (!baseCards.length) continue;
     const cards = await attachTrainingPhaseCompleteInfo(baseCards, {
       exPatientRuleId,
