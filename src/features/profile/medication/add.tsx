@@ -327,12 +327,12 @@ export default function MedicationAddPage({ route }: Props) {
                 keyboardDismissMode="on-drag"
                 showsVerticalScrollIndicator={false}>
                 <View style={styles.rowBox}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         activeOpacity={0.7}
                         style={styles.sectionHeader}
-                        onPress={() => setBasicExpanded(prev => !prev)}>
+                        onPress={() => setBasicExpanded(prev => !prev)}> */}
                         <Text style={styles.sectionTitle}>基础信息</Text>
-                        <View style={styles.sectionToggleBtn}>
+                        {/* <View style={styles.sectionToggleBtn}>
                             <Image
                                 style={styles.sectionToggleIcon}
                                 source={
@@ -341,8 +341,8 @@ export default function MedicationAddPage({ route }: Props) {
                                         : require('@/assets/images/medication/icon_zk.png')
                                 }
                             />
-                        </View>
-                    </TouchableOpacity>
+                        </View> */}
+                    {/* </TouchableOpacity> */}
 
                     {basicExpanded ? (
                         <>
@@ -384,12 +384,12 @@ export default function MedicationAddPage({ route }: Props) {
                 </View>
 
                 <View style={styles.rowBox}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         activeOpacity={0.7}
                         style={styles.sectionHeader}
-                        onPress={() => setTimingExpanded(prev => !prev)}>
+                        onPress={() => setTimingExpanded(prev => !prev)}> */}
                         <Text style={styles.sectionTitle}>用药时机</Text>
-                        <View style={styles.sectionToggleBtn}>
+                        {/* <View style={styles.sectionToggleBtn}>
                             <Image
                                 style={styles.sectionToggleIcon}
                                 source={
@@ -399,7 +399,7 @@ export default function MedicationAddPage({ route }: Props) {
                                 }
                             />
                         </View>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
                     {timingExpanded ? (
                         <View>
@@ -425,12 +425,12 @@ export default function MedicationAddPage({ route }: Props) {
                 </View>
 
                 <View style={[styles.rowBox, rulesExpanded && styles.rowBoxRulesExpanded]}>
-                    <TouchableOpacity
+                    {/* <TouchableOpacity
                         activeOpacity={0.7}
                         style={styles.sectionHeader}
-                        onPress={() => setRulesExpanded(prev => !prev)}>
+                        onPress={() => setRulesExpanded(prev => !prev)}> */}
                         <Text style={styles.sectionTitle}>用药规则</Text>
-                        <View style={styles.sectionToggleBtn}>
+                        {/* <View style={styles.sectionToggleBtn}>
                             <Image
                                 style={styles.sectionToggleIcon}
                                 source={
@@ -440,7 +440,7 @@ export default function MedicationAddPage({ route }: Props) {
                                 }
                             />
                         </View>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
 
                     {rulesExpanded ? (
                         <>

@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     padding: 0,
     fontWeight: '500',
     fontSize: 14,
-    color: '#999999',
+    color: '#333333',
   },
   groupCountModalUnit: {
     marginLeft: 8,

@@ -2,14 +2,14 @@ import React from 'react';
 import { Image, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import styles from '@/css/exercise';
-import { isGroupDisplayDone } from '../../utils/exercisePlayerHelpers';
+import { isGroupCountDone } from '../../utils/exercisePlayerHelpers';
 import { formatChineseGroupLabel } from '../../utils/trainingPhaseHelpers';
 
 type Props = {
   totalGroups: number;
   targetCount: number;
   groupCounts: number[];
-  /** 接口 complateGroups；为空时按次数推断完成态 */
+  /** 接口 complateGroups；保留入参兼容 */
   complateGroups?: number[] | null;
   /** 列表只读展示时不响应点击 */
   readOnly?: boolean;
@@ -18,12 +18,13 @@ type Props = {
   style?: StyleProp<ViewStyle>;
 };
 
-/** 组别标签：无记录「第N组」；有次数显示 10/12；完成显示 icon（complateGroups 空时按最后非0前的组推断） */
+/** 组别标签：无记录「第N组」；有次数显示 3/10（无 icon）；达标才显示完成 icon。
+ *  未达标进度（如 1/10、5/10）可点击再编辑；已达标（10/10、11/10）不可点。
+ */
 export default function GroupCountTags({
   totalGroups,
   targetCount,
   groupCounts,
-  complateGroups,
   readOnly = false,
   onPressGroup,
   onLongPressGroup,
@@ -39,7 +40,9 @@ export default function GroupCountTags({
       {Array.from({ length: safeTotal }, (_, index) => {
         const count = Math.max(0, Math.round(Number(groupCounts[index]) || 0));
         const hasProgress = count > 0;
-        const done = isGroupDisplayDone(index, groupCounts, target, complateGroups);
+        const targetMet = isGroupCountDone(count, target);
+        /** 有进度且未达标：可再次输入保存 */
+        const canEdit = Boolean(onPressGroup) && !readOnly && hasProgress && !targetMet;
         const label = hasProgress
           ? (target > 0 ? `${count}/${target}` : String(count))
           : formatChineseGroupLabel(index + 1);
@@ -48,10 +51,10 @@ export default function GroupCountTags({
             align="center"
             style={[
               styles.mainTrainingSetTag,
-              hasProgress && !done && styles.mainTrainingSetTagProgress,
-              done && styles.mainTrainingSetTagDone,
+              hasProgress && !targetMet && styles.mainTrainingSetTagProgress,
+              targetMet && styles.mainTrainingSetTagDone,
             ]}>
-            {done ? (
+            {targetMet ? (
               <Image
                 style={styles.groupCountTagIcon}
                 source={require('@/assets/images/exercise/icon_wc.png')}
@@ -60,14 +63,14 @@ export default function GroupCountTags({
             <Text
               style={[
                 styles.mainTrainingSetTagText,
-                (hasProgress || done) && styles.mainTrainingSetTagTextDone,
+                (hasProgress || targetMet) && styles.mainTrainingSetTagTextDone,
               ]}>
               {label}
             </Text>
           </Flex>
         );
 
-        if (readOnly || !onPressGroup) {
+        if (!canEdit) {
           return <View key={`group-count-${index}`}>{content}</View>;
         }
 
@@ -75,7 +78,7 @@ export default function GroupCountTags({
           <TouchableOpacity
             key={`group-count-${index}`}
             activeOpacity={0.75}
-            onPress={() => onPressGroup(index)}
+            onPress={() => onPressGroup?.(index)}
             onLongPress={onLongPressGroup ? () => onLongPressGroup(index) : undefined}>
             {content}
           </TouchableOpacity>

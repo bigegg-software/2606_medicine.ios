@@ -79,11 +79,7 @@ export default function GroupCountInputModal({
           <Text style={styles.groupCountModalUnit}>{unit}</Text>
         </Flex>
 
-        <View
-          style={[
-            styles.groupCountModalSaveBtnBox,
-            { paddingBottom: Math.max(insets.bottom, 16) },
-          ]}>
+        <View style={styles.groupCountModalSaveBtnBox}>
           <TouchableOpacity
             activeOpacity={0.8}
             style={styles.groupCountModalSaveBtn}
@@ -96,6 +92,8 @@ export default function GroupCountInputModal({
               <Text style={styles.groupCountModalSaveText}>保存记录</Text>
             </Flex>
           </TouchableOpacity>
+          {/* 无键盘时保留安全区；有键盘时由 BottomSheet 整体上移，只需少量间距 */}
+          <View style={{ height: Math.max(insets.bottom, 12) }} />
         </View>
       </View>
     </BottomSheetModal>

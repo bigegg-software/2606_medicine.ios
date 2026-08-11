@@ -118,7 +118,8 @@ export default function HeartRateChart({ data, hideXAxis }: Props) {
   }, [option]);
 
   return (
-    <View style={styles.container}>
+    <View style={styles.container} pointerEvents="box-none">
+      <View style={styles.highlightBarGlucose} pointerEvents="none" />
       <SkiaChart ref={skiaRef} style={styles.chart} />
     </View>
   );

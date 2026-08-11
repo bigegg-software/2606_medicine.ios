@@ -22,6 +22,8 @@ export type ExVideoInfo = {
   trainingPhase?: string;
   timerType?: string;
   durationMinVal?: number;
+  /** 每分钟消耗 kcal */
+  kcalPerMinute?: number | string;
   groupVal?: number;
   numberVal?: number;
   keepSecondVal?: number;

@@ -184,6 +184,28 @@ export function isTrainingActionCompleted(card: TrainingPhaseExerciseCard) {
   ).every(Boolean);
 }
 
+/**
+ * 单项是否已有进度（半完成）：
+ * - 计时：已锻炼分钟 > 0（如目标 12 分已练 2 分）
+ * - 组别：任一组次数 > 0（如 1/10、6/10、8/10）
+ */
+export function isTrainingActionProgressStarted(card: TrainingPhaseExerciseCard) {
+  if (card.timerType === 'duration_min') {
+    return Math.max(0, Math.round(Number(card.completedMinutes) || 0)) > 0;
+  }
+  if ((card.groupCounts ?? []).some(count => Math.max(0, Math.round(Number(count) || 0)) > 0)) {
+    return true;
+  }
+  return (card.completedGroups ?? []).length > 0;
+}
+
+/** 主训练全部项目均至少有进度（半完成即可参与今日打卡） */
+export function isMainTrainingAllProgressStarted(modules: MainTrainingTypeModule[]) {
+  const cards = (modules ?? []).flatMap(module => module.cards ?? []);
+  if (cards.length === 0) return false;
+  return cards.every(isTrainingActionProgressStarted);
+}
+
 /** 计时进度（如 1/2分钟）不显示 icon，开始/完成才显示 */
 export function shouldShowTrainingActionIcon(
   card: TrainingPhaseExerciseCard,
@@ -414,6 +436,14 @@ function getDaySchedulePhase(
   if (!schedule) return { isRest: false, schedule: null };
   if (schedule.isRest) return { isRest: true, schedule };
   return { isRest: false, schedule };
+}
+
+/** 指定日期是否为运动处方休息日 */
+export function isExerciseRestDay(
+  rule: InUseExPatientRule | null | undefined,
+  customerLocalDate: string,
+) {
+  return getDaySchedulePhase(rule, customerLocalDate).isRest;
 }
 
 export function getWarmupHotList(

@@ -30,6 +30,7 @@ import {
     buildMessageListDisplayItem,
     buildMessageScopeParams,
     MESSAGE_UNREAD_CHANGED,
+    shouldShowMessageDetailLink,
     type MessageListDisplayItem,
 } from './utils/messageHelpers';
 import {
@@ -202,6 +203,7 @@ export default function MessagePage() {
     const renderItem = useCallback(
         ({ item }: { item: MessageListDisplayItem }) => {
             const severity = item.severity;
+            const showDetail = shouldShowMessageDetailLink(item.raw.type);
             return (
                 <TouchableOpacity activeOpacity={0.85} onPress={() => { void handlePressItem(item); }}>
                     <View style={styles.messageItem}>
@@ -231,14 +233,18 @@ export default function MessagePage() {
                             <Text style={styles.messageItemTime}>{item.timeText}</Text>
                         </Flex>
                         <Text style={styles.messageItemContent}>{item.content}</Text>
-                        <View style={styles.messageItemDivider} />
-                        <Flex style={styles.messageItemDetail} justify="between">
-                            <Text style={styles.messageItemDetailText}>查看详情</Text>
-                            <Image
-                                style={styles.messageItemDetailIcon}
-                                source={require('@/assets/images/message/icon_right.png')}
-                            />
-                        </Flex>
+                        {showDetail ? (
+                            <>
+                                <View style={styles.messageItemDivider} />
+                                <Flex style={styles.messageItemDetail} justify="between">
+                                    <Text style={styles.messageItemDetailText}>查看详情</Text>
+                                    <Image
+                                        style={styles.messageItemDetailIcon}
+                                        source={require('@/assets/images/message/icon_right.png')}
+                                    />
+                                </Flex>
+                            </>
+                        ) : null}
                     </View>
                 </TouchableOpacity>
             );

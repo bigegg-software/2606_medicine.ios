@@ -11,14 +11,13 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
-import { useEventListener } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Flex, Modal, Toast } from '@ant-design/react-native';
 import moment from 'moment';
 import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { addExRecord, postExRecordVideoView } from '@/api/exRecord';
+import { addExRecord } from '@/api/exRecord';
 import type { ExVideoInfo } from '@/api/exVideo';
 import { getInUseExPatientRuleInfo, type ExPatientRuleRatio } from '@/api/schedule';
 import { AppTheme } from '@/common/theme';
@@ -90,7 +89,6 @@ export default function PlayerPage() {
     const [isTraining, setIsTraining] = useState(false);
     const [submitting, setSubmitting] = useState(false);
 
-    const viewedVideoIdsRef = useRef<Set<string>>(new Set());
     const sessionElapsedRef = useRef(0);
     const prescriptionContextRef = useRef<PrescriptionContext>({});
     const activeVideoRef = useRef<ExVideoInfo | undefined>(undefined);
@@ -234,7 +232,6 @@ export default function PlayerPage() {
         setIsTraining(false);
         hasAutoStartedRef.current = false;
         setSessionElapsedSeconds(0);
-        viewedVideoIdsRef.current.clear();
 
         try {
             const [nextDictMaps, res] = await Promise.all([
@@ -334,7 +331,6 @@ export default function PlayerPage() {
         setTaskLoading(true);
         setSessionElapsedSeconds(0);
         hasAutoStartedRef.current = false;
-        viewedVideoIdsRef.current.clear();
 
         const context: PrescriptionContext = { exPatientRuleId, rule };
 
@@ -458,18 +454,6 @@ export default function PlayerPage() {
             safePlayVideoPlayer(player);
         }
     }, [activeVideoIndex, loading, player, taskLoading, videoUrl]);
-
-    useEventListener(player, 'playingChange', ({ isPlaying }) => {
-        if (!isPlaying) return;
-
-        const rawVideoId = activeVideoRef.current?.exVideoId;
-        if (rawVideoId == null || rawVideoId === '') return;
-        const videoId = String(rawVideoId);
-        if (viewedVideoIdsRef.current.has(videoId)) return;
-
-        viewedVideoIdsRef.current.add(videoId);
-        postExRecordVideoView(videoId).catch(() => undefined);
-    });
 
     const handleToggleTraining = useCallback(() => {
         if (submitting) return;

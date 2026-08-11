@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useEventListener } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Flex, Modal, Toast } from '@ant-design/react-native';
 import moment from 'moment';
@@ -18,9 +17,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   addExRecord,
   markCompleteGroups,
-  postExRecordVideoView,
   recordDuration,
   recordGroupCounts,
+  recordKcal,
   type ExRecordTrainingPhase,
 } from '@/api/exRecord';
 import type { ExVideoInfo } from '@/api/exVideo';
@@ -38,6 +37,7 @@ import GroupCountTags from './components/training/GroupCountTags';
 import GroupCountInputModal from './components/training/GroupCountInputModal';
 import { formatChineseGroupLabel } from './utils/trainingPhaseHelpers';
 import {
+  calcExerciseKcal,
   calcTrainingProgressPercent,
   deriveCompleteGroupsFromCounts,
   findNextGroupInputIndex,
@@ -45,6 +45,7 @@ import {
   getExercisePlayerTypeLabel,
   getExitConfirmContent,
   getShortSessionConfirmContent,
+  isGroupCountDone,
   isGroupDisplayDone,
   loadExercisePlayerContext,
   normalizeGroupCounts,
@@ -97,7 +98,6 @@ export default function ExercisePlayerPage() {
   const [markingGroup, setMarkingGroup] = useState(false);
   const [groupInputIndex, setGroupInputIndex] = useState<number | null>(null);
 
-  const viewedVideoIdsRef = useRef<Set<string>>(new Set());
   const sessionElapsedRef = useRef(0);
   const prescriptionContextRef = useRef<PrescriptionContext>({});
   const videoRef = useRef<ExVideoInfo | null>(null);
@@ -207,6 +207,27 @@ export default function ExercisePlayerPage() {
           || '',
         exerciseDuration: minutes,
       });
+
+      const exVideoId = currentVideo?.exVideoId != null
+        ? String(currentVideo.exVideoId)
+        : route.params?.exVideoId?.trim();
+      const exerciseKcal = calcExerciseKcal(currentVideo?.kcalPerMinute, minutes);
+      if (exVideoId && exerciseKcal > 0) {
+        await recordKcal({
+          exPatientRuleId: String(context.exPatientRuleId),
+          customerLocalDate: moment().format('YYYY-MM-DD'),
+          trainingPhase,
+          exerciseType: trainingPhase === 'main'
+            ? context.rule.exerciseType.trim()
+            : undefined,
+          exVideoId,
+          exerciseDuration: 0,
+          exerciseKcal,
+          complateGroups: [],
+          complateGroupCounts: [],
+        }).catch(() => undefined);
+      }
+
       setSessionElapsedSeconds(0);
       const nextDuration = await refreshExercisePlayerDuration({
         exPatientRuleId: context.exPatientRuleId,
@@ -299,7 +320,6 @@ export default function ExercisePlayerPage() {
     setIsTraining(false);
     hasAutoStartedRef.current = false;
     setSessionElapsedSeconds(0);
-    viewedVideoIdsRef.current.clear();
 
     try {
       const next = await loadExercisePlayerContext({
@@ -440,18 +460,6 @@ export default function ExercisePlayerPage() {
     }
   }, [loading, player, readOnly, videoUrl]);
 
-  useEventListener(player, 'playingChange', ({ isPlaying }) => {
-    if (!isPlaying || readOnly) return;
-
-    const rawVideoId = videoRef.current?.exVideoId;
-    if (rawVideoId == null || rawVideoId === '') return;
-    const videoId = String(rawVideoId);
-    if (viewedVideoIdsRef.current.has(videoId)) return;
-
-    viewedVideoIdsRef.current.add(videoId);
-    postExRecordVideoView(videoId).catch(() => undefined);
-  });
-
   const handleToggleTraining = useCallback(() => {
     if (readOnly || submitting) return;
 
@@ -584,6 +592,22 @@ export default function ExercisePlayerPage() {
         return false;
       }
 
+      // recordKcal：有效字段 exerciseKcal = kcalPerMinute × 本次分钟；时长已由上一步写入，此处传 0
+      const exerciseKcal = calcExerciseKcal(currentVideo?.kcalPerMinute, exerciseDuration);
+      if (exerciseKcal > 0) {
+        const kcalRes = await recordKcal({
+          ...basePayload,
+          exerciseDuration: 0,
+          exerciseKcal,
+          complateGroups: [],
+          complateGroupCounts: [],
+        });
+        if (!isResourceApiOk(kcalRes as unknown as { code?: number })) {
+          Toast.info((kcalRes as { msg?: string })?.msg?.trim() || '卡路里保存失败', 1.5);
+          return false;
+        }
+      }
+
       const data = apiResourceData<{
         complateGroups?: number[];
         complateGroupCounts?: number[];
@@ -662,10 +686,23 @@ export default function ExercisePlayerPage() {
     trainingPhase,
   ]);
 
+  const handlePressIncompleteGroup = useCallback((index: number) => {
+    if (readOnly || isDurationTimer || markingGroup || submitting) return;
+    const count = Math.max(0, Math.round(Number(groupCountsRef.current[index]) || 0));
+    const target = resolveSaveGroupTargetCount(timerType, groupTargetCount);
+    // 仅未达标进度可再编辑（1/10、5/10）；已达标（10/10、11/10）不可点
+    if (count <= 0 || isGroupCountDone(count, target)) return;
+    setGroupInputIndex(index);
+  }, [groupTargetCount, isDurationTimer, markingGroup, readOnly, submitting, timerType]);
+
   const handleSaveGroupInput = useCallback((value: number) => {
     if (readOnly || groupInputIndex == null) return;
     const index = groupInputIndex;
     const groupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
+    const countTarget = resolveSaveGroupTargetCount(timerType, groupTargetCount);
+    const prevCount = Math.max(0, Math.round(Number(groupCountsRef.current[index]) || 0));
+    const isReEditIncomplete = prevCount > 0 && !isGroupCountDone(prevCount, countTarget);
+
     const nextCounts = setGroupCountAtIndex(groupCountsRef.current, index, groupTotal, value);
     groupCountsRef.current = nextCounts;
     setGroupCounts(nextCounts);
@@ -674,10 +711,18 @@ export default function ExercisePlayerPage() {
     const isLastGroup = index >= groupTotal - 1;
     void submitRecordToServer(nextCounts, {
       successMessage: `${formatChineseGroupLabel(index + 1)}保存成功`,
-      goBackAfterSuccess: isLastGroup,
-      resumeTraining: !isLastGroup,
+      // 未达标再编辑：保存后留在本页，不自动续播/返回
+      goBackAfterSuccess: !isReEditIncomplete && isLastGroup,
+      resumeTraining: !isReEditIncomplete && !isLastGroup,
     });
-  }, [groupInputIndex, readOnly, submitRecordToServer, timerType, totalGroups]);
+  }, [
+    groupInputIndex,
+    groupTargetCount,
+    readOnly,
+    submitRecordToServer,
+    timerType,
+    totalGroups,
+  ]);
 
   /** 底部「保存数据」：计时类型只传时长；其它类型按序录入下一组 */
   const handleSaveRecord = useCallback(() => {
@@ -880,14 +925,15 @@ export default function ExercisePlayerPage() {
 
           {(!isDurationTimer && saveGroupTotal > 0) || (isDurationTimer && saveGroupTotal > 1) ? (
             <View>
-            <GroupCountTags
-              style={styles.playerGroupRow}
-              totalGroups={saveGroupTotal}
-              targetCount={saveGroupTargetCount}
-              groupCounts={groupCounts}
-              complateGroups={null}
-              readOnly
-            />
+              <GroupCountTags
+                style={styles.playerGroupRow}
+                totalGroups={saveGroupTotal}
+                targetCount={saveGroupTargetCount}
+                groupCounts={groupCounts}
+                complateGroups={null}
+                readOnly={readOnly || isDurationTimer}
+                onPressGroup={handlePressIncompleteGroup}
+              />
               {!readOnly ? (
                 <Flex align="center" style={styles.playerGroupTipBox}>
                   <Image
@@ -897,7 +943,7 @@ export default function ExercisePlayerPage() {
                   <Text style={styles.playerGroupTipText}>
                     {isDurationTimer
                       ? '点击下方保存数据，将记录本次计时分钟'
-                      : '点击下方保存数据，按组依次填写完成情况'}
+                      : '未达标组别可点击修改；也可点下方保存数据按组依次填写'}
                   </Text>
                 </Flex>
               ) : null}

@@ -17,11 +17,6 @@ export type ExRecordApiResult = {
 export const addExRecord = (data: AddExRecordPayload) =>
   request.post<ExRecordApiResult>('/patient/exRecord/add', data);
 
-export const postExRecordVideoView = (exVideoId: string) =>
-  request.post<ExRecordApiResult>('/patient/exRecord/videoView', null, {
-    params: { exVideoId: String(exVideoId) },
-  });
-
 /** 训练阶段：hot.热身 main.主训练 cold.冷身 */
 export type ExRecordTrainingPhase = 'hot' | 'main' | 'cold';
 
@@ -106,6 +101,20 @@ export const recordDuration = (data: MarkCompleteGroupsPayload) =>
       : [],
   });
 
+/** 记录消耗 kcal（累加当日该视频累计消耗）；有效字段 exerciseKcal */
+export const recordKcal = (data: MarkCompleteGroupsPayload & { exerciseKcal: number }) =>
+  request.post<ExRecordVideoMarkResult>('/patient/exRecordVideo/recordKcal', {
+    ...data,
+    exPatientRuleId: String(data.exPatientRuleId),
+    exVideoId: String(data.exVideoId),
+    exerciseDuration: Math.max(0, Math.floor(Number(data.exerciseDuration) || 0)),
+    exerciseKcal: Math.max(0, Number(data.exerciseKcal) || 0),
+    complateGroups: Array.isArray(data.complateGroups) ? data.complateGroups : [],
+    complateGroupCounts: Array.isArray(data.complateGroupCounts)
+      ? data.complateGroupCounts.map(item => Math.max(0, Math.round(Number(item) || 0)))
+      : [],
+  });
+
 export type GetExRecordVideoCompleteInfoParams = {
   exPatientRuleId: string;
   customerLocalDate: string;
@@ -167,7 +176,7 @@ export const getExRecordVideoIsExerciseByDateRange = (
     { params },
   );
 
-/** 指定处方、指定日期的总锻炼时长与主训练完成率 */
+/** 指定处方、指定日期的总锻炼时长、总消耗 kcal 与主训练完成率 */
 export type GetExRecordVideoDayStatParams = {
   exPatientRuleId: string;
   customerLocalDate: string;
@@ -181,6 +190,8 @@ export type ExRecordVideoDayStat = {
   hotExerciseDuration?: number;
   mainExerciseDuration?: number;
   coldExerciseDuration?: number;
+  /** 当日总消耗 kcal */
+  exerciseKcal?: number;
   mainTotalCount?: number;
   mainCompleteCount?: number;
   /** 主训练完成率 0-100 */

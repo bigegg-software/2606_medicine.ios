@@ -9,6 +9,9 @@ import {
   normalizeProgress,
 } from '@/src/features/schedule/scheduleHelpers';
 import { calcTargetFromInitial } from '@/src/features/schedule/testing/testingHelpers';
+import { isExerciseRestDay } from '@/src/features/exercise/utils/trainingPhaseHelpers';
+
+const REST_DAY_TEXT = '今日休息日，给身体放个假。';
 
 const HEALTH_INDICATOR_VALUE_ORDER = ['xueYa', 'xueTang', 'tiZhong', 'xueZhi'] as const;
 
@@ -336,6 +339,10 @@ export async function loadHomePrescriptionGoalDisplay(
   userId?: string | number,
 ): Promise<HomePrescriptionGoalDisplay | null> {
   if (!prescription) return null;
+
+  if (isExerciseRestDay(prescription, moment().format('YYYY-MM-DD'))) {
+    return { layout: 'text', text: REST_DAY_TEXT };
+  }
 
   const target = pickHomePrescriptionGoalTarget(prescription.healthGoalTargetList);
   if (!target) {

@@ -224,6 +224,11 @@ export function formatHomeUnreadBadge(count: number) {
   return String(count);
 }
 
+/** 实名认证审核通过：仅展示文案，不显示「查看详情」 */
+export function shouldShowMessageDetailLink(type?: string | null) {
+  return String(type ?? '').trim() !== 'identity_audit_approved';
+}
+
 export type MessageListDisplayItem = {
   id: string;
   title: string;

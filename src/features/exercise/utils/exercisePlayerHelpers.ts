@@ -315,6 +315,17 @@ export function sessionSecondsToRecordMinutes(sessionSeconds: number) {
   return Math.floor(seconds / 60);
 }
 
+/** 消耗 kcal = kcalPerMinute × 本次锻炼分钟；无效入参返回 0。 */
+export function calcExerciseKcal(
+  kcalPerMinute: number | string | null | undefined,
+  exerciseMinutes: number,
+) {
+  const perMin = Number(kcalPerMinute);
+  const minutes = Math.max(0, Math.floor(Number(exerciseMinutes) || 0));
+  if (!Number.isFinite(perMin) || perMin <= 0 || minutes <= 0) return 0;
+  return Math.round(perMin * minutes * 10) / 10;
+}
+
 export function getExitConfirmContent(
   sessionSeconds: number,
   completedMinutes: number,
@@ -354,6 +365,7 @@ export async function loadExercisePlayerVideo(exVideoId?: string): Promise<ExVid
 
   try {
     const res = await getExVideoInfo(id);
+    console.log(res)
     if (!isResourceApiOk(res as unknown as { code?: number })) return null;
     return (
       apiResourceData<ExVideoInfo>(

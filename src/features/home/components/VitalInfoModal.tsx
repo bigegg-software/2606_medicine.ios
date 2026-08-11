@@ -166,12 +166,12 @@ export default function VitalInfoModal({ vitalKey, onClose }: VitalInfoModalProp
   const levels = content?.levels ?? [];
   const table = content?.table;
   const sections = content?.sections ?? [];
-  const sheetHeight = Math.round(windowHeight * 0.55);
+  const maxSheetHeight = Math.round(windowHeight * 0.55);
   const bottomPad = Math.max(insets.bottom, 16);
 
   return (
     <BottomSheetModal visible={visible} onClose={onClose}>
-      <View style={[styles.sheet, { height: sheetHeight, paddingBottom: bottomPad }]}>
+      <View style={[styles.sheet, { maxHeight: maxSheetHeight, paddingBottom: bottomPad }]}>
         <View style={styles.titleRow}>
           <Text style={styles.title}>{content?.title ?? ''}</Text>
           <TouchableOpacity
@@ -251,8 +251,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   scroll: {
-    flex: 1,
-    flexGrow: 1,
+    flexGrow: 0,
     flexShrink: 1,
   },
   scrollContent: {
