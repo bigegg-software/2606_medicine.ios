@@ -665,9 +665,10 @@ export default function ExercisePlayerPage() {
           complateGroupCounts: [],
         });
       } else {
-        // recordGroupCounts：传完整每组次数，如 [11, 12, 12]
+        // recordGroupCounts：传完整每组次数，如 [11, 12, 12]；时长走 recordDuration
         res = await recordGroupCounts({
           ...basePayload,
+          exerciseDuration: 0,
           complateGroups: [],
           complateGroupCounts: counts,
         });
@@ -685,6 +686,23 @@ export default function ExercisePlayerPage() {
             complateGroups: groups,
             complateGroupCounts: [],
           });
+          if (!isResourceApiOk(res as unknown as { code?: number })) {
+            Toast.info((res as { msg?: string })?.msg?.trim() || '保存失败', 1.5);
+            return false;
+          }
+        }
+
+        // 组类型：满 1 分钟才累加时长，不足则静默跳过
+        if (exerciseDuration > 0) {
+          const durationRes = await recordDuration({
+            ...basePayload,
+            exerciseDuration,
+            complateGroups: [],
+            complateGroupCounts: [],
+          });
+          if (isResourceApiOk(durationRes as unknown as { code?: number })) {
+            res = durationRes;
+          }
         }
       }
 
@@ -737,10 +755,10 @@ export default function ExercisePlayerPage() {
         exVideoId,
         fallbackTargetMinutes: targetMinutesRef.current || context.rule?.duration,
       });
-      // 计时类型优先用接口返回的累计分钟
+      // 计时 / 组类型有成功累加时长时，优先用接口返回的累计分钟
       const apiCompleted = Math.round(Number(data?.exerciseDuration));
       setTodayDuration({
-        completedMinutes: isDurationTimer && Number.isFinite(apiCompleted) && apiCompleted > 0
+        completedMinutes: Number.isFinite(apiCompleted) && apiCompleted > 0
           ? apiCompleted
           : nextDuration.completedMinutes,
         targetMinutes: targetMinutesRef.current || nextDuration.targetMinutes,
