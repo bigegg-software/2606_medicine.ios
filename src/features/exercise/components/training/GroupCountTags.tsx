@@ -14,6 +14,8 @@ type Props = {
   groupCounts: number[];
   /** 接口 complateGroups；保留入参兼容 */
   complateGroups?: number[] | null;
+  /** 组间休息秒数；>0 时展示在组别末尾 */
+  restBetweenGroupSeconds?: number | null;
   /** 列表只读展示时不响应点击 */
   readOnly?: boolean;
   onPressGroup?: (groupIndex: number) => void;
@@ -24,11 +26,13 @@ type Props = {
 /**
  * 组别标签：无记录「第N组」；有次数显示 3/10（无 icon）；达标才显示完成 icon。
  * 可点：当前待录入组、未达标进度；不可点：已达标、未到序的空组。
+ * 末尾可展示组间休息时长（如 icon + 60s）。
  */
 export default function GroupCountTags({
   totalGroups,
   targetCount,
   groupCounts,
+  restBetweenGroupSeconds,
   readOnly = false,
   onPressGroup,
   onLongPressGroup,
@@ -38,6 +42,7 @@ export default function GroupCountTags({
   if (safeTotal <= 0) return null;
 
   const target = Math.max(0, Math.round(Number(targetCount) || 0));
+  const restSeconds = Math.max(0, Math.round(Number(restBetweenGroupSeconds) || 0));
 
   return (
     <Flex align="center" style={[styles.mainTrainingSetRow, style]} wrap="wrap">
@@ -89,6 +94,17 @@ export default function GroupCountTags({
           </TouchableOpacity>
         );
       })}
+      {restSeconds > 0 ? (
+        <View key="group-rest" style={styles.groupRestTagWrap}>
+          <Flex align="center" style={styles.groupRestTag}>
+            <Image
+              style={styles.groupRestTagIcon}
+              source={require('@/assets/images/exercise/icon_time.png')}
+            />
+            <Text style={styles.groupRestTagText}>{`${restSeconds}s`}</Text>
+          </Flex>
+        </View>
+      ) : null}
     </Flex>
   );
 }

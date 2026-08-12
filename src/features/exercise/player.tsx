@@ -1072,6 +1072,7 @@ export default function ExercisePlayerPage() {
                 targetCount={saveGroupTargetCount}
                 groupCounts={groupCounts}
                 complateGroups={null}
+                restBetweenGroupSeconds={restBetweenGroupSeconds}
                 readOnly={readOnly || isDurationTimer || isGroupResting}
                 onPressGroup={handlePressGroupTag}
               />

@@ -1,21 +1,40 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
-import { LineChart } from 'echarts/charts';
+import { LineChart, ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildChartXAxis, toChartValuePairs } from './chartAxis';
+import { buildChartXAxis, buildLineScatterData, toChartValuePairs } from './chartAxis';
 
 export type WeightPoint = { hour: string; value: number; x?: number };
 
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-echarts.use([SkiaRenderer, LineChart, GridComponent, TooltipComponent]);
+const LINE_COLOR = '#6D925E';
+
+const OUTER_POINT_STYLE = {
+  color: '#FFFFFF',
+  borderColor: '#6D925E',
+  borderWidth: 1,
+  shadowBlur: 3,
+  shadowColor: 'rgba(0,0,0,0.2)',
+  shadowOffsetX: 0,
+  shadowOffsetY: 0,
+};
+
+const INNER_POINT_STYLE = {
+  color: '#6D925E',
+  borderColor: 'transparent',
+  borderWidth: 0,
+};
+
+echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: WeightPoint[];
+  labels?: string[];
   hideXAxis?: boolean;
 };
 
@@ -35,12 +54,12 @@ function buildWeightAxisRange(values: Array<number | null>) {
   };
 }
 
-function buildOption(points: WeightPoint[], hideXAxis = false) {
-  const chartValues = toChartValuePairs(points);
+function buildOption(points: WeightPoint[], labels: string[], hideXAxis = false) {
+  const lineData = toChartValuePairs(points);
+  const scatterData = buildLineScatterData(lineData);
   const validValues = points.filter(point => point.value > 0).map(point => point.value);
-  const validCount = validValues.length;
   const { min, max } = buildWeightAxisRange(validValues);
-  const xAxis = buildChartXAxis(points, [], false);
+  const xAxis = buildChartXAxis(points, labels, false);
 
   return {
     animation: false,
@@ -86,22 +105,42 @@ function buildOption(points: WeightPoint[], hideXAxis = false) {
         type: 'line',
         smooth: true,
         connectNulls: false,
-        showSymbol: validCount > 0 && validCount <= 8,
+        showSymbol: false,
+        data: lineData,
+        lineStyle: { color: LINE_COLOR, width: 2 },
+        itemStyle: { color: LINE_COLOR },
+      },
+      {
+        type: 'scatter',
+        data: scatterData,
         symbol: 'circle',
-        symbolSize: 5,
-        data: chartValues,
-        lineStyle: { color: '#6D925E', width: 2 },
-        itemStyle: { color: '#6D925E' },
+        symbolSize: 6,
+        itemStyle: OUTER_POINT_STYLE,
+        z: 10,
+      },
+      {
+        type: 'scatter',
+        data: scatterData,
+        symbol: 'circle',
+        symbolSize: 4,
+        itemStyle: INNER_POINT_STYLE,
+        z: 11,
       },
     ],
   };
 }
 
-export default function WeightChart({ data, hideXAxis }: Props) {
+export default function WeightChart({ data, labels, hideXAxis }: Props) {
   const skiaRef = useRef<any>(null);
   const points = data ?? [];
+  const categoryLabels =
+    labels ??
+    points.map(point => point.hour ?? '').filter(Boolean);
 
-  const option = useMemo(() => buildOption(points, hideXAxis), [points, hideXAxis]);
+  const option = useMemo(
+    () => buildOption(points, categoryLabels, hideXAxis),
+    [points, categoryLabels, hideXAxis],
+  );
 
   useEffect(() => {
     let chart: ReturnType<typeof echarts.init> | undefined;

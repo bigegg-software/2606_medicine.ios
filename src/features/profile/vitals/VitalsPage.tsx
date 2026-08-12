@@ -803,7 +803,7 @@ export default function VitalsPage() {
             dataTime={weightDataTime}
             onAll={() => navigation.navigate('AllDataPage', { type: '体重' })}
             onPress={() => navigation.navigate('WeightPage')}
-            chart={<WeightChart data={toHourPoints(weightSeries)} hideXAxis />}
+            chart={<WeightChart data={toHourPoints(weightSeries)} labels={chartLabels} hideXAxis />}
           />
         );
       case '血脂':

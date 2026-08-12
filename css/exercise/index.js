@@ -444,6 +444,7 @@ const styles = StyleSheet.create({
   mainTrainingSetTagText: {
     fontWeight: '500',
     fontSize: 12,
+    lineHeight: 16,
     color: '#333333',
   },
   mainTrainingSetTagTextDone: {
@@ -454,6 +455,33 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     marginRight: 5,
+  },
+  groupRestTagWrap: {
+    marginBottom: 0,
+  },
+  groupRestTag: {
+    height: 27,
+    marginRight: 8,
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 25,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  groupRestTagIcon: {
+    width: 14,
+    height: 14,
+    marginRight: 5,
+  },
+  groupRestTagText: {
+    fontWeight: '500',
+    fontSize: 12,
+    lineHeight: 16,
+    color: '#666666',
   },
   groupCountModalSheet: {
     backgroundColor: '#F7F8FA',

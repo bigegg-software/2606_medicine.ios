@@ -27,6 +27,7 @@ import {
   type WeekCalendarItem,
 } from '@/api/schedule';
 import { getHealthGoalInfo, type HealthGoalInfo, type HealthGoalTarget } from '@/api/healthGoal';
+import { formatDiagnosticLabelText } from '@/src/features/exercise/utils/exerciseHelpers';
 
 export type ScheduleDictMaps = {
   exerciseType: Record<string, string>;
@@ -813,11 +814,11 @@ export function formatPrescriptionCycleDays(startDate?: string, endDate?: string
 /** 日程页顶栏：年龄 | 诊断 | 处方名 | 自开始日起 */
 export function formatScheduleTopInfoText(
   user?: UserBaseInfo | null,
-  prescription?: Pick<InUseExPatientRule, 'diagnosis' | 'prescriptionName' | 'startDate'> | null,
+  prescription?: Pick<InUseExPatientRule, 'diagnosticLabel' | 'prescriptionName' | 'startDate'> | null,
 ) {
   const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
   const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
-  const diagnosis = prescription?.diagnosis?.trim() || '';
+  const diagnosis = formatDiagnosticLabelText(prescription?.diagnosticLabel);
   const prescriptionName = prescription?.prescriptionName?.trim() || '';
   const start = prescription?.startDate?.trim();
   const startText = start
@@ -953,4 +954,72 @@ export async function fetchHistoryPlanPage(
     rows,
     hasMore: pageNum * pageSize < pausedTotal || pageNum * pageSize < endedTotal,
   };
+}
+
+/** 里程碑「累计训练(小时)」展示 */
+export function formatMilestoneHours(minutes?: number | null) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  if (value <= 0) return '0';
+  const hours = value / 60;
+  if (Number.isInteger(hours)) return String(hours);
+  return hours.toFixed(1).replace(/\.0$/, '');
+}
+
+/** 近 6 周柱状图时长标签，如 3.9h */
+export function formatMilestoneWeekBarDuration(minutes?: number | null) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  if (value <= 0) return '0h';
+  const hours = value / 60;
+  if (hours < 10) {
+    const text = hours.toFixed(1).replace(/\.0$/, '');
+    return `${text}h`;
+  }
+  return `${Math.round(hours)}h`;
+}
+
+/** 近 6 周柱高：相对本批最大时长 0-100 */
+export function calcMilestoneWeekBarProgress(
+  minutes: number | null | undefined,
+  maxMinutes: number,
+) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  const max = Math.max(0, Math.round(Number(maxMinutes) || 0));
+  if (max <= 0 || value <= 0) return 0;
+  return normalizeProgress((value / max) * 100);
+}
+
+export type MilestoneWeekModuleRateItem = {
+  key: string;
+  title: string;
+  progress: number;
+  color: string;
+};
+
+/** 分项完成率展示顺序：有氧 / 抗阻 / 平衡 / 拉伸 */
+export function buildMilestoneWeekModuleRates(week?: {
+  cardioCompleteRate?: number;
+  strengthCompleteRate?: number;
+  flexibilityCompleteRate?: number;
+  balanceCompleteRate?: number;
+} | null): MilestoneWeekModuleRateItem[] {
+  return [
+    { key: 'cardio', title: '有氧', progress: normalizeProgress(week?.cardioCompleteRate), color: '#6D925E' },
+    { key: 'strength', title: '抗阻', progress: normalizeProgress(week?.strengthCompleteRate), color: '#72A1C5' },
+    { key: 'balance', title: '平衡', progress: normalizeProgress(week?.balanceCompleteRate), color: '#0951AE' },
+    { key: 'flexibility', title: '拉伸', progress: normalizeProgress(week?.flexibilityCompleteRate), color: '#EE9C44' },
+  ];
+}
+
+/** 分项整体完成率（四项平均） */
+export function calcMilestoneWeekOverallRate(
+  week?: {
+    cardioCompleteRate?: number;
+    strengthCompleteRate?: number;
+    flexibilityCompleteRate?: number;
+    balanceCompleteRate?: number;
+  } | null,
+) {
+  const rates = buildMilestoneWeekModuleRates(week).map(item => item.progress);
+  if (rates.length === 0) return 0;
+  return normalizeProgress(rates.reduce((sum, item) => sum + item, 0) / rates.length);
 }

@@ -245,6 +245,7 @@ export default function TrainingPhaseListPanel({
                   targetCount={targetCount}
                   groupCounts={item.groupCounts}
                   complateGroups={item.completedGroups}
+                  restBetweenGroupSeconds={item.restBetweenGroupSeconds}
                   readOnly
                 />
               ) : null}

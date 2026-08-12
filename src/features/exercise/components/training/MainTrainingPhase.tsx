@@ -104,6 +104,7 @@ function ActionCardRow({
           targetCount={targetCount}
           groupCounts={card.groupCounts}
           complateGroups={card.completedGroups}
+          restBetweenGroupSeconds={card.restBetweenGroupSeconds}
           readOnly
         />
       ) : null}

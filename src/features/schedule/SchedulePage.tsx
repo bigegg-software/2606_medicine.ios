@@ -23,9 +23,20 @@ import {
   type HistoryListResult,
 } from '@/api/schedule';
 import {
+  getExMilestoneInfo,
+  getExMilestoneRecentSixWeekStats,
+  type ExMilestoneInfo,
+  type ExMilestoneWeekStat,
+} from '@/api/exMilestone';
+import {
   WEEK_LABELS,
+  buildMilestoneWeekModuleRates,
   buildScheduleWeekDays,
+  calcMilestoneWeekBarProgress,
+  calcMilestoneWeekOverallRate,
   clampDateRangeToPrescription,
+  formatMilestoneHours,
+  formatMilestoneWeekBarDuration,
   formatPrescriptionCycleDays,
   formatScheduleTopInfoText,
   getCurrentWeekDateRange,
@@ -48,6 +59,7 @@ import {
   type ScheduleWeekDayItem,
   type ScheduleWeekStats,
 } from './scheduleHelpers';
+import { formatDiagnosticLabelText } from '@/src/features/exercise/utils/exerciseHelpers';
 
 const HISTORY_PREVIEW_SIZE = 5;
 
@@ -145,6 +157,9 @@ export default function SchedulePage() {
   const [ringProgress, setRingProgress] = useState<[number, number, number, number]>([0, 0, 0, 0]);
   const [weekStats, setWeekStats] = useState<ScheduleWeekStats>(EMPTY_WEEK_STATS);
   const [activeNavTab, setActiveNavTab] = useState<NavTabKey>('vitals');
+  const [milestoneInfo, setMilestoneInfo] = useState<ExMilestoneInfo | null>(null);
+  const [sixWeekStats, setSixWeekStats] = useState<ExMilestoneWeekStat[]>([]);
+  const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
 
   const prescriptionProgress = normalizeProgress(prescription?.progress ?? prescription?.progressInfo?.complateRatio);
   const todayTasks = useMemo(
@@ -248,9 +263,83 @@ export default function SchedulePage() {
     }
   }, []);
 
+  const loadMilestoneStats = useCallback(async () => {
+    try {
+      const [infoRes, weekRes] = await Promise.all([
+        getExMilestoneInfo(),
+        getExMilestoneRecentSixWeekStats(),
+      ]);
+
+      if (isResourceApiOk(infoRes as unknown as { code?: number })) {
+        setMilestoneInfo(
+          apiResourceData<ExMilestoneInfo>(infoRes as unknown as { code?: number; data?: ExMilestoneInfo })
+          ?? null,
+        );
+      } else {
+        setMilestoneInfo(null);
+      }
+
+      if (isResourceApiOk(weekRes as unknown as { code?: number })) {
+        const rows = apiResourceData<ExMilestoneWeekStat[]>(
+          weekRes as unknown as { code?: number; data?: ExMilestoneWeekStat[] },
+        ) ?? [];
+        const list = Array.isArray(rows) ? rows.slice(0, 6) : [];
+        setSixWeekStats(list);
+        setSelectedWeekIndex(Math.max(0, list.length - 1));
+      } else {
+        setSixWeekStats([]);
+        setSelectedWeekIndex(0);
+      }
+    } catch {
+      setMilestoneInfo(null);
+      setSixWeekStats([]);
+      setSelectedWeekIndex(0);
+    }
+  }, []);
+
   const loadScheduleData = useCallback(async () => {
-    await Promise.all([loadPrescription(), loadHistoryPlans()]);
-  }, [loadPrescription, loadHistoryPlans]);
+    await Promise.all([loadPrescription(), loadHistoryPlans(), loadMilestoneStats()]);
+  }, [loadHistoryPlans, loadMilestoneStats, loadPrescription]);
+
+  const sixWeekMaxMinutes = useMemo(
+    () => sixWeekStats.reduce(
+      (max, item) => Math.max(max, Math.max(0, Math.round(Number(item.exerciseDuration) || 0))),
+      0,
+    ),
+    [sixWeekStats],
+  );
+
+  const selectedWeekStat = sixWeekStats[selectedWeekIndex] ?? null;
+  const selectedWeekModuleRates = useMemo(
+    () => buildMilestoneWeekModuleRates(selectedWeekStat),
+    [selectedWeekStat],
+  );
+  const selectedWeekOverallRate = useMemo(
+    () => calcMilestoneWeekOverallRate(selectedWeekStat),
+    [selectedWeekStat],
+  );
+
+  const persistDaysText = useMemo(() => {
+    const days = Math.max(0, Math.round(Number(milestoneInfo?.persistDays) || 0));
+    return String(days);
+  }, [milestoneInfo?.persistDays]);
+
+  const overviewHoursText = useMemo(
+    () => formatMilestoneHours(milestoneInfo?.exerciseDuration),
+    [milestoneInfo?.exerciseDuration],
+  );
+  const overviewLessonsText = useMemo(() => {
+    const value = Math.max(0, Math.round(Number(milestoneInfo?.totalLessons) || 0));
+    return String(value);
+  }, [milestoneInfo?.totalLessons]);
+  const overviewRateText = useMemo(
+    () => `${normalizeProgress(milestoneInfo?.avgCompleteRate)}%`,
+    [milestoneInfo?.avgCompleteRate],
+  );
+  const overviewImproveText = useMemo(() => {
+    const value = Math.max(0, Math.round(Number(milestoneInfo?.improveTargetCount) || 0));
+    return String(value);
+  }, [milestoneInfo?.improveTargetCount]);
 
   const loadScheduleDataRef = useRef(loadScheduleData);
   loadScheduleDataRef.current = loadScheduleData;
@@ -284,7 +373,7 @@ export default function SchedulePage() {
           <Flex style={styles.pageTitleBox}>
             <Text style={styles.pageTitle}>健康提升档案</Text>
             <Flex style={styles.pageTitleSubtitle}>
-              <Text style={styles.pageTitleSubtitleText}>已坚持 279 天</Text>
+              <Text style={styles.pageTitleSubtitleText}>已坚持 {persistDaysText} 天</Text>
             </Flex>
           </Flex>
           <Text style={styles.pageTopText}>{topInfoText}</Text>
@@ -306,22 +395,22 @@ export default function SchedulePage() {
                 <Flex wrap='wrap' justify='between'>
                   <View style={styles.topRowBoxItem}>
                     <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back1.png')} />
-                    <Text style={styles.topRowBoxItemValue}>149</Text>
+                    <Text style={styles.topRowBoxItemValue}>{overviewHoursText}</Text>
                     <Text style={styles.topRowBoxItemText}>累计训练(小时)</Text>
                   </View>
                   <View style={styles.topRowBoxItem}>
                     <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back2.png')} />
-                    <Text style={styles.topRowBoxItemValue}>138</Text>
+                    <Text style={styles.topRowBoxItemValue}>{overviewLessonsText}</Text>
                     <Text style={styles.topRowBoxItemText}>累计课次</Text>
                   </View>
                   <View style={styles.topRowBoxItem}>
                     <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back3.png')} />
-                    <Text style={styles.topRowBoxItemValue}>84%</Text>
+                    <Text style={styles.topRowBoxItemValue}>{overviewRateText}</Text>
                     <Text style={styles.topRowBoxItemText}>平均完成率</Text>
                   </View>
                   <View style={styles.topRowBoxItem}>
                     <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back4.png')} />
-                    <Text style={styles.topRowBoxItemValue}>11</Text>
+                    <Text style={styles.topRowBoxItemValue}>{overviewImproveText}</Text>
                     <Text style={styles.topRowBoxItemText}>改善指标数</Text>
                   </View>
                 </Flex>
@@ -331,16 +420,16 @@ export default function SchedulePage() {
         </View>
 
         <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
-          <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
+          <Flex justify="between" align="center" style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text style={styles.backImage1Text}>目标拆解·进度</Text>
             <Flex style={styles.tabBox}>
-              <Flex justify='center' style={[styles.tabItem, styles.tabItemActive]}><Text style={styles.tabItemText}>30天</Text></Flex>
-              <Flex justify='center' style={styles.tabItem}><Text style={styles.tabItemText}>90天</Text></Flex>
+              <Flex justify='center' align="center" style={[styles.tabItem, styles.tabItemActive]}><Text style={styles.tabItemText}>30天</Text></Flex>
+              <Flex justify='center' align="center" style={styles.tabItem}><Text style={styles.tabItemText}>90天</Text></Flex>
             </Flex>
           </Flex>
         </ImageBackground>
 
-        <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={[styles.backImage1, { height: 66 }]}>
+        <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={[styles.backImage1, { height: 66, marginTop: 0 }]}>
           <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
             {NAV_TABS.map(tab => {
               const isActive = activeNavTab === tab.key;
@@ -513,50 +602,60 @@ export default function SchedulePage() {
           </Flex>
 
           <Flex align="stretch" style={styles.weekTrainWrap}>
-            {[
-              { key: 'W1', progress: 100 },
-              { key: 'W2', progress: 100 },
-              { key: 'W3', progress: 60 },
-              { key: 'W4', progress: 0 },
-              { key: 'W5', progress: 0 },
-              { key: 'W6', progress: 0 },
-            ].map(week => (
-              <Flex direction='column' justify='end' align='stretch' key={week.key} style={styles.weekBox}>
-                <View style={styles.iconBox}>
-                  <Image style={styles.weekIcon} source={require('@/assets/images/schedule/icon_wx.png')} />
-                  <Text style={styles.weekText}>3.9h</Text>
-                </View>
-                <View style={styles.weekProgress}>
-                  <View
-                    style={[
-                      styles.weekProgressBar,
-                      { height: Math.max(0, Math.min(week.progress, 100)) / 100 * 44 },
-                      week.progress >= 100 && styles.weekProgressBarDone,
-                    ]}
-                  />
-                </View>
-                <Text style={styles.WTitle}>{week.key}</Text>
-              </Flex>
-            ))}
+            {(sixWeekStats.length > 0
+              ? sixWeekStats
+              : Array.from({ length: 6 }, () => ({} as ExMilestoneWeekStat))
+            ).map((week, index) => {
+              const progress = calcMilestoneWeekBarProgress(
+                week.exerciseDuration,
+                sixWeekMaxMinutes,
+              );
+              const selected = index === selectedWeekIndex;
+              return (
+                <TouchableOpacity
+                  key={`week-${week.weekStartDate || index}`}
+                  activeOpacity={0.85}
+                  style={styles.weekBox}
+                  onPress={() => setSelectedWeekIndex(index)}>
+                  <Flex direction='column' justify='end' align='stretch' style={{ flex: 1 }}>
+                    <View style={styles.iconBox}>
+                      <Image style={styles.weekIcon} source={require('@/assets/images/schedule/icon_wx.png')} />
+                      <Text style={styles.weekText}>
+                        {formatMilestoneWeekBarDuration(week.exerciseDuration)}
+                      </Text>
+                    </View>
+                    <View style={styles.weekProgress}>
+                      <View
+                        style={[
+                          styles.weekProgressBar,
+                          { height: Math.max(0, Math.min(progress, 100)) / 100 * 44 },
+                          progress >= 100 && styles.weekProgressBarDone,
+                          selected ? { opacity: 1 } : { opacity: 0.7 },
+                        ]}
+                      />
+                    </View>
+                    <Text style={styles.WTitle}>{`W${index + 1}`}</Text>
+                  </Flex>
+                </TouchableOpacity>
+              );
+            })}
           </Flex>
 
           <Flex justify='between' style={[styles.listItemBtmBox, { marginTop: 25 }]}>
             <Flex>
               <View style={styles.leftLine}></View>
-              <Text style={styles.xlTitle}>W5分项完成情况</Text>
+              <Text style={styles.xlTitle}>{`W${selectedWeekIndex + 1}分项完成情况`}</Text>
             </Flex>
-            <Text style={styles.weekRateText}>整体完成率 <Text style={styles.weekRateTextNum}>95%</Text></Text>
+            <Text style={styles.weekRateText}>
+              整体完成率{' '}
+              <Text style={styles.weekRateTextNum}>{selectedWeekOverallRate}%</Text>
+            </Text>
           </Flex>
 
 
           <View style={styles.weekRateList}>
-            {[
-              { title: '有氧', progress: 95, color: '#6D925E' },
-              { title: '抗阻', progress: 95, color: '#72A1C5' },
-              { title: '平衡', progress: 95, color: '#0951AE' },
-              { title: '拉伸', progress: 95, color: '#EE9C44' },
-            ].map(item => (
-              <Flex key={item.title} align="center" style={styles.weekRateItem}>
+            {selectedWeekModuleRates.map(item => (
+              <Flex key={item.key} align="center" style={styles.weekRateItem}>
                 <Text style={styles.weekRateItemTitle}>{item.title}</Text>
                 <View style={styles.weekRateBar}>
                   <View
@@ -575,7 +674,9 @@ export default function SchedulePage() {
           </View>
           <Flex align="start" style={styles.kcalInfoBox}>
             <Image style={styles.kcalInfoIcon} source={require('@/assets/images/nutrition/kllInfo.png')} />
-            <Text style={styles.kcalInfoText}>训练投入持续走高，第 6 周完成率达 95%，与同期血糖、平衡指标改善曲线高度吻合。</Text>
+            <Text style={styles.kcalInfoText}>
+              {`点击上方周次可查看分项；当前 W${selectedWeekIndex + 1} 整体完成率 ${selectedWeekOverallRate}%。`}
+            </Text>
           </Flex>
         </View>
 
@@ -725,7 +826,7 @@ export default function SchedulePage() {
                   <View>
                     <Text style={styles.colTitle}>目标</Text>
                     <Text style={styles.colText} numberOfLines={1}>
-                      {prescription?.diagnosis?.trim() || '--'}
+                      {formatDiagnosticLabelText(prescription?.diagnosticLabel) || '--'}
                     </Text>
                   </View>
                 </Flex>

@@ -282,8 +282,17 @@ const styles = StyleSheet.create({
         color: "#A4A4A4",
     },
     rankNumWrap: {
-        width: 40,
+        width: 48,
         justifyContent: 'center',
+        alignItems: 'flex-start',
+    },
+    rankNumWrapUnlisted: {
+        width: 52,
+        height: 42,
+        marginLeft: -20,
+        marginRight: 20,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
     rankNumText: {
         width: 40,
@@ -294,6 +303,15 @@ const styles = StyleSheet.create({
         textAlign: 'left',
         fontStyle: 'italic',
         transform: [{ skewX: '-12deg' }],
+    },
+    rankNumTextUnlisted: {
+        width: '100%',
+        fontSize: 12,
+        lineHeight: 16,
+        textAlign: 'center',
+        fontStyle: 'normal',
+        fontWeight: '500',
+        transform: [],
     },
     rankingItemText2: {
         fontWeight: 500,

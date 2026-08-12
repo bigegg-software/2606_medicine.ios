@@ -30,9 +30,17 @@ const PODIUM_SCORE_COLORS: Record<number, string> = {
     2: '#EC8E63',
 };
 
-function RankBadge({ rank, labelStyle }: { rank: number | string; labelStyle?: object }) {
+function RankBadge({
+    rank,
+    labelStyle,
+    wrapStyle,
+}: {
+    rank: number | string;
+    labelStyle?: object;
+    wrapStyle?: object;
+}) {
     return (
-        <View style={styles.rankNumWrap}>
+        <View style={[styles.rankNumWrap, wrapStyle]}>
             <Text style={[styles.rankNumText, labelStyle]}>{rank}</Text>
         </View>
     );
@@ -76,6 +84,12 @@ function sortRankingList(list: RankingItem[]) {
         if (sortA !== sortB) return sortA - sortB;
         return (b.tokens ?? 0) - (a.tokens ?? 0);
     });
+}
+
+function formatMyRankLabel(rank?: number | null) {
+    const value = Math.round(Number(rank));
+    if (!Number.isFinite(value) || value <= 0 || value > 100) return '未上榜';
+    return String(value);
 }
 
 function RankingRow({
@@ -212,7 +226,8 @@ export default function RankingPage() {
         [currentUserId, rankingList],
     );
 
-    const myRankLabel = myEntry?.sort != null ? String(myEntry.sort) : '—';
+    const myRankLabel = formatMyRankLabel(myEntry?.sort);
+    const myRankUnlisted = myRankLabel === '未上榜';
     const myName = myEntry?.nickName?.trim() || currentUserName || '我';
     const myStreak = formatStreak(myEntry?.continuousDays);
     const myScore = myEntry?.tokens ?? 0;
@@ -300,8 +315,12 @@ export default function RankingPage() {
             </ScrollView>
 
             <View style={styles.rankingMeBar}>
-                <Flex style={styles.rankingMeItemBox}>
-                    <RankBadge rank={myRankLabel} />
+                <Flex align="center" style={styles.rankingMeItemBox}>
+                    <RankBadge
+                        rank={myRankLabel}
+                        wrapStyle={myRankUnlisted ? styles.rankNumWrapUnlisted : undefined}
+                        labelStyle={myRankUnlisted ? styles.rankNumTextUnlisted : undefined}
+                    />
                     <Image source={myAvatarSource} style={styles.listImg} />
                     <View style={styles.rankingListInfo}>
                         <Text style={styles.rankingItemText}>{myName}</Text>
