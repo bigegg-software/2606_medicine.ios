@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   RefreshControl,
@@ -13,80 +13,73 @@ import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/route/router';
-import type { HistoryExPatientRule } from '@/api/schedule';
-import { AppTheme } from '@/common/theme';
 import PageLayout from '@/src/components/PageLayout';
-import NoData from '@/src/components/noData';
+import EmptyRecord from '@/src/components/EmptyRecord';
 import styles from '@/css/schedule/schedule';
+import HistoryArchiveCard from './HistoryArchiveCard';
 import {
-  fetchHistoryPlanPage,
-  getHistoryStatusLabel,
+  fetchHistoryArchivePage,
   HISTORY_PLAN_FILTER_OPTIONS,
-  sortHistoryPlans,
-  toHistoryPlanItem,
   type HistoryPlanFilter,
+  type ScheduleHistoryArchiveItem,
 } from './scheduleHelpers';
 
 const PAGE_SIZE = 20;
 
-function getHistoryPlanKey(item: HistoryExPatientRule) {
-  return item.exPatientRuleId != null && item.exPatientRuleId !== ''
-    ? String(item.exPatientRuleId)
-    : `${item.startDate ?? ''}-${item.endDate ?? ''}-${item.prescriptionName ?? ''}`;
-}
-
-function mergeHistoryPlans(existing: HistoryExPatientRule[], incoming: HistoryExPatientRule[]) {
-  const map = new Map<string, HistoryExPatientRule>();
+function mergeArchiveItems(
+  existing: ScheduleHistoryArchiveItem[],
+  incoming: ScheduleHistoryArchiveItem[],
+) {
+  const map = new Map<string, ScheduleHistoryArchiveItem>();
   [...existing, ...incoming].forEach(item => {
-    map.set(getHistoryPlanKey(item), item);
+    map.set(item.id, item);
   });
-  return sortHistoryPlans([...map.values()]);
+  return [...map.values()];
 }
 
 export default function ScheduleHistoryPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [filter, setFilter] = useState<HistoryPlanFilter>('all');
-  const [plans, setPlans] = useState<HistoryExPatientRule[]>([]);
+  const [items, setItems] = useState<ScheduleHistoryArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [pageNum, setPageNum] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const hasMoreRef = useRef(true);
   const pageNumRef = useRef(1);
   const filterRef = useRef(filter);
+  const loadingMoreRef = useRef(false);
 
   filterRef.current = filter;
-
-  const historyItems = useMemo(() => plans.map(toHistoryPlanItem), [plans]);
 
   const loadPlans = useCallback(async (mode: 'initial' | 'refresh' | 'more' = 'initial') => {
     const currentFilter = filterRef.current;
     const nextPageNum = mode === 'more' ? pageNumRef.current + 1 : 1;
 
-    if (mode === 'initial') {
-      setLoading(true);
-    } else if (mode === 'refresh') {
-      setRefreshing(true);
-    } else {
+    if (mode === 'more') {
+      if (loadingMoreRef.current || !hasMoreRef.current) return;
+      loadingMoreRef.current = true;
       setLoadingMore(true);
+    } else if (mode === 'initial') {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
     }
 
     try {
-      const { rows, hasMore: nextHasMore } = await fetchHistoryPlanPage(
+      const { rows, hasMore: nextHasMore } = await fetchHistoryArchivePage(
         currentFilter,
         nextPageNum,
         PAGE_SIZE,
       );
 
-      setPlans(prev => (mode === 'more' ? mergeHistoryPlans(prev, rows) : rows));
-      setPageNum(nextPageNum);
-      setHasMore(nextHasMore);
+      setItems(prev => (mode === 'more' ? mergeArchiveItems(prev, rows) : rows));
       pageNumRef.current = nextPageNum;
+      setHasMore(nextHasMore);
       hasMoreRef.current = nextHasMore;
     } catch {
       if (mode !== 'more') {
-        setPlans([]);
+        setItems([]);
       }
       setHasMore(false);
       hasMoreRef.current = false;
@@ -94,6 +87,7 @@ export default function ScheduleHistoryPage() {
       setLoading(false);
       setRefreshing(false);
       setLoadingMore(false);
+      loadingMoreRef.current = false;
     }
   }, []);
 
@@ -113,20 +107,20 @@ export default function ScheduleHistoryPage() {
   );
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (loadingMore || loading || refreshing || !hasMoreRef.current) return;
+    if (loadingMoreRef.current || loading || refreshing || !hasMoreRef.current) return;
 
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
     const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
     if (distanceFromBottom < 120) {
       void loadPlans('more');
     }
-  }, [loadPlans, loading, loadingMore, refreshing]);
+  }, [loadPlans, loading, refreshing]);
 
-  if (loading && !refreshing && historyItems.length === 0) {
+  if (loading && !refreshing && items.length === 0) {
     return (
       <PageLayout style={styles.container} contentStyle={styles.historyPageBody}>
-        <Flex justify="center" style={{ flex: 1 }}>
-          <ActivityIndicator color={AppTheme.primaryColor} />
+        <Flex justify="center" style={styles.center}>
+          <ActivityIndicator color="#6D925E" />
         </Flex>
       </PageLayout>
     );
@@ -143,8 +137,11 @@ export default function ScheduleHistoryPage() {
                 key={option.value}
                 activeOpacity={0.7}
                 style={[styles.filterItem, active && styles.filterItemActive]}
-                onPress={() => handleFilterChange(option.value)}>
-                <Text style={[styles.filterText, active && styles.filterTextActive]}>{option.label}</Text>
+                onPress={() => handleFilterChange(option.value)}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                  {option.label}
+                </Text>
               </TouchableOpacity>
             );
           })}
@@ -155,52 +152,41 @@ export default function ScheduleHistoryPage() {
         style={styles.historyListScroll}
         contentContainerStyle={[
           styles.historyListContent,
-          historyItems.length === 0 && styles.historyListContentEmpty,
+          items.length === 0 && styles.historyListContentEmpty,
         ]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
             onRefresh={() => loadPlans('refresh')}
-            colors={[AppTheme.primaryColor]}
-            tintColor={AppTheme.primaryColor}
+            colors={['#6D925E']}
+            tintColor="#6D925E"
           />
         }
         onScroll={handleScroll}
-        scrollEventThrottle={16}>
-        {historyItems.length > 0 ? (
-          historyItems.map(item => (
-            <TouchableOpacity
-              key={String(item.id)}
-              activeOpacity={0.7}
+        scrollEventThrottle={16}
+      >
+        {items.length > 0 ? (
+          items.map(item => (
+            <HistoryArchiveCard
+              key={item.id}
+              item={item}
               onPress={() => {
                 navigation.navigate('ScheduleHistoryDetailPage', {
                   exPatientRuleId: String(item.id),
                 });
-              }}>
-              <Flex justify="between" style={styles.medicalBox}>
-                <View style={{ flex: 1, paddingRight: 12 }}>
-                  <Text style={[styles.medicalTitle, { marginTop: 0 }]}>{item.title}</Text>
-                  <Text style={[styles.leftText, { marginTop: 6 }]}>{item.cycle}</Text>
-                  {item.status === 1 && item.stopReason ? (
-                    <Text style={styles.statusInfo}>暂停原因：{item.stopReason}</Text>
-                  ) : null}
-                </View>
-                <Flex style={item.status === 2 ? styles.yjsBox : styles.yztBox}>
-                  <Text style={item.status === 2 ? styles.yjsText : styles.yztText}>{getHistoryStatusLabel(item.status)}</Text>
-                </Flex>
-              </Flex>
-            </TouchableOpacity>
+              }}
+            />
           ))
         ) : (
           <View style={styles.historyEmptyWrap}>
-            <NoData text="暂无历史计划" />
+            <EmptyRecord text="暂无历史干预计划" />
           </View>
         )}
 
         {loadingMore ? (
-          <ActivityIndicator color={AppTheme.primaryColor} style={{ marginTop: 16 }} />
+          <ActivityIndicator color="#6D925E" style={{ marginTop: 16 }} />
         ) : null}
-        {!loadingMore && historyItems.length > 0 && !hasMore ? (
+        {!loadingMore && items.length > 0 && !hasMore ? (
           <Text style={styles.loadMoreText}>没有更多了</Text>
         ) : null}
       </ScrollView>

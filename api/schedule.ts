@@ -61,10 +61,18 @@ export type HistoryExPatientRule = {
   startDate?: string;
   endDate?: string;
   status?: number;
+  /** 处方版本号 */
+  version?: number | string;
+  /** 处方主训练整体完成率 0-100 */
+  mainCompleteRate?: number;
   stopReason?: string;
   stopTime?: string;
   updateTime?: string;
   createTime?: string;
+  completeSummary?: string;
+  aiAnalysis?: ExPatientRuleAiAnalysis;
+  progressInfo?: ProgressInfo;
+  weekDuration?: number;
 };
 
 export type HistoryListResult = {

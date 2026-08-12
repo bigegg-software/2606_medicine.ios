@@ -137,6 +137,10 @@ export const getExPatientRuleAdjustList = (exPatientRuleId: string) =>
 /** 主训练四模块整体完成率（按处方起止日期），完成率 0-100 */
 export type ExPatientRuleModuleCompleteRate = {
   exPatientRuleId?: number | string;
+  /** 处方整体完成率（主训练）0-100 */
+  mainCompleteRate?: number;
+  hotCompleteRate?: number;
+  coldCompleteRate?: number;
   cardioCompleteRate?: number;
   strengthCompleteRate?: number;
   flexibilityCompleteRate?: number;

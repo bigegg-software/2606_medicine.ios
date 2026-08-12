@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: 'bold',
         color: '#333333',
-        textAlign: 'left',
+        textAlign: 'center',
         backgroundColor: 'transparent',
     },
     recordModalConfirm: {
@@ -182,6 +182,7 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 14,
         color: '#242424',
+        maxWidth: 110,
     },
     inputUnit: {
         fontWeight: 'bold',

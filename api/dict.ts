@@ -36,6 +36,8 @@ export const DICT_TYPES = {
   liveType: 'live_type',
   livePlatform: 'live_platform',
   activityType: 'activity_type',
+  /** 健康目标分类 */
+  targetCategory: 'target_category',
 } as const;
 
 export const EXERCISE_CHILD_DICT_BY_TYPE: Record<string, string> = {

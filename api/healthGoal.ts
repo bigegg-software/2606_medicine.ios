@@ -34,11 +34,47 @@ export type HealthGoalVo = {
   updateTime?: string;
 };
 
+export type HealthGoalMetricPair = {
+  baseline?: number;
+  target?: number;
+};
+
+export type HealthGoalBloodPressureTarget = {
+  sbpBaseline?: number;
+  sbpTarget?: number;
+  dbpBaseline?: number;
+  dbpTarget?: number;
+};
+
+export type HealthGoalBloodLipidTarget = {
+  tc?: HealthGoalMetricPair;
+  tg?: HealthGoalMetricPair;
+  hdlC?: HealthGoalMetricPair;
+  ldlC?: HealthGoalMetricPair;
+};
+
+export type HealthGoalJointRomTarget = {
+  shoulderFlexion?: HealthGoalMetricPair;
+  shoulderAbduction?: HealthGoalMetricPair;
+  elbowFlexion?: HealthGoalMetricPair;
+  hipFlexion?: HealthGoalMetricPair;
+  kneeFlexion?: HealthGoalMetricPair;
+  ankleDorsiflexion?: HealthGoalMetricPair;
+};
+
 export type HealthGoalTarget = {
   healthGoalId?: number;
   complianceImproveType?: number;
   compliantTypes?: string[];
   healthGoalVo?: HealthGoalVo;
+  bloodPressure?: HealthGoalBloodPressureTarget;
+  bloodGlucose?: HealthGoalMetricPair;
+  bloodLipid?: HealthGoalBloodLipidTarget;
+  weight?: HealthGoalMetricPair;
+  /** 尿酸达标配置（基线值与目标值），单位 μmol/L */
+  uricAcid?: HealthGoalMetricPair;
+  healthTest?: HealthGoalMetricPair;
+  jointRom?: HealthGoalJointRomTarget;
   compliantPercent?: number;
   xuezhiTcRate?: number;
   xuezhiTcImproveDirection?: number;

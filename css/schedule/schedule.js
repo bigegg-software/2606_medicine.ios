@@ -8,7 +8,7 @@ const styles = StyleSheet.create({
   scrollNew: { paddingBottom: 40 },
   mH12: { marginHorizontal: 12 },
   headerGradient: { position: 'absolute', top: 0, left: 0, right: 0, height: 310 },
-  pageTitleBox: { marginTop: 12 },
+  pageTitleBox: { marginTop: 12, marginLeft: 6 },
   pageTitle: { fontWeight: "bold", fontSize: 22, color: "#000" },
   pageTitleSubtitle: {
     marginLeft: 6,
@@ -21,7 +21,7 @@ const styles = StyleSheet.create({
     shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3
   },
   pageTitleSubtitleText: { fontWeight: "bold", fontSize: 12, color: "#6D925E" },
-  pageTopText: { marginTop: 11, fontWeight: 500, fontSize: 12, color: "#666666" },
+  pageTopText: { marginTop: 11, marginLeft: 6, fontWeight: 500, fontSize: 12, color: "#666666" },
   pageTopBgWrap: {
     marginTop: 18, position: "relative",
     shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3
@@ -64,10 +64,19 @@ const styles = StyleSheet.create({
   backImage1Text: { fontWeight: "bold", fontSize: 16, color: "#333333" },
   dayProgressText: { fontWeight: 500, fontSize: 14, color: "#333333" },
   dayProgressNum: { fontWeight: "bold", fontSize: 14, color: AppTheme.primaryColor },
+  navTabScroll: {
+    flexGrow: 1,
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 18,
+  },
+  navTabItem: {
+    marginRight: 10,
+  },
   navTabBox: {
     height: 30,
     paddingVertical: 6,
-    paddingHorizontal: 18,
+    paddingHorizontal: 14,
     backgroundColor: "#FFFFFF",
     borderRadius: 25,
     borderWidth: 1,
@@ -141,10 +150,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E7EAEB",
   },
-  historyItemTitle: { fontWeight: "bold", fontSize: 14, color: "#333333" },
-  historyItemStatus: { backgroundColor: "#FFFFFF", borderRadius: 4, borderWidth: 1, borderColor: "#EE9C44" },
+  historyItemTitle: { flex: 1, flexShrink: 1, paddingRight: 8, fontWeight: "bold", fontSize: 14, color: "#333333" },
+  historyItemStatus: { backgroundColor: "#FFFFFF", borderRadius: 4, borderWidth: 1, borderColor: "#CCCCCC" },
+  historyItemStatusActive: { borderColor: "#EE9C44" },
   historyItemStatusDone: { borderColor: "#6D925E" },
-  historyItemStatusText: { fontWeight: "bold", fontSize: 11, color: "#EE9C44", paddingHorizontal: 6, paddingVertical: 4 },
+  historyItemStatusText: { fontWeight: "bold", fontSize: 11, color: "#999999", paddingHorizontal: 6, paddingVertical: 4 },
+  historyItemStatusTextActive: { color: "#EE9C44" },
   historyItemStatusTextDone: { color: "#6D925E" },
   historyItemTextWrap: { marginTop: 5 },
   historyItemIcon: { width: 15, height: 15 },
@@ -176,12 +187,16 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: "#F6F8FB",
     borderRadius: 25,
+    alignItems: "flex-start",
+    width: "100%",
   },
   historyInfoText: {
+    flex: 1,
+    flexShrink: 1,
     fontWeight: 500,
     fontSize: 13,
     color: "#999999",
-    marginLeft: 6
+    marginLeft: 6,
   },
 
 
@@ -396,18 +411,18 @@ const styles = StyleSheet.create({
   historyPageBody: { flex: 1 },
   historyFilterSection: { paddingHorizontal: 18, paddingTop: 18 },
   historyListScroll: { flex: 1 },
-  historyListContent: { paddingHorizontal: 18, paddingBottom: 40 },
+  historyListContent: { paddingHorizontal: 18, paddingBottom: 40, paddingTop: 0 },
   historyListContentEmpty: { flexGrow: 1 },
   historyEmptyWrap: { flex: 1, justifyContent: 'center', paddingTop: 40 },
-  filterRow: { flexDirection: 'row', gap: 8, marginBottom: 16 },
+  filterRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
   filterItem: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 16,
-    backgroundColor: '#F1F6FF',
+    backgroundColor: '#EEF3EC',
   },
   filterItemActive: {
-    backgroundColor: AppTheme.primaryColor,
+    backgroundColor: '#6D925E',
   },
   filterText: {
     fontWeight: 400,
@@ -420,7 +435,7 @@ const styles = StyleSheet.create({
   loadMoreText: {
     textAlign: 'center',
     fontSize: 14,
-    color: AppTheme.textSecondary,
+    color: '#999999',
     marginTop: 16,
   },
 })

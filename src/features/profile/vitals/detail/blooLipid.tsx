@@ -33,10 +33,11 @@ import {
     getBloodLipidNormalRangeText,
     type BloodLipidCompareSummary,
     type BloodLipidDetailPoint,
-    type BloodLipidGoalRow,
+    type BloodLipidGoalDisplay,
     type BloodLipidMetricKey,
 } from './helpers/bloodLipid';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import VitalsProgressRing from './components/VitalsProgressRing';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -75,7 +76,7 @@ export default function BloodLipidPage() {
     const [displayStatusColor, setDisplayStatusColor] = useState('#999999');
     const [currentLabel, setCurrentLabel] = useState('--');
     const [showGoalSummary, setShowGoalSummary] = useState(false);
-    const [goalRows, setGoalRows] = useState<BloodLipidGoalRow[]>([]);
+    const [goalDisplays, setGoalDisplays] = useState<BloodLipidGoalDisplay[]>([]);
     const [prescriptionTarget, setPrescriptionTarget] = useState<HealthGoalTarget | null>(null);
     const [prescriptionPeriodItems, setPrescriptionPeriodItems] = useState<MeasureDataItem[]>([]);
     const [compareSummary, setCompareSummary] = useState<BloodLipidCompareSummary | null>(null);
@@ -99,14 +100,14 @@ export default function BloodLipidPage() {
         const summary = await loadBloodLipidPrescriptionGoalSummary(fallbackItems);
         if (!summary) {
             setShowGoalSummary(false);
-            setGoalRows([]);
+            setGoalDisplays([]);
             setPrescriptionTarget(null);
             setPrescriptionPeriodItems([]);
             return null;
         }
 
-        setShowGoalSummary(summary.rows.length > 0);
-        setGoalRows(summary.rows);
+        setShowGoalSummary(summary.displays.length > 0);
+        setGoalDisplays(summary.displays);
         setPrescriptionTarget(summary.target);
         setPrescriptionPeriodItems(summary.periodItems);
         return summary;
@@ -212,32 +213,43 @@ export default function BloodLipidPage() {
                     style={styles.body}
                     contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
                 >
-                    {showGoalSummary && goalRows.length ? (
-                        <View style={[styles.rowBox, { marginTop: 10 }]}>
-                            <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>血脂控制目标</Text>
-                            {goalRows.map(row => (
-                                <Flex key={row.shortLabel} style={styles.topTextBox}>
-                                    <View style={styles.leftIcon} />
-                                    <Text style={styles.typeTitle}>{row.shortLabel}</Text>
-                                    <Text style={styles.rowTitle1}>{row.fullLabel}</Text>
-                                    {row.icon === 'down' ? (
-                                        <Image
-                                            style={styles.rowImage}
-                                            tintColor="#EE9C44"
-                                            source={require('@/assets/images/vitals/icon_xj.png')}
+                    {showGoalSummary && goalDisplays.length ? (
+                        goalDisplays.map(goal => (
+                            <Flex key={goal.key} style={[styles.colRow, { marginTop: 10 }]}>
+                                <View style={styles.colBox}>
+                                    <Flex justify="between">
+                                        <Text style={styles.analysisTitle}>{goal.title}</Text>
+                                        <Flex style={styles.rightBox}>
+                                            <Image
+                                                style={styles.rightBoxIcon}
+                                                source={require('@/assets/images/vitals/jz.png')}
+                                            />
+                                            <Text style={styles.rightBoxText}>{goal.planLabel}</Text>
+                                        </Flex>
+                                    </Flex>
+
+                                    <Flex justify="between" style={{ marginTop: 15 }}>
+                                        <Flex style={styles.targetBox}>
+                                            <View>
+                                                <Text style={styles.targetBoxText}>目标值 (mmol/L)</Text>
+                                                <Text style={styles.targetBoxValue}>{goal.targetText}</Text>
+                                            </View>
+                                            <View>
+                                                <Text style={styles.targetBoxText}>{goal.remainingLabel}</Text>
+                                                <Text style={[styles.targetBoxValue, { color: '#72A1C5' }]}>
+                                                    {goal.remainingText}
+                                                </Text>
+                                            </View>
+                                        </Flex>
+                                        <VitalsProgressRing
+                                            progress={goal.progressPercent}
+                                            trackColor="rgba(131,174,255,0.14)"
+                                            progressColor="#72A1C5"
                                         />
-                                    ) : null}
-                                    {row.icon === 'up' ? (
-                                        <Image
-                                            style={styles.rowImage}
-                                            tintColor="#EE9C44"
-                                            source={require('@/assets/images/vitals/icon_up.png')}
-                                        />
-                                    ) : null}
-                                    <Text style={styles.rowValue}>{row.currentAmountText}</Text>
-                                </Flex>
-                            ))}
-                        </View>
+                                    </Flex>
+                                </View>
+                            </Flex>
+                        ))
                     ) : null}
 
                     {compareSummary ? (

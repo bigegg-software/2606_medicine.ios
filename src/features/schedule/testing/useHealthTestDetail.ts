@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { getHealthGoalInfo } from '@/api/healthGoal';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import { getHealthTestItemInfo, type HealthTestItemInfo } from '@/api/healthTestItem';
+import type { HealthGoalTarget } from '@/api/healthGoal';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
+import type { AppDispatch, RootState } from '@/store/store';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 
-function resolveHealthTestItemId(
-  goalInfo?: { assessmentType?: string; assessmentValue?: string; healthTestItemVo?: { healthTestItemId?: number } },
-) {
+function resolveHealthTestItemId(goalTarget?: HealthGoalTarget | null) {
+  const goalInfo = goalTarget?.healthGoalVo;
   const fromVo = goalInfo?.healthTestItemVo?.healthTestItemId;
   if (fromVo != null) return fromVo;
   if (goalInfo?.assessmentType === 'sys_health_test_item' && goalInfo.assessmentValue) {
@@ -16,8 +18,22 @@ function resolveHealthTestItemId(
 }
 
 export function useHealthTestDetailByGoalId(healthGoalId?: string) {
+  const dispatch = useDispatch<AppDispatch>();
+  const prescription = useSelector((state: RootState) => state.prescription.inUse);
   const [detail, setDetail] = useState<HealthTestItemInfo | null>(null);
   const [loading, setLoading] = useState(Boolean(healthGoalId));
+
+  const goalTarget = useMemo(() => {
+    if (!healthGoalId) return null;
+    return prescription?.healthGoalTargetList?.find(
+      item => String(item.healthGoalId) === String(healthGoalId),
+    ) ?? null;
+  }, [healthGoalId, prescription?.healthGoalTargetList]);
+
+  const healthTestItemId = useMemo(
+    () => resolveHealthTestItemId(goalTarget),
+    [goalTarget],
+  );
 
   const load = useCallback(async () => {
     if (!healthGoalId) {
@@ -28,30 +44,33 @@ export function useHealthTestDetailByGoalId(healthGoalId?: string) {
 
     setLoading(true);
     try {
-      const goalRes = await getHealthGoalInfo(healthGoalId);
-      if (!isResourceApiOk(goalRes)) {
-        setDetail(null);
-        return;
+      let currentTarget = goalTarget;
+      if (!currentTarget) {
+        const inUse = await dispatch(fetchInUsePrescription());
+        currentTarget = inUse?.healthGoalTargetList?.find(
+          item => String(item.healthGoalId) === String(healthGoalId),
+        ) ?? null;
       }
-      const goalInfo = apiResourceData(goalRes);
-      const healthTestItemId = resolveHealthTestItemId(goalInfo);
-      if (healthTestItemId == null) {
-        setDetail(goalInfo?.healthTestItemVo ?? null);
+
+      const fallbackDetail = currentTarget?.healthGoalVo?.healthTestItemVo ?? null;
+      const itemId = resolveHealthTestItemId(currentTarget);
+      if (itemId == null) {
+        setDetail(fallbackDetail);
         return;
       }
 
-      const testRes = await getHealthTestItemInfo(healthTestItemId);
+      const testRes = await getHealthTestItemInfo(itemId);
       if (!isResourceApiOk(testRes)) {
-        setDetail(goalInfo?.healthTestItemVo ?? null);
+        setDetail(fallbackDetail);
         return;
       }
-      setDetail(apiResourceData(testRes) ?? goalInfo?.healthTestItemVo ?? null);
+      setDetail(apiResourceData(testRes) ?? fallbackDetail);
     } catch {
       setDetail(null);
     } finally {
       setLoading(false);
     }
-  }, [healthGoalId]);
+  }, [dispatch, goalTarget, healthGoalId]);
 
   useEffect(() => {
     load();
@@ -60,7 +79,8 @@ export function useHealthTestDetailByGoalId(healthGoalId?: string) {
   return {
     detail,
     loading,
-    healthTestItemId: detail?.healthTestItemId,
+    goalTarget,
+    healthTestItemId: detail?.healthTestItemId ?? healthTestItemId,
     reload: load,
   };
 }
