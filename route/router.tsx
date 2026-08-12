@@ -145,6 +145,11 @@ import IdCardCameraPage from '@/src/features/authentication/IdCardCameraPage'
 //消息
 import MessagePage from '@/src/features/message';
 
+// 设备相关
+import EquipmentListPage from "@/src/features/equipment/list";
+import EquipmentSearchPage from "@/src/features/equipment/search";
+import EquipmentDetailPage from "@/src/features/equipment/detail";
+
 export type RootStackParamList = {
   IndexPage: undefined;
   Login: undefined;
@@ -179,6 +184,16 @@ export type RootStackParamList = {
   AuthenticationPage: undefined;
   IdCardCameraPage: { side: 'front' | 'back' };
   MessagePage: undefined;
+  EquipmentListPage: undefined;
+  EquipmentSearchPage: undefined;
+  EquipmentDetailPage: {
+    id: string;
+    name: string;
+    connected: boolean;
+    batteryPercent?: number;
+    deviceId?: string;
+    firmwareVersion?: string;
+  };
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };
   FamilyHistory: undefined;
@@ -562,6 +577,9 @@ export default function RootStack() {
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
       <Stack.Screen name="MessagePage" component={MessagePage} options={{ title: "消息" }} />
       <Stack.Screen name="RecordPointsPage" component={RecordPointsPage} options={{ title: "积分记录" }} />
+      <Stack.Screen name="EquipmentListPage" component={EquipmentListPage} options={{ title: "我的设备" }} />
+      <Stack.Screen name="EquipmentSearchPage" component={EquipmentSearchPage} options={{ title: "搜索设备" }} />
+      <Stack.Screen name="EquipmentDetailPage" component={EquipmentDetailPage} options={{ title: "设备详情" }} />
     </Stack.Navigator>
   );
 }

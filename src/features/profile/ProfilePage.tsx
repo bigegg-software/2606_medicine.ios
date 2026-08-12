@@ -470,19 +470,21 @@ export default function ProfilePage() {
 
         <Text style={styles.modelTitle}>我的设备</Text>
         <View style={[styles.familyBox, { paddingVertical: 10 }]}>
-          <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-            <Flex>
-              <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
-              <View style={styles.familyItemContent}>
-                <Text style={styles.familyItemName}>3个设备在线</Text>
-                <Text style={styles.familyItemRelation}>共绑定5个设备</Text>
-              </View>
+          <TouchableOpacity onPress={() => navigation.navigate('EquipmentListPage')}>
+            <Flex justify='between' style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+              <Flex>
+                <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
+                <View style={styles.familyItemContent}>
+                  <Text style={styles.familyItemName}>3个设备在线</Text>
+                  <Text style={styles.familyItemRelation}>共绑定5个设备</Text>
+                </View>
+              </Flex>
+              <Image
+                style={{ width: 8, height: 13 }}
+                source={require('@/assets/images/user/icon_right.png')}
+              />
             </Flex>
-            <Image
-              style={{ width: 8, height: 13 }}
-              source={require('@/assets/images/user/icon_right.png')}
-            />
-          </Flex>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.modelTitle}>设置</Text>
