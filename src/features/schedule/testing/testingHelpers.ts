@@ -92,6 +92,53 @@ function getImproveLabelFromPercent(firstChangePercent: number) {
     return '持续改善中';
 }
 
+/** 记录趋势：相对上一次评估，好→上升图标，差→下降图标；无变化/无上一次返回 null */
+export function resolveRecordTrendTone(options: {
+  /** 当前记录成绩 */
+  currentValue?: number | null;
+  /** 上一次评估成绩 */
+  previousValue?: number | null;
+  firstChangePercent?: number | null;
+  changeValue?: number | null;
+  /** -1 表示数值越低越好 */
+  improveDirection?: number | null;
+}): 'up' | 'down' | null {
+  const {
+    currentValue,
+    previousValue,
+    firstChangePercent,
+    changeValue,
+    improveDirection,
+  } = options;
+  const lowerBetter = improveDirection === -1;
+
+  // 优先：相对上一次评估
+  if (
+    currentValue != null
+    && previousValue != null
+    && Number.isFinite(Number(currentValue))
+    && Number.isFinite(Number(previousValue))
+  ) {
+    const delta = Number(currentValue) - Number(previousValue);
+    if (delta === 0) return null;
+    const improved = lowerBetter ? delta < 0 : delta > 0;
+    return improved ? 'up' : 'down';
+  }
+
+  if (firstChangePercent != null && Number.isFinite(Number(firstChangePercent))) {
+    const percent = Number(firstChangePercent);
+    if (percent > 0) return 'up';
+    if (percent < 0) return 'down';
+    return null;
+  }
+
+  if (changeValue == null || !Number.isFinite(Number(changeValue))) return null;
+  const delta = Number(changeValue);
+  if (delta === 0) return null;
+  const improved = lowerBetter ? delta < 0 : delta > 0;
+  return improved ? 'up' : 'down';
+}
+
 function areHealthTestRecordsDistinct(
     firstRecord?: { id?: number; testValue?: number | null } | null,
     latestRecord?: { id?: number; testValue?: number | null } | null,
@@ -284,6 +331,45 @@ export function resolveHealthTestUnit(detail?: { unit?: string | null; testName?
   if (unit && unit !== '-') return unit;
   if (isJointRomHealthTest({ testName: detail?.testName })) return '°';
   return unit || '次';
+}
+
+/** 卡片角标改善幅度：只展示目标改善量，不展示当前/目标比值 */
+export function formatImproveTargetAmount(options: {
+  baseline?: number | null;
+  target?: number | null;
+  improveDirectionVal?: number | null;
+  isLowerBetter?: boolean;
+  unit?: string;
+}) {
+  const formatAmount = (value: number) => (
+    Number.isInteger(value) ? String(value) : String(Number(value.toFixed(1)))
+  );
+
+  const unit = options.unit ?? '';
+  let targetImprove: number | null = null;
+
+  // 优先：目标相对初始的绝对差值（与单位一致）
+  if (options.baseline != null && options.target != null) {
+    const delta = options.isLowerBetter
+      ? Number(options.baseline) - Number(options.target)
+      : Number(options.target) - Number(options.baseline);
+    if (Number.isFinite(delta) && delta > 0) {
+      targetImprove = delta;
+    }
+  }
+
+  // 无有效差值时回退处方配置的改善幅度
+  if (
+    targetImprove == null
+    && options.improveDirectionVal != null
+    && Number.isFinite(Number(options.improveDirectionVal))
+  ) {
+    const val = Number(options.improveDirectionVal);
+    if (val > 0) targetImprove = val;
+  }
+
+  if (targetImprove == null) return null;
+  return `${formatAmount(targetImprove)}${unit}`;
 }
 
 export function parseJointRomObjValue(

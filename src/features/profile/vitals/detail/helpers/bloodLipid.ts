@@ -5,12 +5,12 @@ import {
   type MeasureDataAllRecordsMonthGroup,
   type MeasureDataItem,
 } from '@/api/measureData';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule, type ProgressInfo } from '@/api/schedule';
+import { type InUseExPatientRule, type ProgressInfo } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { flattenMeasureItems } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
 import { getItemTimestamp, parseMeasureNumber, pickLatestMeasureRecords } from './shared';
-import { enrichHealthGoalTargets, toHealthGoalDisplayItem } from '@/src/features/schedule/scheduleHelpers';
+import { toHealthGoalDisplayItem } from '@/src/features/schedule/scheduleHelpers';
 
 export const BLOOD_LIPID_RECENT_PAGE_SIZE = 10;
 
@@ -37,6 +37,13 @@ export type BloodLipidGoalDisplay = {
   progressPercent: number;
 };
 
+export type BloodLipidGoalRow = {
+  shortLabel: string;
+  fullLabel: string;
+  currentAmountText: string;
+  icon: 'up' | 'down' | null;
+};
+
 export type BloodLipidCompareRow = {
   key: BloodLipidMetricKey;
   shortLabel: string;
@@ -58,7 +65,7 @@ export type BloodLipidPrescriptionGoalSummary = {
   target: HealthGoalTarget;
   statusText: string;
   statusColor: string;
-  displays: BloodLipidGoalDisplay[];
+  rows: BloodLipidGoalRow[];
   periodItems: MeasureDataItem[];
 };
 
@@ -358,7 +365,8 @@ function resolveConfiguredLipidTypes(target: HealthGoalTarget) {
     .filter(type => {
       const metric = LIPID_METRICS.find(item => item.goalType === type)!;
       const pair = target.bloodLipid?.[metric.pairKey];
-      if (pair?.target != null && Number.isFinite(Number(pair.target))) return true;
+      if (toFiniteLipidNumber(pair?.target) != null) return true;
+      if (toFiniteLipidNumber(pair?.baseline) != null) return true;
       const rate = target[metric.rateKey] as number | undefined;
       return rate != null && !Number.isNaN(Number(rate));
     });
@@ -555,41 +563,72 @@ export function buildBloodLipidGoalDisplays(
     .filter((row): row is BloodLipidGoalDisplay => row != null);
 }
 
-/** @deprecated 使用 buildBloodLipidGoalDisplays */
 export function buildBloodLipidGoalRows(
   target: HealthGoalTarget,
   periodItems: MeasureDataItem[] = [],
-) {
-  return buildBloodLipidGoalDisplays(target, periodItems).map(item => ({
-    shortLabel: item.shortLabel,
-    fullLabel: `${item.title} (mmol/L)`,
-    currentAmountText: item.targetText,
-    icon: item.planLabel === '提升计划' ? 'up' as const : 'down' as const,
-  }));
+): BloodLipidGoalRow[] {
+  return resolveConfiguredLipidTypes(target)
+    .map(type => {
+      const metric = LIPID_METRICS.find(item => item.goalType === type);
+      if (!metric) return null;
+
+      const pair = target.bloodLipid?.[metric.pairKey];
+      const direction = target[metric.dirKey] as number | undefined;
+      const ratePercent = target[metric.rateKey] as number | undefined;
+      const isGain = direction === 1
+        || (direction !== -1 && metric.higherIsBetter);
+
+      const baseline = toFiniteLipidNumber(pair?.baseline)
+        ?? getBaselineLipidValue(periodItems, metric.key);
+      if (baseline == null || baseline <= 0) return null;
+
+      const absoluteTarget = toFiniteLipidNumber(pair?.target)
+        ?? (
+          ratePercent != null && !Number.isNaN(Number(ratePercent))
+            ? calcLipidAbsoluteTarget(baseline, Number(ratePercent), isGain)
+            : null
+        );
+
+      let displayAmount: number | null = null;
+      if (absoluteTarget != null && absoluteTarget > 0) {
+        displayAmount = Number(Math.abs(absoluteTarget - baseline).toFixed(2));
+      } else if (ratePercent != null && !Number.isNaN(Number(ratePercent))) {
+        displayAmount = calcLipidGoalTargetAmount(baseline, Number(ratePercent));
+      }
+      if (displayAmount == null || displayAmount <= 0) return null;
+
+      const icon: BloodLipidGoalRow['icon'] = direction === 1
+        ? 'up'
+        : direction === -1
+          ? 'down'
+          : isGain
+            ? 'up'
+            : 'down';
+
+      return {
+        shortLabel: metric.shortLabel,
+        fullLabel: `${metric.fullLabel} (mmol/L)`,
+        currentAmountText: formatLipidDecimal(displayAmount),
+        icon,
+      };
+    })
+    .filter((row): row is BloodLipidGoalRow => row != null);
 }
 
+/** 基于 store 中的在用处方构建血脂目标摘要（不再单独请求 getInfo） */
 export async function loadBloodLipidPrescriptionGoalSummary(
+  rule: InUseExPatientRule | null | undefined,
   fallbackItems: MeasureDataItem[] = [],
 ): Promise<BloodLipidPrescriptionGoalSummary | null> {
   try {
-    const res = await getInUseExPatientRuleInfo();
-    const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
-    if (!isResourceApiOk(payload)) return null;
-
-    let rule = apiResourceData<InUseExPatientRule>(payload);
-    if (!rule) return null;
-
-    if (rule.healthGoalTargetList?.length) {
-      const enrichedTargets = await enrichHealthGoalTargets(rule.healthGoalTargetList);
-      rule = { ...rule, healthGoalTargetList: enrichedTargets };
-    }
+    if (!rule || !hasBloodLipidHealthGoal(rule)) return null;
 
     const target = findBloodLipidHealthGoal(rule.healthGoalTargetList);
-    if (!target || !hasBloodLipidHealthGoal(rule)) return null;
+    if (!target) return null;
 
     const periodItems = await loadPrescriptionPeriodItems(rule.startDate, rule.endDate);
     const baselineItems = resolveGoalBaselineItems(periodItems, fallbackItems);
-    const displays = buildBloodLipidGoalDisplays(target, baselineItems);
+    const rows = buildBloodLipidGoalRows(target, baselineItems);
     const statusText = formatBloodLipidGoalStatusText(target, rule.progressInfo);
 
     return {
@@ -597,7 +636,7 @@ export async function loadBloodLipidPrescriptionGoalSummary(
       target,
       statusText,
       statusColor: formatBloodLipidGoalStatusColor(statusText),
-      displays,
+      rows,
       periodItems: baselineItems,
     };
   } catch {

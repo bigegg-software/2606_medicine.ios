@@ -1,7 +1,8 @@
 import moment from 'moment';
 import type { HealthGoalTarget } from '@/api/healthGoal';
-import { getMeasureDataNormalDayCount } from '@/api/measureData';
+import { getMeasureDataLatestByType, getMeasureDataNormalDayCount, type MeasureDataItem } from '@/api/measureData';
 import { queryFirstAndLatestHealthTestRecord, type FirstAndLatestHealthTestRecord } from '@/api/exHealthTestRecord';
+import { getExPatientRuleModuleCompleteRate } from '@/api/exPatientRule';
 import type { InUseExPatientRule, ProgressInfo } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -10,6 +11,7 @@ import {
 } from '@/src/features/schedule/scheduleHelpers';
 import { calcTargetFromInitial } from '@/src/features/schedule/testing/testingHelpers';
 import { isExerciseRestDay } from '@/src/features/exercise/utils/trainingPhaseHelpers';
+import { parseMeasureNumber } from '@/src/features/profile/vitals/detail/helpers/shared';
 
 const REST_DAY_TEXT = '今日休息日，给身体放个假。';
 
@@ -21,48 +23,24 @@ const HEALTH_GOAL_TYPE_ORDER: Record<string, number> = {
   assessment_type_other: 2,
 };
 
-const COMPLIANCE_MEASURE_TYPE: Record<string, '血压' | '血糖'> = {
+const COMPLIANCE_MEASURE_TYPE: Record<'xueYa' | 'xueTang', '血压' | '血糖'> = {
   xueYa: '血压',
   xueTang: '血糖',
 };
 
-const INDICATOR_LABEL: Record<string, string> = {
+const INDICATOR_LABEL: Record<'xueYa' | 'xueTang', string> = {
   xueYa: '血压',
   xueTang: '血糖',
 };
 
-const LIPID_SHORT_LABEL: Record<string, string> = {
-  xuezhiTc: 'TC',
-  xuezhiTg: 'TG',
-  xuezhiHdlC: 'HDL-C',
-  xuezhiLdlC: 'LDL-C',
-};
+const LIPID_META = [
+  { key: 'ldlC' as const, label: 'LDL-C', lowerBetter: true, rateKey: 'xuezhiLdlCRate', dirKey: 'xuezhiLdlCImproveDirection' },
+  { key: 'tg' as const, label: 'TG', lowerBetter: true, rateKey: 'xuezhiTgRate', dirKey: 'xuezhiTgImproveDirection' },
+  { key: 'tc' as const, label: 'TC', lowerBetter: true, rateKey: 'xuezhiTcRate', dirKey: 'xuezhiTcImproveDirection' },
+  { key: 'hdlC' as const, label: 'HDL-C', lowerBetter: false, rateKey: 'xuezhiHdlCRate', dirKey: 'xuezhiHdlCImproveDirection' },
+];
 
-const LIPID_RATE_KEY: Record<string, keyof HealthGoalTarget> = {
-  xuezhiTc: 'xuezhiTcRate',
-  xuezhiTg: 'xuezhiTgRate',
-  xuezhiHdlC: 'xuezhiHdlCRate',
-  xuezhiLdlC: 'xuezhiLdlCRate',
-};
-
-const LIPID_DIR_KEY: Record<string, keyof HealthGoalTarget> = {
-  xuezhiTc: 'xuezhiTcImproveDirection',
-  xuezhiTg: 'xuezhiTgImproveDirection',
-  xuezhiHdlC: 'xuezhiHdlCImproveDirection',
-  xuezhiLdlC: 'xuezhiLdlCImproveDirection',
-};
-
-function findFirstLipidType(target: HealthGoalTarget) {
-  const fromList = (target.compliantTypes ?? []).find(type => LIPID_SHORT_LABEL[type]);
-  if (fromList) return fromList;
-  return Object.keys(LIPID_SHORT_LABEL).find(type => {
-    const rateKey = LIPID_RATE_KEY[type];
-    const rate = target[rateKey] as number | undefined;
-    return rate != null && !Number.isNaN(Number(rate));
-  });
-}
-
-const WAIT_ASSESSMENT_TEXT = '等待评估请先进行首次测量';
+const WAIT_ASSESSMENT_TEXT = '等待评估 请先进行首次测量';
 
 export type HomePrescriptionGoalDisplay =
   | {
@@ -85,10 +63,10 @@ export function getPrescriptionCycleDayCount(startDate?: string, endDate?: strin
   return end.diff(start, 'days') + 1;
 }
 
-function calcComplianceTargetDays(cycleDays: number | null, compliantPercent?: number) {
-  if (cycleDays == null || cycleDays <= 0) return null;
-  if (compliantPercent == null || Number.isNaN(Number(compliantPercent))) return null;
-  return Math.round(cycleDays * Number(compliantPercent) / 100);
+function toFiniteNumber(value?: number | string | null) {
+  if (value == null || value === '') return null;
+  const num = Number(value);
+  return Number.isFinite(num) ? num : null;
 }
 
 function formatGoalDecimal(value: number) {
@@ -96,15 +74,8 @@ function formatGoalDecimal(value: number) {
   return Number.isInteger(fixed) ? String(fixed) : fixed.toFixed(1);
 }
 
-function formatDirectionVerb(direction?: number) {
-  if (direction === 1) return '上升';
-  if (direction === -1) return '下降';
-  return '改善';
-}
-
-function calcProgressAmount(target: number, improvePercent?: number) {
-  if (improvePercent == null || Number.isNaN(Number(improvePercent))) return null;
-  return Number(target) * Number(improvePercent) / 100;
+function formatDirectionVerb(lowerBetter: boolean) {
+  return lowerBetter ? '下降' : '上升';
 }
 
 function getHomeGoalSortIndex(target: HealthGoalTarget) {
@@ -125,14 +96,19 @@ export function pickHomePrescriptionGoalTarget(targets?: HealthGoalTarget[]) {
     .sort((left, right) => getHomeGoalSortIndex(left) - getHomeGoalSortIndex(right))[0];
 }
 
-function buildFallbackDisplay(prescription: InUseExPatientRule): HomePrescriptionGoalDisplay {
+function buildFallbackDisplay(
+  prescription: InUseExPatientRule,
+  progressOverride?: number | null,
+): HomePrescriptionGoalDisplay {
   const progress = normalizeProgress(
-    prescription.progress ?? prescription.progressInfo?.complateRatio,
+    progressOverride
+    ?? prescription.progress
+    ?? prescription.progressInfo?.complateRatio,
   );
   const statusText = getPrescriptionProgressStatusText(progress);
   return {
     layout: 'text',
-    text: `当前完成${progress}%，${statusText}`,
+    text: `当前完成 ${progress} %，${statusText}`,
   };
 }
 
@@ -142,81 +118,106 @@ function buildWaitAssessmentDisplay(): HomePrescriptionGoalDisplay {
 
 function buildComplianceDaysDisplay(
   indicatorValue: 'xueYa' | 'xueTang',
-  targetDays: number | null,
-  compliantDays: number | null,
-): HomePrescriptionGoalDisplay | null {
-  if (targetDays == null) return null;
-  const label = `${INDICATOR_LABEL[indicatorValue]}控制目标`;
+  cycleDays: number,
+  compliantDays: number,
+): HomePrescriptionGoalDisplay {
   return {
     layout: 'metric',
-    label,
-    value: String(targetDays),
+    label: `${INDICATOR_LABEL[indicatorValue]}控制目标`,
+    value: String(Math.round(cycleDays)),
     unit: '天',
-    badge: `已达标${compliantDays ?? 0}天`,
+    badge: `已达标${Math.round(compliantDays)}天`,
   };
 }
 
 function buildWeightDisplay(target: HealthGoalTarget): HomePrescriptionGoalDisplay | null {
-  if (target.improvePercent == null) return buildWaitAssessmentDisplay();
+  const baseline = toFiniteNumber(target.weight?.baseline);
+  const targetKg = toFiniteNumber(target.weight?.target);
+  const gain = target.tiZhongImproveDirection === 1
+    || (baseline != null && targetKg != null && targetKg > baseline);
+  const direction = gain ? '增重' : '减重';
 
-  const goalKg = target.tiZhongRate ?? target.improveDirectionVal;
-  if (goalKg == null || Number.isNaN(Number(goalKg))) return null;
+  let goalKg = baseline != null && targetKg != null
+    ? Math.abs(targetKg - baseline)
+    : toFiniteNumber(target.tiZhongRate ?? target.improveDirectionVal);
 
-  const direction = target.tiZhongImproveDirection === 1 ? '增重' : '减重';
-  const currentKg = calcProgressAmount(Number(goalKg), target.improvePercent);
-  if (currentKg == null) return buildWaitAssessmentDisplay();
+  if (goalKg == null || goalKg <= 0) return null;
 
+  // 尚未首次评估
+  if (target.improvePercent == null && baseline == null) {
+    return buildWaitAssessmentDisplay();
+  }
+  if (target.improvePercent == null && baseline != null) {
+    // 有处方基线但无进度：按已完成 0
+    return {
+      layout: 'metric',
+      label: `${direction}目标`,
+      value: formatGoalDecimal(goalKg),
+      unit: '千克',
+      badge: `已${direction}0千克`,
+    };
+  }
+
+  const currentKg = Math.abs(goalKg * Number(target.improvePercent ?? 0) / 100);
   return {
     layout: 'metric',
     label: `${direction}目标`,
-    value: formatGoalDecimal(Number(goalKg)),
+    value: formatGoalDecimal(goalKg),
     unit: '千克',
-    badge: `已${direction}${formatGoalDecimal(Math.abs(currentKg))}千克`,
+    badge: `已${direction}${formatGoalDecimal(currentKg)}千克`,
   };
 }
 
-function buildLipidImproveDisplay(target: HealthGoalTarget): HomePrescriptionGoalDisplay | null {
-  if (target.improvePercent == null) return buildWaitAssessmentDisplay();
-
-  const lipidType = findFirstLipidType(target);
-  if (!lipidType) return null;
-
-  const rateKey = LIPID_RATE_KEY[lipidType];
-  const dirKey = LIPID_DIR_KEY[lipidType];
-  const targetAmount = target[rateKey] as number | undefined;
-  const direction = target[dirKey] as number | undefined;
-  if (targetAmount == null || Number.isNaN(Number(targetAmount))) return null;
-
-  const currentAmount = calcProgressAmount(Number(targetAmount), target.improvePercent);
-  if (currentAmount == null) return buildWaitAssessmentDisplay();
-
-  const label = LIPID_SHORT_LABEL[lipidType];
-  const verb = formatDirectionVerb(direction);
-  const text = `${label}${verb}${formatGoalDecimal(Number(targetAmount))}，已${verb}${formatGoalDecimal(Math.abs(currentAmount))}`;
-  return { layout: 'text', text };
+function findFirstLipidMeta(target: HealthGoalTarget) {
+  for (const meta of LIPID_META) {
+    const pair = target.bloodLipid?.[meta.key];
+    if (toFiniteNumber(pair?.baseline) != null || toFiniteNumber(pair?.target) != null) {
+      return meta;
+    }
+  }
+  for (const meta of LIPID_META) {
+    const rate = toFiniteNumber(target[meta.rateKey] as number | undefined);
+    if (rate != null) return meta;
+  }
+  const fromList = (target.compliantTypes ?? []).find(type => (
+    type === 'xuezhiLdlC' || type === 'xuezhiTg' || type === 'xuezhiTc' || type === 'xuezhiHdlC'
+  ));
+  if (fromList === 'xuezhiLdlC') return LIPID_META[0];
+  if (fromList === 'xuezhiTg') return LIPID_META[1];
+  if (fromList === 'xuezhiTc') return LIPID_META[2];
+  if (fromList === 'xuezhiHdlC') return LIPID_META[3];
+  return null;
 }
 
-function buildLipidCompliantDisplay(target: HealthGoalTarget): HomePrescriptionGoalDisplay | null {
-  if (target.improvePercent == null) return buildWaitAssessmentDisplay();
+function buildLipidDisplay(target: HealthGoalTarget): HomePrescriptionGoalDisplay | null {
+  const meta = findFirstLipidMeta(target);
+  if (!meta) return null;
 
-  const lipidType = findFirstLipidType(target);
-  if (!lipidType) return null;
+  const pair = target.bloodLipid?.[meta.key];
+  const baseline = toFiniteNumber(pair?.baseline);
+  const pairTarget = toFiniteNumber(pair?.target);
+  const rateAmount = toFiniteNumber(target[meta.rateKey] as number | undefined);
+  const dirFromApi = toFiniteNumber(target[meta.dirKey] as number | undefined);
 
-  const dirKey = LIPID_DIR_KEY[lipidType];
-  const direction = target[dirKey] as number | undefined;
-  const rateKey = LIPID_RATE_KEY[lipidType];
-  const targetAmount = target[rateKey] as number | undefined;
-  const currentAmount = targetAmount != null
-    ? calcProgressAmount(Number(targetAmount), target.improvePercent)
-    : null;
+  const lowerBetter = dirFromApi != null
+    ? dirFromApi === -1
+    : (baseline != null && pairTarget != null ? pairTarget < baseline : meta.lowerBetter);
+  const verb = formatDirectionVerb(lowerBetter);
 
-  if (currentAmount == null) return buildWaitAssessmentDisplay();
+  let goalAmount = baseline != null && pairTarget != null
+    ? Math.abs(pairTarget - baseline)
+    : rateAmount;
 
-  const label = LIPID_SHORT_LABEL[lipidType];
-  const verb = formatDirectionVerb(direction);
+  if (goalAmount == null || goalAmount <= 0) return null;
+
+  if (target.improvePercent == null && baseline == null) {
+    return buildWaitAssessmentDisplay();
+  }
+
+  const currentAmount = Math.abs(goalAmount * Number(target.improvePercent ?? 0) / 100);
   return {
     layout: 'text',
-    text: `${label}达标，当前已${verb}${formatGoalDecimal(Math.abs(currentAmount))}`,
+    text: `${meta.label}${verb} ${formatGoalDecimal(goalAmount)}，已${verb}${formatGoalDecimal(currentAmount)}`,
   };
 }
 
@@ -230,60 +231,94 @@ function buildHealthTestDisplay(
   const testName = detail?.testName?.trim() || goalVo?.goalName?.trim() || '健康测试';
   const unit = detail?.unit?.trim() || '';
   const direction = detail?.improveDirection;
+  const configuredBaseline = toFiniteNumber(target.healthTest?.baseline);
+  const configuredTarget = toFiniteNumber(target.healthTest?.target);
 
-  if (firstValue == null || latestValue == null) {
+  if (firstValue == null && latestValue == null && configuredBaseline == null) {
+    return buildWaitAssessmentDisplay();
+  }
+  if (firstValue == null && latestValue == null) {
     return buildWaitAssessmentDisplay();
   }
 
-  const targetValue = calcTargetFromInitial(firstValue, target.improveDirectionVal, direction);
+  const baseline = configuredBaseline ?? firstValue;
+  const latest = latestValue ?? firstValue;
+  if (baseline == null || latest == null) return buildWaitAssessmentDisplay();
+
+  const targetValue = configuredTarget
+    ?? calcTargetFromInitial(baseline, target.improveDirectionVal, direction);
   if (targetValue == null) return buildWaitAssessmentDisplay();
 
   let currentImprove: number;
   let targetImprove: number;
   if (direction === -1) {
-    currentImprove = Number(firstValue) - Number(latestValue);
-    targetImprove = Number(firstValue) - Number(targetValue);
+    currentImprove = Number(baseline) - Number(latest);
+    targetImprove = Number(baseline) - Number(targetValue);
   } else {
-    currentImprove = Number(latestValue) - Number(firstValue);
-    targetImprove = Number(targetValue) - Number(firstValue);
+    currentImprove = Number(latest) - Number(baseline);
+    targetImprove = Number(targetValue) - Number(baseline);
   }
 
   currentImprove = Math.max(0, currentImprove);
   targetImprove = Math.max(0, targetImprove);
 
   const directionText = direction === -1 ? '下降' : '提升';
-  const unitSuffix = unit ? unit : '';
   return {
     layout: 'text',
-    text: `${testName}${directionText}${formatGoalDecimal(currentImprove)}/${formatGoalDecimal(targetImprove)}${unitSuffix}`,
+    text: `${testName}${directionText}${formatGoalDecimal(currentImprove)}/${formatGoalDecimal(targetImprove)}${unit}`,
   };
 }
 
 function buildExerciseHabitDisplay(
   target: HealthGoalTarget,
+  currentRateRaw?: number | null,
   progressInfo?: ProgressInfo,
 ): HomePrescriptionGoalDisplay | null {
   if (target.exImpRate == null) return null;
 
-  const goalName = target.healthGoalVo?.goalName?.trim() || '建立运动习惯';
-  const currentRate = normalizeProgress(progressInfo?.complateRatio);
+  const currentRate = normalizeProgress(
+    currentRateRaw
+    ?? progressInfo?.complateRatio,
+  );
   const targetRate = normalizeProgress(target.exImpRate);
   return {
     layout: 'text',
-    text: `${goalName}，运动处方执行率${currentRate}/${targetRate}%`,
+    text: `运动处方执行率${currentRate}/${targetRate}%`,
   };
+}
+
+async function hasLatestMeasure(type: '血压' | '血糖' | '体重' | '血脂') {
+  try {
+    const res = await getMeasureDataLatestByType(type);
+    if (!isResourceApiOk(res as unknown as { code?: number })) return false;
+    const data = apiResourceData<MeasureDataItem>(
+      res as unknown as { code?: number; data?: MeasureDataItem },
+    );
+    if (!data) return false;
+    if (type === '血脂') {
+      return parseMeasureNumber(data.xuezhiLdlC) != null
+        || parseMeasureNumber(data.xuezhiHdlC) != null
+        || parseMeasureNumber(data.xuezhiTc ?? data.val) != null
+        || parseMeasureNumber(data.xuezhiTg) != null;
+    }
+    return parseMeasureNumber(data.val) != null;
+  } catch {
+    return false;
+  }
 }
 
 async function loadComplianceDaysDisplay(
   prescription: InUseExPatientRule,
-  target: HealthGoalTarget,
   indicatorValue: 'xueYa' | 'xueTang',
 ): Promise<HomePrescriptionGoalDisplay | null> {
   const cycleDays = getPrescriptionCycleDayCount(prescription.startDate, prescription.endDate);
-  const targetDays = calcComplianceTargetDays(cycleDays, target.compliantPercent);
-  if (targetDays == null) return null;
+  if (cycleDays == null || cycleDays <= 0) return null;
 
-  let compliantDays: number | null = null;
+  const measureType = COMPLIANCE_MEASURE_TYPE[indicatorValue];
+  const measured = await hasLatestMeasure(measureType);
+  if (!measured) return buildWaitAssessmentDisplay();
+
+  let compliantDays = 0;
   const exPatientRuleId = prescription.exPatientRuleId != null
     ? String(prescription.exPatientRuleId)
     : null;
@@ -291,18 +326,18 @@ async function loadComplianceDaysDisplay(
     try {
       const countRes = await getMeasureDataNormalDayCount({
         exPatientRuleId,
-        type: COMPLIANCE_MEASURE_TYPE[indicatorValue],
+        type: measureType,
       });
       const countPayload = countRes as unknown as { code?: number; data?: number };
       if (isResourceApiOk(countPayload)) {
-        compliantDays = apiResourceData<number>(countPayload) ?? 0;
+        compliantDays = Math.max(0, Math.round(Number(apiResourceData<number>(countPayload) ?? 0)));
       }
     } catch {
-      compliantDays = null;
+      compliantDays = 0;
     }
   }
 
-  return buildComplianceDaysDisplay(indicatorValue, targetDays, compliantDays);
+  return buildComplianceDaysDisplay(indicatorValue, cycleDays, compliantDays);
 }
 
 async function loadHealthTestDisplay(
@@ -310,7 +345,10 @@ async function loadHealthTestDisplay(
   target: HealthGoalTarget,
   userId?: string | number,
 ): Promise<HomePrescriptionGoalDisplay | null> {
-  const healthTestItemId = target.healthGoalVo?.healthTestItemVo?.healthTestItemId;
+  const healthTestItemId = target.healthGoalVo?.healthTestItemVo?.healthTestItemId
+    ?? (target.healthGoalVo?.assessmentType === 'sys_health_test_item'
+      ? target.healthGoalVo?.assessmentValue
+      : null);
   const exPatientRuleId = prescription.exPatientRuleId;
   if (healthTestItemId == null || exPatientRuleId == null) {
     return buildWaitAssessmentDisplay();
@@ -323,7 +361,9 @@ async function loadHealthTestDisplay(
       userId,
     });
     if (!isResourceApiOk(res)) return buildWaitAssessmentDisplay();
-    const records = apiResourceData<FirstAndLatestHealthTestRecord>(res as { data?: FirstAndLatestHealthTestRecord });
+    const records = apiResourceData<FirstAndLatestHealthTestRecord>(
+      res as { data?: FirstAndLatestHealthTestRecord },
+    );
     return buildHealthTestDisplay(
       target,
       records?.firstRecord?.testValue,
@@ -331,6 +371,20 @@ async function loadHealthTestDisplay(
     );
   } catch {
     return buildWaitAssessmentDisplay();
+  }
+}
+
+async function loadMainCompleteRate(exPatientRuleId?: string | number | null) {
+  if (exPatientRuleId == null) return null;
+  try {
+    const res = await getExPatientRuleModuleCompleteRate(String(exPatientRuleId));
+    if (!isResourceApiOk(res as unknown as { code?: number })) return null;
+    const data = apiResourceData<{ mainCompleteRate?: number }>(
+      res as unknown as { code?: number; data?: { mainCompleteRate?: number } },
+    );
+    return toFiniteNumber(data?.mainCompleteRate);
+  } catch {
+    return null;
   }
 }
 
@@ -345,8 +399,10 @@ export async function loadHomePrescriptionGoalDisplay(
   }
 
   const target = pickHomePrescriptionGoalTarget(prescription.healthGoalTargetList);
+  const mainCompleteRate = await loadMainCompleteRate(prescription.exPatientRuleId);
+
   if (!target) {
-    return buildFallbackDisplay(prescription);
+    return buildFallbackDisplay(prescription, mainCompleteRate);
   }
 
   const assessmentType = target.healthGoalVo?.assessmentType?.trim();
@@ -354,31 +410,38 @@ export async function loadHomePrescriptionGoalDisplay(
 
   if (assessmentType === 'health_indicator_type') {
     if (assessmentValue === 'xueYa' || assessmentValue === 'xueTang') {
-      const display = await loadComplianceDaysDisplay(
-        prescription,
-        target,
-        assessmentValue,
-      );
-      return display ?? buildFallbackDisplay(prescription);
+      const display = await loadComplianceDaysDisplay(prescription, assessmentValue);
+      return display ?? buildFallbackDisplay(prescription, mainCompleteRate);
     }
     if (assessmentValue === 'tiZhong') {
-      return buildWeightDisplay(target) ?? buildFallbackDisplay(prescription);
+      const measured = await hasLatestMeasure('体重');
+      if (!measured && toFiniteNumber(target.weight?.baseline) == null) {
+        return buildWaitAssessmentDisplay();
+      }
+      return buildWeightDisplay(target) ?? buildFallbackDisplay(prescription, mainCompleteRate);
     }
     if (assessmentValue === 'xueZhi') {
-      if (target.complianceImproveType === 1) {
-        return buildLipidImproveDisplay(target) ?? buildFallbackDisplay(prescription);
+      const measured = await hasLatestMeasure('血脂');
+      if (!measured && !target.bloodLipid) {
+        return buildWaitAssessmentDisplay();
       }
-      return buildLipidCompliantDisplay(target) ?? buildFallbackDisplay(prescription);
+      return buildLipidDisplay(target) ?? buildFallbackDisplay(prescription, mainCompleteRate);
     }
   }
 
   if (assessmentType === 'sys_health_test_item') {
     const display = await loadHealthTestDisplay(prescription, target, userId);
-    return display ?? buildFallbackDisplay(prescription);
+    return display ?? buildFallbackDisplay(prescription, mainCompleteRate);
   }
 
-  const exerciseDisplay = buildExerciseHabitDisplay(target, prescription.progressInfo);
-  if (exerciseDisplay) return exerciseDisplay;
+  if (assessmentValue === 'ex_imp_rate' || target.exImpRate != null) {
+    const exerciseDisplay = buildExerciseHabitDisplay(
+      target,
+      mainCompleteRate,
+      prescription.progressInfo,
+    );
+    if (exerciseDisplay) return exerciseDisplay;
+  }
 
-  return buildFallbackDisplay(prescription);
+  return buildFallbackDisplay(prescription, mainCompleteRate);
 }

@@ -554,16 +554,18 @@ export function buildExercisePrescriptionMetrics(
   dictMaps?: ScheduleDictMaps,
   progressMap?: Record<string, number>,
 ): ExercisePrescriptionMetricItem[] {
-  return (ruleRatioList ?? []).map((rule, index) => {
-    const task = toTodayTaskItem(rule, index, dictMaps, progressMap);
-    const typeKey = rule.exerciseType?.trim() ?? '';
-    return {
-      key: task.key,
-      value: task.progress,
-      label: task.title,
-      color: EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
-    };
-  });
+  return (ruleRatioList ?? [])
+    .filter(rule => Boolean(rule.exerciseType?.trim()))
+    .map((rule, index) => {
+      const task = toTodayTaskItem(rule, index, dictMaps, progressMap);
+      const typeKey = rule.exerciseType?.trim() ?? '';
+      return {
+        key: task.key,
+        value: task.progress,
+        label: task.title,
+        color: EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
+      };
+    });
 }
 
 function formatExerciseChildTypes(
@@ -893,7 +895,7 @@ export function getPrescriptionProgressStatusText(progress?: number) {
   const value = normalizeProgress(progress);
   if (value < 20) return '刚刚开始';
   if (value < 40) return '持续进行';
-  if (value < 60) return '状态良好';
+  if (value <= 60) return '状态良好';
   if (value < 80) return '改善明显';
   return '接近达成';
 }

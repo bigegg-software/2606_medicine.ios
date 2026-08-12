@@ -30,6 +30,8 @@ import {
     formatTestValue,
     getImproveLabel,
     getRecordCountText,
+    resolveHealthTestUnit,
+    resolveRecordTrendTone,
 } from './testingHelpers';
 
 const PAGE_SIZE = 10;
@@ -49,7 +51,7 @@ export default function TestingRecordPage() {
         (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
     );
     const { detail } = useHealthTestDetailByItemId(healthTestItemId);
-    const unit = detail?.unit?.trim() || '次';
+    const unit = resolveHealthTestUnit(detail);
     const testName = detail?.testName?.trim() || '';
 
     const [records, setRecords] = useState<ExHealthTestRecord[]>([]);
@@ -251,12 +253,26 @@ export default function TestingRecordPage() {
                                             </View>
                                         </Flex>
                                         <Flex>
-                                            {(record.changeValue ?? 0) > 0 ? (
-                                                <Image
-                                                    style={styles.infoRecordUpImg}
-                                                    source={require('@/assets/images/schedule/icon_up.png')}
-                                                />
-                                            ) : null}
+                                            {(() => {
+                                                // 列表按时间倒序：下一项即上一次评估
+                                                const previousRecord = records[index + 1];
+                                                const tone = resolveRecordTrendTone({
+                                                    currentValue: record.testValue,
+                                                    previousValue: previousRecord?.testValue,
+                                                    improveDirection: detail?.improveDirection,
+                                                });
+                                                if (!tone) return null;
+                                                return (
+                                                    <Image
+                                                        style={styles.infoRecordUpImg}
+                                                        source={
+                                                            tone === 'up'
+                                                                ? require('@/assets/images/schedule/icon_gs.png')
+                                                                : require('@/assets/images/schedule/icon_xx.png')
+                                                        }
+                                                    />
+                                                );
+                                            })()}
                                             <Text style={styles.infoRecordText}>
                                                 {formatTestValue(record.testValue, unit)}
                                             </Text>

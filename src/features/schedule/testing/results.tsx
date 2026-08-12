@@ -13,10 +13,17 @@ import { addExHealthTestRecord } from '@/api/exHealthTestRecord';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { useHealthTestDetailByItemId } from './useHealthTestDetail';
-import { formatCountdownTime, isCountdownTimer, isForwardTimer, resolveTestTimerSeconds, } from './testingHelpers';
+import {
+    formatCountdownTime,
+    isCountdownTimer,
+    isForwardTimer,
+    resolveHealthTestUnit,
+    resolveTestTimerSeconds,
+} from './testingHelpers';
 
 const CLOSE_ICON = require('@/assets/images/schedule/close.png');
 const ICON_START = require('@/assets/images/schedule/icon_start.png');
+const ICON_PAUSE = require('@/assets/images/schedule/icon_stop.png');
 const ICON_END = require('@/assets/images/schedule/icon_js.png');
 const ICON_RECORD = require('@/assets/images/schedule/icon_record.png');
 const RING_SIZE = 240;
@@ -34,7 +41,7 @@ export default function TestingResultsPage() {
     const recordOnly = route.params?.recordOnly;
     const { detail, reload } = useHealthTestDetailByItemId(healthTestItemId);
     const testName = detail?.testName?.trim() || '坐站测试';
-    const unit = detail?.unit?.trim() || '次';
+    const unit = resolveHealthTestUnit(detail);
     const isCountdown = isCountdownTimer(detail?.timerType);
     const isForward = isForwardTimer(detail?.timerType);
     const totalSeconds = useMemo(
@@ -332,7 +339,7 @@ export default function TestingResultsPage() {
                     <Image
                         tintColor="#FFF"
                         style={styles.bottomBarButtonImg}
-                        source={phase === 'running' && !isPaused ? ICON_END : ICON_START}
+                        source={phase === 'running' && !isPaused ? ICON_PAUSE : ICON_START}
                     />
                     <Text style={styles.bottomBarButtonText}>
                         {phase === 'running' && !isPaused ? '暂停' : phase === 'running' && isPaused ? '继续' : '开始'}
@@ -347,7 +354,7 @@ export default function TestingResultsPage() {
                 <Flex justify="center" style={{ flex: 1 }}>
                     <Image
                         style={styles.bottomBarButtonImg}
-                        source={ICON_RECORD}
+                        source={ICON_END}
                     />
                     <Text style={styles.bottomBarButtonEndText}>结束</Text>
                 </Flex>
@@ -396,7 +403,7 @@ export default function TestingResultsPage() {
                             <Image
                                 tintColor="#FFF"
                                 style={styles.bottomBarButtonImg}
-                                source={isPaused ? ICON_START : ICON_END}
+                                source={isPaused ? ICON_START : ICON_PAUSE}
                             />
                             <Text style={styles.bottomBarButtonText}>
                                 {isPaused ? '继续' : '暂停'}

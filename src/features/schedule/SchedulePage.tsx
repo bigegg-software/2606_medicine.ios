@@ -45,6 +45,11 @@ import {
   loadQuestionnaireFirstAndLatestByGoalId,
   openScheduleGoalDetail,
 } from './scheduleGoalHelpers';
+import {
+  loadScheduleGoalChartSeries,
+  type ScheduleGoalChartSeries,
+} from './scheduleGoalSparklineHelpers';
+import MiniSparkline from '@/src/features/home/components/MiniSparkline';
 
 export default function SchedulePage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -94,6 +99,7 @@ export default function SchedulePage() {
   const [latestQuestionnaireByGoalId, setLatestQuestionnaireByGoalId] = useState<Record<string, number | null>>({});
   const [baselineQuestionnaireByGoalId, setBaselineQuestionnaireByGoalId] = useState<Record<string, number | null>>({});
   const [prescriptionMainCompleteRate, setPrescriptionMainCompleteRate] = useState<number | null>(null);
+  const [goalChartSeries, setGoalChartSeries] = useState<ScheduleGoalChartSeries | null>(null);
   const [historyArchiveItems, setHistoryArchiveItems] = useState<ScheduleHistoryArchiveItem[]>([]);
 
   const topInfoText = useMemo(
@@ -148,6 +154,7 @@ export default function SchedulePage() {
       baselineQuestionnaireByGoalId,
       prescriptionMainCompleteRate,
       prescriptionTargetWeight: prescription?.targetWeight,
+      chartSeries: goalChartSeries ?? undefined,
     }),
     [
       baselineBloodGlucose,
@@ -159,6 +166,7 @@ export default function SchedulePage() {
       baselineUricAcid,
       baselineWeightKg,
       categoryLabelMap,
+      goalChartSeries,
       latestBloodGlucose,
       latestBloodLipid,
       latestBloodPressure,
@@ -277,6 +285,27 @@ export default function SchedulePage() {
     setBaselineQuestionnaireByGoalId(firstByGoalId);
   }, [prescription?.exPatientRuleId, prescription?.healthGoalTargetList, user?.userId]);
 
+  const loadGoalChartSeries = useCallback(async () => {
+    if (!prescription?.startDate || !prescription?.endDate) {
+      setGoalChartSeries(null);
+      return;
+    }
+    const series = await loadScheduleGoalChartSeries({
+      startDate: prescription.startDate,
+      endDate: prescription.endDate,
+      exPatientRuleId: prescription.exPatientRuleId,
+      targets: prescription.healthGoalTargetList,
+      userId: user?.userId,
+    });
+    setGoalChartSeries(series);
+  }, [
+    prescription?.endDate,
+    prescription?.exPatientRuleId,
+    prescription?.healthGoalTargetList,
+    prescription?.startDate,
+    user?.userId,
+  ]);
+
   const loadPrescriptionMainCompleteRate = useCallback(async () => {
     if (prescription?.exPatientRuleId == null) {
       setPrescriptionMainCompleteRate(null);
@@ -370,6 +399,10 @@ export default function SchedulePage() {
   useEffect(() => {
     void loadPrescriptionMainCompleteRate();
   }, [loadPrescriptionMainCompleteRate]);
+
+  useEffect(() => {
+    void loadGoalChartSeries();
+  }, [loadGoalChartSeries]);
 
   const sixWeekMaxMinutes = useMemo(
     () => sixWeekStats.reduce(
@@ -533,10 +566,20 @@ export default function SchedulePage() {
                   activeOpacity={0.85}
                   onPress={() => openScheduleGoalDetail(navigation, item)}
                 >
-                  <Flex>
-                    <Text style={styles.listItemTitle}>{item.title}</Text>
-                    {item.subtitle ? (
-                      <Text style={styles.listItemSubtitle}>{item.subtitle}</Text>
+                  <Flex justify="between" align="center">
+                    <Flex style={styles.listItemTitleWrap}>
+                      <Text style={styles.listItemTitle}>{item.title}</Text>
+                      {item.subtitle ? (
+                        <Text style={styles.listItemSubtitle}>{item.subtitle}</Text>
+                      ) : null}
+                    </Flex>
+                    {item.chartValues.length > 0 ? (
+                      <MiniSparkline
+                        data={item.chartValues}
+                        width={86}
+                        height={26}
+                        color={item.improveUp ? '#6D925E' : '#E85D4C'}
+                      />
                     ) : null}
                   </Flex>
                   <Flex justify='between' style={styles.listItemBox}>
@@ -548,22 +591,26 @@ export default function SchedulePage() {
                       <Text style={styles.listItemTarget}>{item.targetText}</Text>
                     </Flex>
                     <Flex>
-                      <Image
-                        style={styles.listIcon}
-                        source={
-                          item.improveUp
-                            ? require('@/assets/images/schedule/icon_gs.png')
-                            : require('@/assets/images/schedule/icon_xx.png')
-                        }
-                      />
-                      <Image
-                        style={styles.listIcon}
-                        source={
-                          item.improveUp
-                            ? require('@/assets/images/schedule/icon_up1.png')
-                            : require('@/assets/images/schedule/icon_down1.png')
-                        }
-                      />
+                      {item.improveText !== '--' ? (
+                        <>
+                          <Image
+                            style={styles.listIcon}
+                            source={
+                              item.improveUp
+                                ? require('@/assets/images/schedule/icon_gs.png')
+                                : require('@/assets/images/schedule/icon_xx.png')
+                            }
+                          />
+                          <Image
+                            style={styles.listIcon}
+                            source={
+                              item.improveUp
+                                ? require('@/assets/images/schedule/icon_up1.png')
+                                : require('@/assets/images/schedule/icon_down1.png')
+                            }
+                          />
+                        </>
+                      ) : null}
                       <Text style={styles.listItemValueNum}>{item.improveText}</Text>
                     </Flex>
                   </Flex>
@@ -717,9 +764,15 @@ export default function SchedulePage() {
               <HistoryArchiveCard
                 key={item.id}
                 item={item}
-                onPress={() => navigation.navigate('ScheduleHistoryDetailPage', {
-                  exPatientRuleId: item.id,
-                })}
+                onPress={() => {
+                  if (item.isInProgress) {
+                    navigation.navigate('ExercisePage');
+                    return;
+                  }
+                  navigation.navigate('ScheduleHistoryDetailPage', {
+                    exPatientRuleId: item.id,
+                  });
+                }}
               />
             )) : (
               <View style={styles.historyItem}>

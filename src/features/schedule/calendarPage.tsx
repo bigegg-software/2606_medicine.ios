@@ -36,7 +36,18 @@ import {
   mapTodayMedicationGroupsToTimelineItems,
   type CalendarTimelineItem,
 } from './calendarHelpers';
-import { EXERCISE_TYPE_IMAGES } from './scheduleHelpers';
+import {
+  buildExercisePrescriptionMetrics,
+  EXERCISE_TYPE_COLORS,
+  EXERCISE_TYPE_IMAGES,
+  loadModuleCompleteRateProgressMap,
+  loadScheduleDictMaps,
+  type ExercisePrescriptionMetricItem,
+  type ScheduleDictMaps,
+} from './scheduleHelpers';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
 import {
   applyMedicationCheckInBatchToPlanGroups,
   applyMedicationCheckInToPlanGroups,
@@ -102,16 +113,52 @@ function buildCalendarDays(month: Moment): CalendarDay[] {
 
 function ExerciseTimelineSection({
   items,
+  metrics,
   isToday,
   selectedDate,
   onPressItem,
 }: {
   items: CalendarTimelineItem[];
+  metrics: ExercisePrescriptionMetricItem[];
   isToday: boolean;
   selectedDate: string;
   onPressItem: (item: CalendarTimelineItem) => void;
 }) {
-  if (items.length === 0) return null;
+  const typeCards = useMemo(() => {
+    const progressByType = new Map(
+      metrics.map(metric => {
+        const typeKey = metric.key.replace(/-\d+$/, '');
+        return [typeKey, metric] as const;
+      }),
+    );
+    const seen = new Set<string>();
+    const cards: Array<{
+      key: string;
+      item: CalendarTimelineItem;
+      progress: number;
+      color: string;
+    }> = [];
+
+    for (const item of items) {
+      const typeKey = item.exerciseType?.trim() ?? '';
+      if (!typeKey || seen.has(typeKey)) continue;
+      seen.add(typeKey);
+      const metric = progressByType.get(typeKey);
+      const progress = item.exerciseProgress != null
+        ? item.exerciseProgress
+        : (metric?.value ?? 0);
+      cards.push({
+        key: item.key,
+        item,
+        progress: Math.max(0, Math.min(100, Math.round(progress))),
+        color: metric?.color ?? EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
+      });
+    }
+
+    return cards;
+  }, [items, metrics]);
+
+  if (typeCards.length === 0) return null;
   const selectedDateLabel = moment(selectedDate).format('M月D日');
 
   return (
@@ -124,66 +171,49 @@ function ExerciseTimelineSection({
       <Text style={styles.periodText}>随时</Text>
 
       <ScrollView style={styles.exerciseScroll} horizontal showsHorizontalScrollIndicator={false}>
-        {items.map(item => {
+        {typeCards.map(({ key, item, progress, color }) => {
           const exerciseIcon =
             EXERCISE_TYPE_IMAGES[item.exerciseType?.trim() ?? ''] ?? EXERCISE_TYPE_IMAGES.cardio;
+          const cardBody = (
+            <View style={styles.exerciseTaskCard}>
+              <Flex align="center">
+                <Image
+                  style={styles.taskCardIcon}
+                  tintColor="#333333"
+                  source={exerciseIcon}
+                />
+                <Text style={[styles.taskCardTitle, { flex: 1 }]} numberOfLines={1}>
+                  {item.exerciseTypeLabel}
+                </Text>
+                <Text style={styles.taskCardDesc}>{progress}%</Text>
+              </Flex>
+              <View style={styles.exerciseCardProgressTrack}>
+                <View
+                  style={[
+                    styles.exerciseCardProgressFill,
+                    {
+                      width: `${progress}%`,
+                      backgroundColor: color,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          );
 
           return (
-            <View key={item.key} style={styles.cardSide}>
+            <View key={key} style={styles.cardSide}>
               {isToday ? (
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  onPress={() => onPressItem(item)}>
-                  <Flex style={styles.exerciseTaskCard} align="start">
-                    <Image
-                      style={styles.taskCardIcon}
-                      tintColor="#333333"
-                      source={exerciseIcon}
-                    />
-                    <View style={styles.exerciseCardContent}>
-                      <Flex justify="between" align="center">
-                        <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
-                        {item.exerciseTargetMinutes != null && item.exerciseTargetMinutes > 0 ? (
-                          <Text style={styles.taskCardDesc} numberOfLines={1}>
-                            {item.exerciseDoneMinutes ?? 0}
-                            <Text style={styles.taskCardDescText}>
-                              /{item.exerciseTargetMinutes}分钟
-                            </Text>
-                          </Text>
-                        ) : null}
-                      </Flex>
-                      <Text style={styles.taskCardDescBtm} numberOfLines={2}>{item.desc}</Text>
-                    </View>
-                  </Flex>
+                <TouchableOpacity activeOpacity={0.7} onPress={() => onPressItem(item)}>
+                  {cardBody}
                 </TouchableOpacity>
               ) : (
-                <Flex style={styles.exerciseTaskCard} align="start">
-                  <Image
-                    style={styles.taskCardIcon}
-                    tintColor="#333333"
-                    source={exerciseIcon}
-                  />
-                  <View style={styles.exerciseCardContent}>
-                    <Flex justify="between" align="center">
-                      <Text style={styles.taskCardTitle}>{item.exerciseTypeLabel}</Text>
-                      {item.exerciseTargetMinutes != null && item.exerciseTargetMinutes > 0 ? (
-                        <Text style={styles.taskCardDesc} numberOfLines={1}>
-                          {item.exerciseDoneMinutes ?? 0}
-                          <Text style={styles.taskCardDescText}>
-                            /{item.exerciseTargetMinutes}分钟
-                          </Text>
-                        </Text>
-                      ) : null}
-                    </Flex>
-                    <Text style={styles.taskCardDescBtm} numberOfLines={2}>{item.desc}</Text>
-                  </View>
-                </Flex>
+                cardBody
               )}
             </View>
           );
         })}
       </ScrollView>
-
     </View>
   );
 }
@@ -658,6 +688,8 @@ function TimelineSection({
 
 function ScheduleTimeline({
   items,
+  exerciseMetrics,
+  hasExercisePrescription,
   loading,
   isToday,
   selectedDate,
@@ -668,6 +700,8 @@ function ScheduleTimeline({
   onMedicationCheckInAll,
 }: {
   items: CalendarTimelineItem[];
+  exerciseMetrics: ExercisePrescriptionMetricItem[];
+  hasExercisePrescription: boolean;
   loading: boolean;
   isToday: boolean;
   selectedDate: string;
@@ -679,6 +713,9 @@ function ScheduleTimeline({
 }) {
   const grouped = useMemo(() => groupTimelineItems(items), [items]);
   const hasScheduledItems = grouped.morning.length > 0 || grouped.afternoon.length > 0;
+  const showExerciseSection = hasExercisePrescription
+    && isToday
+    && (exerciseMetrics.length > 0 || grouped.exercise.length > 0);
 
   if (loading) {
     return (
@@ -688,7 +725,7 @@ function ScheduleTimeline({
     );
   }
 
-  if (items.length === 0) {
+  if (items.length === 0 && !showExerciseSection) {
     return (
       <View style={styles.emptyTimelineBox}>
         <Text style={styles.emptyTimelineText}>当日暂无记录</Text>
@@ -698,9 +735,10 @@ function ScheduleTimeline({
 
   return (
     <View style={styles.timelineWrap}>
-      {grouped.exercise.length > 0 ? (
+      {showExerciseSection ? (
         <ExerciseTimelineSection
           items={grouped.exercise}
+          metrics={exerciseMetrics}
           isToday={isToday}
           selectedDate={selectedDate}
           onPressItem={onPressItem}
@@ -801,6 +839,8 @@ const MemoCalendarMonthGrid = React.memo(CalendarMonthGrid);
 
 export default function ScheduleCalendarPage() {
   const navigation = useNavigation<Nav>();
+  const dispatch = useDispatch<AppDispatch>();
+  const prescription = useSelector((state: RootState) => state.prescription.inUse);
   const [currentMonth, setCurrentMonth] = useState(() => clampScheduleCalendarMonth(moment()));
   const [selectedDate, setSelectedDate] = useState(() =>
     clampScheduleCalendarDate(moment().format('YYYY-MM-DD')),
@@ -808,6 +848,8 @@ export default function ScheduleCalendarPage() {
   const [statusMap, setStatusMap] = useState<Map<string, DailyRecordStatusItem>>(new Map());
   const [timelineItems, setTimelineItems] = useState<CalendarTimelineItem[]>([]);
   const [medicationPlanGroups, setMedicationPlanGroups] = useState<MedicationPlanGroupView[]>([]);
+  const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
+  const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
   const [loadingMedication, setLoadingMedication] = useState(false);
@@ -817,10 +859,31 @@ export default function ScheduleCalendarPage() {
   const currentMonthRef = useRef(currentMonth);
   const selectedDateRef = useRef(selectedDate);
   const skipFocusRefreshRef = useRef(true);
+  const prescriptionRef = useRef(prescription);
+  const exerciseProgressMapRef = useRef(exerciseProgressMap);
 
   statusMapRef.current = statusMap;
   currentMonthRef.current = currentMonth;
   selectedDateRef.current = selectedDate;
+  prescriptionRef.current = prescription;
+  exerciseProgressMapRef.current = exerciseProgressMap;
+
+  const hasExercisePrescription = Boolean(prescription?.ruleRatioList?.length);
+  const exerciseMetrics = useMemo(
+    () => (hasExercisePrescription
+      ? buildExercisePrescriptionMetrics(
+        prescription?.ruleRatioList,
+        exerciseDictMaps ?? undefined,
+        exerciseProgressMap,
+      )
+      : []),
+    [
+      exerciseDictMaps,
+      exerciseProgressMap,
+      hasExercisePrescription,
+      prescription?.ruleRatioList,
+    ],
+  );
 
   const calendarDays = useMemo(() => buildCalendarDays(currentMonth), [currentMonth]);
   const canGoPrevMonth = !isScheduleCalendarMonthAtMin(currentMonth);
@@ -847,10 +910,43 @@ export default function ScheduleCalendarPage() {
     }
   }, []);
 
-  const loadDayTimeline = useCallback(async (dateKey: string, status?: DailyRecordStatusItem) => {
+  const loadExercisePrescription = useCallback(async () => {
+    try {
+      const [dictMaps, rule] = await Promise.all([
+        loadScheduleDictMaps().catch(() => null),
+        dispatch(fetchInUsePrescription()),
+      ]);
+      if (dictMaps) setExerciseDictMaps(dictMaps);
+
+      if (!rule?.exPatientRuleId) {
+        setExerciseProgressMap({});
+        return null;
+      }
+
+      const progressMap = await loadModuleCompleteRateProgressMap(rule.exPatientRuleId)
+        .catch(() => ({} as Record<string, number>));
+      setExerciseProgressMap(progressMap);
+      return { rule, progressMap };
+    } catch {
+      setExerciseProgressMap({});
+      return null;
+    }
+  }, [dispatch]);
+
+  const loadDayTimeline = useCallback(async (
+    dateKey: string,
+    status?: DailyRecordStatusItem,
+    options?: {
+      prescription?: typeof prescription;
+      progressMap?: Record<string, number>;
+    },
+  ) => {
     setLoadingDay(true);
     try {
-      const items = await loadCalendarDayTimelineItems(dateKey, status);
+      const items = await loadCalendarDayTimelineItems(dateKey, status, {
+        prescription: options?.prescription ?? prescriptionRef.current,
+        progressMap: options?.progressMap ?? exerciseProgressMapRef.current,
+      });
       setTimelineItems(items);
     } catch {
       setTimelineItems([]);
@@ -892,11 +988,21 @@ export default function ScheduleCalendarPage() {
 
   // 仅随选中日期请求当日详情，避免 statusMap 回填导致进入页面重复请求
   useEffect(() => {
-    void loadDayTimeline(selectedDate, statusMap.get(selectedDate));
-    void loadTodayMedication(selectedDate);
+    void (async () => {
+      if (selectedDate === moment().format('YYYY-MM-DD')) {
+        const loaded = await loadExercisePrescription();
+        await loadDayTimeline(selectedDate, statusMap.get(selectedDate), {
+          prescription: loaded?.rule ?? prescriptionRef.current,
+          progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
+        });
+      } else {
+        await loadDayTimeline(selectedDate, statusMap.get(selectedDate));
+      }
+      void loadTodayMedication(selectedDate);
+    })();
     // statusMap 有意不作为依赖：今日时间轴不依赖 status；历史日在下方补拉
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
-  }, [selectedDate, loadDayTimeline, loadTodayMedication]);
+  }, [selectedDate, loadDayTimeline, loadTodayMedication, loadExercisePrescription]);
 
   // 从记餐等页面返回时刷新；勿把 selectedDate 放进依赖，否则切日期会误触发整月重载
   useFocusEffect(
@@ -908,9 +1014,19 @@ export default function ScheduleCalendarPage() {
       const month = currentMonthRef.current;
       const date = selectedDateRef.current;
       void loadMonthlyOverview(month, { silent: true });
-      void loadDayTimeline(date, statusMapRef.current.get(date));
+      void (async () => {
+        if (date === moment().format('YYYY-MM-DD')) {
+          const loaded = await loadExercisePrescription();
+          await loadDayTimeline(date, statusMapRef.current.get(date), {
+            prescription: loaded?.rule ?? prescriptionRef.current,
+            progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
+          });
+        } else {
+          await loadDayTimeline(date, statusMapRef.current.get(date));
+        }
+      })();
       void loadTodayMedication(date);
-    }, [loadMonthlyOverview, loadDayTimeline, loadTodayMedication]),
+    }, [loadMonthlyOverview, loadDayTimeline, loadTodayMedication, loadExercisePrescription]),
   );
 
   // 月度 status 返回后，仅历史日且需要运动/用药时再补一次（今日跳过）
@@ -1146,6 +1262,8 @@ export default function ScheduleCalendarPage() {
         <View style={[styles.rowBox, { marginTop: 0 }, styles.mg18]}>
           <ScheduleTimeline
             items={displayTimelineItems}
+            exerciseMetrics={exerciseMetrics}
+            hasExercisePrescription={hasExercisePrescription}
             loading={loadingDay || (isToday && loadingMedication)}
             isToday={isToday}
             selectedDate={selectedDate}

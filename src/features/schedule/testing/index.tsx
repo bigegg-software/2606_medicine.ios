@@ -23,6 +23,7 @@ import {
     createEmptyJointRomInputs,
     buildJointRomDisplayItems,
     formatGaugeValue,
+    formatImproveTargetAmount,
     formatRecordDate,
     formatTestValue,
     getImproveLabel,
@@ -32,6 +33,7 @@ import {
     parseJointRomInputs,
     resolveHealthTestGaugeValues,
     resolveHealthTestUnit,
+    resolveRecordTrendTone,
     type JointRomInputMap,
     type JointRomObjValue,
 } from './testingHelpers';
@@ -178,6 +180,26 @@ export default function TestingPage() {
     const firstJointRomItem = isJointRom ? jointRomItems[0] : undefined;
     const restJointRomItems = isJointRom ? jointRomItems.slice(1) : [];
     const cardTitle = firstJointRomItem?.label || testName;
+    const improveDirection = detail?.improveDirection;
+    const isLowerBetter = improveDirection === -1;
+    const improveDirectionLabel = isLowerBetter ? '下降' : '上升';
+    const improveTargetText = useMemo(() => formatImproveTargetAmount({
+        baseline: firstJointRomItem?.baseline ?? firstValue,
+        target: firstJointRomItem?.target ?? targetValue,
+        improveDirectionVal,
+        isLowerBetter,
+        unit,
+    }), [
+        firstJointRomItem?.baseline,
+        firstJointRomItem?.target,
+        firstValue,
+        improveDirectionVal,
+        isLowerBetter,
+        targetValue,
+        unit,
+    ]);
+    // 有测试详情即展示方向徽标（无数值时也显示上升/下降）
+    const showImproveBadge = Boolean(detail);
     const gaugeFirstValue = firstJointRomItem?.baseline ?? firstValue;
     const gaugeLatestValue = firstJointRomItem?.current ?? latestValue;
     const gaugeTargetValue = firstJointRomItem?.target ?? targetValue;
@@ -370,13 +392,25 @@ export default function TestingPage() {
                             <Text style={styles.rightText}>{detail?.estimatedTime?.trim() || '约1分钟'}</Text>
                         </Flex>
 
-                        <View>
-                            <Text style={styles.rowTitle}>{cardTitle}</Text>
-                            <Flex style={{ marginTop: 6 }}>
-                                <Text style={styles.rowText}>{detail?.recommendFrequency?.trim() || '--'}</Text>
-                                <Image style={styles.rowImg} source={require('@/assets/images/schedule/up.png')} />
-                            </Flex>
-                        </View>
+                        <Flex align="center" style={{ paddingRight: 88 }}>
+                            <Text style={[styles.rowTitle, { flexShrink: 1 }]}>{cardTitle}</Text>
+                            {showImproveBadge ? (
+                                <Flex align="center" style={{ marginLeft: 8, flexShrink: 0 }}>
+                                    <Image
+                                        style={styles.rowImg}
+                                        source={
+                                            isLowerBetter
+                                                ? require('@/assets/images/schedule/icon_down1.png')
+                                                : require('@/assets/images/schedule/up.png')
+                                        }
+                                    />
+                                    <Text style={styles.rowText}>
+                                        {improveDirectionLabel}
+                                        {improveTargetText ? ` ${improveTargetText}` : ''}
+                                    </Text>
+                                </Flex>
+                            ) : null}
+                        </Flex>
 
                         <Flex align="end" style={styles.gaugeBox}>
                             <Flex direction="column" style={styles.gaugeTitleBox}>
@@ -545,12 +579,26 @@ export default function TestingPage() {
                                             </View>
                                         </Flex>
                                         <Flex>
-                                            {(record.changeValue ?? 0) > 0 ? (
-                                                <Image
-                                                    style={styles.infoRecordUpImg}
-                                                    source={require('@/assets/images/schedule/icon_up.png')}
-                                                />
-                                            ) : null}
+                                            {(() => {
+                                                // 列表按时间倒序：下一项即上一次评估
+                                                const previousRecord = latestTwoRecords[index + 1];
+                                                const tone = resolveRecordTrendTone({
+                                                    currentValue: record.testValue,
+                                                    previousValue: previousRecord?.testValue,
+                                                    improveDirection: detail?.improveDirection,
+                                                });
+                                                if (!tone) return null;
+                                                return (
+                                                    <Image
+                                                        style={styles.infoRecordUpImg}
+                                                        source={
+                                                            tone === 'up'
+                                                                ? require('@/assets/images/schedule/icon_up.png')
+                                                                : require('@/assets/images/schedule/icon_down1.png')
+                                                        }
+                                                    />
+                                                );
+                                            })()}
                                             <Text style={styles.infoRecordText}>
                                                 {formatTestValue(record.testValue, unit)}
                                             </Text>

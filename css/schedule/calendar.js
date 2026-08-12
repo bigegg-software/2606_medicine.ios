@@ -156,6 +156,17 @@ const styles = StyleSheet.create({
   exerciseScroll: {
     marginTop: 20
   },
+  exerciseCardProgressTrack: {
+    marginTop: 10,
+    height: 6,
+    backgroundColor: '#fff',
+    borderRadius: 6,
+    overflow: 'hidden',
+  },
+  exerciseCardProgressFill: {
+    height: 6,
+    borderRadius: 6,
+  },
   timeAxisLine: {
     width: 8,
     height: 8,
@@ -202,7 +213,6 @@ const styles = StyleSheet.create({
   exerciseTaskCard: {
     width: 200,
     maxWidth: '100%',
-    minHeight: 64,
     backgroundColor: '#F6F8FB',
     borderRadius: 8,
     paddingHorizontal: 12,

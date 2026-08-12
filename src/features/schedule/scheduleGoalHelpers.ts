@@ -59,6 +59,8 @@ export type ScheduleGoalProgressItem = {
   baselineHint: string;
   assessmentType: string;
   assessmentValue: string;
+  /** 卡片迷你折线数据（处方周期内全部点） */
+  chartValues: number[];
 };
 
 const CATEGORY_ICON_BY_LABEL: Record<string, ImageSourcePropType> = {
@@ -190,7 +192,7 @@ function isBloodLipidGoal(target: HealthGoalTarget) {
   return assessmentValue === 'xueZhi' || Boolean(target.bloodLipid);
 }
 
-function isJointRomGoal(target: HealthGoalTarget) {
+export function isJointRomGoal(target: HealthGoalTarget) {
   return Boolean(target.jointRom);
 }
 
@@ -608,6 +610,23 @@ export function toScheduleGoalProgressItem(
     bpKey?: typeof BP_META[number]['key'];
     /** 关节活动度拆分项 */
     jointRomKey?: typeof JOINT_ROM_META[number]['key'];
+    /** 处方周期折线序列 */
+    chartSeries?: {
+      weight?: number[];
+      bloodGlucose?: number[];
+      bloodPressureSbp?: number[];
+      bloodPressureDbp?: number[];
+      uricAcid?: number[];
+      bloodLipid?: {
+        ldlC?: number[];
+        hdlC?: number[];
+        tc?: number[];
+        tg?: number[];
+      };
+      healthTestByGoalId?: Record<string, number[]>;
+      jointRomByGoalId?: Record<string, Partial<Record<keyof HealthGoalJointRomTarget, number[]>>>;
+      questionnaireByGoalId?: Record<string, number[]>;
+    };
   },
 ): ScheduleGoalProgressItem {
   const goalVo = target.healthGoalVo;
@@ -948,6 +967,28 @@ export function toScheduleGoalProgressItem(
         ? `${baseKey}-${jointRomMeta.key}`
         : baseKey;
 
+  const chartSeries = options?.chartSeries;
+  let chartValues: number[] = [];
+  if (lipidMeta) {
+    chartValues = chartSeries?.bloodLipid?.[lipidMeta.key] ?? [];
+  } else if (bpMeta) {
+    chartValues = bpMeta.key === 'sbp'
+      ? (chartSeries?.bloodPressureSbp ?? [])
+      : (chartSeries?.bloodPressureDbp ?? []);
+  } else if (jointRomMeta) {
+    chartValues = chartSeries?.jointRomByGoalId?.[baseKey]?.[jointRomMeta.key] ?? [];
+  } else if (isWeightGoal(target)) {
+    chartValues = chartSeries?.weight ?? [];
+  } else if (isBloodGlucoseGoal(target)) {
+    chartValues = chartSeries?.bloodGlucose ?? [];
+  } else if (isUricAcidGoal(target)) {
+    chartValues = chartSeries?.uricAcid ?? [];
+  } else if (isQuestionnaire) {
+    chartValues = chartSeries?.questionnaireByGoalId?.[baseKey] ?? [];
+  } else if (isHealthTestGoal(target)) {
+    chartValues = chartSeries?.healthTestByGoalId?.[baseKey] ?? [];
+  }
+
   return {
     key,
     detailId: baseKey,
@@ -963,6 +1004,7 @@ export function toScheduleGoalProgressItem(
     baselineHint,
     assessmentType,
     assessmentValue: lipidMeta ? 'xueZhi' : bpMeta ? 'xueYa' : assessmentValue,
+    chartValues,
   };
 }
 
@@ -1000,6 +1042,22 @@ export function buildScheduleGoalProgressItems(
     baselineQuestionnaireByGoalId?: Record<string, number | null>;
     prescriptionMainCompleteRate?: number | null;
     prescriptionTargetWeight?: number | null;
+    chartSeries?: {
+      weight?: number[];
+      bloodGlucose?: number[];
+      bloodPressureSbp?: number[];
+      bloodPressureDbp?: number[];
+      uricAcid?: number[];
+      bloodLipid?: {
+        ldlC?: number[];
+        hdlC?: number[];
+        tc?: number[];
+        tg?: number[];
+      };
+      healthTestByGoalId?: Record<string, number[]>;
+      jointRomByGoalId?: Record<string, Partial<Record<keyof HealthGoalJointRomTarget, number[]>>>;
+      questionnaireByGoalId?: Record<string, number[]>;
+    };
   },
 ) {
   const cycleDays = getCycleDayCount(options?.startDate, options?.endDate);
@@ -1024,6 +1082,7 @@ export function buildScheduleGoalProgressItems(
     baselineQuestionnaireByGoalId: options?.baselineQuestionnaireByGoalId,
     prescriptionMainCompleteRate: options?.prescriptionMainCompleteRate,
     prescriptionTargetWeight: options?.prescriptionTargetWeight,
+    chartSeries: options?.chartSeries,
   };
 
   const items: ScheduleGoalProgressItem[] = [];

@@ -8,7 +8,7 @@ const styles = StyleSheet.create({
     scroll: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 18 },
     rowBox: { position: "relative", backgroundColor: "#FFF", marginTop: 10, padding: 10, borderRadius: 15, shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3 },
     rowTitle: { fontWeight: 800, fontSize: 15, color: "#333333" },
-    rowImg: { width: 13, height: 13, marginLeft: 6 },
+    rowImg: { width: 13, height: 13, marginRight: 4 },
     rowText: { fontWeight: 800, fontSize: 13, color: "#6D925E" },
     rightBox: { borderTopRightRadius: 15, position: "absolute", right: 0, top: 0, height: 30, backgroundColor: "#6D925E", paddingRight: 15 },
     rightImg: { width: 20, height: 30, position: "absolute", left: -20, top: 0 },
