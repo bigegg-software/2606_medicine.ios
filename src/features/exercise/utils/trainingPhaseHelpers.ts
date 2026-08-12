@@ -268,22 +268,10 @@ export function shouldShowTrainingActionIcon(
   return true;
 }
 
-const CN_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-
-/** 组序号文案：第一组、第二组… */
+/** 组序号文案：第1组、第2组… */
 export function formatChineseGroupLabel(index: number) {
   const n = Math.round(index);
-  if (!Number.isFinite(n) || n <= 0) return '第一组';
-  if (n < 10) return `第${CN_DIGITS[n]}组`;
-  if (n === 10) return '第十组';
-  if (n < 20) return `第十${CN_DIGITS[n - 10]}组`;
-  if (n < 100) {
-    const tens = Math.floor(n / 10);
-    const ones = n % 10;
-    return ones === 0
-      ? `第${CN_DIGITS[tens]}十组`
-      : `第${CN_DIGITS[tens]}十${CN_DIGITS[ones]}组`;
-  }
+  if (!Number.isFinite(n) || n <= 0) return '第1组';
   return `第${n}组`;
 }
 

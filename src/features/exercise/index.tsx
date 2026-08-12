@@ -30,7 +30,7 @@ export default function ExercisePage() {
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
   const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
-  const infoText = formatExerciseUserInfoText(user, userExtr, exerciseRule?.diagnosis);
+  const infoText = formatExerciseUserInfoText(user, userExtr, exerciseRule?.diagnosticLabel);
 
   const versionText = (() => {
     const raw = exerciseRule?.version != null ? String(exerciseRule.version).trim() : '';

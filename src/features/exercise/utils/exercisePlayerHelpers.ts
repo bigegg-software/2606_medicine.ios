@@ -263,7 +263,7 @@ export function findNextGroupInputIndex(counts: number[], totalGroups: number) {
  * 组别标签是否可点：
  * - 已达标（10/10）不可点
  * - 未达标进度（1/10）可再编辑
- * - 无进度时仅「当前待录入组」可点（如全 0 可点第一组）
+ * - 无进度时仅「当前待录入组」可点（如全 0 可点第1组）
  */
 export function canPressGroupCountTag(
   index: number,

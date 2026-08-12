@@ -53,6 +53,8 @@ export type ExPatientRuleInfo = {
   recoveryUserName?: string;
   recoveryOrgName?: string;
   diagnosis?: string;
+  /** 诊断标签展示文案 */
+  diagnosticLabel?: string;
   startDate?: string;
   endDate?: string;
   exTemplateId?: string;

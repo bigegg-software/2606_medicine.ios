@@ -12,16 +12,27 @@ import type { UserExtr } from '@/api/user';
 import { getExRecordDayCalendarList, getExRecordDayStatis, type ExRecordDayCalendarItem, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 
+/** 仅处理诊断标签：中英文逗号分隔的多项统一用 | 连接 */
+export function formatDiagnosticLabelText(diagnosticLabel?: string | null) {
+  const raw = diagnosticLabel?.trim() || '';
+  if (!raw) return '';
+  return raw
+    .split(/[,，]+/)
+    .map(item => item.trim())
+    .filter(Boolean)
+    .join('|');
+}
+
 /** 运动页顶栏：年龄 | 性别 | 诊断 | 目标体重 */
 export function formatExerciseUserInfoText(
   user?: UserBaseInfo | null,
   userExtr?: UserExtr | null,
-  diagnosis?: string | null,
+  diagnosticLabel?: string | null,
 ) {
   const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
   const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
   const gender = user?.gender?.trim() || '';
-  const diagnosisText = diagnosis?.trim() || '';
+  const diagnosisText = formatDiagnosticLabelText(diagnosticLabel);
   const weightGoal = Number(userExtr?.weightGoals);
   const goalText =
     Number.isFinite(weightGoal) && weightGoal > 0 ? `目标${weightGoal}kg` : '';
