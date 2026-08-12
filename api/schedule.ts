@@ -26,6 +26,8 @@ export type InUseExPatientRule = {
   exPatientRuleId?: string | number;
   prescriptionName?: string;
   diagnosis?: string;
+  /** 诊断标签展示文案，多项用分隔符拼接 */
+  diagnosticLabel?: string;
   fitnessLevel?: string;
   trainingGoals?: string[];
   targetWeight?: number;
@@ -38,6 +40,8 @@ export type InUseExPatientRule = {
   firstAdvanceWeeks?: string;
   progress?: number;
   status?: number;
+  /** 处方版本号，如 1.1、1.2 */
+  version?: number | string;
   ruleRatioList?: ExPatientRuleRatio[];
   healthGoalIds?: number[];
   healthGoalTargetList?: HealthGoalTarget[];

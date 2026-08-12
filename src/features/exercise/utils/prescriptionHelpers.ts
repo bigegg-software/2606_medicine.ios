@@ -177,7 +177,7 @@ export function formatWeekDurationStat(weekDuration?: number) {
 export function formatWeekKcalStat(weekKcal?: number) {
   const num = Number(weekKcal);
   if (!Number.isFinite(num) || num <= 0) return '--';
-  return `≈${Math.round(num)}`;
+  return `~${Math.round(num)}`;
 }
 
 export function formatFirstAdvanceWeeksStat(firstAdvanceWeeks?: string) {

@@ -23,7 +23,6 @@ export default function ExercisePage() {
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const displayName = getDisplayUserName(user, systemUser);
-  const infoText = formatExerciseUserInfoText(user, userExtr);
   const profileComplete = isUserBaseInfoComplete(user);
 
   const [activeNav, setActiveNav] = useState(0);
@@ -31,11 +30,18 @@ export default function ExercisePage() {
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
   const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
+  const infoText = formatExerciseUserInfoText(user, userExtr, exerciseRule?.diagnosticLabel);
+
+  const versionText = (() => {
+    const raw = exerciseRule?.version != null ? String(exerciseRule.version).trim() : '';
+    if (!raw || raw === '0' || Number(raw) <= 0) return '';
+    return `处方V${raw}`;
+  })();
 
   const loadExerciseRule = useCallback(async () => {
     try {
       const res = await getInUseExPatientRuleInfo();
-      console.log('res', res);
+      console.log(res)
       if (!isResourceApiOk(res as unknown as { code?: number })) {
         setExerciseRule(null);
         return;
@@ -83,10 +89,12 @@ export default function ExercisePage() {
         <View style={styles.topNameBox}>
           <Flex style={{ marginTop: 7 }}>
             <Text style={styles.topNameText}>{displayName}</Text>
-            <Flex style={styles.containerBox}>
-              <Image style={styles.topNameImage} source={require('@/assets/images/nutrition/star.png')} />
-              <Text style={styles.cfText}>--</Text>
-            </Flex>
+            {versionText ? (
+              <Flex style={styles.containerBox}>
+                <Image style={styles.topNameImage} source={require('@/assets/images/nutrition/star.png')} />
+                <Text style={styles.cfText}>{versionText}</Text>
+              </Flex>
+            ) : null}
           </Flex>
           <Flex style={styles.topInfoBox}>
             <Flex style={styles.brBox}>

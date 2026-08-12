@@ -190,7 +190,11 @@ export async function resolveMessageNavigation(item: {
     };
   }
 
-  if (type === 'identity_audit_approved' || type === 'identity_audit_rejected') {
+  if (type === 'identity_audit_approved') {
+    return { action: 'none' };
+  }
+
+  if (type === 'identity_audit_rejected') {
     return { action: 'navigate', name: 'AuthenticationPage' };
   }
 

@@ -232,6 +232,10 @@ export type RootStackParamList = {
     /** 训练阶段 hot.热身 main.主训练 cold.冷身 */
     trainingPhase?: 'hot' | 'main' | 'cold';
     groupVal?: number;
+    numberVal?: number;
+    keepSecondVal?: number;
+    /** 计时目标分钟（duration_min） */
+    durationMinutes?: number;
     /** duration_min | group_number | keep_second_number */
     timerType?: string;
     /** 历史日期只读查看 */

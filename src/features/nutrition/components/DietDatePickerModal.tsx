@@ -51,8 +51,8 @@ type Props = {
    */
   dayRecordMarker?: {
     color: string;
-    title: string;
-    label: string;
+    title?: string;
+    label?: string;
     loadByYear: (year: number) => Promise<Record<string, boolean> | null>;
   };
 };
@@ -213,10 +213,13 @@ export default function DietDatePickerModal({
   const uploadDotColor = dayRecordMarker?.color
     ?? uploadMarker?.color
     ?? '#6D925E';
-  const recordTitle = dayRecordMarker?.title
-    ?? (isUploadMode ? '数据上传记录：' : '餐食打卡记录：');
-  const recordLegendLabel = dayRecordMarker?.label
-    ?? (isUploadMode ? '已上传' : '');
+  const recordTitle = dayRecordMarker
+    ? (dayRecordMarker.title?.trim() || '')
+    : (isUploadMode ? '数据上传记录：' : '餐食打卡记录：');
+  const recordLegendLabel = dayRecordMarker
+    ? (dayRecordMarker.label?.trim() || '')
+    : (isUploadMode ? '已上传' : '');
+  const showRecordLegend = Boolean(recordTitle || recordLegendLabel || (!dayRecordMarker && !isUploadMode));
 
   monthKeysLenRef.current = monthKeys.length;
   monthKeysRef.current = monthKeys;
@@ -491,16 +494,22 @@ export default function DietDatePickerModal({
                   />
                 </TouchableOpacity>
               </View>
-              <Flex style={styles.recordBox} justify="between" align="center">
-                <Text style={styles.recordText}>
-                  {recordTitle}
-                </Text>
+              {showRecordLegend ? (
+              <Flex
+                style={styles.recordBox}
+                justify={recordTitle ? 'between' : 'end'}
+                align="center">
+                {recordTitle ? (
+                  <Text style={styles.recordText}>{recordTitle}</Text>
+                ) : null}
                 <Flex align="center" style={styles.recordLegend}>
                   {isCustomDayRecordMode || isUploadMode ? (
-                    <Flex align="center" style={styles.recordLegendItem}>
-                      <View style={[styles.recordLegendDot, { backgroundColor: uploadDotColor }]} />
-                      <Text style={styles.recordLegendText}>{recordLegendLabel}</Text>
-                    </Flex>
+                    recordLegendLabel ? (
+                      <Flex align="center" style={styles.recordLegendItem}>
+                        <View style={[styles.recordLegendDot, { backgroundColor: uploadDotColor }]} />
+                        <Text style={styles.recordLegendText}>{recordLegendLabel}</Text>
+                      </Flex>
+                    ) : null
                   ) : (
                     MEAL_EAT_LEGEND.map(item => (
                       <Flex key={item.category} align="center" style={styles.recordLegendItem}>
@@ -511,6 +520,7 @@ export default function DietDatePickerModal({
                   )}
                 </Flex>
               </Flex>
+              ) : null}
               <View style={styles.weekRow}>
                 {DIET_WEEK_LABELS.map(label => (
                   <View key={label} style={styles.weekCell}>

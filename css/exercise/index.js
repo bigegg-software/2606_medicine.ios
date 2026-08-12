@@ -329,6 +329,8 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
   mainTrainingModuleTipText: {
+    flexShrink: 1,
+    flexGrow: 1,
     marginLeft: 6,
     fontWeight: 500,
     fontSize: 12,
@@ -404,17 +406,21 @@ const styles = StyleSheet.create({
     height: 27,
     marginRight: 8,
     marginBottom: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 25,
     borderWidth: 1,
     borderColor: '#E5E5E5',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    flexDirection: 'row',
   },
   mainTrainingSetTagDone: {
     backgroundColor: 'rgba(109,146,94,0.15)',
+    borderColor: '#6D925E',
+  },
+  mainTrainingSetTagProgress: {
+    borderWidth: 1,
     borderColor: '#6D925E',
   },
   mainTrainingSetTagLast: {
@@ -428,6 +434,98 @@ const styles = StyleSheet.create({
   mainTrainingSetTagTextDone: {
     color: '#6D925E',
     fontWeight: 'bold',
+  },
+  groupCountTagIcon: {
+    width: 14,
+    height: 14,
+    marginRight: 5,
+  },
+  groupCountModalSheet: {
+    backgroundColor: '#F7F8FA',
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    overflow: 'hidden',
+  },
+  groupCountModalCard: {
+    backgroundColor: '#F7F8FA',
+    paddingTop: 18,
+  },
+  groupCountModalHeader: {
+    marginBottom: 16,
+    minHeight: 24,
+    marginHorizontal: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  groupCountModalTitle: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333333',
+    textAlign: 'center',
+  },
+  groupCountModalCloseBtn: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+  },
+  groupCountModalClose: {
+    width: 18,
+    height: 18,
+  },
+  groupCountModalInputRow: {
+    height: 58,
+    marginHorizontal: 16,
+    paddingHorizontal: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+  },
+  groupCountModalGroupLabel: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#242424',
+  },
+  groupCountModalInput: {
+    flex: 1,
+    marginLeft: 25,
+    padding: 0,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#333333',
+  },
+  groupCountModalUnit: {
+    marginLeft: 8,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#333333',
+  },
+  groupCountModalSaveBtnBox: {
+    marginTop: 16,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  groupCountModalSaveBtn: {
+    height: 50,
+    borderRadius: 12,
+    backgroundColor: '#6D925E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupCountModalSaveIcon: {
+    width: 18,
+    height: 18,
+    marginRight: 6,
+  },
+  groupCountModalSaveText: {
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#FFFFFF',
   },
   mainTrainingSetDurationIcon: {
     width: 11,
@@ -452,8 +550,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#C98A41',
   },
-  mainTrainingTipText: {
+  mainTrainingTipList: {
     marginTop: 8,
+  },
+  mainTrainingTipItemGap: {
+    marginTop: 10,
+  },
+  mainTrainingTipBullet: {
+    width: 14,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#C98A41',
+    lineHeight: 20,
+  },
+  mainTrainingTipText: {
+    flex: 1,
     fontWeight: '500',
     fontSize: 13,
     color: '#C98A41',
@@ -603,6 +714,84 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   bottomBarButtonTextLeft: { fontWeight: 'bold', fontSize: 16, color: '#FFFFFF' },
+
+  /** 训练播放页 · 实时心率卡片 */
+  playerRealtimeHrCard: {
+    marginTop: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 15,
+  },
+  playerRealtimeHrIcon: {
+    width: 45,
+    height: 45,
+  },
+  playerRealtimeHrMain: {
+    flex: 1,
+    marginLeft: 12,
+    minWidth: 0,
+  },
+  playerRealtimeHrTitle: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#333333',
+  },
+  playerRealtimeHrBadge: {
+    marginTop: -3,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#6D925E',
+  },
+  playerRealtimeHrBadgeText: {
+    fontWeight: 'bold',
+    fontSize: 11,
+    color: '#6D925E',
+  },
+  playerRealtimeHrValueRow: {
+    marginTop: 2,
+    alignItems: 'baseline',
+  },
+  playerRealtimeHrValue: {
+    fontFamily: 'DIN',
+    fontWeight: 'bold',
+    fontSize: 24,
+    color: '#333333',
+  },
+  playerRealtimeHrUnit: {
+    marginLeft: 4,
+    fontWeight: '400',
+    fontSize: 12,
+    color: '#333333',
+  },
+  playerRealtimeHrDivider: {
+    marginTop: 15,
+    height: 1,
+    backgroundColor: 'rgba(23,63,125,0.08)',
+  },
+  playerRealtimeHrTargetRow: {
+    marginTop: 15,
+  },
+  playerRealtimeHrTipIcon: {
+    width: 15,
+    height: 15,
+    flexShrink: 0,
+  },
+  playerRealtimeHrTargetText: {
+    marginLeft: 4,
+    flex: 1,
+    fontWeight: '400',
+    fontSize: 12,
+    color: '#666666',
+  },
+  playerRealtimeHrStatusText: {
+    marginLeft: 8,
+    fontWeight: 'bold',
+    fontSize: 12,
+    color: '#EE9C44',
+  },
 });
 
 export default styles;

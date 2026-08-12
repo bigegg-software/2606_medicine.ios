@@ -3,6 +3,7 @@ import type { InUseExPatientRule } from '@/api/schedule';
 import {
   formatWarmupBannerTitle,
   getWarmupHotList,
+  type TrainingActionDateMode,
 } from '../../utils/trainingPhaseHelpers';
 import TrainingPhaseListPanel, { type TrainingPhaseListConfig } from './TrainingPhaseListPanel';
 
@@ -10,9 +11,15 @@ type Props = {
   dayRule?: InUseExPatientRule | null;
   selectedDate: string;
   readOnly?: boolean;
+  dateMode?: TrainingActionDateMode;
 };
 
-export default function WarmupPhase({ dayRule = null, selectedDate, readOnly = false }: Props) {
+export default function WarmupPhase({
+  dayRule = null,
+  selectedDate,
+  readOnly = false,
+  dateMode = 'today',
+}: Props) {
   const config = useMemo<TrainingPhaseListConfig>(() => ({
     trainingPhase: 'hot',
     bannerSource: require('@/assets/images/exercise/rs.png'),
@@ -32,6 +39,7 @@ export default function WarmupPhase({ dayRule = null, selectedDate, readOnly = f
       selectedDate={selectedDate}
       config={config}
       readOnly={readOnly}
+      dateMode={dateMode}
     />
   );
 }

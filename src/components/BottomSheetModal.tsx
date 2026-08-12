@@ -12,7 +12,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SCREEN = Dimensions.get('screen');
 const SCREEN_HEIGHT = SCREEN.height;
@@ -53,7 +52,6 @@ export default function BottomSheetModal({
   const onDismissedRef = useRef(onDismissed);
   /** 关闭动画结束后再通知，避免调用方在 Modal 仍挂载时打开系统相册/相机 */
   const shouldNotifyDismissedRef = useRef(false);
-  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     onDismissedRef.current = onDismissed;
@@ -76,7 +74,8 @@ export default function BottomSheetModal({
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const onShow = (event: KeyboardEvent) => {
-      const height = Math.max(0, event.endCoordinates.height - insets.bottom - 24);
+      // 用完整键盘高度上移，避免底部按钮被遮挡
+      const height = Math.max(0, event.endCoordinates.height);
       Animated.timing(keyboardOffset, {
         toValue: -height,
         duration: getKeyboardDuration(event),
@@ -99,7 +98,7 @@ export default function BottomSheetModal({
       showSub.remove();
       hideSub.remove();
     };
-  }, [insets.bottom, keyboardOffset, rendered]);
+  }, [keyboardOffset, rendered]);
 
   useEffect(() => {
     if (visible) return;

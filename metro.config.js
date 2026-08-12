@@ -8,6 +8,12 @@ const nativeRnPath = path.resolve(projectRoot, 'node_modules/react-native/index.
 /** @type {import('expo/metro-config').MetroConfig} */
 const config = getDefaultConfig(projectRoot);
 
+// 支持本地 .lottie（DotLottie）资源
+const assetExts = config.resolver.assetExts ?? [];
+if (!assetExts.includes('lottie')) {
+  config.resolver.assetExts = [...assetExts, 'lottie'];
+}
+
 const defaultResolveRequest = config.resolver.resolveRequest;
 
 config.resolver.resolveRequest = (context, moduleName, platform) => {

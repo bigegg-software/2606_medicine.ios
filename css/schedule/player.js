@@ -2,8 +2,36 @@ import { StyleSheet } from 'react-native';
 import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
-  rightBox: { marginRight: 16, paddingHorizontal: 10, paddingVertical: 3, backgroundColor: 'rgba(109,146,94,0.1)', borderRadius: 32 },
-  rightText: { fontWeight: "bold", fontSize: 14, color: '#6D925E' },
+  rightBox: {
+    marginRight: 16,
+    height: 28,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(109,146,94,0.1)',
+    borderRadius: 14,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rightText: {
+    fontWeight: 'bold',
+    fontSize: 13,
+    lineHeight: 28,
+    color: '#6D925E',
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
+  headerTitleText: {
+    fontWeight: '600',
+    fontSize: 17,
+    color: '#000000',
+    textAlign: 'center',
+  },
+  headerRightContainer: {
+    flexShrink: 0,
+  },
+  headerTitleContainer: {
+    alignItems: 'center',
+  },
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
   pageWrap: { flex: 1 },
   pageItem: { flex: 1 },
@@ -135,6 +163,26 @@ const styles = StyleSheet.create({
   playerGroupTagTextDone: {
     color: '#6D925E',
     fontWeight: 'bold',
+  },
+  playerGroupTipBox: {
+    marginTop: 10,
+    padding: 12,
+    backgroundColor: 'rgba(254,248,225,0.2)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(238,156,68,0.3)',
+  },
+  playerGroupTipIcon: {
+    width: 15,
+    height: 15,
+    flexShrink: 0,
+  },
+  playerGroupTipText: {
+    marginLeft: 6,
+    flex: 1,
+    fontWeight: '500',
+    fontSize: 12,
+    color: '#C98A41',
   },
   tjBtnImg: {
     width: 12,

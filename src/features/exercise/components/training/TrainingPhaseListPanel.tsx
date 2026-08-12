@@ -18,12 +18,21 @@ import type { RootStackParamList } from '@/route/router';
 import {
   attachTrainingPhaseCompleteInfo,
   buildTrainingPhaseCards,
-  formatChineseGroupLabel,
+  canPressTrainingAction,
+  formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
+  isTrainingActionCompleted,
+  shouldShowTrainingActionIcon,
   sumTrainingPhaseMinutes,
+  type TrainingActionDateMode,
   type TrainingPhaseExerciseCard,
 } from '../../utils/trainingPhaseHelpers';
+import {
+  resolveGroupTargetCount,
+  resolveScheduleGroupVal,
+} from '../../utils/exercisePlayerHelpers';
 import type { ExWeekTrainingItem } from '@/api/exPatientRule';
+import GroupCountTags from './GroupCountTags';
 
 const BANNER_ASPECT = 351 / 104;
 
@@ -46,42 +55,17 @@ type Props = {
   dayRule?: InUseExPatientRule | null;
   selectedDate: string;
   config: TrainingPhaseListConfig;
-  /** 历史日期只读 */
+  /** 非今日只读，不可执行 */
   readOnly?: boolean;
+  dateMode?: TrainingActionDateMode;
 };
-
-function PhaseSetRow({ card }: { card: TrainingPhaseExerciseCard }) {
-  const totalGroups = Math.max(0, card.groupVal || 0);
-  if (totalGroups <= 0) return null;
-
-  return (
-    <Flex align="center" style={styles.mainTrainingSetRow} wrap="wrap">
-      {Array.from({ length: totalGroups }, (_, index) => {
-        const groupNo = index + 1;
-        const done = card.completedGroups.includes(groupNo);
-        return (
-          <View
-            key={`${card.key}-set-${index}`}
-            style={[styles.mainTrainingSetTag, done && styles.mainTrainingSetTagDone]}>
-            <Text
-              style={[
-                styles.mainTrainingSetTagText,
-                done && styles.mainTrainingSetTagTextDone,
-              ]}>
-              {formatChineseGroupLabel(groupNo)}
-            </Text>
-          </View>
-        );
-      })}
-    </Flex>
-  );
-}
 
 export default function TrainingPhaseListPanel({
   dayRule = null,
   selectedDate,
   config,
   readOnly = false,
+  dateMode = 'today',
 }: Props) {
   const navigation = useNavigation<Nav>();
   const [bannerWidth, setBannerWidth] = useState(0);
@@ -138,12 +122,16 @@ export default function TrainingPhaseListPanel({
   };
 
   const openPlayer = (card: TrainingPhaseExerciseCard) => {
+    if (!canPressTrainingAction(card, dateMode)) return;
     navigation.navigate('ExercisePlayerPage', {
       exVideoId: card.exVideoId,
       title: card.title,
       ruleSubtitle: formatTrainingPhaseSubtitle(card),
       trainingPhase: config.trainingPhase,
       groupVal: card.groupVal,
+      numberVal: card.numberVal,
+      keepSecondVal: card.keepSecondVal,
+      durationMinutes: card.durationMinutes,
       timerType: card.timerType,
       readOnly,
       customerLocalDate: selectedDate,
@@ -197,9 +185,16 @@ export default function TrainingPhaseListPanel({
         </Text>
       ) : (
         cards.map(item => {
-          const allGroupsDone = item.groupVal > 0
-            && Array.from({ length: item.groupVal }, (_, index) => index + 1)
-              .every(groupNo => item.completedGroups.includes(groupNo));
+          const scheduleGroupVal = resolveScheduleGroupVal(item);
+          const targetCount = item.timerType === 'duration_min' ? 0 : resolveGroupTargetCount(item);
+          // 计时类型仅多组时展示组别；单组不显示
+          const showSets = item.timerType === 'duration_min'
+            ? scheduleGroupVal > 1
+            : scheduleGroupVal > 0;
+          const actionCompleted = isTrainingActionCompleted(item);
+          const actionText = formatTrainingActionButtonText(item, { dateMode });
+          const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
+          const actionPressable = canPressTrainingAction(item, dateMode);
           return (
             <View key={item.key} style={styles.trainingExerciseCard}>
               <Flex align="center">
@@ -212,23 +207,39 @@ export default function TrainingPhaseListPanel({
                     {formatTrainingPhaseSubtitle(item)}
                   </Text>
                 </View>
-                <TouchableOpacity activeOpacity={0.75} onPress={() => openPlayer(item)}>
-                  <Flex align="center" style={styles.mainTrainingActionTimer}>
-                    <Image
-                      style={styles.mainTrainingActionTimerIcon}
-                      source={
-                        readOnly || allGroupsDone
-                          ? require('@/assets/images/exercise/icon_wc.png')
-                          : require('@/assets/images/exercise/icon_jsq.png')
-                      }
-                    />
-                    <Text style={styles.mainTrainingActionTimerText}>
-                      {readOnly ? '查看' : allGroupsDone ? '完成' : '开始'}
-                    </Text>
+                <TouchableOpacity
+                  activeOpacity={actionPressable ? 0.75 : 1}
+                  disabled={!actionPressable}
+                  onPress={() => openPlayer(item)}>
+                  <Flex
+                    align="center"
+                    style={[
+                      styles.mainTrainingActionTimer,
+                      !actionPressable ? { opacity: 0.45 } : null,
+                    ]}>
+                    {showActionIcon ? (
+                      <Image
+                        style={styles.mainTrainingActionTimerIcon}
+                        source={
+                          actionCompleted
+                            ? require('@/assets/images/exercise/icon_wc.png')
+                            : require('@/assets/images/exercise/icon_jsq.png')
+                        }
+                      />
+                    ) : null}
+                    <Text style={styles.mainTrainingActionTimerText}>{actionText}</Text>
                   </Flex>
                 </TouchableOpacity>
               </Flex>
-              <PhaseSetRow card={item} />
+              {showSets ? (
+                <GroupCountTags
+                  totalGroups={scheduleGroupVal}
+                  targetCount={targetCount}
+                  groupCounts={item.groupCounts}
+                  complateGroups={item.completedGroups}
+                  readOnly
+                />
+              ) : null}
             </View>
           );
         })

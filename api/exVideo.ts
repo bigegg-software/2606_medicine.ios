@@ -22,6 +22,8 @@ export type ExVideoInfo = {
   trainingPhase?: string;
   timerType?: string;
   durationMinVal?: number;
+  /** 每分钟消耗 kcal */
+  kcalPerMinute?: number | string;
   groupVal?: number;
   numberVal?: number;
   keepSecondVal?: number;
@@ -49,5 +51,13 @@ export const getExVideoFrontList = (params: ExVideoFrontListParams) =>
 export const getExVideoInfo = (exVideoId: string) =>
   request.get<{ code?: number; msg?: string; data?: ExVideoInfo }>(
     '/patient/exVideo/getInfo',
+    { params: { exVideoId: String(exVideoId) } },
+  );
+
+/** 视频播放量埋点（播放量 +1） */
+export const recordExVideoView = (exVideoId: string) =>
+  request.post<{ code?: number; msg?: string }>(
+    '/patient/exVideo/recordView',
+    undefined,
     { params: { exVideoId: String(exVideoId) } },
   );

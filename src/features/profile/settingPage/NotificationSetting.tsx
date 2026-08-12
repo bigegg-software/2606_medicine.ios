@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, Platform } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
@@ -9,6 +9,7 @@ import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   buildNotificationSettingsPayload,
   parseNotificationSettings,
+  type NotificationSettings,
 } from '@/src/utils/notificationSettingsHelpers';
 import {
   applyNotificationSettings,
@@ -18,28 +19,45 @@ import type { AppDispatch, RootState } from '@/store/store';
 import { SET_USER_EXTR } from '@/store/type/user';
 import styles from '@/css/profile/settings';
 
+type SwitchKey = 'notification' | 'sound' | 'vibration';
+
+function settingsEqual(a: NotificationSettings, b: NotificationSettings) {
+  return (
+    a.enabled === b.enabled
+    && a.soundEnabled === b.soundEnabled
+    && a.vibrationEnabled === b.vibrationEnabled
+  );
+}
+
 export default function NotificationSettingPage() {
   const dispatch = useDispatch<AppDispatch>();
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
-  const [savingNotification, setSavingNotification] = useState(false);
+  const [savingKey, setSavingKey] = useState<SwitchKey | null>(null);
   const [notificationEnabled, setNotificationEnabled] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [vibrationEnabled, setVibrationEnabled] = useState(false);
+  /** 本地保存成功后会写回 Redux，跳过一次回写同步，避免其它开关闪烁 */
+  const skipNextExtrSyncRef = useRef(false);
 
   useEffect(() => {
+    if (skipNextExtrSyncRef.current) {
+      skipNextExtrSyncRef.current = false;
+      return;
+    }
     const settings = parseNotificationSettings(userExtr);
-    setNotificationEnabled(settings.enabled);
-    setSoundEnabled(settings.soundEnabled);
-    setVibrationEnabled(settings.vibrationEnabled);
+    setNotificationEnabled(prev => (prev === settings.enabled ? prev : settings.enabled));
+    setSoundEnabled(prev => (prev === settings.soundEnabled ? prev : settings.soundEnabled));
+    setVibrationEnabled(prev => (
+      prev === settings.vibrationEnabled ? prev : settings.vibrationEnabled
+    ));
     applyNotificationSettings(settings);
   }, [userExtr?.isSendSysMsg, userExtr?.params]);
 
-  const saveNotificationSettings = useCallback(async (next: {
-    enabled: boolean;
-    soundEnabled: boolean;
-    vibrationEnabled: boolean;
-  }) => {
-    setSavingNotification(true);
+  const saveNotificationSettings = useCallback(async (
+    next: NotificationSettings,
+    key: SwitchKey,
+  ) => {
+    setSavingKey(key);
     try {
       const payload = buildNotificationSettingsPayload(next, userExtr?.params);
       const res = await updateExtrInfo(payload);
@@ -50,6 +68,7 @@ export default function NotificationSettingPage() {
 
       applyNotificationSettings(next);
       if (userExtr) {
+        skipNextExtrSyncRef.current = true;
         dispatch({
           type: SET_USER_EXTR,
           payload: {
@@ -64,60 +83,87 @@ export default function NotificationSettingPage() {
       Toast.show('保存通知设置失败', 1.5);
       return false;
     } finally {
-      setSavingNotification(false);
+      setSavingKey(null);
     }
   }, [dispatch, userExtr]);
 
   const handleNotificationChange = useCallback(async (checked: boolean) => {
-    const prev = {
+    if (savingKey) return;
+    const prev: NotificationSettings = {
       enabled: notificationEnabled,
       soundEnabled,
       vibrationEnabled,
     };
+    const next: NotificationSettings = {
+      enabled: checked,
+      soundEnabled: prev.soundEnabled,
+      vibrationEnabled: prev.vibrationEnabled,
+    };
+    if (settingsEqual(prev, next)) return;
+
     setNotificationEnabled(checked);
     if (checked && Platform.OS === 'ios') {
       await registerIosPushToken().catch(() => undefined);
     }
-    const ok = await saveNotificationSettings({
-      enabled: checked,
-      soundEnabled: prev.soundEnabled,
-      vibrationEnabled: prev.vibrationEnabled,
-    });
+    const ok = await saveNotificationSettings(next, 'notification');
     if (!ok) {
       setNotificationEnabled(prev.enabled);
     }
-  }, [notificationEnabled, saveNotificationSettings, soundEnabled, vibrationEnabled]);
+  }, [
+    notificationEnabled,
+    saveNotificationSettings,
+    savingKey,
+    soundEnabled,
+    vibrationEnabled,
+  ]);
 
   const handleSoundChange = useCallback(async (checked: boolean) => {
+    if (savingKey) return;
     const prev = soundEnabled;
+    if (prev === checked) return;
+
     setSoundEnabled(checked);
     const ok = await saveNotificationSettings({
       enabled: notificationEnabled,
       soundEnabled: checked,
       vibrationEnabled,
-    });
+    }, 'sound');
     if (!ok) {
       setSoundEnabled(prev);
     }
-  }, [notificationEnabled, saveNotificationSettings, soundEnabled, vibrationEnabled]);
+  }, [
+    notificationEnabled,
+    saveNotificationSettings,
+    savingKey,
+    soundEnabled,
+    vibrationEnabled,
+  ]);
 
   const handleVibrationChange = useCallback(async (checked: boolean) => {
+    if (savingKey) return;
     const prev = vibrationEnabled;
+    if (prev === checked) return;
+
     setVibrationEnabled(checked);
     const ok = await saveNotificationSettings({
       enabled: notificationEnabled,
       soundEnabled,
       vibrationEnabled: checked,
-    });
+    }, 'vibration');
     if (!ok) {
       setVibrationEnabled(prev);
     }
-  }, [notificationEnabled, saveNotificationSettings, soundEnabled, vibrationEnabled]);
+  }, [
+    notificationEnabled,
+    saveNotificationSettings,
+    savingKey,
+    soundEnabled,
+    vibrationEnabled,
+  ]);
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        {/* <Text style={styles.sectionTitle}>消息通知</Text> */}
         <View style={[styles.sectionBox, { paddingVertical: 0 }]}>
           <Flex justify="between" align="center" style={styles.settingRow}>
             <Flex align="center">
@@ -133,7 +179,7 @@ export default function NotificationSettingPage() {
               checked={notificationEnabled}
               onChange={handleNotificationChange}
               color={AppTheme.primaryColor}
-              disabled={savingNotification}
+              disabled={savingKey === 'notification'}
             />
           </Flex>
           <View style={styles.rowLine} />
@@ -151,7 +197,7 @@ export default function NotificationSettingPage() {
               checked={soundEnabled}
               onChange={handleSoundChange}
               color={AppTheme.primaryColor}
-              disabled={!notificationEnabled || savingNotification}
+              disabled={!notificationEnabled || savingKey === 'sound'}
             />
           </Flex>
           <View style={styles.rowLine} />
@@ -169,7 +215,7 @@ export default function NotificationSettingPage() {
               checked={vibrationEnabled}
               onChange={handleVibrationChange}
               color={AppTheme.primaryColor}
-              disabled={!notificationEnabled || savingNotification}
+              disabled={!notificationEnabled || savingKey === 'vibration'}
             />
           </Flex>
         </View>

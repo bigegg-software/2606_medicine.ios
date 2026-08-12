@@ -53,6 +53,8 @@ export type ExPatientRuleInfo = {
   recoveryUserName?: string;
   recoveryOrgName?: string;
   diagnosis?: string;
+  /** 诊断标签展示文案 */
+  diagnosticLabel?: string;
   startDate?: string;
   endDate?: string;
   exTemplateId?: string;
@@ -115,6 +117,22 @@ export type ExPatientRuleListResult = {
 
 export const getExPatientRuleList = (params: ExPatientRuleListParams) =>
   request.get<ExPatientRuleListResult>('/patient/exPatientRule/list', { params });
+
+/** 按处方查询调整原因记录（版本号、调整原因、调整时间） */
+export type ExPatientRuleAdjustItem = {
+  adjustId?: number | string;
+  exPatientRuleId?: number | string;
+  patientUserId?: number | string;
+  version?: number | string;
+  adjustReason?: string;
+  adjustTime?: string;
+};
+
+export const getExPatientRuleAdjustList = (exPatientRuleId: string) =>
+  request.get<{ code?: number; msg?: string; data?: ExPatientRuleAdjustItem[] }>(
+    '/patient/exPatientRule/adjustList',
+    { params: { exPatientRuleId: String(exPatientRuleId) } },
+  );
 
 /** 主训练四模块整体完成率（按处方起止日期），完成率 0-100 */
 export type ExPatientRuleModuleCompleteRate = {
