@@ -62,10 +62,8 @@ const styles = StyleSheet.create({
   topRowBoxItemText: { marginLeft: 12, marginTop: 4, fontWeight: 500, fontSize: 12, color: "#999999" },
   backImage1: { width: "100%", height: 50, marginTop: 12 },
   backImage1Text: { fontWeight: "bold", fontSize: 16, color: "#333333" },
-  tabBox: { width: 96, height: 26, gap: 6, padding: 3, borderRadius: 13, backgroundColor: "#EDEEEF" },
-  tabItem: { flex: 1, height: "100%" },
-  tabItemActive: { flex: 1, height: "100%", backgroundColor: "#FFFFFF", borderRadius: 25 },
-  tabItemText: { fontWeight: 500, fontSize: 11, color: "#333333" },
+  dayProgressText: { fontWeight: 500, fontSize: 14, color: "#333333" },
+  dayProgressNum: { fontWeight: "bold", fontSize: 14, color: AppTheme.primaryColor },
   navTabBox: {
     height: 30,
     paddingVertical: 6,
