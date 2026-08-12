@@ -233,8 +233,12 @@ export default function MainTrainingPhase({
 
   if (isRest) {
     return (
-      <View style={styles.trainingPhaseContent}>
-        <Text style={[styles.trainingExerciseDuration, { marginTop: 16, textAlign: 'center' }]}>
+      <View style={[styles.trainingPhaseContent, styles.mainTrainingRestEmpty]}>
+        <Image
+          style={styles.mainTrainingRestIcon}
+          source={require('@/assets/images/exercise/icon_rest.png')}
+        />
+        <Text style={styles.mainTrainingRestText}>
           今日为休息日，暂无主训练安排
         </Text>
       </View>
@@ -243,10 +247,12 @@ export default function MainTrainingPhase({
 
   if (modules.length === 0) {
     return (
-      <View style={styles.trainingPhaseContent}>
-        <Text style={[styles.trainingExerciseDuration, { marginTop: 16, textAlign: 'center' }]}>
-          暂无主训练项目
-        </Text>
+      <View style={[styles.trainingPhaseContent, styles.mainTrainingRestEmpty]}>
+        <Image
+          style={styles.mainTrainingRestIcon}
+          source={require('@/assets/images/exercise/icon_empty_training.png')}
+        />
+        <Text style={styles.mainTrainingRestText}>暂无主训练项目</Text>
       </View>
     );
   }

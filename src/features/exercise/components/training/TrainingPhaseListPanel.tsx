@@ -176,13 +176,21 @@ export default function TrainingPhaseListPanel({
           <ActivityIndicator color="#6D925E" />
         </View>
       ) : isRest ? (
-        <Text style={[styles.trainingExerciseDuration, { marginTop: 16, textAlign: 'center' }]}>
-          {config.restEmptyText}
-        </Text>
+        <View style={styles.mainTrainingRestEmpty}>
+          <Image
+            style={styles.mainTrainingRestIcon}
+            source={require('@/assets/images/exercise/icon_rest.png')}
+          />
+          <Text style={styles.mainTrainingRestText}>{config.restEmptyText}</Text>
+        </View>
       ) : cards.length === 0 ? (
-        <Text style={[styles.trainingExerciseDuration, { marginTop: 16, textAlign: 'center' }]}>
-          {config.emptyText}
-        </Text>
+        <View style={styles.mainTrainingRestEmpty}>
+          <Image
+            style={styles.mainTrainingRestIcon}
+            source={require('@/assets/images/exercise/icon_empty_training.png')}
+          />
+          <Text style={styles.mainTrainingRestText}>{config.emptyText}</Text>
+        </View>
       ) : (
         cards.map(item => {
           const scheduleGroupVal = resolveScheduleGroupVal(item);

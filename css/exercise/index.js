@@ -200,6 +200,21 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     overflow: 'hidden',
   },
+  mainTrainingRestEmpty: {
+    alignItems: 'center',
+  },
+  mainTrainingRestIcon: {
+    marginTop: 60,
+    width: 80,
+    height: 80,
+  },
+  mainTrainingRestText: {
+    marginTop: 25,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
+  },
   trainingPhaseBanner: {
     borderRadius: 12,
   },
