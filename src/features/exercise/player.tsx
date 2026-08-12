@@ -36,14 +36,24 @@ import { splitMultilineText } from '@/src/features/schedule/playerHelpers';
 import GroupCountTags from './components/training/GroupCountTags';
 import GroupCountInputModal from './components/training/GroupCountInputModal';
 import { formatChineseGroupLabel } from './utils/trainingPhaseHelpers';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/store/store';
+import {
+  hydrateEquipment,
+  prepareEquipmentSdk,
+} from '@/store/actions/equipment';
+import PolarBle from '@/src/test/utils/polarBle';
 import {
   calcExerciseKcal,
   calcGroupRestProgressPercent,
   calcTrainingProgressPercent,
   canPressGroupCountTag,
   deriveCompleteGroupsFromCounts,
+  EXERCISE_HR_RANGE,
   findNextGroupInputIndex,
   formatSessionDuration,
+  getExerciseHeartRateZone,
+  getExerciseHeartRateZoneLabel,
   getExercisePlayerTypeLabel,
   getExitConfirmContent,
   getShortSessionConfirmContent,
@@ -105,6 +115,14 @@ export default function ExercisePlayerPage() {
   const [groupRestRemainingSeconds, setGroupRestRemainingSeconds] = useState(0);
   /** 组间休息倒计时是否在走（暂停/播放只控计时，不控视频） */
   const [isGroupRestTimerRunning, setIsGroupRestTimerRunning] = useState(false);
+  const [heartRate, setHeartRate] = useState<number | null>(null);
+  const hrStreamingDeviceIdRef = useRef<string | null>(null);
+
+  const dispatch = useDispatch<AppDispatch>();
+  const connectedDevice = useSelector((state: RootState) =>
+    state.equipment.boundDevices.find(item => item.connected),
+  );
+  const deviceConnected = !!connectedDevice?.deviceId;
 
   const sessionElapsedRef = useRef(0);
   const prescriptionContextRef = useRef<PrescriptionContext>({});
@@ -423,8 +441,55 @@ export default function ExercisePlayerPage() {
     useCallback(() => {
       allowExitRef.current = false;
       void loadPageData();
-    }, [loadPageData]),
+      void dispatch(hydrateEquipment());
+      void dispatch(prepareEquipmentSdk());
+    }, [dispatch, loadPageData]),
   );
+
+  useFocusEffect(
+    useCallback(() => {
+      const deviceId = connectedDevice?.deviceId
+        ? String(connectedDevice.deviceId)
+        : null;
+
+      if (!deviceId) {
+        setHeartRate(null);
+        const prevId = hrStreamingDeviceIdRef.current;
+        hrStreamingDeviceIdRef.current = null;
+        if (prevId) {
+          void PolarBle.stopHrStreaming(prevId).catch(() => undefined);
+        }
+        PolarBle.removeListener('hrData');
+        return;
+      }
+
+      setHeartRate(null);
+      PolarBle.removeListener('hrData');
+      PolarBle.addHrDataListener(data => {
+        if (String(data.deviceId) !== deviceId) return;
+        const next = Math.round(Number(data.heartRate) || 0);
+        if (next > 0) setHeartRate(next);
+      });
+
+      hrStreamingDeviceIdRef.current = deviceId;
+      void PolarBle.startHrStreaming(deviceId).catch(() => undefined);
+
+      return () => {
+        PolarBle.removeListener('hrData');
+        const streamingId = hrStreamingDeviceIdRef.current;
+        hrStreamingDeviceIdRef.current = null;
+        if (streamingId) {
+          void PolarBle.stopHrStreaming(streamingId).catch(() => undefined);
+        }
+        setHeartRate(null);
+      };
+    }, [connectedDevice?.deviceId]),
+  );
+
+  const hrZone = useMemo(() => {
+    if (heartRate == null || heartRate <= 0) return null;
+    return getExerciseHeartRateZone(heartRate);
+  }, [heartRate]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', event => {
@@ -960,12 +1025,24 @@ export default function ExercisePlayerPage() {
               <View style={exerciseStyles.playerRealtimeHrMain}>
                 <Flex align="center" justify="between">
                   <Text style={exerciseStyles.playerRealtimeHrTitle}>实时心率</Text>
-                  <View style={exerciseStyles.playerRealtimeHrBadge}>
-                    <Text style={exerciseStyles.playerRealtimeHrBadgeText}>设备已连接</Text>
-                  </View>
+                  {deviceConnected ? (
+                    <View style={exerciseStyles.playerRealtimeHrBadge}>
+                      <Text style={exerciseStyles.playerRealtimeHrBadgeText}>
+                        设备已连接
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={exerciseStyles.playerRealtimeHrBadgeOffline}>
+                      <Text style={exerciseStyles.playerRealtimeHrBadgeOfflineText}>
+                        设备未连接
+                      </Text>
+                    </View>
+                  )}
                 </Flex>
                 <Flex align="end" style={exerciseStyles.playerRealtimeHrValueRow}>
-                  <Text style={exerciseStyles.playerRealtimeHrValue}>72</Text>
+                  <Text style={exerciseStyles.playerRealtimeHrValue}>
+                    {deviceConnected && heartRate != null ? heartRate : '--'}
+                  </Text>
                   <Text style={exerciseStyles.playerRealtimeHrUnit}>次/分</Text>
                 </Flex>
               </View>
@@ -980,10 +1057,20 @@ export default function ExercisePlayerPage() {
                   source={require('@/assets/images/exercise/icon_tip.png')}
                 />
                 <Text style={exerciseStyles.playerRealtimeHrTargetText} numberOfLines={1}>
-                  目标心率区间：100-130 次/分
+                  {`目标心率区间：${EXERCISE_HR_RANGE.min}-${EXERCISE_HR_RANGE.max} 次/分`}
                 </Text>
               </Flex>
-              <Text style={exerciseStyles.playerRealtimeHrStatusText}>心率偏低</Text>
+              {deviceConnected && hrZone && hrZone !== 'normal' ? (
+                <Text
+                  style={[
+                    exerciseStyles.playerRealtimeHrStatusText,
+                    hrZone === 'high'
+                      ? exerciseStyles.playerRealtimeHrStatusTextDanger
+                      : null,
+                  ]}>
+                  {getExerciseHeartRateZoneLabel(hrZone)}
+                </Text>
+              ) : null}
             </Flex>
           </View>
           <Flex direction="column" style={styles.progressBoxWrap}>

@@ -188,11 +188,6 @@ export type RootStackParamList = {
   EquipmentSearchPage: undefined;
   EquipmentDetailPage: {
     id: string;
-    name: string;
-    connected: boolean;
-    batteryPercent?: number;
-    deviceId?: string;
-    firmwareVersion?: string;
   };
   Allergies: undefined;
   AllergiesAdd: { type: string; editIndex?: number };

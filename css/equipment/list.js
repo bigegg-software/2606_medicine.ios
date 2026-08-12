@@ -69,6 +69,19 @@ const styles = StyleSheet.create({
   deviceCardFirst: {
     marginTop: 0,
   },
+  emptyCard: {
+    marginTop: 0,
+    paddingVertical: 28,
+    paddingHorizontal: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontWeight: '400',
+    fontSize: 14,
+    color: '#999999',
+  },
   deviceLogo: {
     width: 50,
     height: 50,

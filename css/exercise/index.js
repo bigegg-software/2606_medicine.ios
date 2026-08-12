@@ -750,6 +750,32 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#6D925E',
   },
+  playerRealtimeHrBadgeWarn: {
+    borderColor: '#EE9C44',
+  },
+  playerRealtimeHrBadgeTextWarn: {
+    color: '#EE9C44',
+  },
+  playerRealtimeHrBadgeDanger: {
+    borderColor: '#FF3B30',
+  },
+  playerRealtimeHrBadgeTextDanger: {
+    color: '#FF3B30',
+  },
+  playerRealtimeHrBadgeOffline: {
+    marginTop: -3,
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#999999',
+  },
+  playerRealtimeHrBadgeOfflineText: {
+    fontWeight: '500',
+    fontSize: 11,
+    color: '#999999',
+  },
   playerRealtimeHrValueRow: {
     marginTop: 2,
     alignItems: 'baseline',
@@ -791,6 +817,9 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
     color: '#EE9C44',
+  },
+  playerRealtimeHrStatusTextDanger: {
+    color: '#FF3B30',
   },
 });
 

@@ -591,3 +591,30 @@ export async function loadExercisePlayerContext(params: {
     groupCounts,
   };
 }
+
+/** 训练播放页建议目标心率默认范围 */
+export const EXERCISE_HR_RANGE = { min: 100, max: 130 } as const;
+
+export type ExerciseHeartRateZone = 'low' | 'normal' | 'high';
+
+export function getExerciseHeartRateZone(
+  heartRate: number,
+  min = EXERCISE_HR_RANGE.min,
+  max = EXERCISE_HR_RANGE.max,
+): ExerciseHeartRateZone {
+  if (heartRate < min) return 'low';
+  if (heartRate > max) return 'high';
+  return 'normal';
+}
+
+export function getExerciseHeartRateZoneLabel(zone: ExerciseHeartRateZone) {
+  if (zone === 'low') return '心率偏低';
+  if (zone === 'high') return '心率偏高';
+  return '正常';
+}
+
+export function getExerciseHeartRateBadgeLabel(zone: ExerciseHeartRateZone) {
+  if (zone === 'low') return '偏低';
+  if (zone === 'high') return '偏高';
+  return '正常';
+}

@@ -1,12 +1,24 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
-import { resolveEquipmentProductName } from './utils/equipmentHelpers';
+import type { AppDispatch, RootState } from '@/store/store';
+import {
+  connectEquipment,
+  disconnectEquipment,
+  hydrateEquipment,
+  prepareEquipmentSdk,
+  removeEquipment,
+} from '@/store/actions/equipment';
+import {
+  clampBatteryPercent,
+  resolveEquipmentProductName,
+} from './utils/equipmentHelpers';
 import styles from '@/css/equipment/detail';
 
 type Route = RouteProp<RootStackParamList, 'EquipmentDetailPage'>;
@@ -19,25 +31,48 @@ export default function EquipmentDetailPage() {
   const route = useRoute<Route>();
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
-  const device = route.params;
-  const [connected, setConnected] = useState(!!device.connected);
+  const dispatch = useDispatch<AppDispatch>();
+  const deviceId = String(route.params.id);
+
+  const hydrated = useSelector((state: RootState) => state.equipment.hydrated);
+  const device = useSelector((state: RootState) =>
+    state.equipment.boundDevices.find(item => item.deviceId === deviceId),
+  );
+  const isConnecting = useSelector(
+    (state: RootState) => state.equipment.isConnecting,
+  );
+  const connectingDeviceId = useSelector(
+    (state: RootState) => state.equipment.connectingDeviceId,
+  );
+
+  useEffect(() => {
+    void dispatch(hydrateEquipment());
+    void dispatch(prepareEquipmentSdk());
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (hydrated && !device) {
+      navigation.goBack();
+    }
+  }, [device, hydrated, navigation]);
+
+  const connected = !!device?.connected;
+  const connecting = isConnecting && connectingDeviceId === deviceId;
 
   const productName = useMemo(
-    () => resolveEquipmentProductName(device.name),
-    [device.name],
+    () => resolveEquipmentProductName(device?.name),
+    [device?.name],
   );
 
   const batteryText = useMemo(() => {
-    if (!connected || device.batteryPercent == null) return '--';
-    const percent = Math.max(0, Math.min(100, Math.round(Number(device.batteryPercent) || 0)));
-    return `${percent}%`;
-  }, [connected, device.batteryPercent]);
+    if (!connected || device?.batteryPercent == null) return '--';
+    return `${clampBatteryPercent(device.batteryPercent)}%`;
+  }, [connected, device?.batteryPercent]);
 
   const rows: Array<{ label: string; value: React.ReactNode }> = [
     { label: '设备名称', value: productName },
-    { label: '设备ID', value: device.deviceId?.trim() || '--' },
+    { label: '设备ID', value: device?.deviceId?.trim() || '--' },
     { label: '电量', value: batteryText },
-    { label: '固件版本', value: device.firmwareVersion?.trim() || '--' },
     {
       label: '连接状态',
       value: (
@@ -60,14 +95,26 @@ export default function EquipmentDetailPage() {
       {
         text: '删除',
         style: 'destructive',
-        onPress: () => navigation.goBack(),
+        onPress: () => {
+          void (async () => {
+            await dispatch(removeEquipment(deviceId));
+            navigation.goBack();
+          })();
+        },
       },
     ]);
   };
 
   const onToggleConnect = () => {
-    setConnected(prev => !prev);
+    if (isConnecting) return;
+    if (connected) {
+      void dispatch(disconnectEquipment(deviceId));
+      return;
+    }
+    void dispatch(connectEquipment(deviceId));
   };
+
+  if (!device) return null;
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -95,7 +142,7 @@ export default function EquipmentDetailPage() {
         </View>
 
         <View style={styles.tipCard}>
-          <Flex align="center">
+          <Flex align="center" justify="center">
             <Image
               source={require('@/assets/images/equipment/icon_into.png')}
               style={styles.tipIcon}
@@ -113,7 +160,8 @@ export default function EquipmentDetailPage() {
         <TouchableOpacity
           style={styles.deleteBtn}
           activeOpacity={0.75}
-          onPress={onDelete}>
+          onPress={onDelete}
+          disabled={isConnecting}>
           <Flex justify="center" align="center" style={{ flex: 1 }}>
             <Image
               source={require('@/assets/images/equipment/icon_delete.png')}
@@ -126,7 +174,8 @@ export default function EquipmentDetailPage() {
         <TouchableOpacity
           style={styles.actionBtn}
           activeOpacity={0.75}
-          onPress={onToggleConnect}>
+          onPress={onToggleConnect}
+          disabled={isConnecting}>
           <Flex justify="center" align="center" style={{ flex: 1 }}>
             <Image
               source={
@@ -137,7 +186,11 @@ export default function EquipmentDetailPage() {
               style={styles.actionBtnIcon}
             />
             <Text style={styles.actionBtnText}>
-              {connected ? '断开连接' : '连接'}
+              {connecting
+                ? '连接中'
+                : connected
+                  ? '断开连接'
+                  : '连接'}
             </Text>
           </Flex>
         </TouchableOpacity>

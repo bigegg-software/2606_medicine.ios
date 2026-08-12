@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Image,
   ScrollView,
@@ -8,22 +8,24 @@ import {
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { DotLottie } from '@lottiefiles/dotlottie-react-native';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
+import type { RootStackParamList } from '@/route/router';
+import type { AppDispatch, RootState } from '@/store/store';
+import {
+  connectEquipment,
+  hydrateEquipment,
+  prepareEquipmentSdk,
+  startEquipmentScan,
+  stopEquipmentScan,
+} from '@/store/actions/equipment';
 import styles from '@/css/equipment/search';
 
 const SEARCH_TIMEOUT_MS = 30_000;
-/** 演示：模拟搜到设备的延时，后续接真实扫描 */
-const MOCK_FIND_MS = 2_000;
 
-type ScannedDevice = {
-  id: string;
-  name: string;
-  deviceId: string;
-};
-
-const MOCK_FOUND_DEVICES: ScannedDevice[] = [
-  { id: '1', name: 'Polar H10 0C9899900', deviceId: 'OC452336' },
-];
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const SEARCH_TIPS: Array<{
   prefix: string;
@@ -46,38 +48,82 @@ const SEARCH_TIPS: Array<{
  * 搜索 / 添加 Polar 等蓝牙设备
  */
 export default function EquipmentSearchPage() {
+  const navigation = useNavigation<Nav>();
+  const dispatch = useDispatch<AppDispatch>();
+  const scannedDevices = useSelector(
+    (state: RootState) => state.equipment.scannedDevices,
+  );
+  const isConnecting = useSelector(
+    (state: RootState) => state.equipment.isConnecting,
+  );
+  const connectingDeviceId = useSelector(
+    (state: RootState) => state.equipment.connectingDeviceId,
+  );
+  const boundDevices = useSelector(
+    (state: RootState) => state.equipment.boundDevices,
+  );
+
   const [searchKey, setSearchKey] = useState(0);
   const [searchTimedOut, setSearchTimedOut] = useState(false);
-  const [foundDevices, setFoundDevices] = useState<ScannedDevice[]>([]);
+  const pendingConnectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    setSearchTimedOut(false);
-    setFoundDevices([]);
+    void dispatch(hydrateEquipment());
+    void dispatch(prepareEquipmentSdk());
+  }, [dispatch]);
 
-    const findTimer = setTimeout(() => {
-      setFoundDevices(MOCK_FOUND_DEVICES);
-    }, MOCK_FIND_MS);
+  useEffect(() => {
+    let cancelled = false;
+    setSearchTimedOut(false);
+
+    void (async () => {
+      await dispatch(startEquipmentScan());
+      if (cancelled) return;
+    })();
 
     const emptyTimer = setTimeout(() => {
-      setFoundDevices(prev => {
-        if (prev.length === 0) {
-          setSearchTimedOut(true);
-        }
-        return prev;
-      });
+      if (cancelled) return;
+      setSearchTimedOut(true);
+      void dispatch(stopEquipmentScan());
     }, SEARCH_TIMEOUT_MS);
 
     return () => {
-      clearTimeout(findTimer);
+      cancelled = true;
       clearTimeout(emptyTimer);
+      void dispatch(stopEquipmentScan());
     };
-  }, [searchKey]);
+  }, [dispatch, searchKey]);
+
+  useEffect(() => {
+    const pendingId = pendingConnectIdRef.current;
+    if (!pendingId) return;
+    const connected = boundDevices.some(
+      item => item.deviceId === pendingId && item.connected,
+    );
+    if (!connected) return;
+    pendingConnectIdRef.current = null;
+    navigation.goBack();
+  }, [boundDevices, navigation]);
 
   const handleResearch = useCallback(() => {
+    setSearchTimedOut(false);
     setSearchKey(key => key + 1);
   }, []);
 
-  const hasFound = foundDevices.length > 0;
+  const handleConnect = useCallback(
+    async (deviceId: string) => {
+      if (isConnecting) return;
+      pendingConnectIdRef.current = String(deviceId);
+      const ok = await dispatch(connectEquipment(deviceId));
+      if (!ok) {
+        pendingConnectIdRef.current = null;
+      }
+    },
+    [dispatch, isConnecting],
+  );
+
+  const hasFound = scannedDevices.length > 0;
+  const showEmpty = searchTimedOut && !hasFound;
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
@@ -95,7 +141,8 @@ export default function EquipmentSearchPage() {
               <TouchableOpacity
                 activeOpacity={0.75}
                 style={styles.researchBtn}
-                onPress={handleResearch}>
+                onPress={handleResearch}
+                disabled={isConnecting}>
                 <Flex align="center">
                   <Image
                     source={require('@/assets/images/equipment/icon_research.png')}
@@ -107,37 +154,47 @@ export default function EquipmentSearchPage() {
             </Flex>
 
             <View style={styles.foundList}>
-              {foundDevices.map(item => (
-                <View key={item.id} style={styles.foundCard}>
-                  <Image
-                    source={require('@/assets/images/equipment/logo.png')}
-                    style={styles.foundLogo}
-                  />
-                  <View style={styles.foundInfo}>
-                    <Text style={styles.foundName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    <Text style={styles.foundId} numberOfLines={1}>
-                      ID:{item.deviceId}
-                    </Text>
+              {scannedDevices.map(item => {
+                const connecting =
+                  isConnecting && connectingDeviceId === item.deviceId;
+                return (
+                  <View key={item.deviceId} style={styles.foundCard}>
+                    <Image
+                      source={require('@/assets/images/equipment/logo.png')}
+                      style={styles.foundLogo}
+                    />
+                    <View style={styles.foundInfo}>
+                      <Text style={styles.foundName} numberOfLines={1}>
+                        {item.name}
+                      </Text>
+                      <Text style={styles.foundId} numberOfLines={1}>
+                        ID:{item.deviceId}
+                      </Text>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.75}
+                      style={styles.connectBtn}
+                      disabled={isConnecting}
+                      onPress={() => void handleConnect(item.deviceId)}>
+                      <Flex align="center">
+                        <Image
+                          source={require('@/assets/images/equipment/icon_link.png')}
+                          style={styles.connectBtnIcon}
+                        />
+                        <Text style={styles.connectBtnText}>
+                          {connecting ? '连接中' : '连接'}
+                        </Text>
+                      </Flex>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity activeOpacity={0.75} style={styles.connectBtn}>
-                    <Flex align="center">
-                      <Image
-                        source={require('@/assets/images/equipment/icon_link.png')}
-                        style={styles.connectBtnIcon}
-                      />
-                      <Text style={styles.connectBtnText}>连接</Text>
-                    </Flex>
-                  </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </View>
         ) : (
           <View style={styles.contentModule}>
             <View style={styles.searchHero}>
-              {searchTimedOut ? (
+              {showEmpty ? (
                 <Image
                   source={require('@/assets/images/equipment/icon_search.png')}
                   style={styles.searchIcon}
@@ -151,8 +208,22 @@ export default function EquipmentSearchPage() {
                 />
               )}
               <Text style={styles.searchingText}>
-                {searchTimedOut ? '未搜索到设备' : '正在搜索设备'}
+                {showEmpty ? '未搜索到设备' : '正在搜索设备'}
               </Text>
+              {showEmpty ? (
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  style={[styles.researchBtn, { marginTop: 16 }]}
+                  onPress={handleResearch}>
+                  <Flex align="center">
+                    <Image
+                      source={require('@/assets/images/equipment/icon_research.png')}
+                      style={styles.researchBtnIcon}
+                    />
+                    <Text style={styles.researchBtnText}>重新搜索</Text>
+                  </Flex>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             <View style={styles.tipBox}>
