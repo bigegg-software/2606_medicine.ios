@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
@@ -658,7 +658,9 @@ export default function HomeTab() {
             ) : null}
           </View>
         </View>
-        <View style={styles.scheduleBoxShadow}>
+        <Pressable style={styles.scheduleBoxShadow} onPress={() =>
+          navigation.navigate('ExercisePage')
+        }>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -735,9 +737,11 @@ export default function HomeTab() {
               )}
             </View>
           </View>
-        </View>
+        </Pressable>
 
-        <View style={styles.scheduleBoxShadow}>
+        <Pressable style={styles.scheduleBoxShadow} onPress={() =>
+          navigation.navigate('NutritionPage')
+        }>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -902,7 +906,7 @@ export default function HomeTab() {
               </Flex>
             ) : null}
           </View>
-        </View>
+        </Pressable>
       </View>
     </ScrollView>
   )

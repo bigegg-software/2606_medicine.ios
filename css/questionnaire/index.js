@@ -238,6 +238,33 @@ const styles = StyleSheet.create({
         fontSize: 18,
         color: '#FFFFFF',
     },
+    bottomBarButtonCancel: {
+        flex: 1,
+        height: 50,
+        marginRight: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#6D925E',
+    },
+    bottomBarButtonConfirm: {
+        flex: 1,
+        height: 50,
+        backgroundColor: '#6D925E',
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: '#6D925E',
+    },
+    bottomBarButtonTextCancel: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#6D925E',
+    },
+    bottomBarButtonTextConfirm: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#FFFFFF',
+    },
     nextBtn: { marginTop: 12, marginHorizontal: 18, height: 45, backgroundColor: "#053A93", borderRadius: 8 },
     nextBtnDisabled: { opacity: 0.5 },
     nextBtnText: { height: 19, fontWeight: 500, fontSize: 16, color: "#FFFFFF" },
@@ -300,8 +327,6 @@ const styles = StyleSheet.create({
     resultScoreValue: { textAlign: "center", fontWeight: 400, fontSize: 16, color: AppTheme.textSecondary },
     rowLineBox: { marginTop: 12, paddingHorizontal: 12 },
     resultScoreTip: { marginTop: 16, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, margin: "auto" },
-    reEvaluateBtn: { marginTop: 12, marginHorizontal: 18, marginBottom: 8, height: 45, backgroundColor: '#E2EDFF', borderRadius: 8 },
-    reEvaluateBtnText: { height: 19, fontWeight: 500, fontSize: 16, color: '#053A93' },
 })
 
 export default styles;
