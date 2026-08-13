@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, Image, ActivityIndicator } from 'react-native';
+import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
@@ -9,6 +9,7 @@ import type { AppDispatch, RootState } from '@/store/store';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { formatExerciseUserInfoText } from './utils/exerciseHelpers';
+import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
 import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
@@ -154,6 +155,19 @@ export default function ExercisePage() {
           ) : null}
         </View>
       )}
+
+      <TouchableOpacity
+        style={styles.checkInFab}
+        activeOpacity={0.85}
+        onPress={() => void onPressExerciseCheckInFab(exerciseRule)}>
+        <Flex align="center">
+          <Image
+            style={styles.checkInFabIcon}
+            source={require('@/assets/images/exercise/icon_dk.png')}
+          />
+          <Text style={styles.checkInFabText}>戳我打卡</Text>
+        </Flex>
+      </TouchableOpacity>
     </PageLayout>
   );
 }

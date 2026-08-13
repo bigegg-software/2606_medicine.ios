@@ -103,9 +103,11 @@ export default function equipmentReducer(
       const { deviceId, name } = action.payload;
       const existing = state.boundDevices.find(item => item.deviceId === deviceId);
       const nextDevice: BoundEquipment = {
+        recordId: existing?.recordId,
         id: deviceId,
         deviceId,
         name: name || existing?.name || deviceId,
+        deviceType: existing?.deviceType,
         connected: true,
         batteryPercent: existing?.batteryPercent,
         firmwareVersion: existing?.firmwareVersion,

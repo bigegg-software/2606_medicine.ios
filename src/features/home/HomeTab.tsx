@@ -67,6 +67,7 @@ import {
   buildExercisePrescriptionMetrics,
   loadModuleCompleteRateProgressMap,
   loadScheduleDictMaps,
+  resolveTodayExerciseMetricTypeKeys,
   type ScheduleDictMaps,
 } from '@/src/features/schedule/scheduleHelpers';
 import {
@@ -251,8 +252,11 @@ export default function HomeTab() {
       exercisePrescription?.ruleRatioList,
       exerciseDictMaps ?? undefined,
       exerciseProgressMap,
+      {
+        availableTypeKeys: resolveTodayExerciseMetricTypeKeys(exercisePrescription),
+      },
     ),
-    [exerciseDictMaps, exercisePrescription?.ruleRatioList, exerciseProgressMap],
+    [exerciseDictMaps, exercisePrescription, exerciseProgressMap],
   );
 
   const dietSummary = useMemo(() => getDietRuleSummary(dietRule), [dietRule]);
@@ -699,23 +703,32 @@ export default function HomeTab() {
               ) : (
                 <>
                   <Flex justify='between' style={styles.cfContent}>
-                    {exercisePrescriptionMetrics.map(item => (
-                      <View key={item.key} style={styles.cfItem}>
-                        <Text style={styles.cfValue}>{item.value}%</Text>
-                        <Text style={styles.cfText}>{item.label}</Text>
-                        <View style={styles.cfProgressTrack}>
-                          <View style={[
-                            styles.cfProgressFill,
-                            {
-                              width: Math.max(0,
-                                Math.min(CF_PROGRESS_TRACK_WIDTH, (CF_PROGRESS_TRACK_WIDTH * item.value) / 100),
-                              ),
-                              backgroundColor: item.color,
-                            },
-                          ]} />
+                    {exercisePrescriptionMetrics.map(item => {
+                      const hasType = item.value != null;
+                      const progress = hasType ? item.value : 0;
+                      return (
+                        <View key={item.key} style={styles.cfItem}>
+                          <Text style={styles.cfValue}>
+                            {hasType ? `${item.value}%` : '--'}
+                          </Text>
+                          <Text style={styles.cfText}>{item.label}</Text>
+                          <View style={styles.cfProgressTrack}>
+                            <View style={[
+                              styles.cfProgressFill,
+                              {
+                                width: Math.max(0,
+                                  Math.min(
+                                    CF_PROGRESS_TRACK_WIDTH,
+                                    (CF_PROGRESS_TRACK_WIDTH * progress) / 100,
+                                  ),
+                                ),
+                                backgroundColor: item.color,
+                              },
+                            ]} />
+                          </View>
                         </View>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </Flex>
                   {homePrescriptionGoal ? (
                     <Flex style={styles.cfBottom} align="center">

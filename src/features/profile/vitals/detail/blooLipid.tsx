@@ -235,19 +235,8 @@ export default function BloodLipidPage() {
                                     <View style={styles.leftIcon} />
                                     <Text style={styles.typeTitle}>{row.shortLabel}</Text>
                                     <Text style={styles.rowTitle1}>{row.fullLabel}</Text>
-                                    {row.icon === 'down' ? (
-                                        <Image
-                                            style={styles.rowImage}
-                                            tintColor="#EE9C44"
-                                            source={require('@/assets/images/vitals/icon_xj.png')}
-                                        />
-                                    ) : null}
-                                    {row.icon === 'up' ? (
-                                        <Image
-                                            style={styles.rowImage}
-                                            tintColor="#EE9C44"
-                                            source={require('@/assets/images/vitals/icon_up.png')}
-                                        />
+                                    {row.compareSymbol ? (
+                                        <Text style={styles.rowCompareSymbol}>{row.compareSymbol}</Text>
                                     ) : null}
                                     <Text style={styles.rowValue}>{row.currentAmountText}</Text>
                                 </Flex>

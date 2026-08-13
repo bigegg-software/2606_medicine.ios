@@ -36,6 +36,11 @@ import {
   getFamilyDisplayName,
   getFamilyListSubtitle,
 } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
+import {
+  hydrateEquipment,
+  prepareEquipmentSdk,
+} from '@/store/actions/equipment';
+import { buildEquipmentSummaryText } from '@/src/features/equipment/utils/equipmentHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -78,6 +83,14 @@ export default function ProfilePage() {
   const dataManageLabel = formatSyncRangeLabel(userExtr?.synWdataDays, userExtr?.autoSyncData);
   const speechSpeedLabel = formatVoiceSpeedLabel(userExtr?.voiceSpeed);
   const notificationEnabled = parseNotificationSettings(userExtr).enabled;
+  const boundDevices = useSelector((s: RootState) => s.equipment.boundDevices);
+  const equipmentSummary = useMemo(() => {
+    const online = boundDevices.filter(item => item.connected).length;
+    return buildEquipmentSummaryText({
+      total: boundDevices.length,
+      online,
+    });
+  }, [boundDevices]);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
   const [signInVisible, setSignInVisible] = useState(false);
   const [signing, setSigning] = useState(false);
@@ -170,6 +183,8 @@ export default function ProfilePage() {
   useFocusEffect(
     useCallback(() => {
       void dispatch(fetchUserSession());
+      void dispatch(hydrateEquipment());
+      void dispatch(prepareEquipmentSdk());
       void loadSignTip();
       void loadSignStatus();
       void loadIdentityAuthStatus();
@@ -475,8 +490,8 @@ export default function ProfilePage() {
               <Flex>
                 <Image style={styles.imgItem} source={require('@/assets/images/user/phone.png')} />
                 <View style={styles.familyItemContent}>
-                  <Text style={styles.familyItemName}>3个设备在线</Text>
-                  <Text style={styles.familyItemRelation}>共绑定5个设备</Text>
+                  <Text style={styles.familyItemName}>{equipmentSummary.title}</Text>
+                  <Text style={styles.familyItemRelation}>{equipmentSummary.subtitle}</Text>
                 </View>
               </Flex>
               <Image

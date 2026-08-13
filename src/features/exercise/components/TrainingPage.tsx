@@ -1,17 +1,18 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, type ImageSourcePropType } from 'react-native';
-import { Flex, Toast } from '@ant-design/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { Flex } from '@ant-design/react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import moment from 'moment';
 import styles from '@/css/exercise';
 import {
     getExUserSignInfo,
-    postExUserSign,
     type ExUserSignInfo,
 } from '@/api/exUserSignInfo';
 import type { InUseExPatientRule } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import type { RootStackParamList } from '@/route/router';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import { buildDietWeekDays } from '../utils/dietCalendarHelpers';
 import {
@@ -31,14 +32,26 @@ import {
 } from '../utils/exerciseDayStatHelpers';
 import { loadExPatientRuleForDate } from '../utils/exerciseRuleDateHelpers';
 import {
-    getExerciseSignBlockedMessage,
     getExerciseSignButtonLabel,
-    isExerciseMainTrainingCompleted,
+    performExerciseDailySign,
+    resolveExerciseCanFinishSign,
+    subscribeExerciseSignSuccess,
 } from '../utils/exerciseSignHelpers';
 import {
+    attachTrainingPhaseCompleteInfo,
     buildMainTrainingModules,
+    buildTrainingPhaseCards,
+    findNextTrainingPhasePlayCard,
+    flattenMainTrainingPlayCards,
+    formatTrainingPhaseSubtitle,
+    getCooldownColdList,
+    getWarmupHotList,
     isMainTrainingAllProgressStarted,
+    isTrainingPhaseAllPlayed,
+    type MainTrainingPlayCard,
+    type TrainingPhaseExerciseCard,
 } from '../utils/trainingPhaseHelpers';
+import { consumePendingTrainingPhaseTab } from '../utils/trainingPhaseTabSync';
 import WarmupPhase from './training/WarmupPhase';
 import MainTrainingPhase from './training/MainTrainingPhase';
 import CooldownPhase from './training/CooldownPhase';
@@ -46,7 +59,18 @@ import CooldownPhase from './training/CooldownPhase';
 const SIGN_CHECK_ICON = require('@/assets/images/nutrition/wc.png');
 const PHASE_NEXT_ICON = require('@/assets/images/exercise/icon_next.png');
 
+type Nav = NativeStackNavigationProp<RootStackParamList>;
+
 export type TrainingPhaseKey = 'warmup' | 'main' | 'cooldown';
+
+function resolveMainTaskIndex(
+    dayRule: InUseExPatientRule | null | undefined,
+    exerciseType: string,
+) {
+    const list = dayRule?.ruleRatioList ?? [];
+    const matched = list.findIndex(item => item.exerciseType?.trim() === exerciseType);
+    return matched >= 0 ? matched : undefined;
+}
 
 const TRAINING_PHASE_TABS: ReadonlyArray<{
     key: TrainingPhaseKey;
@@ -75,6 +99,7 @@ type Props = {
 };
 
 export default function TrainingPage({ exerciseRule = null }: Props) {
+    const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
     const [dayRule, setDayRule] = useState<InUseExPatientRule | null>(exerciseRule);
@@ -86,6 +111,12 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     const [signing, setSigning] = useState(false);
     /** 主训练每项均至少有进度（半完成，如 2/12 分钟、1/10 组次） */
     const [mainAllProgressed, setMainAllProgressed] = useState(false);
+    /** 主训练展平列表（含完成进度），用于底部「开始主训练 / 进入冷身」 */
+    const [mainPlayCards, setMainPlayCards] = useState<MainTrainingPlayCard[]>([]);
+    /** 热身列表（含完成进度），用于底部「开始热身 / 进入主训练」 */
+    const [warmupCards, setWarmupCards] = useState<TrainingPhaseExerciseCard[]>([]);
+    /** 冷身列表（含完成进度），用于底部「开始冷身 / 完成今日打卡」 */
+    const [cooldownCards, setCooldownCards] = useState<TrainingPhaseExerciseCard[]>([]);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
     const isPast = moment(selectedDate).isBefore(moment(), 'day');
     const isFuture = moment(selectedDate).isAfter(moment(), 'day');
@@ -93,6 +124,31 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     /** 非今日仅只读，不可执行 */
     const readOnly = !isToday;
     const dateMode = isPast ? 'past' : isFuture ? 'future' : 'today';
+
+    const nextWarmupCard = useMemo(
+        () => findNextTrainingPhasePlayCard(warmupCards),
+        [warmupCards],
+    );
+    const warmupAllPlayed = useMemo(
+        () => isTrainingPhaseAllPlayed(warmupCards),
+        [warmupCards],
+    );
+    const nextMainCard = useMemo(
+        () => findNextTrainingPhasePlayCard<MainTrainingPlayCard>(mainPlayCards),
+        [mainPlayCards],
+    );
+    const mainAllPlayed = useMemo(
+        () => isTrainingPhaseAllPlayed(mainPlayCards),
+        [mainPlayCards],
+    );
+    const nextCooldownCard = useMemo(
+        () => findNextTrainingPhasePlayCard(cooldownCards),
+        [cooldownCards],
+    );
+    const cooldownAllPlayed = useMemo(
+        () => isTrainingPhaseAllPlayed(cooldownCards),
+        [cooldownCards],
+    );
 
     const exerciseDayRecordMarker = useMemo(() => ({
         color: EXERCISE_CHECK_IN_DOT_COLOR,
@@ -132,11 +188,58 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
             const result = await buildMainTrainingModules(rule, date);
             if (result.isRest) {
                 setMainAllProgressed(false);
+                setMainPlayCards([]);
                 return;
             }
+            setMainPlayCards(flattenMainTrainingPlayCards(result.modules));
             setMainAllProgressed(isMainTrainingAllProgressStarted(result.modules));
         } catch {
             setMainAllProgressed(false);
+            setMainPlayCards([]);
+        }
+    }, []);
+
+    const loadWarmupProgress = useCallback(async (
+        date: string,
+        rule?: InUseExPatientRule | null,
+    ) => {
+        try {
+            const { isRest, hotList } = getWarmupHotList(rule, date);
+            if (isRest || hotList.length === 0) {
+                setWarmupCards([]);
+                return;
+            }
+            const cards = await buildTrainingPhaseCards(hotList);
+            const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
+                exPatientRuleId: rule?.exPatientRuleId,
+                customerLocalDate: date,
+                trainingPhase: 'hot',
+            });
+            setWarmupCards(withInfo);
+        } catch {
+            setWarmupCards([]);
+        }
+    }, []);
+
+    const loadCooldownProgress = useCallback(async (
+        date: string,
+        rule?: InUseExPatientRule | null,
+    ) => {
+        try {
+            const { isRest, coldList } = getCooldownColdList(rule, date);
+            if (isRest || coldList.length === 0) {
+                setCooldownCards([]);
+                return;
+            }
+            const cards = await buildTrainingPhaseCards(coldList);
+            const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
+                exPatientRuleId: rule?.exPatientRuleId,
+                customerLocalDate: date,
+                trainingPhase: 'cold',
+            });
+            setCooldownCards(withInfo);
+        } catch {
+            setCooldownCards([]);
         }
     }, []);
 
@@ -159,6 +262,11 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
 
     useFocusEffect(
         useCallback(() => {
+            const pendingTab = consumePendingTrainingPhaseTab();
+            if (pendingTab) {
+                setActivePhase(pendingTab);
+            }
+
             let cancelled = false;
             void (async () => {
                 const rule = await loadDayRule(selectedDate, exerciseRule);
@@ -166,6 +274,8 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
                 void loadWeekCheckIn(selectedDate);
                 void loadDayStat(selectedDate, rule);
                 void loadMainProgress(selectedDate, rule);
+                void loadWarmupProgress(selectedDate, rule);
+                void loadCooldownProgress(selectedDate, rule);
                 if (!moment(selectedDate).isBefore(moment(), 'day')) {
                     void loadSignInfo();
                 }
@@ -178,69 +288,65 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
             loadDayRule,
             loadDayStat,
             loadMainProgress,
+            loadWarmupProgress,
+            loadCooldownProgress,
             loadSignInfo,
             loadWeekCheckIn,
             selectedDate,
         ]),
     );
 
+    // 右侧「戳我打卡」成功后同步底部打卡状态与日历点
+    useEffect(() => {
+        return subscribeExerciseSignSuccess((next: ExUserSignInfo | null) => {
+            setSignInfo(next);
+            void loadWeekCheckIn(selectedDate);
+            void loadMainProgress(selectedDate, dayRule);
+        });
+    }, [dayRule, loadMainProgress, loadWeekCheckIn, selectedDate]);
+
     const onPressDatePicker = () => {
         setDatePickerVisible(true);
     };
 
     /** 主训练每项有进度（半完成）即可打卡 */
-    const canFinishSign = useMemo(() => {
-        if (signInfo?.signedToday) return false;
-        if (signInfo?.canSign) return true;
-        if (mainAllProgressed) return true;
-        if (isExerciseMainTrainingCompleted(signInfo)) return true;
-        return dayStat.mainTotalCount > 0
-            && dayStat.mainCompleteCount >= dayStat.mainTotalCount;
-    }, [
-        dayStat.mainCompleteCount,
-        dayStat.mainTotalCount,
-        mainAllProgressed,
-        signInfo,
-    ]);
+    const canFinishSign = useMemo(
+        () => resolveExerciseCanFinishSign({
+            signInfo,
+            mainAllProgressed,
+            mainTotalCount: dayStat.mainTotalCount,
+            mainCompleteCount: dayStat.mainCompleteCount,
+        }),
+        [
+            dayStat.mainCompleteCount,
+            dayStat.mainTotalCount,
+            mainAllProgressed,
+            signInfo,
+        ],
+    );
 
     const onFinishSign = useCallback(async () => {
         if (signing || !isToday) return;
-        if (signInfo?.signedToday) {
-            Toast.info('今日已打卡');
-            return;
-        }
-        if (!canFinishSign) {
-            Toast.info(
-                getExerciseSignBlockedMessage(signInfo, { mainProgressed: mainAllProgressed })
-                || '请先完成主训练后再打卡（每项有进度即可）',
-            );
-            return;
-        }
-
         setSigning(true);
-        const loadingKey = Toast.loading('打卡中…', 0);
         try {
-            const res = await postExUserSign();
-            if (!isResourceApiOk(res as unknown as { code?: number })) {
-                Toast.info((res as { msg?: string })?.msg?.trim() || '打卡失败');
-                return;
-            }
-            const next = apiResourceData<ExUserSignInfo>(
-                res as unknown as { code?: number; data?: ExUserSignInfo },
-            ) ?? null;
-            setSignInfo(next);
+            const result = await performExerciseDailySign({
+                isToday: true,
+                signInfo,
+                mainAllProgressed,
+                mainTotalCount: dayStat.mainTotalCount,
+                mainCompleteCount: dayStat.mainCompleteCount,
+            });
+            if (!result.ok) return;
+            setSignInfo(result.signInfo);
             void loadWeekCheckIn(selectedDate);
             void loadMainProgress(selectedDate, dayRule);
-            Toast.info('打卡成功', 1.5);
-        } catch {
-            Toast.info('打卡失败');
         } finally {
-            Toast.remove(loadingKey);
             setSigning(false);
         }
     }, [
-        canFinishSign,
         dayRule,
+        dayStat.mainCompleteCount,
+        dayStat.mainTotalCount,
         isToday,
         loadMainProgress,
         loadWeekCheckIn,
@@ -250,48 +356,246 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
         signing,
     ]);
 
-    const onPressBottomAction = useCallback(() => {
-        if (activePhase === 'warmup') {
-            setActivePhase('main');
-            return;
-        }
-        if (activePhase === 'main') {
-            setActivePhase('cooldown');
-            return;
-        }
-        if (!isToday) return;
-        void onFinishSign();
-    }, [activePhase, isToday, onFinishSign]);
+    const openWarmupPlayer = useCallback((card: TrainingPhaseExerciseCard) => {
+        navigation.navigate('ExercisePlayerPage', {
+            exVideoId: card.exVideoId,
+            title: card.title,
+            ruleSubtitle: formatTrainingPhaseSubtitle(card),
+            trainingPhase: 'hot',
+            groupVal: card.groupVal,
+            numberVal: card.numberVal,
+            keepSecondVal: card.keepSecondVal,
+            durationMinutes: card.durationMinutes,
+            timerType: card.timerType,
+            readOnly,
+            customerLocalDate: selectedDate,
+        });
+    }, [navigation, readOnly, selectedDate]);
 
-    const bottomAction = !isToday
-        ? activePhase === 'warmup'
-            ? {
-                label: isPast ? '查看主训练' : '进入主训练',
-                showIcon: true,
-                icon: PHASE_NEXT_ICON,
-                disabled: false,
-                dimmed: false,
+    const openMainPlayer = useCallback((card: MainTrainingPlayCard) => {
+        const exerciseType = card.exerciseType;
+        const rule = dayRule?.ruleRatioList?.find(
+            item => item.exerciseType?.trim() === exerciseType,
+        );
+        navigation.navigate('ExercisePlayerPage', {
+            exerciseType,
+            exerciseChildType: rule?.exerciseChildType,
+            strengthLevel: rule?.strengthLevel,
+            taskIndex: resolveMainTaskIndex(dayRule, exerciseType),
+            exVideoId: card.exVideoId,
+            title: card.title,
+            ruleSubtitle: formatTrainingPhaseSubtitle(card),
+            trainingPhase: 'main',
+            groupVal: card.groupVal,
+            numberVal: card.numberVal,
+            keepSecondVal: card.keepSecondVal,
+            durationMinutes: card.durationMinutes,
+            timerType: card.timerType || undefined,
+            readOnly,
+            customerLocalDate: selectedDate,
+        });
+    }, [dayRule, navigation, readOnly, selectedDate]);
+
+    const openCooldownPlayer = useCallback((card: TrainingPhaseExerciseCard) => {
+        navigation.navigate('ExercisePlayerPage', {
+            exVideoId: card.exVideoId,
+            title: card.title,
+            ruleSubtitle: formatTrainingPhaseSubtitle(card),
+            trainingPhase: 'cold',
+            groupVal: card.groupVal,
+            numberVal: card.numberVal,
+            keepSecondVal: card.keepSecondVal,
+            durationMinutes: card.durationMinutes,
+            timerType: card.timerType,
+            readOnly,
+            customerLocalDate: selectedDate,
+        });
+    }, [navigation, readOnly, selectedDate]);
+
+    const onPressBottomAction = useCallback(() => {
+        if (!isToday) {
+            if (activePhase === 'warmup') {
+                setActivePhase('main');
+                return;
             }
-            : activePhase === 'main'
-                ? {
+            if (activePhase === 'main') {
+                setActivePhase('cooldown');
+                return;
+            }
+            return;
+        }
+
+        // 今日：按阶段完成进度决定动作，开始* 均直接进播放页
+        if (activePhase === 'warmup') {
+            if (!warmupAllPlayed) {
+                if (nextWarmupCard) openWarmupPlayer(nextWarmupCard);
+                return;
+            }
+            if (!mainAllPlayed) {
+                if (nextMainCard) {
+                    openMainPlayer(nextMainCard);
+                } else {
+                    setActivePhase('main');
+                }
+                return;
+            }
+            if (!cooldownAllPlayed) {
+                if (nextCooldownCard) {
+                    openCooldownPlayer(nextCooldownCard);
+                } else {
+                    setActivePhase('cooldown');
+                }
+                return;
+            }
+            void onFinishSign();
+            return;
+        }
+
+        if (activePhase === 'main') {
+            if (!mainAllPlayed) {
+                if (nextMainCard) openMainPlayer(nextMainCard);
+                return;
+            }
+            if (!cooldownAllPlayed) {
+                if (nextCooldownCard) {
+                    openCooldownPlayer(nextCooldownCard);
+                } else {
+                    setActivePhase('cooldown');
+                }
+                return;
+            }
+            void onFinishSign();
+            return;
+        }
+
+        if (activePhase === 'cooldown') {
+            if (!cooldownAllPlayed) {
+                if (nextCooldownCard) openCooldownPlayer(nextCooldownCard);
+                return;
+            }
+            void onFinishSign();
+        }
+    }, [
+        activePhase,
+        cooldownAllPlayed,
+        isToday,
+        mainAllPlayed,
+        nextCooldownCard,
+        nextMainCard,
+        nextWarmupCard,
+        onFinishSign,
+        openCooldownPlayer,
+        openMainPlayer,
+        openWarmupPlayer,
+        warmupAllPlayed,
+    ]);
+
+    const bottomAction = useMemo(() => {
+        if (!isToday) {
+            if (activePhase === 'warmup') {
+                return {
+                    label: isPast ? '查看主训练' : '进入主训练',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                };
+            }
+            if (activePhase === 'main') {
+                return {
                     label: isPast ? '查看冷身' : '进入冷身',
                     showIcon: true,
                     icon: PHASE_NEXT_ICON,
                     disabled: false,
                     dimmed: false,
-                }
-                : null
-        : activePhase === 'warmup'
-            ? { label: '进入主训练', showIcon: true, icon: PHASE_NEXT_ICON, disabled: false, dimmed: false }
-            : activePhase === 'main'
-                ? { label: '进入冷身', showIcon: true, icon: PHASE_NEXT_ICON, disabled: false, dimmed: false }
-                : {
-                    label: getExerciseSignButtonLabel(signInfo),
-                    showIcon: true,
-                    icon: SIGN_CHECK_ICON,
-                    disabled: signing || Boolean(signInfo?.signedToday),
-                    dimmed: !canFinishSign && !signInfo?.signedToday,
                 };
+            }
+            return null;
+        }
+
+        const signAction = {
+            label: getExerciseSignButtonLabel(signInfo),
+            showIcon: true,
+            icon: SIGN_CHECK_ICON,
+            disabled: signing || Boolean(signInfo?.signedToday),
+            dimmed: !canFinishSign && !signInfo?.signedToday,
+        };
+
+        if (activePhase === 'warmup') {
+            if (!warmupAllPlayed) {
+                return {
+                    label: '开始热身',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                };
+            }
+            if (!mainAllPlayed) {
+                return {
+                    label: '开始主训练',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                };
+            }
+            if (!cooldownAllPlayed) {
+                return {
+                    label: '开始冷身',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                };
+            }
+            return signAction;
+        }
+
+        if (activePhase === 'main') {
+            if (!mainAllPlayed) {
+                return {
+                    label: '开始主训练',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                };
+            }
+            if (!cooldownAllPlayed) {
+                return {
+                    label: '开始冷身',
+                    showIcon: true,
+                    icon: PHASE_NEXT_ICON,
+                    disabled: false,
+                    dimmed: false,
+                };
+            }
+            return signAction;
+        }
+
+        // cooldown
+        if (!cooldownAllPlayed) {
+            return {
+                label: '开始冷身',
+                showIcon: true,
+                icon: PHASE_NEXT_ICON,
+                disabled: false,
+                dimmed: false,
+            };
+        }
+        return signAction;
+    }, [
+        activePhase,
+        canFinishSign,
+        cooldownAllPlayed,
+        isPast,
+        isToday,
+        mainAllPlayed,
+        signInfo,
+        signing,
+        warmupAllPlayed,
+    ]);
 
     return (
         <View style={{ flex: 1 }}>

@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import store, { type AppDispatch, type RootState } from '@/store/store';
 import { fetchUserSession } from '@/store/actions/user';
+import { autoReconnectEquipment } from '@/store/actions/equipment';
 import { navigationRef } from '@/utils/navigationRef';
 import RootStack from '@/route/router';
 import { getToken } from '@/services/storage';
@@ -64,6 +65,35 @@ function AutoSyncOnLaunch() {
   return null;
 }
 
+/** 登录后按用户偏好自动重连设备（手动断开后不再自动连） */
+function EquipmentAutoReconnectOnLaunch() {
+  const isLogin = useSelector((state: RootState) => state.login.isLogin);
+  const userId = useSelector(
+    (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
+  );
+  const triedUserIdRef = React.useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isLogin || userId == null) {
+      triedUserIdRef.current = null;
+      return;
+    }
+    const uid = String(userId);
+    if (triedUserIdRef.current === uid) return;
+    triedUserIdRef.current = uid;
+
+    const timer = setTimeout(() => {
+      if (AppState.currentState !== 'active') return;
+      const dispatch = store.dispatch as AppDispatch;
+      void dispatch(autoReconnectEquipment());
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [isLogin, userId]);
+
+  return null;
+}
+
 function NotificationSettingsSync() {
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
 
@@ -113,6 +143,7 @@ function AppShell() {
         <NotificationSettingsSync />
         <PushNotificationListener />
         <AutoSyncOnLaunch />
+        <EquipmentAutoReconnectOnLaunch />
         <SyncReminderWatcher />
         <SessionExpiredWatcher />
         <View style={{ flex: 1 }}>

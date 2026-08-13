@@ -342,7 +342,7 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 12,
     },
     rankingUpdateHint: {
-        alignSelf: 'flex-end',
+        textAlign: 'center',
         marginTop: 10,
         fontWeight: '400',
         fontSize: 12,

@@ -24,6 +24,7 @@ import {
   getBatteryFillColor,
   getBatteryFillWidth,
 } from './utils/equipmentHelpers';
+import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
 import styles from '@/css/equipment/list';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -40,8 +41,11 @@ export default function EquipmentListPage() {
   );
 
   useEffect(() => {
-    void dispatch(hydrateEquipment());
-    void dispatch(prepareEquipmentSdk());
+    void (async () => {
+      await ensureEquipmentBluetoothReady();
+      await dispatch(hydrateEquipment());
+      await dispatch(prepareEquipmentSdk());
+    })();
   }, [dispatch]);
 
   return (

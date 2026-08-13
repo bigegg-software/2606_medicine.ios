@@ -29,13 +29,13 @@ import {
     formatRecordDate,
     formatTestValue,
     getImproveLabel,
-    getRecordCountText,
     hasJointRomObjValue,
     isJointRomHealthTest,
     resolveHealthTestUnit,
     resolveRecordTrendTone,
 } from './testingHelpers';
 import JointRomRecordValues from './JointRomRecordValues';
+import EmptyRecord from '@/src/components/EmptyRecord';
 
 const PAGE_SIZE = 10;
 
@@ -209,7 +209,12 @@ export default function TestingRecordPage() {
             <View style={styles.page}>
                 <ScrollView
                     style={styles.body}
-                    contentContainerStyle={styles.scroll}
+                    contentContainerStyle={[
+                        styles.recordScroll,
+                        !loading && !refreshing && records.length === 0
+                            ? styles.scrollEmpty
+                            : null,
+                    ]}
                     refreshControl={
                         <RefreshControl
                             refreshing={refreshing}
@@ -220,95 +225,107 @@ export default function TestingRecordPage() {
                     }
                     onScroll={handleScroll}
                     scrollEventThrottle={200}>
-                    <View style={[styles.infoBox, { marginTop: 0 }]}>
-                        <Flex justify='between'>
-                            <Text style={styles.infoTitle}>{testName}</Text>
-                            <Text style={styles.infoAllText}>{getRecordCountText(recordTotal)}</Text>
-                        </Flex>
-                        <View style={styles.infoRecordBox}>
-                            {loading && !refreshing ? (
-                                <Flex justify='center' style={styles.infoRecordItem}>
-                                    <ActivityIndicator color={AppTheme.primaryColor} />
-                                </Flex>
-                            ) : records.length > 0 ? (
-                                records.map((record, index) => {
-                                    const previousRecord = records[index + 1];
-                                    const showJointRomValues = isJointRom && hasJointRomObjValue(record.objValue);
-                                    const tone = showJointRomValues
-                                        ? null
-                                        : resolveRecordTrendTone({
-                                            currentValue: record.testValue,
-                                            previousValue: previousRecord?.testValue,
-                                            improveDirection: detail?.improveDirection,
-                                        });
+                    <View
+                        style={[
+                            styles.infoRecordBox,
+                            styles.infoRecordBoxOnPage,
+                            !loading && !refreshing && records.length === 0
+                                ? styles.infoRecordBoxEmpty
+                                : null,
+                        ]}>
+                        {loading && !refreshing ? (
+                            <Flex justify='center' style={styles.infoRecordItem}>
+                                <ActivityIndicator color={AppTheme.primaryColor} />
+                            </Flex>
+                        ) : records.length > 0 ? (
+                            records.map((record, index) => {
+                                const previousRecord = records[index + 1];
+                                const showJointRomValues = isJointRom && hasJointRomObjValue(record.objValue);
+                                const tone = showJointRomValues
+                                    ? null
+                                    : resolveRecordTrendTone({
+                                        currentValue: record.testValue,
+                                        previousValue: previousRecord?.testValue,
+                                        improveDirection: detail?.improveDirection,
+                                    });
+
+                                if (showJointRomValues) {
                                     return (
-                                        <View
+                                        <JointRomRecordValues
                                             key={String(record.id ?? record.createTime ?? index)}
+                                            title={testName || '关节活动度测量'}
+                                            dateText={formatRecordDate(record.createTime)}
+                                            objValue={record.objValue}
+                                            previousObjValue={previousRecord?.objValue}
+                                            unit={unit}
+                                            improveDirection={detail?.improveDirection}
                                             style={[
-                                                styles.infoRecordItem,
-                                                { paddingVertical: 12 },
+                                                styles.infoRecordItemOnPage,
                                                 index > 0 ? { marginTop: 12 } : null,
-                                            ]}>
-                                            <Flex justify="between" align="start">
-                                                <Flex>
-                                                    <Image
-                                                        style={styles.infoRecordImg}
-                                                        source={require('@/assets/images/schedule/rl.png')}
-                                                    />
-                                                    <View>
-                                                        <Text style={styles.infoRecordText}>
-                                                            {formatRecordDate(record.createTime)}
-                                                        </Text>
-                                                        <Flex style={[styles.infoRecordStatus, { marginTop: 6 }]}>
-                                                            <Text style={styles.infoRecordStatusText}>
-                                                                {getImproveLabel(record.firstChangePercent, {
-                                                                    firstRecord,
-                                                                    latestRecord: record,
-                                                                })}
-                                                            </Text>
-                                                        </Flex>
-                                                    </View>
-                                                </Flex>
-                                                {!showJointRomValues ? (
-                                                    <Flex>
-                                                        {tone ? (
-                                                            <Image
-                                                                style={styles.infoRecordUpImg}
-                                                                source={
-                                                                    tone === 'up'
-                                                                        ? require('@/assets/images/schedule/icon_gs.png')
-                                                                        : require('@/assets/images/schedule/icon_xx.png')
-                                                                }
-                                                            />
-                                                        ) : null}
-                                                        <Text style={styles.infoRecordText}>
-                                                            {formatTestValue(record.testValue, unit)}
+                                            ]}
+                                        />
+                                    );
+                                }
+
+                                return (
+                                    <View
+                                        key={String(record.id ?? record.createTime ?? index)}
+                                        style={[
+                                            styles.infoRecordItem,
+                                            styles.infoRecordItemOnPage,
+                                            { paddingVertical: 12 },
+                                            index > 0 ? { marginTop: 12 } : null,
+                                        ]}>
+                                        <Flex justify="between" align="center">
+                                            <Flex align="center">
+                                                <Image
+                                                    style={styles.infoRecordImg}
+                                                    source={require('@/assets/images/schedule/rl.png')}
+                                                />
+                                                <View>
+                                                    <Text style={styles.infoRecordText}>
+                                                        {formatRecordDate(record.createTime)}
+                                                    </Text>
+                                                    <Flex style={[styles.infoRecordStatus, { marginTop: 6 }]}>
+                                                        <Text style={styles.infoRecordStatusText}>
+                                                            {getImproveLabel(record.firstChangePercent, {
+                                                                firstRecord,
+                                                                latestRecord: record,
+                                                            })}
                                                         </Text>
                                                     </Flex>
-                                                ) : null}
+                                                </View>
                                             </Flex>
-                                            {showJointRomValues ? (
-                                                <JointRomRecordValues
-                                                    objValue={record.objValue}
-                                                    previousObjValue={previousRecord?.objValue}
-                                                    unit={unit}
-                                                    improveDirection={detail?.improveDirection}
-                                                />
-                                            ) : null}
-                                        </View>
-                                    );
-                                })
-                            ) : (
-                                <Flex justify='center' style={styles.infoRecordItem}>
-                                    <Text style={styles.infoItemText}>暂无测试记录</Text>
-                                </Flex>
-                            )}
-                            {loadingMore ? (
-                                <Flex justify='center' style={{ paddingVertical: 12 }}>
-                                    <ActivityIndicator color={AppTheme.primaryColor} size="small" />
-                                </Flex>
-                            ) : null}
-                        </View>
+                                            <Flex align="center">
+                                                {tone ? (
+                                                    <Image
+                                                        style={styles.infoRecordUpImg}
+                                                        source={
+                                                            tone === 'up'
+                                                                ? require('@/assets/images/schedule/icon_gs.png')
+                                                                : require('@/assets/images/schedule/icon_xx.png')
+                                                        }
+                                                    />
+                                                ) : null}
+                                                <Text style={styles.infoRecordText}>
+                                                    {formatTestValue(record.testValue, unit)}
+                                                </Text>
+                                            </Flex>
+                                        </Flex>
+                                    </View>
+                                );
+                            })
+                        ) : (
+                            <EmptyRecord
+                                text="暂无测试记录"
+                                style={styles.infoRecordEmpty}
+                            />
+                        )}
+                        {loadingMore ? (
+                            <Flex justify='center' style={{ paddingVertical: 12 }}>
+                                <ActivityIndicator color={AppTheme.primaryColor} size="small" />
+                            </Flex>
+                        ) : null}
                     </View>
                 </ScrollView>
             </View>

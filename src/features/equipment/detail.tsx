@@ -19,6 +19,7 @@ import {
   clampBatteryPercent,
   resolveEquipmentProductName,
 } from './utils/equipmentHelpers';
+import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
 import styles from '@/css/equipment/detail';
 
 type Route = RouteProp<RootStackParamList, 'EquipmentDetailPage'>;
@@ -46,8 +47,11 @@ export default function EquipmentDetailPage() {
   );
 
   useEffect(() => {
-    void dispatch(hydrateEquipment());
-    void dispatch(prepareEquipmentSdk());
+    void (async () => {
+      await ensureEquipmentBluetoothReady();
+      await dispatch(hydrateEquipment());
+      await dispatch(prepareEquipmentSdk());
+    })();
   }, [dispatch]);
 
   useEffect(() => {
@@ -65,8 +69,8 @@ export default function EquipmentDetailPage() {
   );
 
   const batteryText = useMemo(() => {
-    if (!connected || device?.batteryPercent == null) return '--';
-    return `${clampBatteryPercent(device.batteryPercent)}%`;
+    if (!connected) return '--';
+    return `${clampBatteryPercent(device?.batteryPercent)}%`;
   }, [connected, device?.batteryPercent]);
 
   const rows: Array<{ label: string; value: React.ReactNode }> = [
@@ -97,8 +101,12 @@ export default function EquipmentDetailPage() {
         style: 'destructive',
         onPress: () => {
           void (async () => {
-            await dispatch(removeEquipment(deviceId));
-            navigation.goBack();
+            const ok = await dispatch(removeEquipment(deviceId));
+            if (ok) {
+              navigation.goBack();
+              return;
+            }
+            Alert.alert('删除失败', '请稍后重试');
           })();
         },
       },

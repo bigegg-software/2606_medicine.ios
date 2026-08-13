@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useEventListener } from 'expo';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { Flex, Modal, Toast } from '@ant-design/react-native';
 import moment from 'moment';
@@ -70,6 +71,13 @@ import {
   setGroupCountAtIndex,
   type ExercisePlayerDuration,
 } from './utils/exercisePlayerHelpers';
+import {
+  calcTrainingProgressPercentBySeconds,
+  isExercisePlayerFullyCompleted,
+  resolveGroupAutoMaxCount,
+  resolveNextExercisePlayerParams,
+  resolveVideoDurationSeconds,
+} from './utils/exercisePlayerAutoAdvanceHelpers';
 
 type PrescriptionContext = {
   exPatientRuleId?: string;
@@ -115,6 +123,8 @@ export default function ExercisePlayerPage() {
   /** 组间休息倒计时是否在走（暂停/播放只控计时，不控视频） */
   const [isGroupRestTimerRunning, setIsGroupRestTimerRunning] = useState(false);
   const [heartRate, setHeartRate] = useState<number | null>(null);
+  /** 视频时长（秒），组训每组按此计时 */
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
   const hrStreamingDeviceIdRef = useRef<string | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
@@ -133,6 +143,8 @@ export default function ExercisePlayerPage() {
   const hasAutoStartedRef = useRef(false);
   const hasRecordedViewRef = useRef(false);
   const allowExitRef = useRef(false);
+  /** 自动提交中，防止重复触发 */
+  const autoSubmittingRef = useRef(false);
   const todayDurationRef = useRef(todayDuration);
   const targetMinutesRef = useRef(0);
 
@@ -163,12 +175,6 @@ export default function ExercisePlayerPage() {
   })();
   targetMinutesRef.current = targetMinutes;
   const restBetweenGroupSeconds = resolveRestBetweenGroupSeconds(video?.restBetweenGroupSeconds);
-  const progressPercent = isGroupResting
-    ? calcGroupRestProgressPercent(groupRestRemainingSeconds, groupRestTotalSecondsRef.current)
-    : calcTrainingProgressPercent(sessionElapsedSeconds, targetMinutes);
-  const sessionTimeText = isGroupResting
-    ? formatSessionDuration(groupRestRemainingSeconds)
-    : formatSessionDuration(sessionElapsedSeconds);
   const headerDurationText = `${todayDuration.completedMinutes}/${targetMinutes || 0}分钟`;
   const ruleSubtitle = (() => {
     const raw = route.params?.ruleSubtitle?.trim() || '';
@@ -190,6 +196,28 @@ export default function ExercisePlayerPage() {
   const trainingPhase = (route.params?.trainingPhase?.trim() || 'hot') as ExRecordTrainingPhase;
   const timerType = scheduleRule.timerType;
   const isDurationTimer = timerType === 'duration_min';
+  const remainingDurationMinutes = Math.max(
+    0,
+    Math.round(Number(targetMinutes) || 0) - Math.round(Number(todayDuration.completedMinutes) || 0),
+  );
+  const groupSessionTargetSeconds = resolveVideoDurationSeconds(
+    videoDurationSeconds,
+    video?.duration,
+  );
+  const sessionTargetSeconds = isDurationTimer
+    ? Math.max(0, remainingDurationMinutes) * 60
+    : groupSessionTargetSeconds;
+  const progressPercent = isGroupResting
+    ? calcGroupRestProgressPercent(groupRestRemainingSeconds, groupRestTotalSecondsRef.current)
+    : isDurationTimer
+      ? calcTrainingProgressPercent(
+        sessionElapsedSeconds + Math.max(0, todayDuration.completedMinutes) * 60,
+        targetMinutes,
+      )
+      : calcTrainingProgressPercentBySeconds(sessionElapsedSeconds, sessionTargetSeconds || 1);
+  const sessionTimeText = isGroupResting
+    ? formatSessionDuration(groupRestRemainingSeconds)
+    : formatSessionDuration(sessionElapsedSeconds);
   const showHeaderDuration = isDurationTimer;
   const saveGroupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
   const groupTargetCount = scheduleRule.targetCount;
@@ -262,6 +290,8 @@ export default function ExercisePlayerPage() {
     setIsTraining(false);
     hasAutoStartedRef.current = false;
     hasRecordedViewRef.current = false;
+    autoSubmittingRef.current = false;
+    setVideoDurationSeconds(0);
     isGroupRestingRef.current = false;
     groupRestTotalSecondsRef.current = 0;
     setIsGroupResting(false);
@@ -445,6 +475,31 @@ export default function ExercisePlayerPage() {
     }
   }, [loading, player, readOnly, videoUrl]);
 
+  // player 在视频源就绪后可能重建；训练中则续播，避免图标显示暂停但视频未在播
+  useEffect(() => {
+    if (loading || !videoUrl || !hasAutoStartedRef.current || readOnly) return;
+    if (isTrainingRef.current && !isGroupRestingRef.current) {
+      safePlayVideoPlayer(player);
+    }
+  }, [loading, player, readOnly, videoUrl]);
+
+  // 首次 play 可能早于 readyToPlay；就绪后再对齐一次
+  useEventListener(player, 'statusChange', ({ status }) => {
+    if (status !== 'readyToPlay' || readOnly) return;
+    if (!isTrainingRef.current || isGroupRestingRef.current) return;
+    safePlayVideoPlayer(player);
+  });
+
+  useEventListener(player, 'sourceLoad', ({ duration }) => {
+    const seconds = Math.round(Number(duration) || 0);
+    if (seconds > 0) setVideoDurationSeconds(seconds);
+  });
+
+  useEffect(() => {
+    const seconds = Math.round(Number(player?.duration) || 0);
+    if (seconds > 0) setVideoDurationSeconds(seconds);
+  }, [player, videoUrl]);
+
   // 进入播放页且视频就绪后上报一次播放量
   useEffect(() => {
     if (loading || !videoUrl || hasRecordedViewRef.current) return;
@@ -537,6 +592,8 @@ export default function ExercisePlayerPage() {
     countsInput: number[],
     options?: {
       goBackAfterSuccess?: boolean;
+      /** 提交成功后进入同阶段下一项（无下一项则返回） */
+      goToNextExercise?: boolean;
       successMessage?: string;
       /** 非最后一组：重置计时并自动继续播放 */
       resumeTraining?: boolean;
@@ -703,6 +760,24 @@ export default function ExercisePlayerPage() {
 
       Toast.info(options?.successMessage?.trim() || '保存成功', 1.5);
 
+      if (options?.goToNextExercise) {
+        allowExitRef.current = true;
+        const nextParams = await resolveNextExercisePlayerParams({
+          currentExVideoId: exVideoId,
+          trainingPhase,
+          exerciseType,
+          customerLocalDate: route.params?.customerLocalDate?.trim()
+            || moment().format('YYYY-MM-DD'),
+          readOnly,
+        });
+        if (nextParams) {
+          navigation.replace('ExercisePlayerPage', nextParams);
+        } else {
+          navigation.goBack();
+        }
+        return true;
+      }
+
       if (options?.goBackAfterSuccess) {
         allowExitRef.current = true;
         navigation.goBack();
@@ -712,13 +787,18 @@ export default function ExercisePlayerPage() {
       if (options?.resumeTraining) {
         // 保存上一组后进入组间休息；休息结束再续播并开始训练计时
         startGroupRest(resolveRestBetweenGroupSeconds(currentVideo?.restBetweenGroupSeconds));
+        autoSubmittingRef.current = false;
       } else if (exerciseDuration > 0) {
         setSessionElapsedSeconds(0);
+        autoSubmittingRef.current = false;
+      } else {
+        autoSubmittingRef.current = false;
       }
 
       return true;
     } catch {
       Toast.info('保存失败', 1.5);
+      autoSubmittingRef.current = false;
       return false;
     } finally {
       setMarkingGroup(false);
@@ -730,6 +810,7 @@ export default function ExercisePlayerPage() {
     navigation,
     player,
     readOnly,
+    route.params?.customerLocalDate,
     route.params?.exerciseType,
     route.params?.exVideoId,
     sessionElapsedSeconds,
@@ -739,6 +820,108 @@ export default function ExercisePlayerPage() {
     timerType,
     totalGroups,
     trainingPhase,
+  ]);
+
+  /**
+   * 自动提交：
+   * - 计时：剩余目标时长到点 → 提交 → 下一项（已 12/12 再次进入不跳）
+   * - 组别：按视频时长计时到点 → 按最大完成度提交「下一未录入组」
+   *   （半完成如 1/3 也算已录入，自动进下一组；全部组都有数据则不跳）
+   */
+  useEffect(() => {
+    if (
+      readOnly
+      || loading
+      || markingGroup
+      || submitting
+      || isGroupResting
+      || !isTraining
+      || autoSubmittingRef.current
+    ) {
+      return;
+    }
+
+    const fullyDone = isExercisePlayerFullyCompleted({
+      isDurationTimer,
+      completedMinutes: todayDuration.completedMinutes,
+      targetMinutes,
+      groupCounts,
+      groupTotal: resolveDurationSaveGroupTotal(totalGroups, timerType),
+      groupTarget: resolveSaveGroupTargetCount(timerType, groupTargetCount),
+    });
+
+    // 已全部完成再次进入：不自动跳转
+    if (fullyDone) return;
+
+    if (isDurationTimer) {
+      const remainingSeconds = Math.max(0, remainingDurationMinutes) * 60;
+      if (remainingSeconds <= 0) return;
+      if (sessionElapsedSeconds < remainingSeconds) return;
+
+      autoSubmittingRef.current = true;
+      void (async () => {
+        const ok = await submitRecordToServer([], {
+          successMessage: '本项已完成',
+          goToNextExercise: true,
+        });
+        if (!ok) autoSubmittingRef.current = false;
+      })();
+      return;
+    }
+
+    const groupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
+    if (groupTotal <= 0) return;
+
+    const countTarget = resolveSaveGroupTargetCount(timerType, groupTargetCount);
+    // 半完成也算已录入：如第1组 1/3 → 自动保存第2组，不再回写第1组
+    const activeGroupIndex = findNextGroupInputIndex(
+      groupCountsRef.current,
+      groupTotal,
+    );
+    if (activeGroupIndex < 0) return;
+
+    const targetSeconds = groupSessionTargetSeconds;
+    if (targetSeconds <= 0) return;
+    if (sessionElapsedSeconds < targetSeconds) return;
+
+    autoSubmittingRef.current = true;
+    const maxCount = resolveGroupAutoMaxCount(countTarget);
+    const nextCounts = setGroupCountAtIndex(
+      groupCountsRef.current,
+      activeGroupIndex,
+      groupTotal,
+      maxCount,
+    );
+    groupCountsRef.current = nextCounts;
+    setGroupCounts(nextCounts);
+
+    const isLastGroup = activeGroupIndex >= groupTotal - 1;
+    void (async () => {
+      const ok = await submitRecordToServer(nextCounts, {
+        successMessage: `${formatChineseGroupLabel(activeGroupIndex + 1)}已完成`,
+        goToNextExercise: isLastGroup,
+        resumeTraining: !isLastGroup,
+      });
+      if (!ok) autoSubmittingRef.current = false;
+    })();
+  }, [
+    groupCounts,
+    groupSessionTargetSeconds,
+    groupTargetCount,
+    isDurationTimer,
+    isGroupResting,
+    isTraining,
+    loading,
+    markingGroup,
+    readOnly,
+    remainingDurationMinutes,
+    sessionElapsedSeconds,
+    submitRecordToServer,
+    submitting,
+    targetMinutes,
+    timerType,
+    todayDuration.completedMinutes,
+    totalGroups,
   ]);
 
   /** 满 1 分钟：提交本次时长后离开 */
@@ -857,8 +1040,8 @@ export default function ExercisePlayerPage() {
     const isLastGroup = index >= groupTotal - 1;
     void submitRecordToServer(nextCounts, {
       successMessage: `${formatChineseGroupLabel(index + 1)}保存成功`,
-      // 未达标再编辑：保存后留在本页，不自动续播/返回
-      goBackAfterSuccess: !isReEditIncomplete && isLastGroup,
+      // 未达标再编辑：保存后留在本页，不自动续播/跳转
+      goToNextExercise: !isReEditIncomplete && isLastGroup,
       resumeTraining: !isReEditIncomplete && !isLastGroup,
     });
   }, [

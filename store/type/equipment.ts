@@ -13,12 +13,17 @@ export const SET_DEVICE_CONNECTED = 'SET_DEVICE_CONNECTED';
 export const SET_DEVICE_DISCONNECTED = 'SET_DEVICE_DISCONNECTED';
 export const SET_DEVICE_BATTERY = 'SET_DEVICE_BATTERY';
 
-/** 已绑定设备（本地缓存，接口暂不对接） */
+/** 已绑定设备（服务端列表 + 本地连接态） */
 export type BoundEquipment = {
-  /** 与 deviceId 一致，统一 string 传给后端 */
+  /** 服务端主键，删除接口用；未同步前可为空 */
+  recordId?: string;
+  /** 与 deviceId 一致，统一 string */
   id: string;
+  /** 业务侧设备标识（如蓝牙 deviceId） */
   deviceId: string;
   name: string;
+  /** 设备类型（如 polar） */
+  deviceType?: string;
   connected: boolean;
   batteryPercent?: number;
   firmwareVersion?: string;

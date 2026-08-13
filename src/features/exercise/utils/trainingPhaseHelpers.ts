@@ -248,6 +248,72 @@ export function isMainTrainingAllProgressStarted(modules: MainTrainingTypeModule
   return cards.every(isTrainingActionProgressStarted);
 }
 
+/**
+ * 热身 / 主训练「开始」跳过判定：
+ * - 计时：已提交过任意分钟（如 1/20）→ 跳过，播下一项
+ * - 组别：每一组都提交过（次数>0 或已标记完成）→ 跳过；否则进入该项继续未完成组
+ */
+export function isTrainingPhaseItemSkipable(card: TrainingPhaseExerciseCard) {
+  if (card.timerType === 'duration_min') {
+    return Math.max(0, Math.round(Number(card.completedMinutes) || 0)) > 0;
+  }
+  const scheduleGroupVal = resolveScheduleGroupVal(card);
+  if (scheduleGroupVal <= 0) {
+    return isTrainingActionProgressStarted(card);
+  }
+  const target = resolveGroupTargetCount(card);
+  const counts = card.groupCounts ?? [];
+  return Array.from({ length: scheduleGroupVal }, (_, index) => {
+    const count = Math.max(0, Math.round(Number(counts[index]) || 0));
+    if (count > 0) return true;
+    return isGroupDisplayDone(index, counts, target, card.completedGroups);
+  }).every(Boolean);
+}
+
+/** @deprecated 使用 isTrainingPhaseItemSkipable */
+export function isWarmupItemSkipable(card: TrainingPhaseExerciseCard) {
+  return isTrainingPhaseItemSkipable(card);
+}
+
+/** 按顺序找第一个尚未跳过的项目（进入播放页） */
+export function findNextTrainingPhasePlayCard<T extends TrainingPhaseExerciseCard>(
+  cards: T[],
+): T | null {
+  return (cards ?? []).find(card => !isTrainingPhaseItemSkipable(card)) ?? null;
+}
+
+/** @deprecated 使用 findNextTrainingPhasePlayCard */
+export function findNextWarmupPlayCard(cards: TrainingPhaseExerciseCard[]) {
+  return findNextTrainingPhasePlayCard(cards);
+}
+
+/** 阶段内全部项目都已播放/提交过 */
+export function isTrainingPhaseAllPlayed(cards: TrainingPhaseExerciseCard[]) {
+  if (!cards.length) return true;
+  return cards.every(isTrainingPhaseItemSkipable);
+}
+
+/** @deprecated 使用 isTrainingPhaseAllPlayed */
+export function isWarmupPhaseAllPlayed(cards: TrainingPhaseExerciseCard[]) {
+  return isTrainingPhaseAllPlayed(cards);
+}
+
+/** 主训练模块展平为播放顺序（按模块顺序 + 卡片顺序） */
+export type MainTrainingPlayCard = TrainingPhaseExerciseCard & {
+  exerciseType: ExerciseTypeKey;
+};
+
+export function flattenMainTrainingPlayCards(
+  modules: MainTrainingTypeModule[],
+): MainTrainingPlayCard[] {
+  return (modules ?? []).flatMap(module =>
+    (module.cards ?? []).map(card => ({
+      ...card,
+      exerciseType: module.key,
+    })),
+  );
+}
+
 /** 计时进度（如 1/2分钟、0/12分钟）不显示 icon，开始/完成才显示 */
 export function shouldShowTrainingActionIcon(
   card: TrainingPhaseExerciseCard,

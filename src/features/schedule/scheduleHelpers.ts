@@ -559,28 +559,107 @@ export const EXERCISE_TYPE_COLORS: Record<string, string> = {
 
 export type ExercisePrescriptionMetricItem = {
   key: string;
-  value: number;
+  /** 今日处方未安排该类型时为 null，首页展示 -- */
+  value: number | null;
   label: string;
   color: string;
 };
 
+/** 今日主训练实际有动作的类型；休息日为空；无周安排时回退 ruleRatioList */
+export function resolveTodayExerciseMetricTypeKeys(
+  prescription?: Pick<InUseExPatientRule, 'ruleRatioList' | 'weekTrainingScheduleList'> | null,
+  customerLocalDate?: string,
+): Set<string> {
+  const date = customerLocalDate?.trim() || moment().format('YYYY-MM-DD');
+  const day = moment(date, 'YYYY-MM-DD').isoWeekday();
+  const schedule = Number.isFinite(day) && day >= 1 && day <= 7
+    ? (prescription?.weekTrainingScheduleList ?? []).find(item => Number(item.day) === day) ?? null
+    : null;
+
+  if (schedule?.isRest) return new Set();
+
+  if (schedule?.mainList?.length) {
+    const keys = new Set<string>();
+    for (const block of schedule.mainList) {
+      if ((block.cardioList ?? []).length > 0) keys.add('cardio');
+      if ((block.strengthList ?? []).length > 0) keys.add('strength');
+      if ((block.flexibilityList ?? []).length > 0) keys.add('flexibility');
+      if ((block.balanceList ?? []).length > 0) keys.add('balance');
+    }
+    if (keys.size > 0) return keys;
+  }
+
+  const fromRatio = new Set<string>();
+  for (const rule of prescription?.ruleRatioList ?? []) {
+    const typeKey = rule.exerciseType?.trim();
+    if (typeKey) fromRatio.add(typeKey);
+  }
+  return fromRatio;
+}
+
+/** 首页 / 日历：固定四类；今日处方未安排的类型 value 为 null（显示 --） */
 export function buildExercisePrescriptionMetrics(
   ruleRatioList?: ExPatientRuleRatio[],
   dictMaps?: ScheduleDictMaps,
   progressMap?: Record<string, number>,
+  options?: {
+    /** 今日有安排的类型；不传则按 ruleRatioList 判断 */
+    availableTypeKeys?: ReadonlySet<string> | readonly string[] | null;
+  },
 ): ExercisePrescriptionMetricItem[] {
-  return (ruleRatioList ?? [])
-    .filter(rule => Boolean(rule.exerciseType?.trim()))
-    .map((rule, index) => {
-      const task = toTodayTaskItem(rule, index, dictMaps, progressMap);
-      const typeKey = rule.exerciseType?.trim() ?? '';
+  const list = ruleRatioList ?? [];
+  const byType = new Map<string, { rule: ExPatientRuleRatio; index: number }>();
+  list.forEach((rule, index) => {
+    const typeKey = rule.exerciseType?.trim();
+    if (!typeKey || byType.has(typeKey)) return;
+    byType.set(typeKey, { rule, index });
+  });
+
+  const availableKeys = options?.availableTypeKeys == null
+    ? null
+    : options.availableTypeKeys instanceof Set
+      ? options.availableTypeKeys
+      : new Set(options.availableTypeKeys);
+
+  return EXERCISE_TYPE_RING_ORDER.map(typeKey => {
+    const color = EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E';
+    const label = dictMaps?.exerciseType[typeKey] ?? getExerciseTypeLabel(typeKey);
+    const matched = byType.get(typeKey);
+    const isAvailable = availableKeys != null
+      ? availableKeys.has(typeKey)
+      : Boolean(matched);
+
+    if (!isAvailable) {
       return {
-        key: task.key,
+        key: typeKey,
+        value: null,
+        label: matched
+          ? (dictMaps?.exerciseType[typeKey]
+            ?? toTodayTaskItem(matched.rule, matched.index, dictMaps, progressMap).title)
+          : label,
+        color,
+      };
+    }
+
+    if (matched) {
+      const task = toTodayTaskItem(matched.rule, matched.index, dictMaps, progressMap);
+      return {
+        key: typeKey,
         value: task.progress,
         label: task.title,
-        color: EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
+        color,
       };
-    });
+    }
+
+    // 今日有安排但不在 ratio 列表：仍展示进度（无则 0）
+    const progress = progressMap?.[typeKey];
+    return {
+      key: typeKey,
+      value: progress != null ? normalizeProgress(progress) : 0,
+      label,
+      color,
+    };
+  });
 }
 
 function formatExerciseChildTypes(
@@ -1320,7 +1399,7 @@ function toOptionalProgress(value?: number | null) {
   return normalizeProgress(value);
 }
 
-/** 分项完成率展示顺序：有氧 / 抗阻 / 平衡 / 拉伸（无安排的模块不展示） */
+/** 分项完成率展示顺序：有氧 / 抗阻 / 平衡 / 拉伸（无数据也展示，进度为 0） */
 export function buildMilestoneWeekModuleRates(week?: {
   cardioCompleteRate?: number | null;
   strengthCompleteRate?: number | null;
@@ -1339,21 +1418,15 @@ export function buildMilestoneWeekModuleRates(week?: {
     { key: 'flexibility', title: '拉伸', raw: week?.flexibilityCompleteRate, color: '#EE9C44' },
   ];
 
-  return candidates
-    .map(item => {
-      const progress = toOptionalProgress(item.raw);
-      if (progress == null) return null;
-      return {
-        key: item.key,
-        title: item.title,
-        progress,
-        color: item.color,
-      };
-    })
-    .filter((item): item is MilestoneWeekModuleRateItem => item != null);
+  return candidates.map(item => ({
+    key: item.key,
+    title: item.title,
+    progress: toOptionalProgress(item.raw) ?? 0,
+    color: item.color,
+  }));
 }
 
-/** 分项整体完成率（仅对有安排的模块取平均） */
+/** 分项整体完成率（仅对有数据的模块取平均；全无数据为 0） */
 export function calcMilestoneWeekOverallRate(
   week?: {
     cardioCompleteRate?: number | null;
@@ -1362,7 +1435,12 @@ export function calcMilestoneWeekOverallRate(
     balanceCompleteRate?: number | null;
   } | null,
 ) {
-  const rates = buildMilestoneWeekModuleRates(week).map(item => item.progress);
+  const rates = [
+    toOptionalProgress(week?.cardioCompleteRate),
+    toOptionalProgress(week?.strengthCompleteRate),
+    toOptionalProgress(week?.balanceCompleteRate),
+    toOptionalProgress(week?.flexibilityCompleteRate),
+  ].filter((item): item is number => item != null);
   if (rates.length === 0) return 0;
   return normalizeProgress(rates.reduce((sum, item) => sum + item, 0) / rates.length);
 }

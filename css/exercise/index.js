@@ -75,6 +75,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999999',
   },
+  checkInFab: {
+    position: 'absolute',
+    right: 0,
+    bottom: 200,
+    backgroundColor: '#FFEAC0',
+    borderTopLeftRadius: 25,
+    borderBottomLeftRadius: 25,
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
+    padding: 8,
+    zIndex: 20,
+    elevation: 6,
+  },
+  checkInFabIcon: {
+    width: 18,
+    height: 18,
+  },
+  checkInFabText: {
+    marginLeft: 4,
+    fontWeight: 'bold',
+    fontSize: 12,
+    color: '#CD471C',
+  },
   calendarBox: { marginTop: 18, height: 72, paddingHorizontal: 13 },
   calendarCol: { width: 38, height: '100%', borderRadius: 25, backgroundColor: 'transparent' },
   calendarColActive: { backgroundColor: 'rgba(109,146,94,0.12)' },
@@ -412,6 +435,11 @@ const styles = StyleSheet.create({
   mainTrainingSetRow: {
     marginTop: 12,
   },
+  mainTrainingSetRowContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 4,
+  },
   mainTrainingSetDoneIcon: {
     width: 27,
     height: 27,
@@ -420,7 +448,6 @@ const styles = StyleSheet.create({
   mainTrainingSetTag: {
     height: 27,
     marginRight: 8,
-    marginBottom: 8,
     paddingHorizontal: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 25,
@@ -462,7 +489,6 @@ const styles = StyleSheet.create({
   groupRestTag: {
     height: 27,
     marginRight: 8,
-    marginBottom: 8,
     paddingHorizontal: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 25,

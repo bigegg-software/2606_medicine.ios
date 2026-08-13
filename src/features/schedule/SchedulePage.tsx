@@ -515,128 +515,140 @@ export default function SchedulePage() {
         </ImageBackground>
 
         {categoryTabs.length > 0 ? (
-          <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={[styles.backImage1, { height: 66, marginTop: 0 }]}>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.navTabScroll}
-            >
-              {categoryTabs.map(tab => {
-                const isActive = activeNavTab === tab.key;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    activeOpacity={0.85}
-                    onPress={() => setActiveNavTab(tab.key)}
-                    style={styles.navTabItem}
-                  >
-                    <Flex style={[styles.navTabBox, isActive && styles.navTabBoxActive]}>
-                      <Image
-                        style={styles.navTabIcon}
-                        source={tab.icon}
-                        tintColor={isActive ? '#FFFFFF' : '#333333'}
-                      />
-                      <Text style={[styles.navTabText, isActive && styles.navTabTextActive]}>
-                        {tab.label}
-                      </Text>
-                    </Flex>
-                  </TouchableOpacity>
-                );
-              })}
-            </ScrollView>
-          </ImageBackground>
-        ) : null}
+          <>
+            <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={[styles.backImage1, { height: 66, marginTop: 0 }]}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.navTabScroll}
+              >
+                {categoryTabs.map(tab => {
+                  const isActive = activeNavTab === tab.key;
+                  return (
+                    <TouchableOpacity
+                      key={tab.key}
+                      activeOpacity={0.85}
+                      onPress={() => setActiveNavTab(tab.key)}
+                      style={styles.navTabItem}
+                    >
+                      <Flex style={[styles.navTabBox, isActive && styles.navTabBoxActive]}>
+                        <Image
+                          style={styles.navTabIcon}
+                          source={tab.icon}
+                          tintColor={isActive ? '#FFFFFF' : '#333333'}
+                        />
+                        <Text style={[styles.navTabText, isActive && styles.navTabTextActive]}>
+                          {tab.label}
+                        </Text>
+                      </Flex>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </ImageBackground>
 
-        {activeCategoryTab ? (
-          <View style={styles.commonWrap}>
-            <Flex>
-              <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={activeCategoryTab.icon} />
-              <View style={styles.sectionTitleWrap}>
-                <LinearGradient
-                  colors={['#6D925E', 'rgba(109,146,94,0)']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.sectionTitleUnderline}
-                />
-                <Text style={[styles.pageTopBgText, styles.sectionTitleText]}>{activeCategoryTab.label}</Text>
-              </View>
-              <Flex style={styles.tipBox}>
-                <Text style={styles.tipText}>{activeCategoryTab.tip}</Text>
-              </Flex>
-            </Flex>
-
-            <View style={styles.listBox}>
-              {activeCategoryGoals.length > 0 ? activeCategoryGoals.map(item => (
-                <TouchableOpacity
-                  style={styles.listItem}
-                  key={item.key}
-                  activeOpacity={0.85}
-                  onPress={() => openScheduleGoalDetail(navigation, item)}
-                >
-                  <Flex justify="between" align="center">
-                    <Flex style={styles.listItemTitleWrap}>
-                      <Text style={styles.listItemTitle}>{item.title}</Text>
-                      {item.subtitle ? (
-                        <Text style={styles.listItemSubtitle}>{item.subtitle}</Text>
-                      ) : null}
-                    </Flex>
-                    {item.chartValues.length > 0 ? (
-                      <MiniSparkline
-                        data={item.chartValues}
-                        width={86}
-                        height={26}
-                        color={item.improveUp ? '#6D925E' : '#E85D4C'}
-                      />
-                    ) : null}
-                  </Flex>
-                  <Flex justify='between' style={styles.listItemBox}>
-                    <Flex>
-                      <Text style={styles.listItemValue}>{item.valueText}</Text>
-                      {item.unitText ? (
-                        <Text style={styles.listItemUnit}>{item.unitText}</Text>
-                      ) : null}
-                      <Text style={styles.listItemTarget}>{item.targetText}</Text>
-                    </Flex>
-                    <Flex>
-                      {item.improveText !== '--' ? (
-                        <>
-                          <Image
-                            style={styles.listIcon}
-                            source={
-                              item.improveUp
-                                ? require('@/assets/images/schedule/icon_gs.png')
-                                : require('@/assets/images/schedule/icon_xx.png')
-                            }
-                          />
-                          <Image
-                            style={styles.listIcon}
-                            source={
-                              item.improveUp
-                                ? require('@/assets/images/schedule/icon_up1.png')
-                                : require('@/assets/images/schedule/icon_down1.png')
-                            }
-                          />
-                        </>
-                      ) : null}
-                      <Text style={styles.listItemValueNum}>{item.improveText}</Text>
-                    </Flex>
-                  </Flex>
-                  <View style={styles.listItemLine}>
-                    <View style={[styles.listItemLineFill, { width: `${Math.max(0, Math.min(item.progress, 100))}%` }]} />
+            {activeCategoryTab ? (
+              <View style={styles.commonWrap}>
+                <Flex>
+                  <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={activeCategoryTab.icon} />
+                  <View style={styles.sectionTitleWrap}>
+                    <LinearGradient
+                      colors={['#6D925E', 'rgba(109,146,94,0)']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.sectionTitleUnderline}
+                    />
+                    <Text style={[styles.pageTopBgText, styles.sectionTitleText]}>{activeCategoryTab.label}</Text>
                   </View>
-                  <Flex justify='between' style={styles.listItemBtmBox}>
-                    <Text style={styles.listItemBtmText}>{item.baselineHint}</Text>
-                    <Text style={styles.listItemBtmText1}>{item.progress}%</Text>
+                  <Flex style={styles.tipBox}>
+                    <Text style={styles.tipText}>{activeCategoryTab.tip}</Text>
                   </Flex>
-                </TouchableOpacity>
-              )) : (
-                <View style={[styles.listItem, { marginTop: 12 }]}>
-                  <Text style={styles.listItemBtmText}>暂无该分类下的健康目标</Text>
+                </Flex>
+
+                <View style={styles.listBox}>
+                  {activeCategoryGoals.length > 0 ? activeCategoryGoals.map(item => (
+                    <TouchableOpacity
+                      style={styles.listItem}
+                      key={item.key}
+                      activeOpacity={0.85}
+                      onPress={() => openScheduleGoalDetail(navigation, item)}
+                    >
+                      <Flex justify="between" align="center">
+                        <Flex style={styles.listItemTitleWrap}>
+                          <Text style={styles.listItemTitle}>{item.title}</Text>
+                          {item.subtitle ? (
+                            <Text style={styles.listItemSubtitle}>{item.subtitle}</Text>
+                          ) : null}
+                        </Flex>
+                        {item.chartValues.length > 0 ? (
+                          <MiniSparkline
+                            data={item.chartValues}
+                            width={86}
+                            height={26}
+                            color={item.improveUp ? '#6D925E' : '#E85D4C'}
+                          />
+                        ) : null}
+                      </Flex>
+                      <Flex justify='between' style={styles.listItemBox}>
+                        <Flex>
+                          <Text style={styles.listItemValue}>{item.valueText}</Text>
+                          {item.unitText ? (
+                            <Text style={styles.listItemUnit}>{item.unitText}</Text>
+                          ) : null}
+                          <Text style={styles.listItemTarget}>{item.targetText}</Text>
+                        </Flex>
+                        <Flex>
+                          {item.improveText !== '--' ? (
+                            <>
+                              <Image
+                                style={styles.listIcon}
+                                source={
+                                  item.improveUp
+                                    ? require('@/assets/images/schedule/icon_gs.png')
+                                    : require('@/assets/images/schedule/icon_xx.png')
+                                }
+                              />
+                              <Image
+                                style={styles.listIcon}
+                                source={
+                                  item.improveUp
+                                    ? require('@/assets/images/schedule/icon_up1.png')
+                                    : require('@/assets/images/schedule/icon_down1.png')
+                                }
+                              />
+                            </>
+                          ) : null}
+                          <Text style={styles.listItemValueNum}>{item.improveText}</Text>
+                        </Flex>
+                      </Flex>
+                      <View style={styles.listItemLine}>
+                        <View style={[styles.listItemLineFill, { width: `${Math.max(0, Math.min(item.progress, 100))}%` }]} />
+                      </View>
+                      <Flex justify='between' style={styles.listItemBtmBox}>
+                        <Text style={styles.listItemBtmText}>{item.baselineHint}</Text>
+                        <Text style={styles.listItemBtmText1}>{item.progress}%</Text>
+                      </Flex>
+                    </TouchableOpacity>
+                  )) : (
+                    <View style={[styles.listItem, { marginTop: 12 }]}>
+                      <Text style={styles.listItemBtmText}>暂无该分类下的健康目标</Text>
+                    </View>
+                  )}
                 </View>
-              )}
-            </View>
+              </View>
+            ) : null}
+          </>
+        ) : (
+          <View style={styles.goalEmptyWrap}>
+            <Image
+              source={require('@/assets/images/exercise/icon_yd_empty.png')}
+              style={styles.goalEmptyIcon}
+            />
+            <Text style={styles.goalEmptyText}>
+              暂无运动处方，开方后展示目标拆解进度
+            </Text>
           </View>
-        ) : null}
+        )}
 
         <View style={[styles.commonWrap, { marginTop: 12 }]}>
           <Flex justify="between" align="center">
@@ -673,6 +685,7 @@ export default function SchedulePage() {
                 sixWeekMaxMinutes,
               );
               const selected = index === selectedWeekIndex;
+              const barHeight = Math.max(0, Math.min(progress, 100)) / 100 * 44;
               return (
                 <TouchableOpacity
                   key={`week-${week.weekStartDate || index}`}
@@ -681,21 +694,25 @@ export default function SchedulePage() {
                   onPress={() => setSelectedWeekIndex(index)}>
                   <Flex direction='column' justify='end' align='stretch' style={{ flex: 1 }}>
                     <View style={styles.iconBox}>
-                      <Image style={styles.weekIcon} source={require('@/assets/images/schedule/icon_wx.png')} />
-                      <Text style={styles.weekText}>
+                      <Image
+                        style={styles.weekIcon}
+                        source={
+                          selected
+                            ? require('@/assets/images/schedule/icon_wx_selected.png')
+                            : require('@/assets/images/schedule/icon_wx.png')
+                        }
+                      />
+                      <Text style={[styles.weekText, selected && styles.weekTextSelected]}>
                         {formatMilestoneWeekBarDuration(week.exerciseDuration)}
                       </Text>
                     </View>
-                    <View style={styles.weekProgress}>
-                      <View
-                        style={[
-                          styles.weekProgressBar,
-                          { height: Math.max(0, Math.min(progress, 100)) / 100 * 44 },
-                          progress >= 100 && styles.weekProgressBarDone,
-                          selected ? { opacity: 1 } : { opacity: 0.7 },
-                        ]}
-                      />
-                    </View>
+                    <View
+                      style={[
+                        styles.weekProgressBar,
+                        selected && styles.weekProgressBarSelected,
+                        { height: barHeight },
+                      ]}
+                    />
                     <Text style={styles.WTitle}>{`W${index + 1}`}</Text>
                   </Flex>
                 </TouchableOpacity>

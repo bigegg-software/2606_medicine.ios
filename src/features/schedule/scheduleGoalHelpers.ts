@@ -153,7 +153,16 @@ function formatMetricNumber(value?: number | null) {
 function formatImproveDelta(value?: number | null) {
   const num = toFiniteNumber(value);
   if (num == null) return '--';
-  return formatMetricNumber(Math.abs(num));
+  const abs = Math.abs(num);
+  // 展示为 0 时按无变化处理
+  if (Number(abs.toFixed(2)) === 0) return '--';
+  return formatMetricNumber(abs);
+}
+
+function isZeroImproveDelta(value?: number | null) {
+  const num = toFiniteNumber(value);
+  if (num == null) return false;
+  return Number(Math.abs(num).toFixed(2)) === 0;
 }
 
 /**
@@ -1013,6 +1022,10 @@ export function toScheduleGoalProgressItem(
   }
 
   chartValues = prependConfiguredBaselineToChart(chartValues, configuredBaseline);
+  // 改善量为 0：右侧显示 --，折线图也不展示
+  if (isZeroImproveDelta(improveDelta)) {
+    chartValues = [];
+  }
 
   return {
     key,

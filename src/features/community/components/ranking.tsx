@@ -309,7 +309,7 @@ export default function RankingPage() {
                                 avatarSource={resolveAvatarSource(item.avatar, item.gender)}
                             />
                         ))}
-                        <Text style={styles.rankingUpdateHint}>每小时更新</Text>
+                        <Text style={styles.rankingUpdateHint}>温馨提示：每小时更新1次，按本月数据统计</Text>
                     </>
                 )}
             </ScrollView>

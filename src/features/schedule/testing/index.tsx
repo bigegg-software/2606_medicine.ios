@@ -24,7 +24,6 @@ import {
     buildJointRomDisplayItems,
     formatGaugeValue,
     formatChangeVsPrevious,
-    formatImproveTargetAmount,
     formatRecordDate,
     formatTestValue,
     getImproveLabel,
@@ -190,23 +189,6 @@ export default function TestingPage() {
     const firstJointRomItem = isJointRom ? jointRomItems[0] : undefined;
     const restJointRomItems = isJointRom ? jointRomItems.slice(1) : [];
     const cardTitle = firstJointRomItem?.label || testName;
-    const improveDirection = detail?.improveDirection;
-    const isLowerBetter = improveDirection === -1;
-    const improveTargetText = useMemo(() => formatImproveTargetAmount({
-        baseline: firstJointRomItem?.baseline ?? firstValue,
-        target: firstJointRomItem?.target ?? targetValue,
-        improveDirectionVal,
-        isLowerBetter,
-        unit,
-    }), [
-        firstJointRomItem?.baseline,
-        firstJointRomItem?.target,
-        firstValue,
-        improveDirectionVal,
-        isLowerBetter,
-        targetValue,
-        unit,
-    ]);
     const firstJointRomChange = useMemo(() => (
         firstJointRomItem
             ? formatChangeVsPrevious({
@@ -216,10 +198,18 @@ export default function TestingPage() {
             })
             : null
     ), [firstJointRomItem, unit]);
-    // 有测试详情即展示方向徽标（无数值时也显示上升/下降）
-    const showImproveBadge = Boolean(detail) && (
-        isJointRom ? firstJointRomChange != null : true
-    );
+    /** 普通测试：标题旁变化量相对「当前 vs 上次」评估值，无当前评估时不展示 */
+    const healthTestChange = useMemo(() => {
+        if (isJointRom) return null;
+        return formatChangeVsPrevious({
+            current: latestValue,
+            previous: latestTwoRecords[1]?.testValue ?? null,
+            unit,
+        });
+    }, [isJointRom, latestTwoRecords, latestValue, unit]);
+    const titleChange = isJointRom ? firstJointRomChange : healthTestChange;
+    // 有相对当前值的变化数据时才展示方向徽标
+    const showImproveBadge = Boolean(detail) && titleChange != null;
     const gaugeFirstValue = firstJointRomItem?.baseline ?? firstValue;
     const gaugeLatestValue = firstJointRomItem?.current ?? latestValue;
     const gaugeTargetValue = firstJointRomItem?.target ?? targetValue;
@@ -456,33 +446,23 @@ export default function TestingPage() {
                                     <Image
                                         style={[
                                             styles.rowImg,
-                                            (isJointRom
-                                                ? firstJointRomChange?.isRise === false
-                                                : isLowerBetter) && styles.rowImgDown,
+                                            titleChange?.isRise === false && styles.rowImgDown,
                                         ]}
                                         source={TREND_ICON}
                                         tintColor={
-                                            (isJointRom
-                                                ? firstJointRomChange?.isRise !== false
-                                                : !isLowerBetter)
+                                            titleChange?.isRise !== false
                                                 ? TREND_COLOR_UP
                                                 : TREND_COLOR_DOWN
                                         }
                                     />
-                                    {(isJointRom
-                                        ? firstJointRomChange?.amountText
-                                        : improveTargetText) ? (
+                                    {titleChange?.amountText ? (
                                         <Text
                                             style={[
                                                 styles.rowText,
-                                                (isJointRom
-                                                    ? firstJointRomChange?.isRise === false
-                                                    : isLowerBetter) && styles.rowTextDown,
+                                                titleChange?.isRise === false && styles.rowTextDown,
                                             ]}
                                         >
-                                            {isJointRom
-                                                ? firstJointRomChange?.amountText
-                                                : improveTargetText}
+                                            {titleChange.amountText}
                                         </Text>
                                     ) : null}
                                 </Flex>
@@ -637,6 +617,23 @@ export default function TestingPage() {
                                             previousValue: previousRecord?.testValue,
                                             improveDirection: detail?.improveDirection,
                                         });
+
+                                    if (showJointRomValues) {
+                                        return (
+                                            <JointRomRecordValues
+                                                key={String(record.id ?? record.createTime ?? index)}
+                                                title={testName || '关节活动度测量'}
+                                                dateText={formatRecordDate(record.createTime)}
+                                                objValue={record.objValue}
+                                                previousObjValue={previousRecord?.objValue}
+                                                unit={unit}
+                                                improveDirection={detail?.improveDirection}
+                                                compact
+                                                style={index > 0 ? { marginTop: 12 } : undefined}
+                                            />
+                                        );
+                                    }
+
                                     return (
                                         <View
                                             key={String(record.id ?? record.createTime ?? index)}
@@ -665,32 +662,22 @@ export default function TestingPage() {
                                                         </Flex>
                                                     </View>
                                                 </Flex>
-                                                {!showJointRomValues ? (
-                                                    <Flex>
-                                                        {tone ? (
-                                                            <Image
-                                                                style={styles.infoRecordUpImg}
-                                                                source={
-                                                                    tone === 'up'
-                                                                        ? require('@/assets/images/schedule/icon_up.png')
-                                                                        : require('@/assets/images/schedule/icon_down1.png')
-                                                                }
-                                                            />
-                                                        ) : null}
-                                                        <Text style={styles.infoRecordText}>
-                                                            {formatTestValue(record.testValue, unit)}
-                                                        </Text>
-                                                    </Flex>
-                                                ) : null}
+                                                <Flex>
+                                                    {tone ? (
+                                                        <Image
+                                                            style={styles.infoRecordUpImg}
+                                                            source={
+                                                                tone === 'up'
+                                                                    ? require('@/assets/images/schedule/icon_up.png')
+                                                                    : require('@/assets/images/schedule/icon_down1.png')
+                                                            }
+                                                        />
+                                                    ) : null}
+                                                    <Text style={styles.infoRecordText}>
+                                                        {formatTestValue(record.testValue, unit)}
+                                                    </Text>
+                                                </Flex>
                                             </Flex>
-                                            {showJointRomValues ? (
-                                                <JointRomRecordValues
-                                                    objValue={record.objValue}
-                                                    previousObjValue={previousRecord?.objValue}
-                                                    unit={unit}
-                                                    improveDirection={detail?.improveDirection}
-                                                />
-                                            ) : null}
                                         </View>
                                     );
                                 })

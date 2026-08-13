@@ -6,6 +6,9 @@ const styles = StyleSheet.create({
     page: { flex: 1 },
     body: { flex: 1 },
     scroll: { paddingHorizontal: 12, paddingTop: 12, paddingBottom: 18 },
+    /** 测试记录列表页：收紧顶部间距 */
+    recordScroll: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 18 },
+    scrollEmpty: { flexGrow: 1 },
     rowBox: { position: "relative", backgroundColor: "#FFF", marginTop: 10, padding: 10, borderRadius: 15, shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3 },
     rowTitle: { fontWeight: 800, fontSize: 15, color: "#333333" },
     rowImg: { width: 13, height: 13, marginRight: 4 },
@@ -156,12 +159,28 @@ const styles = StyleSheet.create({
     infoRecordBox: {
         marginTop: 9
     },
+    infoRecordBoxOnPage: {
+        marginTop: 0,
+    },
+    infoRecordBoxEmpty: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginTop: 0,
+    },
+    infoRecordEmpty: {
+        paddingVertical: 24,
+    },
     infoRecordItem: {
         marginTop: 6,
         backgroundColor: "#F6F8FB",
         borderRadius: 8,
         paddingHorizontal: 15,
         paddingVertical: 18
+    },
+    /** 测试记录列表页数据卡片背景（仅 record 使用） */
+    infoRecordItemOnPage: {
+        backgroundColor: '#FEFFFF',
     },
     infoRecordText: {
         fontWeight: "bold",
@@ -193,25 +212,97 @@ const styles = StyleSheet.create({
         height: 50,
         marginRight: 12
     },
-    jointRomRecordValues: {
-        marginTop: 10,
-        paddingTop: 8,
-        borderTopWidth: 1,
-        borderTopColor: '#E8ECF0',
+    jointRomRecordCard: {
+        backgroundColor: '#FEFFFF',
+        borderRadius: 12,
+        padding: 15,
+        shadowColor: '#B4C9FF',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.14,
+        shadowRadius: 4,
+        elevation: 3,
     },
-    jointRomRecordRow: {
-        marginTop: 8,
+    jointRomRecordCardCompact: {
+        shadowOpacity: 0,
+        elevation: 0,
+        shadowRadius: 0,
+        backgroundColor: 'transparent',
+        padding: 0,
+        borderRadius: 0,
     },
-    jointRomRecordLabel: {
+    jointRomRecordCardTitle: {
         flexShrink: 1,
         fontWeight: '500',
-        fontSize: 13,
-        color: '#666666',
+        fontSize: 16,
+        color: '#333333',
         paddingRight: 8,
     },
-    jointRomRecordValue: {
-        fontWeight: 'bold',
+    jointRomRecordCardDate: {
+        flexShrink: 0,
+        fontWeight: '400',
+        fontSize: 13,
+        color: '#666666',
+    },
+    jointRomRecordCardDateLeft: {
+        fontWeight: '400',
+        fontSize: 13,
+        marginTop: 10,
+        color: '#666666',
+        textAlign: 'left',
+    },
+    jointRomRecordInnerList: {
+        marginTop: 12,
+    },
+    jointRomRecordInner: {
+        backgroundColor: '#F6F8FB',
+        borderRadius: 8,
+        paddingHorizontal: 15,
+        paddingVertical: 15,
+        borderWidth: 0,
+    },
+    jointRomRecordInnerFlat: {
+        // compact：保留灰底，去掉描边/外框感
+        borderWidth: 0,
+        borderColor: 'transparent',
+    },
+    jointRomRecordInnerFirst: {
+        marginTop: 0,
+    },
+    jointRomRecordInnerSpacing: {
+        marginTop: 6,
+    },
+    jointRomRecordLabel: {
+        flex: 1.1,
+        flexShrink: 1,
+        fontWeight: '500',
         fontSize: 14,
+        color: '#333333',
+        paddingRight: 6,
+    },
+    jointRomRecordStatus: {
+        flex: 1,
+        flexShrink: 1,
+        textAlign: 'center',
+        fontWeight: '500',
+        fontSize: 12,
+        color: '#6D925E',
+        paddingHorizontal: 4,
+    },
+    jointRomRecordStatusWarn: {
+        color: '#EE9C44',
+    },
+    jointRomRecordValueWrap: {
+        flex: 0.9,
+        justifyContent: 'flex-end',
+    },
+    jointRomRecordTrendIcon: {
+        width: 12,
+        height: 12,
+        marginRight: 4,
+    },
+    jointRomRecordValue: {
+        fontWeight: '500',
+        fontSize: 16,
         color: '#333333',
     },
     infoRecordUpImg: {

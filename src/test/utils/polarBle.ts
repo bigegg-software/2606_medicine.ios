@@ -3,6 +3,8 @@ import { NativeModules, NativeEventEmitter } from 'react-native';
 // 定义原生模块接口
 interface PolarBleModuleInterface {
   initPolarSdk(): Promise<boolean>;
+  /** iOS：granted / denied / restricted / undetermined / unknown */
+  getBluetoothAuthorizationStatus?(): Promise<string>;
   startScan(): Promise<boolean>;
   stopScan(): Promise<boolean>;
   connectToDevice(deviceId: string): Promise<boolean>;
@@ -97,6 +99,19 @@ class PolarBleManager {
     } catch (error) {
       console.error('Failed to initialize Polar SDK:', error);
       return false;
+    }
+  }
+
+  /** iOS 蓝牙授权状态；Android / 未实现时返回 unavailable */
+  async getBluetoothAuthorizationStatus(): Promise<string> {
+    if (!PolarBle?.getBluetoothAuthorizationStatus) {
+      return 'unavailable';
+    }
+    try {
+      return await PolarBle.getBluetoothAuthorizationStatus();
+    } catch (error) {
+      console.error('Failed to read bluetooth authorization:', error);
+      return 'unavailable';
     }
   }
 

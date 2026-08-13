@@ -171,6 +171,10 @@ export default function ScheduleHistoryPage() {
               key={item.id}
               item={item}
               onPress={() => {
+                if (item.isInProgress) {
+                  navigation.navigate('ExercisePage');
+                  return;
+                }
                 navigation.navigate('ScheduleHistoryDetailPage', {
                   exPatientRuleId: String(item.id),
                 });

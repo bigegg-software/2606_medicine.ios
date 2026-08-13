@@ -11,10 +11,19 @@ import {
 } from './testingHelpers';
 
 type Props = {
+  /** 大卡片标题，默认「关节活动度测量」 */
+  title?: string;
+  dateText: string;
   objValue?: Record<string, number | string | null> | null;
   previousObjValue?: Record<string, number | string | null> | null;
   unit?: string;
   improveDirection?: number | null;
+  style?: object | object[] | null;
+  /**
+   * 测试详情页预览：不显示左侧标题、时间居左、六项无外边框底。
+   * 记录列表页保持默认样式（不传即可）。
+   */
+  compact?: boolean;
 };
 
 function readFieldValue(
@@ -26,49 +35,102 @@ function readFieldValue(
   return value != null && Number.isFinite(Number(value)) ? Number(value) : null;
 }
 
-/** 关节活动度测试记录：六个关节数值分别展示 */
+function resolveRowStatusText(
+  currentValue: number | null,
+  previousValue: number | null,
+  tone: 'up' | 'down' | null,
+) {
+  if (currentValue == null) return '待评估';
+  if (previousValue == null) return '首次评估';
+  if (tone === 'up') return '接近目标达成';
+  if (tone === 'down') return '需关注';
+  return '持平';
+}
+
+/**
+ * 关节活动度记录结构：
+ * 大卡片（标题 + 时间）
+ *   └ 6 个小卡片（关节名 | 状态 | icon+数值）
+ */
 export default function JointRomRecordValues({
+  title = '关节活动度测量',
+  dateText,
   objValue,
   previousObjValue,
   unit = '°',
   improveDirection,
+  style,
+  compact = false,
 }: Props) {
   return (
-    <View style={styles.jointRomRecordValues}>
-      {JOINT_ROM_FIELDS.map(field => {
-        const currentValue = readFieldValue(objValue, field.key);
-        const previousValue = readFieldValue(previousObjValue, field.key);
-        const tone = resolveRecordTrendTone({
-          currentValue,
-          previousValue,
-          improveDirection,
-        });
-        return (
-          <Flex
-            key={field.key}
-            justify="between"
-            align="center"
-            style={styles.jointRomRecordRow}
-          >
-            <Text style={styles.jointRomRecordLabel}>{field.label}</Text>
-            <Flex align="center">
-              {tone ? (
-                <Image
-                  style={styles.infoRecordUpImg}
-                  source={
-                    tone === 'up'
-                      ? require('@/assets/images/schedule/icon_gs.png')
-                      : require('@/assets/images/schedule/icon_xx.png')
-                  }
-                />
-              ) : null}
-              <Text style={styles.jointRomRecordValue}>
-                {formatTestValue(currentValue, unit)}
-              </Text>
-            </Flex>
-          </Flex>
-        );
-      })}
+    <View style={[styles.jointRomRecordCard, compact && styles.jointRomRecordCardCompact, style]}>
+      {compact ? (
+        <Text style={styles.jointRomRecordCardDateLeft}>{dateText}</Text>
+      ) : (
+        <Flex justify="between" align="center">
+          <Text style={styles.jointRomRecordCardTitle} numberOfLines={1}>
+            {title}
+          </Text>
+          <Text style={styles.jointRomRecordCardDate}>{dateText}</Text>
+        </Flex>
+      )}
+
+      <View style={styles.jointRomRecordInnerList}>
+        {JOINT_ROM_FIELDS.map((field, index) => {
+          const currentValue = readFieldValue(objValue, field.key);
+          const previousValue = readFieldValue(previousObjValue, field.key);
+          const tone = resolveRecordTrendTone({
+            currentValue,
+            previousValue,
+            improveDirection,
+          });
+          const statusText = resolveRowStatusText(currentValue, previousValue, tone);
+          const isWarn = tone === 'down';
+
+          return (
+            <View
+              key={field.key}
+              style={[
+                styles.jointRomRecordInner,
+                compact ? styles.jointRomRecordInnerFlat : null,
+                index === 0
+                  ? styles.jointRomRecordInnerFirst
+                  : styles.jointRomRecordInnerSpacing,
+              ]}
+            >
+              <Flex justify="between" align="center">
+                <Text style={styles.jointRomRecordLabel} numberOfLines={1}>
+                  {field.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.jointRomRecordStatus,
+                    isWarn ? styles.jointRomRecordStatusWarn : null,
+                  ]}
+                  numberOfLines={1}
+                >
+                  {statusText}
+                </Text>
+                <Flex align="center" style={styles.jointRomRecordValueWrap}>
+                  {tone ? (
+                    <Image
+                      style={styles.jointRomRecordTrendIcon}
+                      source={
+                        tone === 'up'
+                          ? require('@/assets/images/schedule/icon_up.png')
+                          : require('@/assets/images/schedule/icon_down1.png')
+                      }
+                    />
+                  ) : null}
+                  <Text style={styles.jointRomRecordValue}>
+                    {formatTestValue(currentValue, unit)}
+                  </Text>
+                </Flex>
+              </Flex>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }

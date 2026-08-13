@@ -88,6 +88,26 @@ class PolarBleModule: RCTEventEmitter {
     }
     
     // MARK: - Exported Methods
+
+    /// 读取系统蓝牙权限（不主动弹窗）
+    @objc func getBluetoothAuthorizationStatus(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
+        if #available(iOS 13.1, *) {
+            switch CBManager.authorization {
+            case .allowedAlways:
+                resolve("granted")
+            case .denied:
+                resolve("denied")
+            case .restricted:
+                resolve("restricted")
+            case .notDetermined:
+                resolve("undetermined")
+            @unknown default:
+                resolve("unknown")
+            }
+        } else {
+            resolve("granted")
+        }
+    }
     
     @objc func initPolarSdk(_ resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {
         if ensureApi() != nil {

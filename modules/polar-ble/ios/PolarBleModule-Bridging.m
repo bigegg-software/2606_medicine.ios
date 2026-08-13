@@ -3,6 +3,9 @@
 
 @interface RCT_EXTERN_MODULE(PolarBle, RCTEventEmitter)
 
+RCT_EXTERN_METHOD(getBluetoothAuthorizationStatus:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject)
+
 RCT_EXTERN_METHOD(initPolarSdk:(RCTPromiseResolveBlock)resolve
                   rejecter:(RCTPromiseRejectBlock)reject)
 

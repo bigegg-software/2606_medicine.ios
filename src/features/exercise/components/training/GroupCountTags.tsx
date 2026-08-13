@@ -1,5 +1,13 @@
 import React from 'react';
-import { Image, Text, TouchableOpacity, View, type StyleProp, type ViewStyle } from 'react-native';
+import {
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import styles from '@/css/exercise';
 import {
@@ -27,6 +35,7 @@ type Props = {
  * 组别标签：无记录「第N组」；有次数显示 3/10（无 icon）；达标才显示完成 icon。
  * 可点：当前待录入组、未达标进度；不可点：已达标、未到序的空组。
  * 末尾可展示组间休息时长（如 icon + 60s）。
+ * 组数较多时横向滑动。
  */
 export default function GroupCountTags({
   totalGroups,
@@ -45,7 +54,13 @@ export default function GroupCountTags({
   const restSeconds = Math.max(0, Math.round(Number(restBetweenGroupSeconds) || 0));
 
   return (
-    <Flex align="center" style={[styles.mainTrainingSetRow, style]} wrap="wrap">
+    <ScrollView
+      horizontal
+      nestedScrollEnabled
+      showsHorizontalScrollIndicator={false}
+      style={[styles.mainTrainingSetRow, style]}
+      contentContainerStyle={styles.mainTrainingSetRowContent}
+      bounces={false}>
       {Array.from({ length: safeTotal }, (_, index) => {
         const count = Math.max(0, Math.round(Number(groupCounts[index]) || 0));
         const hasProgress = count > 0;
@@ -105,6 +120,6 @@ export default function GroupCountTags({
           </Flex>
         </View>
       ) : null}
-    </Flex>
+    </ScrollView>
   );
 }

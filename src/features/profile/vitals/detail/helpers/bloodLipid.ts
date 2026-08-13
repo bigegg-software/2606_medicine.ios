@@ -41,7 +41,8 @@ export type BloodLipidGoalRow = {
   shortLabel: string;
   fullLabel: string;
   currentAmountText: string;
-  icon: 'up' | 'down' | null;
+  /** 目标比较符：降低类 ≤，提升类 ≥ */
+  compareSymbol: '≤' | '≥' | '<' | '>' | null;
 };
 
 export type BloodLipidCompareRow = {
@@ -578,38 +579,28 @@ export function buildBloodLipidGoalRows(
       const isGain = direction === 1
         || (direction !== -1 && metric.higherIsBetter);
 
+      // 优先用运动处方配置的绝对目标；无 target 时用基线 + 改善率推算
       const baseline = toFiniteLipidNumber(pair?.baseline)
         ?? getBaselineLipidValue(periodItems, metric.key);
-      if (baseline == null || baseline <= 0) return null;
-
       const absoluteTarget = toFiniteLipidNumber(pair?.target)
         ?? (
-          ratePercent != null && !Number.isNaN(Number(ratePercent))
+          baseline != null
+            && baseline > 0
+            && ratePercent != null
+            && !Number.isNaN(Number(ratePercent))
             ? calcLipidAbsoluteTarget(baseline, Number(ratePercent), isGain)
             : null
         );
+      if (absoluteTarget == null || absoluteTarget <= 0) return null;
 
-      let displayAmount: number | null = null;
-      if (absoluteTarget != null && absoluteTarget > 0) {
-        displayAmount = Number(Math.abs(absoluteTarget - baseline).toFixed(2));
-      } else if (ratePercent != null && !Number.isNaN(Number(ratePercent))) {
-        displayAmount = calcLipidGoalTargetAmount(baseline, Number(ratePercent));
-      }
-      if (displayAmount == null || displayAmount <= 0) return null;
-
-      const icon: BloodLipidGoalRow['icon'] = direction === 1
-        ? 'up'
-        : direction === -1
-          ? 'down'
-          : isGain
-            ? 'up'
-            : 'down';
+      // 与日程目标规则一致：越低越好用 ≤，越高越好用 ≥
+      const compareSymbol: BloodLipidGoalRow['compareSymbol'] = isGain ? '≥' : '≤';
 
       return {
         shortLabel: metric.shortLabel,
         fullLabel: `${metric.fullLabel} (mmol/L)`,
-        currentAmountText: formatLipidDecimal(displayAmount),
-        icon,
+        currentAmountText: formatLipidDecimal(absoluteTarget),
+        compareSymbol,
       };
     })
     .filter((row): row is BloodLipidGoalRow => row != null);

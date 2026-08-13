@@ -334,6 +334,12 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: "#333333",
     },
+    rowCompareSymbol: {
+        fontWeight: 'bold',
+        fontSize: 16,
+        color: '#333333',
+        marginRight: 4,
+    },
     rowTitle1: {
         marginLeft: 8,
         flex: 1,

@@ -1,5 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  AppState,
   Image,
   ScrollView,
   Text,
@@ -21,6 +22,7 @@ import {
   startEquipmentScan,
   stopEquipmentScan,
 } from '@/store/actions/equipment';
+import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
 import styles from '@/css/equipment/search';
 
 const SEARCH_TIMEOUT_MS = 30_000;
@@ -32,17 +34,17 @@ const SEARCH_TIPS: Array<{
   highlights?: Array<{ text: string; suffix: string }>;
   suffix?: string;
 }> = [
-  { prefix: '1. 确保Polar设备已开启并处于配对模式' },
-  {
-    prefix: '2. 点击',
-    highlights: [{ text: '“扫描设备”', suffix: '查找附近的Polar设备' }],
-  },
-  {
-    prefix: '3. 从列表中选择设备并点击',
-    highlights: [{ text: '“连接”', suffix: '' }],
-  },
-  { prefix: '4. 连接成功后可以开始心率监测' },
-];
+    { prefix: '1. 确保Polar设备已开启并处于配对模式' },
+    {
+      prefix: '2. 点击',
+      highlights: [{ text: '“扫描设备”', suffix: '查找附近的Polar设备' }],
+    },
+    {
+      prefix: '3. 从列表中选择设备并点击',
+      highlights: [{ text: '“连接”', suffix: '' }],
+    },
+    { prefix: '4. 连接成功后可以开始心率监测' },
+  ];
 
 /**
  * 搜索 / 添加 Polar 等蓝牙设备
@@ -65,14 +67,46 @@ export default function EquipmentSearchPage() {
 
   const [searchKey, setSearchKey] = useState(0);
   const [searchTimedOut, setSearchTimedOut] = useState(false);
+  const [bleReady, setBleReady] = useState(false);
   const pendingConnectIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    void dispatch(hydrateEquipment());
-    void dispatch(prepareEquipmentSdk());
+    let cancelled = false;
+    void (async () => {
+      const ready = await ensureEquipmentBluetoothReady();
+      if (cancelled) return;
+      if (!ready.ok) {
+        setBleReady(false);
+        return;
+      }
+      setBleReady(true);
+      await dispatch(hydrateEquipment());
+      await dispatch(prepareEquipmentSdk());
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
 
+  // 从系统设置返回后复检权限，便于授权后继续搜索
   useEffect(() => {
+    if (bleReady) return undefined;
+    const sub = AppState.addEventListener('change', next => {
+      if (next !== 'active') return;
+      void (async () => {
+        const ready = await ensureEquipmentBluetoothReady({ showAlert: false });
+        if (!ready.ok) return;
+        setBleReady(true);
+        await dispatch(hydrateEquipment());
+        await dispatch(prepareEquipmentSdk());
+      })();
+    });
+    return () => sub.remove();
+  }, [bleReady, dispatch]);
+
+  useEffect(() => {
+    if (!bleReady) return undefined;
+
     let cancelled = false;
     setSearchTimedOut(false);
 
@@ -92,7 +126,7 @@ export default function EquipmentSearchPage() {
       clearTimeout(emptyTimer);
       void dispatch(stopEquipmentScan());
     };
-  }, [dispatch, searchKey]);
+  }, [bleReady, dispatch, searchKey]);
 
   useEffect(() => {
     const pendingId = pendingConnectIdRef.current;
@@ -122,7 +156,18 @@ export default function EquipmentSearchPage() {
     [dispatch, isConnecting],
   );
 
-  const hasFound = scannedDevices.length > 0;
+  const connectedDeviceIds = useMemo(
+    () => new Set(
+      boundDevices.filter(item => item.connected).map(item => item.deviceId),
+    ),
+    [boundDevices],
+  );
+  const visibleScannedDevices = useMemo(
+    () => scannedDevices.filter(item => !connectedDeviceIds.has(item.deviceId)),
+    [connectedDeviceIds, scannedDevices],
+  );
+
+  const hasFound = visibleScannedDevices.length > 0;
   const showEmpty = searchTimedOut && !hasFound;
 
   return (
@@ -154,7 +199,7 @@ export default function EquipmentSearchPage() {
             </Flex>
 
             <View style={styles.foundList}>
-              {scannedDevices.map(item => {
+              {visibleScannedDevices.map(item => {
                 const connecting =
                   isConnecting && connectingDeviceId === item.deviceId;
                 return (
