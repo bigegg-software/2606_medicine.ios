@@ -3,14 +3,16 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
+import type { AppDispatch } from '@/store/store';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import WeightDetailChart, {
     type WeightDetailPoint,
 } from './components/WeightDetailChart';
-import type { HealthGoalTarget } from '@/api/healthGoal';
 import {
     getMeasureDataAllRecords,
     type MeasureDataAllRecordsResult,
@@ -37,6 +39,7 @@ import {
     type BloodLipidMetricKey,
 } from './helpers/bloodLipid';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import type { HealthGoalTarget } from '@/api/healthGoal';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -66,6 +69,7 @@ function applyEmptyDisplay(
 
 export default function BloodLipidPage() {
     const navigation = useNavigation<Nav>();
+    const dispatch = useDispatch<AppDispatch>();
     const insets = useSafeAreaInsets();
     const lipidTabs = useMemo(() => getBloodLipidMetricTabs(), []);
     const [selectedLipidType, setSelectedLipidType] = useState<BloodLipidMetricKey>('TC');
@@ -74,11 +78,12 @@ export default function BloodLipidPage() {
     const [displayStatus, setDisplayStatus] = useState('--');
     const [displayStatusColor, setDisplayStatusColor] = useState('#999999');
     const [currentLabel, setCurrentLabel] = useState('--');
-    const [showGoalSummary, setShowGoalSummary] = useState(false);
     const [goalRows, setGoalRows] = useState<BloodLipidGoalRow[]>([]);
     const [prescriptionTarget, setPrescriptionTarget] = useState<HealthGoalTarget | null>(null);
     const [prescriptionPeriodItems, setPrescriptionPeriodItems] = useState<MeasureDataItem[]>([]);
     const [compareSummary, setCompareSummary] = useState<BloodLipidCompareSummary | null>(null);
+
+    const showGoalSummary = goalRows.length > 0;
 
     const navigateToAddData = useCallback(() => {
         navigation.navigate('AddDataPage', { type: '血脂' });
@@ -96,21 +101,20 @@ export default function BloodLipidPage() {
     }, [selectedLipidType]);
 
     const loadPrescriptionGoal = useCallback(async (fallbackItems: MeasureDataItem[]) => {
-        const summary = await loadBloodLipidPrescriptionGoalSummary(fallbackItems);
+        const rule = await dispatch(fetchInUsePrescription({ force: true }));
+        const summary = await loadBloodLipidPrescriptionGoalSummary(rule, fallbackItems);
         if (!summary) {
-            setShowGoalSummary(false);
             setGoalRows([]);
             setPrescriptionTarget(null);
             setPrescriptionPeriodItems([]);
             return null;
         }
 
-        setShowGoalSummary(summary.rows.length > 0);
         setGoalRows(summary.rows);
         setPrescriptionTarget(summary.target);
         setPrescriptionPeriodItems(summary.periodItems);
         return summary;
-    }, []);
+    }, [dispatch]);
 
     const loadMeasureData = useCallback(async () => {
         const setters = {
@@ -131,6 +135,7 @@ export default function BloodLipidPage() {
 
             if (!isResourceApiOk(res)) {
                 applyEmptyDisplay(setters, selectedLipidType);
+                await loadPrescriptionGoal([]);
                 return;
             }
 
@@ -141,12 +146,14 @@ export default function BloodLipidPage() {
             const prescriptionSummary = await loadPrescriptionGoal(items);
 
             const rule = prescriptionSummary?.rule;
-            const baselineItems = prescriptionSummary?.periodItems ?? [];
-            const compareFromPrescription = rule?.startDate && rule?.endDate && baselineItems.length
+            const target = prescriptionSummary?.target;
+            // 有运动处方：初始优先处方基线，无基线用周期内最早测量；最近用周期内最新
+            const compareFromPrescription = rule?.startDate && rule?.endDate
                 ? buildBloodLipidCompareSummary(
-                    baselineItems,
+                    items,
                     rule.startDate,
                     rule.endDate,
+                    target,
                 )
                 : null;
 
@@ -186,13 +193,14 @@ export default function BloodLipidPage() {
         () => chartData.map(point => point.hour),
         [chartData],
     );
+
     const tcGoalProgressStatus = useMemo(
         () => formatBloodLipidTcGoalProgressStatus(
             prescriptionTarget,
             prescriptionPeriodItems,
             allItems,
         ),
-        [prescriptionTarget, prescriptionPeriodItems, allItems],
+        [allItems, prescriptionPeriodItems, prescriptionTarget],
     );
 
     const lipidYAxisBuilder = useCallback(
@@ -212,9 +220,16 @@ export default function BloodLipidPage() {
                     style={styles.body}
                     contentContainerStyle={{ paddingBottom: 96 + insets.bottom }}
                 >
-                    {showGoalSummary && goalRows.length ? (
+                    {showGoalSummary ? (
                         <View style={[styles.rowBox, { marginTop: 10 }]}>
-                            <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>血脂控制目标</Text>
+                            <Flex justify="between" align="center">
+                                <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>血脂控制目标</Text>
+                                {/* <Flex style={[styles.status1Box, { borderColor: tcGoalProgressStatus.color }]}>
+                                    <Text style={[styles.status1Text, { color: tcGoalProgressStatus.color }]}>
+                                        {tcGoalProgressStatus.text}
+                                    </Text>
+                                </Flex> */}
+                            </Flex>
                             {goalRows.map(row => (
                                 <Flex key={row.shortLabel} style={styles.topTextBox}>
                                     <View style={styles.leftIcon} />
@@ -242,14 +257,7 @@ export default function BloodLipidPage() {
 
                     {compareSummary ? (
                         <View style={[styles.rowBox, { marginTop: 10 }]}>
-                            <Flex justify="between">
-                                <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>指标对比</Text>
-                                {/* <Flex style={[styles.status1Box, { borderColor: tcGoalProgressStatus.color }]}>
-                                    <Text style={[styles.status1Text, { color: tcGoalProgressStatus.color }]}>
-                                        {tcGoalProgressStatus.text}
-                                    </Text>
-                                </Flex> */}
-                            </Flex>
+                            <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>指标对比</Text>
                             <Flex style={styles.dbBox}>
                                 <Flex style={styles.dbBoxItem}>
                                     <Text style={styles.dbBoxItemText}>初始</Text>

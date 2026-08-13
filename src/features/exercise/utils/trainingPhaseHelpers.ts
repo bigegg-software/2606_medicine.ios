@@ -14,7 +14,7 @@ import type {
   ExWeekTrainingSchedule,
 } from '@/api/exPatientRule';
 import type { InUseExPatientRule } from '@/api/schedule';
-import { EXERCISE_TYPE_META, type ExerciseTypeKey } from './prescriptionHelpers';
+import { EXERCISE_TYPE_META, getPrescribedExerciseTypeKeys, type ExerciseTypeKey } from './prescriptionHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   isGroupDisplayDone,
@@ -527,6 +527,10 @@ export async function buildMainTrainingModules(
 
   const merged = mergeMainBlocks(schedule?.mainList);
   const modules: MainTrainingTypeModule[] = [];
+  const prescribedTypes = new Set(getPrescribedExerciseTypeKeys(rule));
+  const typeOrder = prescribedTypes.size > 0
+    ? MAIN_TYPE_ORDER.filter(typeKey => prescribedTypes.has(typeKey))
+    : MAIN_TYPE_ORDER;
   const exPatientRuleId = rule?.exPatientRuleId;
   const bodyPartLabelMap = await loadExerciseBodyPartLabelMap();
   let strengthLevelMap: Record<string, string> = {};
@@ -543,7 +547,7 @@ export async function buildMainTrainingModules(
     strengthLevelMap = {};
   }
 
-  for (const typeKey of MAIN_TYPE_ORDER) {
+  for (const typeKey of typeOrder) {
     const items = merged[typeKey];
     if (!items.length) continue;
     const baseCards = await buildTrainingPhaseCards(items, bodyPartLabelMap);

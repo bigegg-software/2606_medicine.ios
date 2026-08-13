@@ -21,6 +21,7 @@ import {
 import {
     buildRecommendedMealSections,
     formatActualFoodMeta,
+    isDietRuleActiveOnDate,
     type RecommendedMealSection,
 } from './utils/dietMealHelpers';
 import type { RootStackParamList } from '@/route/router';
@@ -139,8 +140,12 @@ async function loadDietRuleForDate(
 ): Promise<DietPatientRuleInfo | null> {
     const today = moment().format('YYYY-MM-DD');
     // 今天与未来：用当前在用处方（未来按对应星期展示推荐餐）
-    if (customerLocalDate >= today) return inUseRule;
-    return fetchDietRuleForDate(customerLocalDate);
+    const rule = customerLocalDate >= today
+        ? inUseRule
+        : await fetchDietRuleForDate(customerLocalDate);
+    // 处方开始前（如周四开方，本周一~三）不展示营养处方数据
+    if (!isDietRuleActiveOnDate(rule, customerLocalDate)) return null;
+    return rule;
 }
 
 function RecommendedMealCard({
@@ -313,6 +318,13 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         () => buildRecommendedMealSections(dayRule?.mealList, selectedDate),
         [dayRule?.mealList, selectedDate],
     );
+    const isBeforePrescriptionStart = useMemo(() => {
+        const start = dietRule?.startDate?.trim() || dayRule?.startDate?.trim();
+        if (!start) return false;
+        const startDay = moment(start, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+        if (!startDay.isValid()) return false;
+        return moment(selectedDate, 'YYYY-MM-DD', true).isBefore(startDay, 'day');
+    }, [dayRule?.startDate, dietRule?.startDate, selectedDate]);
 
     const signButtonLabel = useMemo(() => {
         if (isPastSelected) return getDietHistorySignButtonLabel(historySigned);
@@ -774,7 +786,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                     <View style={styles.calendarContent}>
                         <Text style={styles.calendarContentTitle}>今日推荐</Text>
                         <Text style={[styles.calendarContentSubtitle, { marginTop: 12 }]}>
-                            暂无推荐餐食
+                            {isBeforePrescriptionStart || !dayRule ? '暂无数据' : '暂无推荐餐食'}
                         </Text>
                     </View>
                 )}

@@ -6,7 +6,8 @@ export const MINI_SPARKLINE_WIDTH = 73;
 export const MINI_SPARKLINE_HEIGHT = 18;
 const STROKE_WIDTH = 2;
 const STROKE_COLOR = '#6D925E';
-const STROKE_INSET = STROKE_WIDTH / 2;
+/** 预留描边 + 平滑曲线外扩，避免上下被裁切 */
+const STROKE_INSET = STROKE_WIDTH + 1;
 
 type Point = { x: number; y: number };
 
@@ -18,17 +19,22 @@ type MiniSparklineProps = {
   strokeWidth?: number;
 };
 
-function buildChartPoints(values: number[], width: number, height: number): Point[] {
+function buildChartPoints(
+  values: number[],
+  width: number,
+  height: number,
+  inset: number,
+): Point[] {
   if (!values.length) return [];
 
-  const innerWidth = width - STROKE_INSET * 2;
-  const innerHeight = height - STROKE_INSET * 2;
+  const innerWidth = Math.max(width - inset * 2, 1);
+  const innerHeight = Math.max(height - inset * 2, 1);
 
   if (values.length === 1) {
     const y = height / 2;
     return [
-      { x: STROKE_INSET, y },
-      { x: width - STROKE_INSET, y },
+      { x: inset, y },
+      { x: width - inset, y },
     ];
   }
 
@@ -37,8 +43,8 @@ function buildChartPoints(values: number[], width: number, height: number): Poin
   const range = max - min || 1;
 
   return values.map((value, index) => ({
-    x: STROKE_INSET + (index / (values.length - 1)) * innerWidth,
-    y: STROKE_INSET + innerHeight - ((value - min) / range) * innerHeight,
+    x: inset + (index / (values.length - 1)) * innerWidth,
+    y: inset + innerHeight - ((value - min) / range) * innerHeight,
   }));
 }
 
@@ -71,14 +77,20 @@ export default function MiniSparkline({
   color = STROKE_COLOR,
   strokeWidth = STROKE_WIDTH,
 }: MiniSparklineProps) {
+  const inset = Math.max(strokeWidth + 1, STROKE_INSET);
   const path = useMemo(() => {
-    const points = buildChartPoints(data, width, height);
+    const points = buildChartPoints(data, width, height, inset);
     return buildSmoothPath(points);
-  }, [data, width, height]);
+  }, [data, width, height, inset]);
 
   return (
     <View style={[styles.container, { width, height }]}>
-      <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+      <Svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        style={styles.svg}
+      >
         <Path
           d={path}
           fill="none"
@@ -96,5 +108,9 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'visible',
+  },
+  svg: {
+    overflow: 'visible',
   },
 });

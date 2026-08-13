@@ -1,36 +1,27 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import * as echarts from 'echarts/core';
-import { LineChart, ScatterChart } from 'echarts/charts';
+import { ScatterChart } from 'echarts/charts';
 import { GridComponent, TooltipComponent } from 'echarts/components';
 import SkiaChart, { SkiaRenderer } from '@wuba/react-native-echarts/skiaChart';
 import styles from '@/css/home/bloodPressureChart';
-import { buildChartXAxis, buildLineScatterData, toChartValuePairs } from './chartAxis';
+import { buildChartXAxis, hasTodayChartX } from './chartAxis';
 
 export type UricAcidPoint = { hour: string; value: number; x?: number };
 
 export const CHART_WIDTH = 172;
 export const CHART_HEIGHT = 60;
 
-const LINE_COLOR = '#6D925E';
+const POINT_COLOR = '#6D925E';
 
-const OUTER_POINT_STYLE = {
-  color: '#FFFFFF',
-  borderColor: '#6D925E',
-  borderWidth: 1,
+const POINT_SHADOW = {
   shadowBlur: 3,
   shadowColor: 'rgba(0,0,0,0.2)',
   shadowOffsetX: 0,
   shadowOffsetY: 0,
 };
 
-const INNER_POINT_STYLE = {
-  color: '#6D925E',
-  borderColor: 'transparent',
-  borderWidth: 0,
-};
-
-echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent]);
+echarts.use([SkiaRenderer, ScatterChart, GridComponent, TooltipComponent]);
 
 type Props = {
   data?: UricAcidPoint[];
@@ -38,14 +29,46 @@ type Props = {
   hideXAxis?: boolean;
 };
 
-function buildUricAcidAxisRange(values: Array<number | null>) {
-  const valid = values.filter((value): value is number => value != null && value > 0);
-  if (!valid.length) {
+function getPointStyle() {
+  return {
+    color: POINT_COLOR,
+    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    ...POINT_SHADOW,
+  };
+}
+
+function buildScatterData(points: UricAcidPoint[]) {
+  if (hasTodayChartX(points)) {
+    return points
+      .filter(point => point.x != null && point.value > 0)
+      .sort((a, b) => (a.x ?? 0) - (b.x ?? 0))
+      .map(point => ({
+        value: [point.x as number, point.value] as [number, number],
+        name: point.hour,
+        symbolSize: 6,
+        itemStyle: getPointStyle(),
+      }));
+  }
+
+  return points
+    .map((point, index) => ({ point, index }))
+    .filter(({ point }) => point.value > 0)
+    .map(({ point, index }) => ({
+      value: [index, point.value] as [number, number],
+      name: point.hour,
+      symbolSize: 6,
+      itemStyle: getPointStyle(),
+    }));
+}
+
+function buildUricAcidAxisRange(values: number[]) {
+  if (!values.length) {
     return { min: 200, max: 500 };
   }
 
-  const minVal = Math.min(...valid);
-  const maxVal = Math.max(...valid);
+  const minVal = Math.min(...values);
+  const maxVal = Math.max(...values);
   const padding = Math.max(20, (maxVal - minVal) * 0.2 || 20);
 
   return {
@@ -54,28 +77,26 @@ function buildUricAcidAxisRange(values: Array<number | null>) {
   };
 }
 
-function buildOption(points: UricAcidPoint[], labels: string[], hideXAxis = false) {
-  const lineData = toChartValuePairs(points);
-  const scatterData = buildLineScatterData(lineData);
-  const validValues = points.filter(point => point.value > 0).map(point => point.value);
+function buildOption(points: UricAcidPoint[], categoryLabels: string[], hideXAxis = false) {
+  const scatterData = buildScatterData(points);
+  const validValues = scatterData.map(item => Number(item.value[1]));
   const { min, max } = buildUricAcidAxisRange(validValues);
-  const xAxis = buildChartXAxis(points, labels, false);
+  const xAxis = buildChartXAxis(points, categoryLabels);
 
   return {
     animation: false,
     backgroundColor: 'transparent',
     tooltip: {
-      trigger: 'axis',
+      trigger: 'item',
       triggerOn: 'click',
       confine: true,
       backgroundColor: 'rgba(51,51,51,0.9)',
       borderWidth: 0,
       padding: [4, 8],
       textStyle: { color: '#fff', fontSize: 10, lineHeight: 14 },
-      formatter: (params: any) => {
-        const item = Array.isArray(params) ? params[0] : params;
-        const title = item?.data?.name || item?.name || item?.axisValueLabel || '';
-        const raw = item?.data?.value ?? item?.value;
+      formatter: (param: any) => {
+        const title = param?.data?.name || param?.name || '';
+        const raw = param?.data?.value ?? param?.value;
         const value = Array.isArray(raw) ? raw[1] : raw;
         if (value == null || value === '') return title;
         return `${title}\n尿酸 ${Math.round(Number(value))}μmol/L`;
@@ -102,29 +123,10 @@ function buildOption(points: UricAcidPoint[], labels: string[], hideXAxis = fals
     },
     series: [
       {
-        type: 'line',
-        smooth: true,
-        connectNulls: false,
-        showSymbol: false,
-        data: lineData,
-        lineStyle: { color: LINE_COLOR, width: 2 },
-        itemStyle: { color: LINE_COLOR },
-      },
-      {
         type: 'scatter',
         data: scatterData,
         symbol: 'circle',
-        symbolSize: 6,
-        itemStyle: OUTER_POINT_STYLE,
         z: 10,
-      },
-      {
-        type: 'scatter',
-        data: scatterData,
-        symbol: 'circle',
-        symbolSize: 4,
-        itemStyle: INNER_POINT_STYLE,
-        z: 11,
       },
     ],
   };
@@ -135,8 +137,7 @@ export default function UricAcidChart({ data, labels, hideXAxis }: Props) {
   const points = data ?? [];
   const categoryLabels =
     labels ??
-    points.map(point => point.hour ?? '').filter(Boolean);
-
+    (hasTodayChartX(points) ? [] : points.map(point => point.hour ?? '').filter(Boolean));
   const option = useMemo(
     () => buildOption(points, categoryLabels, hideXAxis),
     [points, categoryLabels, hideXAxis],

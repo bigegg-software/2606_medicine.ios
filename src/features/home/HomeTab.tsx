@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
+import { View, Text, Image, ScrollView, Pressable, TouchableOpacity, Platform, useWindowDimensions, DeviceEventEmitter, type ImageSourcePropType, type LayoutChangeEvent, type NativeSyntheticEvent, type NativeScrollEvent } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView, BlurTargetView } from 'expo-blur';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Rect, Stop } from 'react-native-svg';
@@ -29,7 +29,6 @@ import {
   type MeasureDataItem,
   type MeasureDataRangeDetailResult,
 } from '@/api/measureData';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import {
   getWearableDataDetailByDateRange,
   WEARABLE_DATA_TYPES,
@@ -66,7 +65,6 @@ import {
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import {
   buildExercisePrescriptionMetrics,
-  enrichHealthGoalTargets,
   loadModuleCompleteRateProgressMap,
   loadScheduleDictMaps,
   type ScheduleDictMaps,
@@ -75,6 +73,7 @@ import {
   loadHomePrescriptionGoalDisplay,
   type HomePrescriptionGoalDisplay,
 } from '@/src/features/home/homePrescriptionGoalHelpers';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -230,7 +229,6 @@ export default function HomeTab() {
   const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableRestingHeartRate, setWearableRestingHeartRate] = useState<WearableDataItem[]>([]);
   const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
-  const [exercisePrescription, setExercisePrescription] = useState<InUseExPatientRule | null>(null);
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [homePrescriptionGoal, setHomePrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(null);
@@ -242,6 +240,7 @@ export default function HomeTab() {
   const showTopMaskRef = useRef(false);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const user = useSelector((state: RootState) => state.user.info);
+  const exercisePrescription = useSelector((state: RootState) => state.prescription.inUse);
   const profileComplete = isUserBaseInfoComplete(user);
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
@@ -403,40 +402,31 @@ export default function HomeTab() {
 
   const loadExercisePrescription = useCallback(async () => {
     try {
-      const [dictMaps, res] = await Promise.all([
+      const [dictMaps, prescription] = await Promise.all([
         loadScheduleDictMaps().catch(() => null),
-        getInUseExPatientRuleInfo(),
+        dispatch(fetchInUsePrescription()),
       ]);
       if (dictMaps) {
         setExerciseDictMaps(dictMaps);
       }
 
-      const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
-      if (!isResourceApiOk(payload)) {
-        setExercisePrescription(null);
+      if (!prescription) {
         setExerciseProgressMap({});
         setHomePrescriptionGoal(null);
         return;
       }
 
-      let prescription = apiResourceData<InUseExPatientRule>(payload) ?? null;
-      if (prescription?.healthGoalTargetList?.length) {
-        const enrichedTargets = await enrichHealthGoalTargets(prescription.healthGoalTargetList);
-        prescription = { ...prescription, healthGoalTargetList: enrichedTargets };
-      }
-      setExercisePrescription(prescription);
-      const progressMap = prescription?.exPatientRuleId != null
+      const progressMap = prescription.exPatientRuleId != null
         ? await loadModuleCompleteRateProgressMap(prescription.exPatientRuleId).catch(() => ({}))
         : {};
       setExerciseProgressMap(progressMap);
       const goalDisplay = await loadHomePrescriptionGoalDisplay(prescription, userId);
       setHomePrescriptionGoal(goalDisplay);
     } catch {
-      setExercisePrescription(null);
       setExerciseProgressMap({});
       setHomePrescriptionGoal(null);
     }
-  }, [userId]);
+  }, [dispatch, userId]);
 
   useEffect(() => {
     if (userExtr == null) {
@@ -668,7 +658,9 @@ export default function HomeTab() {
             ) : null}
           </View>
         </View>
-        <View style={styles.scheduleBoxShadow}>
+        <Pressable style={styles.scheduleBoxShadow} onPress={() =>
+          navigation.navigate('ExercisePage')
+        }>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -745,9 +737,11 @@ export default function HomeTab() {
               )}
             </View>
           </View>
-        </View>
+        </Pressable>
 
-        <View style={styles.scheduleBoxShadow}>
+        <Pressable style={styles.scheduleBoxShadow} onPress={() =>
+          navigation.navigate('NutritionPage')
+        }>
           <View style={styles.scheduleBox}>
             <LinearGradient
               colors={['#E6F1FF', '#FEFFFF']}
@@ -912,7 +906,7 @@ export default function HomeTab() {
               </Flex>
             ) : null}
           </View>
-        </View>
+        </Pressable>
       </View>
     </ScrollView>
   )

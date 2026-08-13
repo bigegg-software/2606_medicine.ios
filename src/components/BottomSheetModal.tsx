@@ -101,7 +101,12 @@ export default function BottomSheetModal({
   }, [keyboardOffset, rendered]);
 
   useEffect(() => {
-    if (visible) return;
+    if (visible) {
+      // 再次打开时清零，避免上次键盘高度残留导致「弹窗被顶起但无键盘」
+      keyboardOffset.setValue(0);
+      return;
+    }
+    Keyboard.dismiss();
     keyboardOffset.setValue(0);
   }, [keyboardOffset, visible]);
 
@@ -110,6 +115,7 @@ export default function BottomSheetModal({
       shouldNotifyDismissedRef.current = false;
       setRendered(true);
       slideAnim.setValue(SCREEN_HEIGHT);
+      keyboardOffset.setValue(0);
       backdropAnim.setValue(0);
       Animated.parallel([
         Animated.timing(slideAnim, {
@@ -147,7 +153,7 @@ export default function BottomSheetModal({
         shouldNotifyDismissedRef.current = false;
       }
     });
-  }, [backdropAnim, rendered, slideAnim, visible]);
+  }, [backdropAnim, keyboardOffset, rendered, slideAnim, visible]);
 
   if (!rendered) return null;
 

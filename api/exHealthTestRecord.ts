@@ -6,6 +6,7 @@ export type ExHealthTestRecord = {
   exPatientRuleId?: number;
   healthTestItemId?: number;
   testValue?: number;
+  objValue?: Record<string, number | string | null> | null;
   createTime?: string;
   firstRecord?: boolean;
   changeValue?: number | null;
@@ -48,7 +49,10 @@ export const listHealthTestRecords = (params: HealthTestRecordListParams) =>
 export type AddExHealthTestRecordPayload = {
   exPatientRuleId: string;
   healthTestItemId: string;
-  testValue: number;
+  /** 测试数值，保留4位小数（非必填） */
+  testValue?: number;
+  /** 关节活动度等对象值（非必填） */
+  objValue?: Record<string, number>;
 };
 
 export const addExHealthTestRecord = (data: AddExHealthTestRecordPayload) =>

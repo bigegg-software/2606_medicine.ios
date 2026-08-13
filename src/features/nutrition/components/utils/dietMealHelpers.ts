@@ -31,6 +31,30 @@ export type RecommendedMealSection = {
   foods: RecommendedFoodItem[];
 };
 
+/** 选中日期是否在营养处方起止范围内（开始前 / 结束后视为无处方） */
+export function isDietRuleActiveOnDate(
+  rule: DietPatientRuleInfo | null | undefined,
+  customerLocalDate: string,
+) {
+  if (!rule) return false;
+  const day = moment(customerLocalDate, 'YYYY-MM-DD', true);
+  if (!day.isValid()) return false;
+
+  const start = rule.startDate?.trim();
+  if (start) {
+    const startDay = moment(start, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+    if (startDay.isValid() && day.isBefore(startDay, 'day')) return false;
+  }
+
+  const end = rule.endDate?.trim();
+  if (end) {
+    const endDay = moment(end, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+    if (endDay.isValid() && day.isAfter(endDay, 'day')) return false;
+  }
+
+  return true;
+}
+
 const MEAL_SECTION_META: Record<number, { title: string; icon: ImageSourcePropType }> = {
   1: {
     title: '早餐',

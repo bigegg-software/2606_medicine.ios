@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useState } from 'react'
 import {
     View,
     Text,
@@ -13,7 +13,6 @@ import { LinearGradient } from 'expo-linear-gradient'
 import styles from '@/css/exercise/prescription'
 import type { InUseExPatientRule } from '@/api/schedule'
 import {
-    EXERCISE_TYPE_ORDER,
     buildPrescriptionTypeSections,
     buildPrescriptionWeightItems,
     formatFirstAdvanceWeeksStat,
@@ -43,16 +42,31 @@ type Props = {
 export default function PrescriptionPage({ exerciseRule }: Props) {
     const typeSections = buildPrescriptionTypeSections(exerciseRule)
     const weightItems = buildPrescriptionWeightItems(exerciseRule)
+    const weightLegendRows = useMemo(() => {
+        const rows: typeof weightItems[] = []
+        for (let i = 0; i < weightItems.length; i += 2) {
+            rows.push(weightItems.slice(i, i + 2))
+        }
+        return rows
+    }, [weightItems])
 
     const [expandedMap, setExpandedMap] = useState<Record<string, boolean>>(() => {
-        const firstKey = buildPrescriptionTypeSections(exerciseRule)[0]?.key
+        const firstKey = typeSections[0]?.key
         return Object.fromEntries(
-            EXERCISE_TYPE_ORDER.map(key => [key, Boolean(firstKey) && key === firstKey]),
+            typeSections.map(item => [item.key, Boolean(firstKey) && item.key === firstKey]),
         )
     })
     const [timelineItems, setTimelineItems] = useState<PrescriptionTimelineItem[]>([])
     const [timelineLoading, setTimelineLoading] = useState(true)
     const [strengthLevelLabel, setStrengthLevelLabel] = useState('')
+
+    useEffect(() => {
+        const sections = buildPrescriptionTypeSections(exerciseRule)
+        const firstKey = sections[0]?.key
+        setExpandedMap(Object.fromEntries(
+            sections.map(item => [item.key, Boolean(firstKey) && item.key === firstKey]),
+        ))
+    }, [exerciseRule])
 
     const loadTimeline = useCallback(async () => {
         const ruleId = exerciseRule?.exPatientRuleId
@@ -213,40 +227,25 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
                             />
                         ))}
                     </Flex>
-                    <Flex style={styles.prescriptionWeightLegendRow}>
-                        {weightItems.slice(0, 2).map(item => (
-                            <Flex
-                                key={item.key}
-                                align="center"
-                                justify="between"
-                                style={styles.prescriptionWeightLegendItem}>
-                                <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
-                                    <View style={[styles.prescriptionWeightDot, { backgroundColor: item.color }]} />
-                                    <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>
-                                        {item.title}
-                                    </Text>
+                    {weightLegendRows.map((row, rowIndex) => (
+                        <Flex key={`weight-legend-${rowIndex}`} style={styles.prescriptionWeightLegendRow}>
+                            {row.map(item => (
+                                <Flex
+                                    key={item.key}
+                                    align="center"
+                                    justify="between"
+                                    style={styles.prescriptionWeightLegendItem}>
+                                    <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
+                                        <View style={[styles.prescriptionWeightDot, { backgroundColor: item.color }]} />
+                                        <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>
+                                            {item.title}
+                                        </Text>
+                                    </Flex>
+                                    <Text style={styles.prescriptionWeightLegendValue}>{item.ratioText}</Text>
                                 </Flex>
-                                <Text style={styles.prescriptionWeightLegendValue}>{item.ratioText}</Text>
-                            </Flex>
-                        ))}
-                    </Flex>
-                    <Flex style={styles.prescriptionWeightLegendRow}>
-                        {weightItems.slice(2, 4).map(item => (
-                            <Flex
-                                key={item.key}
-                                align="center"
-                                justify="between"
-                                style={styles.prescriptionWeightLegendItem}>
-                                <Flex align="center" style={{ flexShrink: 1, minWidth: 0 }}>
-                                    <View style={[styles.prescriptionWeightDot, { backgroundColor: item.color }]} />
-                                    <Text style={styles.prescriptionWeightLegendText} numberOfLines={1}>
-                                        {item.title}
-                                    </Text>
-                                </Flex>
-                                <Text style={styles.prescriptionWeightLegendValue}>{item.ratioText}</Text>
-                            </Flex>
-                        ))}
-                    </Flex>
+                            ))}
+                        </Flex>
+                    ))}
                 </View>
 
                 <ImageBackground
@@ -254,7 +253,11 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
                     style={styles.backImage1}>
                     <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
                         <Text style={styles.prescriptionWeightTitle}>FITT-VP 处方明细</Text>
-                        <Text style={styles.prescriptionWeightTagText}>四类分层·六要素</Text>
+                        <Text style={styles.prescriptionWeightTagText}>
+                            {typeSections.length > 0
+                                ? `${typeSections.length}类分层·六要素`
+                                : '六要素'}
+                        </Text>
                     </Flex>
                 </ImageBackground>
 

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'rea
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useNavigation } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Canvas, Circle, Path, Skia } from '@shopify/react-native-skia';
 import { getUserQuestionDetail, type QuestionnaireType, type UserQuestionDetailResult, type UserQuestionRecord, } from '@/api/questionTemplate';
 import styles from '@/css/questionnaire/index';
@@ -20,6 +21,7 @@ export default function QuestionnaireResultPage({
 }) {
     const { id, type } = route.params;
     const navigation: any = useNavigation();
+    const insets = useSafeAreaInsets();
     const [detail, setDetail] = useState<UserQuestionRecord | null>(null);
     const [loading, setLoading] = useState(true);
 
@@ -89,78 +91,90 @@ export default function QuestionnaireResultPage({
     }
 
     return (
-        <PageLayout style={styles.container}>
-            <ScrollView contentContainerStyle={styles.body}>
-                <Text style={styles.resultTitle}>风险评分</Text>
-                <View style={styles.resultCanvasBox}>
-                    <Canvas style={styles.resultCanvas}>
-                        <Circle
-                            cx={progressCenter}
-                            cy={progressCenter}
-                            r={progressRadius}
-                            color={progressColors.ring}
-                            style="stroke"
-                            strokeWidth={PROGRESS_STROKE}
-                        />
-                        <Path
-                            path={progressPath}
-                            color={progressColors.arc}
-                            style="stroke"
-                            strokeWidth={PROGRESS_STROKE}
-                            strokeCap="round"
-                        />
-                    </Canvas>
-                    <View>
-                        {scoreLevel ? (
-                            <Text style={[styles.resultScore, { color: progressColors.text }]}>
-                                {scoreLevel.result}
-                            </Text>
-                        ) : null}
-                        <Text style={[styles.resultScore, { color: progressColors.text }]}>{progressPercent}%</Text>
+        <PageLayout style={styles.container} edges={[]}>
+            <View style={styles.pageContent}>
+                <ScrollView contentContainerStyle={styles.body}>
+                    <Text style={styles.resultTitle}>风险评分</Text>
+                    <View style={styles.resultCanvasBox}>
+                        <Canvas style={styles.resultCanvas}>
+                            <Circle
+                                cx={progressCenter}
+                                cy={progressCenter}
+                                r={progressRadius}
+                                color={progressColors.ring}
+                                style="stroke"
+                                strokeWidth={PROGRESS_STROKE}
+                            />
+                            <Path
+                                path={progressPath}
+                                color={progressColors.arc}
+                                style="stroke"
+                                strokeWidth={PROGRESS_STROKE}
+                                strokeCap="round"
+                            />
+                        </Canvas>
+                        <View>
+                            {scoreLevel ? (
+                                <Text style={[styles.resultScore, { color: progressColors.text }]}>
+                                    {scoreLevel.result}
+                                </Text>
+                            ) : null}
+                            <Text style={[styles.resultScore, { color: progressColors.text }]}>{progressPercent}%</Text>
+                        </View>
                     </View>
-                </View>
-                <View style={styles.resultScoreBox}>
-                    <Flex>
-                        <View style={styles.scoreBox}>
-                            <Text style={styles.resultScoreTitle}>题数</Text>
-                            <Text style={styles.resultScoreValue}>{questionCount}题</Text>
-                        </View>
-                        <View style={styles.scoreBox}>
-                            <Text style={styles.resultScoreTitle}>评分</Text>
-                            <Text style={styles.resultScoreValue}>
-                                {detail?.score != null
-                                    ? questionnaireType === 3
-                                        ? formatEq5dScore(detail.score)
-                                        : `${detail.score}分`
-                                    : '-'}
-                            </Text>
-                        </View>
-                    </Flex>
-                    {scoreTip ? (
-                        <>
-                            <Flex style={styles.rowLineBox}>
-                                <View style={styles.rowLine} />
-                            </Flex>
-                            <Text style={styles.resultScoreTip}>{scoreTip}</Text>
-                        </>
-                    ) : null}
-                </View>
-                <Text style={styles.resultScoreTip}>本结果仅为参考，不能替代专业医疗诊所建议</Text>
-                <TouchableOpacity
-                    style={[styles.reEvaluateBtn, { marginTop: 100 }]}
-                    onPress={() => navigation.navigate('QuestionnaireDetail', { id })}>
-                    <Flex justify="center" align="center" style={{ flex: 1 }}>
-                        <Text style={styles.reEvaluateBtnText}>查看详情</Text>
-                    </Flex>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={styles.nextBtn}
-                    onPress={() => navigation.goBack()}>
-                    <Flex justify="center" align="center" style={{ flex: 1 }}>
-                        <Text style={styles.nextBtnText}>返回列表</Text>
-                    </Flex>
-                </TouchableOpacity>
-            </ScrollView>
+                    <View style={styles.resultScoreBox}>
+                        <Flex>
+                            <View style={styles.scoreBox}>
+                                <Text style={styles.resultScoreTitle}>题数</Text>
+                                <Text style={styles.resultScoreValue}>{questionCount}题</Text>
+                            </View>
+                            <View style={styles.scoreBox}>
+                                <Text style={styles.resultScoreTitle}>评分</Text>
+                                <Text style={styles.resultScoreValue}>
+                                    {detail?.score != null
+                                        ? questionnaireType === 3
+                                            ? formatEq5dScore(detail.score)
+                                            : `${detail.score}分`
+                                        : '-'}
+                                </Text>
+                            </View>
+                        </Flex>
+                        {scoreTip ? (
+                            <>
+                                <Flex style={styles.rowLineBox}>
+                                    <View style={styles.rowLine} />
+                                </Flex>
+                                <Text style={styles.resultScoreTip}>{scoreTip}</Text>
+                            </>
+                        ) : null}
+                    </View>
+                    <Text style={styles.resultScoreTip}>本结果仅为参考，不能替代专业医疗诊所建议</Text>
+                </ScrollView>
+                <Flex
+                    justify="between"
+                    style={[
+                        styles.bottomBar,
+                        { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+                    ]}
+                >
+                    <TouchableOpacity
+                        style={styles.bottomBarButtonCancel}
+                        activeOpacity={0.8}
+                        onPress={() => navigation.navigate('QuestionnaireDetail', { id })}>
+                        <Flex justify="center" align="center" style={{ flex: 1 }}>
+                            <Text style={styles.bottomBarButtonTextCancel}>查看详情</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.bottomBarButtonConfirm}
+                        activeOpacity={0.8}
+                        onPress={() => navigation.goBack()}>
+                        <Flex justify="center" align="center" style={{ flex: 1 }}>
+                            <Text style={styles.bottomBarButtonTextConfirm}>返回列表</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                </Flex>
+            </View>
         </PageLayout>
     );
 }

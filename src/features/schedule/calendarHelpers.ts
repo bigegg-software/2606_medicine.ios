@@ -1,11 +1,13 @@
+import {
+  getInUseDietPatientRuleInfo,
+  type DietPatientRuleInfo,
+} from '@/api/dietPatientRule';
 import moment, { type Moment } from 'moment';
 import {
-  getInUseExPatientRuleInfo,
   type DayTypeDetailItem,
   type InUseExPatientRule,
 } from '@/api/schedule';
 import { getMealDetailByMealId, getMealListByDate, type MealRecordDetail, type MealRecordItem } from '@/api/meal';
-import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
 import {
   getMedicationRecordAll,
@@ -565,16 +567,10 @@ function mapDayTypeExerciseTimelineItems(
   return result;
 }
 
-async function resolveInUseExPatientRuleId() {
-  try {
-    const res = await getInUseExPatientRuleInfo();
-    if (!isResourceApiOk(res)) return undefined;
-    const rule = apiResourceData<InUseExPatientRule>(res as any);
-    return rule?.exPatientRuleId != null ? String(rule.exPatientRuleId) : undefined;
-  } catch {
-    return undefined;
-  }
-}
+export type LoadCalendarDayTimelineOptions = {
+  prescription?: InUseExPatientRule | null;
+  progressMap?: Record<string, number>;
+};
 
 function formatMedicationEventLabel(label?: string) {
   const text = label?.trim();
@@ -770,32 +766,39 @@ async function loadDietTimelineItems(customerLocalDate: string): Promise<Calenda
 
 async function loadExerciseTimelineItems(
   customerLocalDate: string,
-  _exPatientRuleId: string,
+  prescription: InUseExPatientRule | null | undefined,
   dictMaps?: ScheduleDictMaps,
+  progressMap?: Record<string, number>,
 ): Promise<CalendarTimelineItem[]> {
   try {
-    // dayTypeListDetailByCustomerLocalDate 已下线：今日用在用处方目标时长拼时间轴，完成量暂为 0
+    // 仅今日：用 store 在用处方拼「随时」运动类型；历史日不展示
     if (customerLocalDate !== moment().format('YYYY-MM-DD')) return [];
-
-    const ruleRes = await getInUseExPatientRuleInfo();
-    if (!isResourceApiOk(ruleRes as { code?: number })) return [];
-
-    const prescription = apiResourceData<InUseExPatientRule>(
-      ruleRes as { code?: number; data?: InUseExPatientRule },
-    );
     const ratioList = prescription?.ruleRatioList ?? [];
-    const list: DayTypeDetailItem[] = ratioList.map(rule => ({
-      customerLocalDate,
-      exerciseType: rule.exerciseType,
-      exerciseChildType: rule.exerciseChildType,
-      typeNeedExerciseDuration: rule.duration ?? 0,
-      typeSumExerciseDuration: 0,
-      childTypeList: (rule.exerciseChildType ?? '')
-        .split(',')
-        .map(item => item.trim())
-        .filter(Boolean)
-        .map(exerciseChildType => ({ exerciseChildType })),
-    }));
+    if (!ratioList.length) return [];
+
+    const list: DayTypeDetailItem[] = ratioList.map(rule => {
+      const typeKey = rule.exerciseType?.trim() ?? '';
+      const progress = typeKey && progressMap?.[typeKey] != null
+        ? progressMap[typeKey]
+        : Number(rule.ratio ?? 0);
+      const targetMinutes = Math.round(Number(rule.duration ?? 0));
+      const doneMinutes = targetMinutes > 0
+        ? Math.round((Math.max(0, Math.min(100, progress)) / 100) * targetMinutes)
+        : 0;
+
+      return {
+        customerLocalDate,
+        exerciseType: rule.exerciseType,
+        exerciseChildType: rule.exerciseChildType,
+        typeNeedExerciseDuration: targetMinutes,
+        typeSumExerciseDuration: doneMinutes,
+        childTypeList: (rule.exerciseChildType ?? '')
+          .split(',')
+          .map(item => item.trim())
+          .filter(Boolean)
+          .map(exerciseChildType => ({ exerciseChildType })),
+      };
+    });
 
     return mapDayTypeExerciseTimelineItems(list, dictMaps).map(item => {
       const typeKey = item.exerciseType?.trim();
@@ -803,12 +806,16 @@ async function loadExerciseTimelineItems(
       const taskIndex = ratioList.findIndex(rule => rule.exerciseType?.trim() === typeKey);
       if (taskIndex < 0) return item;
       const rule = ratioList[taskIndex];
+      const progress = progressMap?.[typeKey] != null
+        ? progressMap[typeKey]
+        : Number(rule.ratio ?? 0);
       return {
         ...item,
         exerciseType: rule.exerciseType,
         exerciseChildType: rule.exerciseChildType,
         strengthLevel: rule.strengthLevel,
         exerciseTaskIndex: taskIndex,
+        exerciseProgress: Math.max(0, Math.min(100, Math.round(Number(progress) || 0))),
       };
     });
   } catch {
@@ -861,6 +868,7 @@ export async function loadDailyRecordStatusMap(month: Moment) {
 export async function loadCalendarDayTimelineItems(
   customerLocalDate: string,
   status?: DailyRecordStatusItem | null,
+  options?: LoadCalendarDayTimelineOptions,
 ) {
   try {
     const detailTasks: Promise<CalendarTimelineItem[]>[] = [
@@ -882,17 +890,20 @@ export async function loadCalendarDayTimelineItems(
     ];
 
     const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
-    if (isToday || status?.isEx) {
+    if (isToday) {
       detailTasks.push(
         (async () => {
-          const [dictMaps, exPatientRuleId] = await Promise.all([
-            loadScheduleDictMaps(),
-            resolveInUseExPatientRuleId(),
-          ]);
-          if (!exPatientRuleId) return [];
-          return loadExerciseTimelineItems(customerLocalDate, exPatientRuleId, dictMaps);
+          const dictMaps = await loadScheduleDictMaps().catch(() => undefined);
+          return loadExerciseTimelineItems(
+            customerLocalDate,
+            options?.prescription,
+            dictMaps,
+            options?.progressMap,
+          );
         })(),
       );
+    } else if (status?.isEx) {
+      // 历史日运动详情接口已下线，仅保留日程圆点提示
     }
 
     if (status?.isDrug && customerLocalDate !== moment().format('YYYY-MM-DD')) {

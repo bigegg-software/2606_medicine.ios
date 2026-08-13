@@ -523,7 +523,7 @@ export default function RootStack() {
       <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="ExercisePlayerPage" component={ExercisePlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
-      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false }} />
+      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false , gestureEnabled: false }} />
       <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />
       <Stack.Screen name="QuestionnaireTestingPage" component={QuestionnaireTestingPage} options={{ title: '评估问卷' }} />
       <Stack.Screen name="QuestionnaireTestingRecordPage" component={QuestionnaireTestingRecordPage} options={{ title: '评估记录', showHeaderBackground: false }} />

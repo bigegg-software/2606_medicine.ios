@@ -10,9 +10,16 @@ import type { UserBaseInfo } from '@/api/patient';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { getExRecordDayStatis, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import {
+  getExPatientRuleHealthGoalProgress,
   getExPatientRuleModuleCompleteRate,
+  type ExPatientRuleHealthGoalProgress,
+  type ExPatientRuleHealthGoalProgressField,
   type ExPatientRuleModuleCompleteRate,
 } from '@/api/exPatientRule';
+import {
+  getExMilestoneRuleStat,
+  type ExMilestoneRuleStat,
+} from '@/api/exMilestone';
 import {
   getExerciseTypeStatis,
   getHistoryExPatientRuleList,
@@ -27,6 +34,7 @@ import {
   type WeekCalendarItem,
 } from '@/api/schedule';
 import { getHealthGoalInfo, type HealthGoalInfo, type HealthGoalTarget } from '@/api/healthGoal';
+import { formatDiagnosticLabelText } from '@/src/features/exercise/utils/exerciseHelpers';
 
 export type ScheduleDictMaps = {
   exerciseType: Record<string, string>;
@@ -47,6 +55,33 @@ export type HistoryPlanItem = {
   cycle: string;
   status?: number;
   stopReason: string;
+};
+
+/** 日程页「历史干预计划档案」卡片 */
+export type ScheduleHistoryArchiveMaxProgress = {
+  /** 如 空腹血糖(mmol/L) */
+  label: string;
+  /** 最新值 */
+  currentText: string;
+  /** 基准值（划线展示）；无则不展示 */
+  baselineText: string | null;
+  /** 相对基准的数值升降 */
+  trend: 'up' | 'down' | null;
+};
+
+export type ScheduleHistoryArchiveItem = {
+  id: string;
+  title: string;
+  status?: number;
+  statusLabel: string;
+  dateText: string;
+  sessionCountText: string;
+  durationHoursText: string;
+  /** 进步最大分项；无有效数据时为 null（卡片不展示该列） */
+  maxProgress: ScheduleHistoryArchiveMaxProgress | null;
+  summaryText: string;
+  isInProgress: boolean;
+  isDone: boolean;
 };
 
 export type HealthGoalDisplayItem = {
@@ -534,16 +569,18 @@ export function buildExercisePrescriptionMetrics(
   dictMaps?: ScheduleDictMaps,
   progressMap?: Record<string, number>,
 ): ExercisePrescriptionMetricItem[] {
-  return (ruleRatioList ?? []).map((rule, index) => {
-    const task = toTodayTaskItem(rule, index, dictMaps, progressMap);
-    const typeKey = rule.exerciseType?.trim() ?? '';
-    return {
-      key: task.key,
-      value: task.progress,
-      label: task.title,
-      color: EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
-    };
-  });
+  return (ruleRatioList ?? [])
+    .filter(rule => Boolean(rule.exerciseType?.trim()))
+    .map((rule, index) => {
+      const task = toTodayTaskItem(rule, index, dictMaps, progressMap);
+      const typeKey = rule.exerciseType?.trim() ?? '';
+      return {
+        key: task.key,
+        value: task.progress,
+        label: task.title,
+        color: EXERCISE_TYPE_COLORS[typeKey] ?? '#6D925E',
+      };
+    });
 }
 
 function formatExerciseChildTypes(
@@ -687,22 +724,46 @@ function getHealthGoalIcon(target: HealthGoalTarget) {
   return HEALTH_GOAL_ICONS.health_indicator_type;
 }
 
-export async function enrichHealthGoalTargets(targets?: HealthGoalTarget[]) {
+export async function enrichHealthGoalTargets(
+  targets?: HealthGoalTarget[],
+  options?: { previousTargets?: HealthGoalTarget[] },
+) {
   if (!targets?.length) return [];
+
+  const previousById = new Map<string, HealthGoalTarget>();
+  for (const item of options?.previousTargets ?? []) {
+    if (item.healthGoalId == null) continue;
+    previousById.set(String(item.healthGoalId), item);
+  }
 
   return Promise.all(
     targets.map(async target => {
-      if (target.healthGoalVo?.goalName?.trim() || target.healthGoalId == null) {
-        return target;
+      const previous = target.healthGoalId != null
+        ? previousById.get(String(target.healthGoalId))
+        : undefined;
+      const merged: HealthGoalTarget = previous?.healthGoalVo
+        ? {
+          ...target,
+          healthGoalVo: {
+            ...previous.healthGoalVo,
+            ...target.healthGoalVo,
+          },
+        }
+        : target;
+
+      const hasName = Boolean(merged.healthGoalVo?.goalName?.trim());
+      const hasCategory = Boolean(merged.healthGoalVo?.targetCategory?.trim());
+      if ((hasName && hasCategory) || merged.healthGoalId == null) {
+        return merged;
       }
 
       try {
-        const res = await getHealthGoalInfo(target.healthGoalId);
-        if (!isResourceApiOk(res)) return target;
+        const res = await getHealthGoalInfo(merged.healthGoalId);
+        if (!isResourceApiOk(res)) return merged;
         const info = apiResourceData<HealthGoalInfo>(res as any);
-        return info ? { ...target, healthGoalVo: info } : target;
+        return info ? { ...merged, healthGoalVo: info } : merged;
       } catch {
-        return target;
+        return merged;
       }
     }),
   );
@@ -810,14 +871,32 @@ export function formatPrescriptionCycleDays(startDate?: string, endDate?: string
   return `${end.diff(start, 'days') + 1}`;
 }
 
+/** 处方周期进度：当前第几天 / 总天数（按 startDate~endDate，含起止日） */
+export function getPrescriptionDayProgress(startDate?: string, endDate?: string) {
+  if (!startDate?.trim() || !endDate?.trim()) return null;
+  const start = moment(startDate).startOf('day');
+  const end = moment(endDate).startOf('day');
+  if (!start.isValid() || !end.isValid()) return null;
+
+  const totalDays = end.diff(start, 'days') + 1;
+  if (totalDays <= 0) return null;
+
+  const today = moment().startOf('day');
+  let currentDay = today.diff(start, 'days') + 1;
+  if (currentDay < 1) currentDay = 0;
+  if (currentDay > totalDays) currentDay = totalDays;
+
+  return { currentDay, totalDays };
+}
+
 /** 日程页顶栏：年龄 | 诊断 | 处方名 | 自开始日起 */
 export function formatScheduleTopInfoText(
   user?: UserBaseInfo | null,
-  prescription?: Pick<InUseExPatientRule, 'diagnosis' | 'prescriptionName' | 'startDate'> | null,
+  prescription?: Pick<InUseExPatientRule, 'diagnosticLabel' | 'prescriptionName' | 'startDate'> | null,
 ) {
   const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
   const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
-  const diagnosis = prescription?.diagnosis?.trim() || '';
+  const diagnosis = formatDiagnosticLabelText(prescription?.diagnosticLabel);
   const prescriptionName = prescription?.prescriptionName?.trim() || '';
   const start = prescription?.startDate?.trim();
   const startText = start
@@ -830,7 +909,7 @@ export function getPrescriptionProgressStatusText(progress?: number) {
   const value = normalizeProgress(progress);
   if (value < 20) return '刚刚开始';
   if (value < 40) return '持续进行';
-  if (value < 60) return '状态良好';
+  if (value <= 60) return '状态良好';
   if (value < 80) return '改善明显';
   return '接近达成';
 }
@@ -906,16 +985,226 @@ export function toHistoryPlanItem(info: HistoryExPatientRule): HistoryPlanItem {
   };
 }
 
+function formatHistoryArchiveDateText(info: HistoryExPatientRule) {
+  const start = info.startDate?.trim();
+  const end = info.endDate?.trim();
+  const formatDate = (value: string) => {
+    const parsed = moment(value);
+    return parsed.isValid() ? parsed.format('YYYY/MM/DD') : value;
+  };
+
+  if (!start && !end) return '--';
+  const startText = start ? formatDate(start) : '--';
+  const endText = end ? formatDate(end) : '--';
+  return `${startText} - ${endText}`;
+}
+
+function formatHistoryDurationHours(sumExerciseDuration?: number | null) {
+  if (sumExerciseDuration == null || Number.isNaN(Number(sumExerciseDuration))) return '--';
+  const hours = Number(sumExerciseDuration) / 60;
+  if (!Number.isFinite(hours)) return '--';
+  const fixed = Number(hours.toFixed(1));
+  return Number.isInteger(fixed) ? String(fixed) : String(fixed);
+}
+
+const HEALTH_GOAL_PROGRESS_FIELD_UNIT: Record<string, string> = {
+  sbp: 'mmHg',
+  dbp: 'mmHg',
+  tc: 'mmol/L',
+  tg: 'mmol/L',
+  hdlC: 'mmol/L',
+  ldlC: 'mmol/L',
+  bloodGlucose: 'mmol/L',
+  weight: 'kg',
+  shoulderFlexion: '°',
+  shoulderAbduction: '°',
+  elbowFlexion: '°',
+  hipFlexion: '°',
+  kneeFlexion: '°',
+  ankleDorsiflexion: '°',
+  exImpRate: '%',
+};
+
+function resolveHealthGoalProgressFieldUnit(fieldKey?: string | null) {
+  const key = fieldKey?.trim();
+  if (!key) return '';
+  return HEALTH_GOAL_PROGRESS_FIELD_UNIT[key] ?? '';
+}
+
+function formatHistoryMetricNumber(value?: number | null) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  if (Number.isInteger(num)) return String(num);
+  return String(Number(num.toFixed(2)));
+}
+
+/** 从 maxProcess 中取进度最大的分项 */
+export function resolveMaxHealthGoalProgressField(
+  maxProcess?: ExPatientRuleHealthGoalProgress['maxProcess'],
+): ScheduleHistoryArchiveMaxProgress | null {
+  const fields = (maxProcess?.fieldList ?? []).filter(Boolean);
+  let best: ExPatientRuleHealthGoalProgressField | null = null;
+  let bestProgress = Number.NEGATIVE_INFINITY;
+
+  for (const field of fields) {
+    if (field.progress == null || Number.isNaN(Number(field.progress))) continue;
+    const progress = Number(field.progress);
+    if (progress > bestProgress) {
+      best = field;
+      bestProgress = progress;
+    }
+  }
+
+  if (!best) return null;
+
+  const currentText = formatHistoryMetricNumber(best.current);
+  if (!currentText) return null;
+
+  const fieldName = best.fieldName?.trim() || maxProcess?.goalName?.trim() || '';
+  const unit = resolveHealthGoalProgressFieldUnit(best.fieldKey);
+  let label = fieldName;
+  if (fieldName && unit && !fieldName.includes(unit)) {
+    label = `${fieldName}(${unit})`;
+  } else if (!fieldName && unit) {
+    label = unit;
+  }
+  if (!label) return null;
+
+  const baselineText = formatHistoryMetricNumber(best.baseline);
+  const current = Number(best.current);
+  const baseline = best.baseline != null ? Number(best.baseline) : null;
+  let trend: 'up' | 'down' | null = null;
+  if (baseline != null && Number.isFinite(baseline) && Number.isFinite(current) && current !== baseline) {
+    const direction = best.direction;
+    // direction: 1 需提高，-1 需降低；按目标方向判断进步/下降
+    if (direction === -1) {
+      trend = current < baseline ? 'up' : 'down';
+    } else if (direction === 1) {
+      trend = current > baseline ? 'up' : 'down';
+    } else if (best.target != null && Number.isFinite(Number(best.target))) {
+      const target = Number(best.target);
+      const lowerBetter = target < baseline;
+      trend = lowerBetter
+        ? (current < baseline ? 'up' : 'down')
+        : (current > baseline ? 'up' : 'down');
+    } else {
+      trend = current > baseline ? 'up' : 'down';
+    }
+  }
+
+  return {
+    label,
+    currentText,
+    baselineText,
+    trend,
+  };
+}
+
+export function toScheduleHistoryArchiveItem(
+  info: HistoryExPatientRule,
+  ruleStat?: ExMilestoneRuleStat | null,
+  healthGoalProgress?: ExPatientRuleHealthGoalProgress | null,
+): ScheduleHistoryArchiveItem {
+  const id = info.exPatientRuleId != null && info.exPatientRuleId !== ''
+    ? String(info.exPatientRuleId)
+    : `${info.startDate ?? ''}-${info.endDate ?? ''}-${info.prescriptionName ?? ''}`;
+
+  const totalLessons = ruleStat?.totalLessons != null && Number.isFinite(Number(ruleStat.totalLessons))
+    ? Math.round(Number(ruleStat.totalLessons))
+    : null;
+  const durationHours = formatHistoryDurationHours(
+    ruleStat?.exerciseDuration ?? info.progressInfo?.sumExerciseDuration,
+  );
+
+  const maxProgress = resolveMaxHealthGoalProgressField(healthGoalProgress?.maxProcess);
+  const summary = info.completeSummary?.trim()
+    || info.aiAnalysis?.summary?.trim()
+    || '';
+
+  return {
+    id,
+    title: info.prescriptionName?.trim() || '运动干预计划',
+    status: info.status,
+    statusLabel: info.status === 2 ? '已完成' : getHistoryStatusLabel(info.status),
+    dateText: formatHistoryArchiveDateText(info),
+    sessionCountText: totalLessons != null
+      ? String(totalLessons)
+      : (info.progressInfo?.complateNum != null && Number.isFinite(Number(info.progressInfo.complateNum))
+        ? String(Math.round(Number(info.progressInfo.complateNum)))
+        : '--'),
+    durationHoursText: durationHours,
+    maxProgress,
+    summaryText: summary,
+    isInProgress: info.status === 0,
+    isDone: info.status === 2,
+  };
+}
+
 export function sortHistoryPlans(items: HistoryExPatientRule[]) {
   return [...items].sort(
     (a, b) => moment(getHistorySortTime(b)).valueOf() - moment(getHistorySortTime(a)).valueOf(),
   );
 }
 
-export type HistoryPlanFilter = 'all' | 'paused' | 'ended';
+const HISTORY_ARCHIVE_PREVIEW_SIZE = 5;
+
+async function loadRuleStatForArchive(exPatientRuleId?: string | number | null) {
+  if (exPatientRuleId == null || exPatientRuleId === '') return null;
+  try {
+    const res = await getExMilestoneRuleStat(exPatientRuleId);
+    if (!isResourceApiOk(res as unknown as { code?: number })) return null;
+    return apiResourceData<ExMilestoneRuleStat>(
+      res as unknown as { code?: number; data?: ExMilestoneRuleStat },
+    ) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function loadHealthGoalProgressForArchive(exPatientRuleId?: string | number | null) {
+  if (exPatientRuleId == null || exPatientRuleId === '') return null;
+  try {
+    const res = await getExPatientRuleHealthGoalProgress(exPatientRuleId);
+    if (!isResourceApiOk(res as unknown as { code?: number })) return null;
+    return apiResourceData<ExPatientRuleHealthGoalProgress>(
+      res as unknown as { code?: number; data?: ExPatientRuleHealthGoalProgress },
+    ) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** 日程页预览：进行中 + 已暂停 + 已结束 */
+export async function loadScheduleHistoryArchivePreview(pageSize = HISTORY_ARCHIVE_PREVIEW_SIZE) {
+  const [inProgressRes, pausedRes, endedRes] = await Promise.all([
+    getHistoryExPatientRuleList({ status: 0, pageSize, pageNum: 1 }),
+    getHistoryExPatientRuleList({ status: 1, pageSize, pageNum: 1 }),
+    getHistoryExPatientRuleList({ status: 2, pageSize, pageNum: 1 }),
+  ]);
+
+  const plans = sortHistoryPlans([
+    ...getResourceRows<HistoryExPatientRule>(inProgressRes),
+    ...getResourceRows<HistoryExPatientRule>(pausedRes),
+    ...getResourceRows<HistoryExPatientRule>(endedRes),
+  ]).slice(0, pageSize);
+
+  return Promise.all(
+    plans.map(async plan => {
+      const [ruleStat, healthGoalProgress] = await Promise.all([
+        loadRuleStatForArchive(plan.exPatientRuleId),
+        loadHealthGoalProgressForArchive(plan.exPatientRuleId),
+      ]);
+      return toScheduleHistoryArchiveItem(plan, ruleStat, healthGoalProgress);
+    }),
+  );
+}
+
+export type HistoryPlanFilter = 'all' | 'inProgress' | 'paused' | 'ended';
 
 export const HISTORY_PLAN_FILTER_OPTIONS: { label: string; value: HistoryPlanFilter }[] = [
   { label: '全部', value: 'all' },
+  { label: '进行中', value: 'inProgress' },
   { label: '已暂停', value: 'paused' },
   { label: '已结束', value: 'ended' },
 ];
@@ -925,6 +1214,13 @@ export async function fetchHistoryPlanPage(
   pageNum: number,
   pageSize: number,
 ): Promise<{ rows: HistoryExPatientRule[]; hasMore: boolean }> {
+  if (filter === 'inProgress') {
+    const res = await getHistoryExPatientRuleList({ status: 0, pageSize, pageNum });
+    const rows = getResourceRows<HistoryExPatientRule>(res);
+    const total = (res as unknown as HistoryListResult).total ?? 0;
+    return { rows, hasMore: pageNum * pageSize < total };
+  }
+
   if (filter === 'paused') {
     const res = await getHistoryExPatientRuleList({ status: 1, pageSize, pageNum });
     const rows = getResourceRows<HistoryExPatientRule>(res);
@@ -939,18 +1235,149 @@ export async function fetchHistoryPlanPage(
     return { rows, hasMore: pageNum * pageSize < total };
   }
 
-  const [pausedRes, endedRes] = await Promise.all([
+  const [inProgressRes, pausedRes, endedRes] = await Promise.all([
+    getHistoryExPatientRuleList({ status: 0, pageSize, pageNum }),
     getHistoryExPatientRuleList({ status: 1, pageSize, pageNum }),
     getHistoryExPatientRuleList({ status: 2, pageSize, pageNum }),
   ]);
   const rows = sortHistoryPlans([
+    ...getResourceRows<HistoryExPatientRule>(inProgressRes),
     ...getResourceRows<HistoryExPatientRule>(pausedRes),
     ...getResourceRows<HistoryExPatientRule>(endedRes),
   ]);
+  const inProgressTotal = (inProgressRes as unknown as HistoryListResult).total ?? 0;
   const pausedTotal = (pausedRes as unknown as HistoryListResult).total ?? 0;
   const endedTotal = (endedRes as unknown as HistoryListResult).total ?? 0;
   return {
     rows,
-    hasMore: pageNum * pageSize < pausedTotal || pageNum * pageSize < endedTotal,
+    hasMore:
+      pageNum * pageSize < inProgressTotal
+      || pageNum * pageSize < pausedTotal
+      || pageNum * pageSize < endedTotal,
   };
+}
+
+/** 历史计划列表页：分页 + ruleStat / healthGoalProgress 指标 */
+export async function fetchHistoryArchivePage(
+  filter: HistoryPlanFilter,
+  pageNum: number,
+  pageSize: number,
+): Promise<{ rows: ScheduleHistoryArchiveItem[]; hasMore: boolean }> {
+  const { rows, hasMore } = await fetchHistoryPlanPage(filter, pageNum, pageSize);
+  const items = await Promise.all(
+    rows.map(async plan => {
+      const [ruleStat, healthGoalProgress] = await Promise.all([
+        loadRuleStatForArchive(plan.exPatientRuleId),
+        loadHealthGoalProgressForArchive(plan.exPatientRuleId),
+      ]);
+      return toScheduleHistoryArchiveItem(plan, ruleStat, healthGoalProgress);
+    }),
+  );
+  return { rows: items, hasMore };
+}
+
+/** 里程碑「累计训练(小时)」展示 */
+export function formatMilestoneHours(minutes?: number | null) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  if (value <= 0) return '0';
+  const hours = value / 60;
+  if (Number.isInteger(hours)) return String(hours);
+  return hours.toFixed(1).replace(/\.0$/, '');
+}
+
+/** 近 6 周柱状图时长标签，如 3.9h */
+export function formatMilestoneWeekBarDuration(minutes?: number | null) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  if (value <= 0) return '0h';
+  const hours = value / 60;
+  if (hours < 10) {
+    const text = hours.toFixed(1).replace(/\.0$/, '');
+    return `${text}h`;
+  }
+  return `${Math.round(hours)}h`;
+}
+
+/** 近 6 周柱高：相对本批最大时长 0-100 */
+export function calcMilestoneWeekBarProgress(
+  minutes: number | null | undefined,
+  maxMinutes: number,
+) {
+  const value = Math.max(0, Math.round(Number(minutes) || 0));
+  const max = Math.max(0, Math.round(Number(maxMinutes) || 0));
+  if (max <= 0 || value <= 0) return 0;
+  return normalizeProgress((value / max) * 100);
+}
+
+export type MilestoneWeekModuleRateItem = {
+  key: string;
+  title: string;
+  progress: number;
+  color: string;
+};
+
+function toOptionalProgress(value?: number | null) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  return normalizeProgress(value);
+}
+
+/** 分项完成率展示顺序：有氧 / 抗阻 / 平衡 / 拉伸（无安排的模块不展示） */
+export function buildMilestoneWeekModuleRates(week?: {
+  cardioCompleteRate?: number | null;
+  strengthCompleteRate?: number | null;
+  flexibilityCompleteRate?: number | null;
+  balanceCompleteRate?: number | null;
+} | null): MilestoneWeekModuleRateItem[] {
+  const candidates: Array<{
+    key: string;
+    title: string;
+    raw?: number | null;
+    color: string;
+  }> = [
+    { key: 'cardio', title: '有氧', raw: week?.cardioCompleteRate, color: '#6D925E' },
+    { key: 'strength', title: '抗阻', raw: week?.strengthCompleteRate, color: '#72A1C5' },
+    { key: 'balance', title: '平衡', raw: week?.balanceCompleteRate, color: '#0951AE' },
+    { key: 'flexibility', title: '拉伸', raw: week?.flexibilityCompleteRate, color: '#EE9C44' },
+  ];
+
+  return candidates
+    .map(item => {
+      const progress = toOptionalProgress(item.raw);
+      if (progress == null) return null;
+      return {
+        key: item.key,
+        title: item.title,
+        progress,
+        color: item.color,
+      };
+    })
+    .filter((item): item is MilestoneWeekModuleRateItem => item != null);
+}
+
+/** 分项整体完成率（仅对有安排的模块取平均） */
+export function calcMilestoneWeekOverallRate(
+  week?: {
+    cardioCompleteRate?: number | null;
+    strengthCompleteRate?: number | null;
+    flexibilityCompleteRate?: number | null;
+    balanceCompleteRate?: number | null;
+  } | null,
+) {
+  const rates = buildMilestoneWeekModuleRates(week).map(item => item.progress);
+  if (rates.length === 0) return 0;
+  return normalizeProgress(rates.reduce((sum, item) => sum + item, 0) / rates.length);
+}
+
+/** 近 6 周底部总结文案：优先接口 summary */
+export function resolveMilestoneWeekSummaryText(
+  week?: { summary?: string | null } | null,
+  options?: {
+    weekIndex?: number;
+    overallRate?: number;
+  },
+) {
+  const summary = week?.summary?.trim();
+  if (summary) return summary;
+  const weekNo = (options?.weekIndex ?? 0) + 1;
+  const rate = options?.overallRate ?? 0;
+  return `点击上方周次可查看分项；当前 W${weekNo} 整体完成率 ${rate}%。`;
 }

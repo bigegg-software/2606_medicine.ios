@@ -3,18 +3,19 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
 import VitalsProgressRing from './components/VitalsProgressRing';
 import BloodPressureDetailChart, { type BloodPressureChartRange } from './components/BloodPressureDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
+import type { InUseExPatientRule } from '@/api/schedule';
 import {
     getMeasureDataDetailByDateRange,
     getMeasureDataNormalDayCount,
@@ -64,7 +65,8 @@ function buildBloodPressureGoalSummary(rule?: InUseExPatientRule | null) {
 function hasBloodPressureHealthGoal(rule?: InUseExPatientRule | null) {
     return (rule?.healthGoalTargetList ?? []).some(target => {
         const goal = target.healthGoalVo;
-        return goal?.assessmentType === 'health_indicator_type' && goal?.assessmentValue === 'xueYa';
+        return (goal?.assessmentType === 'health_indicator_type' && goal?.assessmentValue === 'xueYa')
+            || Boolean(target.bloodPressure);
     });
 }
 
@@ -142,12 +144,12 @@ async function loadBloodPressureDetailItems(range: BloodPressureChartRange) {
 
 export default function VitalsPage() {
     const navigation = useNavigation<Nav>();
+    const dispatch = useDispatch<AppDispatch>();
     const insets = useSafeAreaInsets();
     const userGender = useSelector((state: RootState) => state.user.info?.gender);
+    const prescription = useSelector((state: RootState) => state.prescription.inUse);
     const [selectedType, setSelectedType] = useState<BloodPressureChartRange>('today');
-    const [goalCycleDays, setGoalCycleDays] = useState<number | null>(null);
     const [goalCompliantDays, setGoalCompliantDays] = useState<number | null>(null);
-    const [showGoalSummary, setShowGoalSummary] = useState(false);
     const [chartData, setChartData] = useState<BloodPressurePoint[]>([]);
     const [displayValue, setDisplayValue] = useState('--');
     const [displayStatus, setDisplayStatus] = useState('--');
@@ -157,6 +159,18 @@ export default function VitalsPage() {
     const [abnormalCount, setAbnormalCount] = useState<number | null>(null);
     const [analysisData, setAnalysisData] = useState<BloodPressureAnalysisItem[]>(
         () => buildBloodPressureAnalysisData([]),
+    );
+
+    const showGoalSummary = useMemo(
+        () => hasBloodPressureHealthGoal(prescription),
+        [prescription],
+    );
+
+    const goalCycleDays = useMemo(
+        () => (showGoalSummary
+            ? buildBloodPressureGoalSummary(prescription).cycleDays
+            : null),
+        [prescription, showGoalSummary],
     );
 
     const goalProgressPercent = useMemo(
@@ -195,28 +209,17 @@ export default function VitalsPage() {
 
     const loadGoalSummary = useCallback(async () => {
         try {
-            const res = await getInUseExPatientRuleInfo();
-            const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
-            if (!isResourceApiOk(payload)) {
-                setShowGoalSummary(false);
-                setGoalCycleDays(null);
-                setGoalCompliantDays(null);
-                return;
-            }
-
-            const rule = apiResourceData<InUseExPatientRule>(payload);
+            const rule = await dispatch(fetchInUsePrescription({ force: true }));
             if (!hasBloodPressureHealthGoal(rule)) {
-                setShowGoalSummary(false);
-                setGoalCycleDays(null);
                 setGoalCompliantDays(null);
                 return;
             }
 
-            setShowGoalSummary(true);
             const summary = buildBloodPressureGoalSummary(rule);
-            setGoalCycleDays(summary.cycleDays);
-
-            if (!summary.exPatientRuleId) return;
+            if (!summary.exPatientRuleId) {
+                setGoalCompliantDays(null);
+                return;
+            }
 
             const countRes = await getMeasureDataNormalDayCount({
                 exPatientRuleId: summary.exPatientRuleId,
@@ -226,13 +229,13 @@ export default function VitalsPage() {
             if (isResourceApiOk(countPayload)) {
                 const normalDayCount = apiResourceData<number>(countPayload);
                 setGoalCompliantDays(normalDayCount ?? null);
+            } else {
+                setGoalCompliantDays(null);
             }
         } catch {
-            setShowGoalSummary(false);
-            setGoalCycleDays(null);
             setGoalCompliantDays(null);
         }
-    }, []);
+    }, [dispatch]);
 
     const loadMeasureData = useCallback(async (range: BloodPressureChartRange) => {
         const emptySetters = {

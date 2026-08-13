@@ -3,9 +3,12 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useDispatch, useSelector } from 'react-redux';
 import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
@@ -15,7 +18,7 @@ import BloodSugarDetailChart, {
     type BloodSugarPoint,
 } from './components/BloodSugarDetailChart';
 import { LinearGradient } from 'expo-linear-gradient';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
+import type { InUseExPatientRule } from '@/api/schedule';
 import {
     getMeasureDataDetailByDateRange,
     getMeasureDataNormalDayCount,
@@ -54,7 +57,8 @@ function buildBloodSugarGoalSummary(rule?: InUseExPatientRule | null) {
 function hasBloodSugarHealthGoal(rule?: InUseExPatientRule | null) {
     return (rule?.healthGoalTargetList ?? []).some(target => {
         const goal = target.healthGoalVo;
-        return goal?.assessmentType === 'health_indicator_type' && goal?.assessmentValue === 'xueTang';
+        return (goal?.assessmentType === 'health_indicator_type' && goal?.assessmentValue === 'xueTang')
+            || Boolean(target.bloodGlucose);
     });
 }
 
@@ -128,11 +132,11 @@ async function loadBloodSugarDetailItems(range: BloodSugarChartRange) {
 
 export default function VitalsPage() {
     const navigation = useNavigation<Nav>();
+    const dispatch = useDispatch<AppDispatch>();
     const insets = useSafeAreaInsets();
+    const prescription = useSelector((state: RootState) => state.prescription.inUse);
     const [selectedType, setSelectedType] = useState<BloodSugarChartRange>('today');
-    const [goalCycleDays, setGoalCycleDays] = useState<number | null>(null);
     const [goalCompliantDays, setGoalCompliantDays] = useState<number | null>(null);
-    const [showGoalSummary, setShowGoalSummary] = useState(false);
     const [chartData, setChartData] = useState<BloodSugarPoint[]>([]);
     const [displayValue, setDisplayValue] = useState('--');
     const [displayStatus, setDisplayStatus] = useState('--');
@@ -141,6 +145,18 @@ export default function VitalsPage() {
     const [maxValue, setMaxValue] = useState('--');
     const [minValue, setMinValue] = useState('--');
     const [measureCount, setMeasureCount] = useState<number | null>(null);
+
+    const showGoalSummary = useMemo(
+        () => hasBloodSugarHealthGoal(prescription),
+        [prescription],
+    );
+
+    const goalCycleDays = useMemo(
+        () => (showGoalSummary
+            ? buildBloodSugarGoalSummary(prescription).cycleDays
+            : null),
+        [prescription, showGoalSummary],
+    );
 
     const goalProgressPercent = useMemo(
         () => calcGoalProgressPercent(goalCompliantDays, goalCycleDays),
@@ -164,28 +180,17 @@ export default function VitalsPage() {
 
     const loadGoalSummary = useCallback(async () => {
         try {
-            const res = await getInUseExPatientRuleInfo();
-            const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
-            if (!isResourceApiOk(payload)) {
-                setShowGoalSummary(false);
-                setGoalCycleDays(null);
-                setGoalCompliantDays(null);
-                return;
-            }
-
-            const rule = apiResourceData<InUseExPatientRule>(payload);
+            const rule = await dispatch(fetchInUsePrescription({ force: true }));
             if (!hasBloodSugarHealthGoal(rule)) {
-                setShowGoalSummary(false);
-                setGoalCycleDays(null);
                 setGoalCompliantDays(null);
                 return;
             }
 
-            setShowGoalSummary(true);
             const summary = buildBloodSugarGoalSummary(rule);
-            setGoalCycleDays(summary.cycleDays);
-
-            if (!summary.exPatientRuleId) return;
+            if (!summary.exPatientRuleId) {
+                setGoalCompliantDays(null);
+                return;
+            }
 
             const countRes = await getMeasureDataNormalDayCount({
                 exPatientRuleId: summary.exPatientRuleId,
@@ -195,13 +200,13 @@ export default function VitalsPage() {
             if (isResourceApiOk(countPayload)) {
                 const normalDayCount = apiResourceData<number>(countPayload);
                 setGoalCompliantDays(normalDayCount ?? null);
+            } else {
+                setGoalCompliantDays(null);
             }
         } catch {
-            setShowGoalSummary(false);
-            setGoalCycleDays(null);
             setGoalCompliantDays(null);
         }
-    }, []);
+    }, [dispatch]);
 
     const resetPeriodStats = useCallback(() => {
         setMaxValue('--');
@@ -227,7 +232,6 @@ export default function VitalsPage() {
 
         try {
             const detailItems = await loadBloodSugarDetailItems(range);
-            console.log(JSON.stringify(detailItems))
             if (detailItems == null) {
                 applyEmptyBloodSugarState(range, emptySetters);
                 return;

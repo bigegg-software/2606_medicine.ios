@@ -189,35 +189,47 @@ export function buildPrescriptionWeightItems(
   rule?: InUseExPatientRule | null,
 ): PrescriptionWeightItem[] {
   const ratioMap = buildRatioMap(rule?.ruleRatioList);
-  return EXERCISE_TYPE_ORDER.map(key => {
-    const ratio = normalizeRatio(ratioMap.get(key)?.ratio);
-    return {
-      key,
-      title: EXERCISE_TYPE_META[key].title,
-      color: EXERCISE_TYPE_META[key].color,
-      ratio,
-      ratioText: formatRatioText(ratio),
-    };
-  });
+  return EXERCISE_TYPE_ORDER
+    .filter(key => ratioMap.has(key))
+    .map(key => {
+      const ratio = normalizeRatio(ratioMap.get(key)?.ratio);
+      return {
+        key,
+        title: EXERCISE_TYPE_META[key].title,
+        color: EXERCISE_TYPE_META[key].color,
+        ratio,
+        ratioText: formatRatioText(ratio),
+      };
+    });
+}
+
+/** 处方中已配置的主训练类型（无配置的类型不展示） */
+export function getPrescribedExerciseTypeKeys(
+  rule?: InUseExPatientRule | null,
+): ExerciseTypeKey[] {
+  const ratioMap = buildRatioMap(rule?.ruleRatioList);
+  return EXERCISE_TYPE_ORDER.filter(key => ratioMap.has(key));
 }
 
 export function buildPrescriptionTypeSections(
   rule?: InUseExPatientRule | null,
 ): PrescriptionTypeSection[] {
   const ratioMap = buildRatioMap(rule?.ruleRatioList);
-  return EXERCISE_TYPE_ORDER.map(key => {
-    const item = ratioMap.get(key);
-    const ratio = normalizeRatio(item?.ratio);
-    return {
-      key,
-      title: EXERCISE_TYPE_META[key].title,
-      color: EXERCISE_TYPE_META[key].color,
-      icon: EXERCISE_TYPE_META[key].icon,
-      ratio,
-      ratioText: formatRatioText(ratio),
-      fittItems: buildFittVpItems(item?.fittVp),
-    };
-  });
+  return EXERCISE_TYPE_ORDER
+    .filter(key => ratioMap.has(key))
+    .map(key => {
+      const item = ratioMap.get(key);
+      const ratio = normalizeRatio(item?.ratio);
+      return {
+        key,
+        title: EXERCISE_TYPE_META[key].title,
+        color: EXERCISE_TYPE_META[key].color,
+        icon: EXERCISE_TYPE_META[key].icon,
+        ratio,
+        ratioText: formatRatioText(ratio),
+        fittItems: buildFittVpItems(item?.fittVp),
+      };
+    });
 }
 
 export function getAiAnalysisTitle(rule?: InUseExPatientRule | null) {

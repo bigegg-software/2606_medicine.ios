@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   listHealthTestRecords,
   queryFirstAndLatestHealthTestRecord,
   type ExHealthTestRecord,
   type FirstAndLatestHealthTestRecord,
 } from '@/api/exHealthTestRecord';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
+import type { HealthGoalTarget } from '@/api/healthGoal';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
+import type { AppDispatch, RootState } from '@/store/store';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 
 function sortHealthTestRecordsByTime(records: ExHealthTestRecord[]) {
@@ -22,50 +25,45 @@ export function useHealthTestRecords(options: {
   userId?: number;
 }) {
   const { healthGoalId, healthTestItemId, userId } = options;
+  const dispatch = useDispatch<AppDispatch>();
+  const prescription = useSelector((state: RootState) => state.prescription.inUse);
   const [records, setRecords] = useState<FirstAndLatestHealthTestRecord | null>(null);
   const [recordTotal, setRecordTotal] = useState(0);
   const [latestTwoRecords, setLatestTwoRecords] = useState<ExHealthTestRecord[]>([]);
-  const [exPatientRuleId, setExPatientRuleId] = useState<string | undefined>();
-  const [improveDirectionVal, setImproveDirectionVal] = useState<number | undefined>();
   const [loading, setLoading] = useState(false);
+
+  const goalTarget = useMemo(() => {
+    if (!healthGoalId) return null;
+    return prescription?.healthGoalTargetList?.find(
+      item => String(item.healthGoalId) === String(healthGoalId),
+    ) ?? null;
+  }, [healthGoalId, prescription?.healthGoalTargetList]);
+
+  const exPatientRuleId = prescription?.exPatientRuleId != null
+    ? String(prescription.exPatientRuleId)
+    : undefined;
 
   const load = useCallback(async () => {
     if (!healthTestItemId) {
       setRecords(null);
       setRecordTotal(0);
       setLatestTwoRecords([]);
-      setExPatientRuleId(undefined);
-      setImproveDirectionVal(undefined);
       return;
     }
 
     setLoading(true);
     try {
-      const prescriptionRes = await getInUseExPatientRuleInfo();
-      if (!isResourceApiOk(prescriptionRes)) {
-        setRecords(null);
-        setRecordTotal(0);
-        setLatestTwoRecords([]);
-        return;
+      let current = prescription;
+      if (!current?.exPatientRuleId) {
+        current = await dispatch(fetchInUsePrescription()) ?? null;
       }
 
-      const prescription = apiResourceData<InUseExPatientRule>(prescriptionRes as any);
-      const ruleId = prescription?.exPatientRuleId;
+      const ruleId = current?.exPatientRuleId;
       if (ruleId == null) {
         setRecords(null);
         setRecordTotal(0);
         setLatestTwoRecords([]);
         return;
-      }
-      setExPatientRuleId(String(ruleId));
-
-      if (healthGoalId) {
-        const target = prescription?.healthGoalTargetList?.find(
-          item => String(item.healthGoalId) === String(healthGoalId),
-        );
-        setImproveDirectionVal(target?.improveDirectionVal);
-      } else {
-        setImproveDirectionVal(undefined);
       }
 
       const queryParams = {
@@ -101,7 +99,7 @@ export function useHealthTestRecords(options: {
     } finally {
       setLoading(false);
     }
-  }, [healthGoalId, healthTestItemId, userId]);
+  }, [dispatch, healthTestItemId, prescription, userId]);
 
   useEffect(() => {
     load();
@@ -111,7 +109,10 @@ export function useHealthTestRecords(options: {
     records,
     recordTotal,
     latestTwoRecords,
-    improveDirectionVal,
+    goalTarget: goalTarget as HealthGoalTarget | null,
+    improveDirectionVal: goalTarget?.improveDirectionVal,
+    configuredBaseline: goalTarget?.healthTest?.baseline,
+    configuredTarget: goalTarget?.healthTest?.target,
     exPatientRuleId,
     loading,
     reload: load,

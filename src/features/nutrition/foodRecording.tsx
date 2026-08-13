@@ -177,7 +177,7 @@ export default function FoodRecordingPage() {
 
     try {
       const res = await getMealAllRecords({
-        dietPatientRuleId: ruleId,
+        // dietPatientRuleId: ruleId,
         pageSize: PAGE_SIZE,
         pageNum: nextPage,
       });

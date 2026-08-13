@@ -386,7 +386,7 @@ export function getExitConfirmContent(
   const remaining = Math.max(0, target - totalMinutes);
   return {
     title: '今日目标未完成',
-    message: `您已坚持 ${totalMinutes}分，距离${target || 0}分钟还差 ${remaining}分。确定要现在结束吗？`,
+    message: `您已坚持${sessionMinutes}分，距离${target || 0}分钟还剩${remaining}分，确定要现在结束吗？`,
   };
 }
 
@@ -402,7 +402,6 @@ export async function loadExercisePlayerVideo(exVideoId?: string): Promise<ExVid
 
   try {
     const res = await getExVideoInfo(id);
-    console.log(res)
     if (!isResourceApiOk(res as unknown as { code?: number })) return null;
     return (
       apiResourceData<ExVideoInfo>(

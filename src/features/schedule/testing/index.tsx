@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useId, useMemo, useState } from 'react';
-import { ScrollView, Image, View, Text, TouchableOpacity, TextInput } from 'react-native';
+import React, { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { ScrollView, Image, View, Text, TouchableOpacity, TextInput, Keyboard } from 'react-native';
 import Svg, { Defs, Image as SvgImage, LinearGradient, Path, Stop } from 'react-native-svg';
 import PageLayout from '@/src/components/PageLayout';
 import BottomSheetModal from '@/src/components/BottomSheetModal';
@@ -19,16 +19,33 @@ import { addExHealthTestRecord } from '@/api/exHealthTestRecord';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
     calcGaugeProgress,
-    calcTargetFromInitial,
+    calcJointRomAverage,
+    createEmptyJointRomInputs,
+    buildJointRomDisplayItems,
     formatGaugeValue,
+    formatChangeVsPrevious,
+    formatImproveTargetAmount,
     formatRecordDate,
     formatTestValue,
     getImproveLabel,
     hasTestTimer,
+    isJointRomHealthTest,
+    JOINT_ROM_FIELDS,
+    parseJointRomInputs,
+    resolveHealthTestGaugeValues,
+    resolveHealthTestUnit,
+    resolveRecordTrendTone,
+    hasJointRomObjValue,
+    type JointRomInputMap,
+    type JointRomObjValue,
 } from './testingHelpers';
 import StepTimeline from '../components/StepTimeline';
+import JointRomRecordValues from './JointRomRecordValues';
 
 const TESTING_HEADER_BG = require('@/assets/images/schedule/pageBack.png');
+const TREND_ICON = require('@/assets/images/schedule/icon_trend_up.png');
+const TREND_COLOR_UP = '#6D925E';
+const TREND_COLOR_DOWN = '#E85D4C';
 const GAUGE_WIDTH = 150;
 const GAUGE_HEIGHT = 75;
 const GAUGE_STROKE = 8;
@@ -83,23 +100,83 @@ export default function TestingPage() {
     const userId = useSelector(
         (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
     );
-    const { detail, healthTestItemId } = useHealthTestDetailByGoalId(healthGoalId);
-    const { records, improveDirectionVal, latestTwoRecords, exPatientRuleId, reload: reloadRecords } = useHealthTestRecords({
+    const { detail, healthTestItemId, goalTarget } = useHealthTestDetailByGoalId(healthGoalId);
+    const {
+        records,
+        recordTotal,
+        latestTwoRecords,
+        exPatientRuleId,
+        configuredBaseline,
+        configuredTarget,
+        improveDirectionVal,
+        reload: reloadRecords,
+    } = useHealthTestRecords({
         healthGoalId,
         healthTestItemId,
         userId,
     });
     const [recordInput, setRecordInput] = useState('');
+    const [jointRomInputs, setJointRomInputs] = useState<JointRomInputMap>(createEmptyJointRomInputs);
     const [recordModalVisible, setRecordModalVisible] = useState(false);
+    const [recordInputSession, setRecordInputSession] = useState(0);
     const [submitting, setSubmitting] = useState(false);
-    const unit = detail?.unit?.trim() || '次';
+    const recordInputRef = useRef<TextInput>(null);
+    const isJointRom = useMemo(
+        () => isJointRomHealthTest({
+            testName: detail?.testName,
+            resultRecord: detail?.resultRecord,
+            hasJointRomTarget: Boolean(goalTarget?.jointRom),
+        }),
+        [detail?.resultRecord, detail?.testName, goalTarget?.jointRom],
+    );
+    const unit = resolveHealthTestUnit(detail);
     const firstRecord = records?.firstRecord;
     const latestRecord = records?.latestRecord;
-    const firstValue = firstRecord?.testValue;
     const latestValue = latestRecord?.testValue;
-    const targetValue = useMemo(
-        () => calcTargetFromInitial(firstValue, improveDirectionVal, detail?.improveDirection),
-        [firstValue, improveDirectionVal, detail?.improveDirection],
+    const hasMultipleRecords = recordTotal >= 2
+        || (
+            firstRecord?.id != null
+            && latestRecord?.id != null
+            && String(firstRecord.id) !== String(latestRecord.id)
+        );
+    const { baseline: firstValue, target: targetValue } = useMemo(
+        () => resolveHealthTestGaugeValues({
+            configuredBaseline,
+            configuredTarget,
+            firstRecordValue: firstRecord?.testValue,
+            improveDirectionVal,
+            improveDirection: detail?.improveDirection,
+        }),
+        [
+            configuredBaseline,
+            configuredTarget,
+            detail?.improveDirection,
+            firstRecord?.testValue,
+            improveDirectionVal,
+        ],
+    );
+    const jointRomItems = useMemo(
+        () => (isJointRom
+            ? buildJointRomDisplayItems({
+                jointRomTarget: goalTarget?.jointRom,
+                firstObjValue: firstRecord?.objValue,
+                latestObjValue: latestRecord?.objValue,
+                previousObjValue: latestTwoRecords[1]?.objValue,
+                improveDirectionVal,
+                improveDirection: detail?.improveDirection,
+                hasMultipleRecords,
+            })
+            : []),
+        [
+            detail?.improveDirection,
+            firstRecord?.objValue,
+            goalTarget?.jointRom,
+            hasMultipleRecords,
+            improveDirectionVal,
+            isJointRom,
+            latestRecord?.objValue,
+            latestTwoRecords,
+        ],
     );
     const testName = detail?.testName?.trim() || '坐站测试';
     const testSteps = useMemo(() => {
@@ -110,10 +187,46 @@ export default function TestingPage() {
         () => splitMultilineText(detail?.precautions),
         [detail?.precautions],
     );
+    const firstJointRomItem = isJointRom ? jointRomItems[0] : undefined;
+    const restJointRomItems = isJointRom ? jointRomItems.slice(1) : [];
+    const cardTitle = firstJointRomItem?.label || testName;
+    const improveDirection = detail?.improveDirection;
+    const isLowerBetter = improveDirection === -1;
+    const improveTargetText = useMemo(() => formatImproveTargetAmount({
+        baseline: firstJointRomItem?.baseline ?? firstValue,
+        target: firstJointRomItem?.target ?? targetValue,
+        improveDirectionVal,
+        isLowerBetter,
+        unit,
+    }), [
+        firstJointRomItem?.baseline,
+        firstJointRomItem?.target,
+        firstValue,
+        improveDirectionVal,
+        isLowerBetter,
+        targetValue,
+        unit,
+    ]);
+    const firstJointRomChange = useMemo(() => (
+        firstJointRomItem
+            ? formatChangeVsPrevious({
+                current: firstJointRomItem.current,
+                previous: firstJointRomItem.previous,
+                unit,
+            })
+            : null
+    ), [firstJointRomItem, unit]);
+    // 有测试详情即展示方向徽标（无数值时也显示上升/下降）
+    const showImproveBadge = Boolean(detail) && (
+        isJointRom ? firstJointRomChange != null : true
+    );
+    const gaugeFirstValue = firstJointRomItem?.baseline ?? firstValue;
+    const gaugeLatestValue = firstJointRomItem?.current ?? latestValue;
+    const gaugeTargetValue = firstJointRomItem?.target ?? targetValue;
     const gradientId = useId().replace(/:/g, '');
     const progress = useMemo(
-        () => calcGaugeProgress(firstValue, latestValue, targetValue),
-        [firstValue, latestValue, targetValue],
+        () => calcGaugeProgress(gaugeFirstValue, gaugeLatestValue, gaugeTargetValue),
+        [gaugeFirstValue, gaugeLatestValue, gaugeTargetValue],
     );
     const showTimerActions = hasTestTimer(detail?.timerType);
 
@@ -164,21 +277,40 @@ export default function TestingPage() {
     }, [healthTestItemId, navigation]);
 
     const canSubmitRecord = useMemo(() => {
+        if (isJointRom) {
+            return parseJointRomInputs(jointRomInputs) != null;
+        }
         const testValue = Number(recordInput);
         return recordInput.trim() !== '' && !Number.isNaN(testValue) && testValue >= 0;
-    }, [recordInput]);
+    }, [isJointRom, jointRomInputs, recordInput]);
 
     const openRecordModal = useCallback(() => {
+        Keyboard.dismiss();
         setRecordInput('');
+        setJointRomInputs(createEmptyJointRomInputs());
+        setRecordInputSession(prev => prev + 1);
         setRecordModalVisible(true);
     }, []);
 
     const closeRecordModal = useCallback(() => {
+        Keyboard.dismiss();
         setRecordModalVisible(false);
         setRecordInput('');
+        setJointRomInputs(createEmptyJointRomInputs());
     }, []);
 
-    const submitRecord = useCallback(async (testValue: number) => {
+    useEffect(() => {
+        if (!recordModalVisible || isJointRom) return;
+        const timer = setTimeout(() => {
+            recordInputRef.current?.focus();
+        }, 320);
+        return () => clearTimeout(timer);
+    }, [isJointRom, recordInputSession, recordModalVisible]);
+
+    const submitRecord = useCallback(async (payload: {
+        testValue?: number;
+        objValue?: JointRomObjValue;
+    }) => {
         if (!exPatientRuleId || healthTestItemId == null) {
             Toast.show('缺少处方信息，无法保存');
             return false;
@@ -189,7 +321,8 @@ export default function TestingPage() {
             const res = await addExHealthTestRecord({
                 exPatientRuleId: String(exPatientRuleId),
                 healthTestItemId: String(healthTestItemId),
-                testValue,
+                ...(payload.testValue != null ? { testValue: payload.testValue } : {}),
+                ...(payload.objValue ? { objValue: payload.objValue } : {}),
             });
             if (isResourceApiOk(res)) {
                 Toast.success('记录成功');
@@ -211,8 +344,96 @@ export default function TestingPage() {
 
     const handleConfirmRecord = useCallback(() => {
         if (!canSubmitRecord || submitting) return;
-        void submitRecord(Number(recordInput));
-    }, [canSubmitRecord, recordInput, submitRecord, submitting]);
+        if (isJointRom) {
+            const objValue = parseJointRomInputs(jointRomInputs);
+            if (!objValue) return;
+            const average = calcJointRomAverage(objValue);
+            void submitRecord({
+                testValue: average ?? undefined,
+                objValue,
+            });
+            return;
+        }
+        void submitRecord({ testValue: Number(recordInput) });
+    }, [canSubmitRecord, isJointRom, jointRomInputs, recordInput, submitRecord, submitting]);
+
+    const updateJointRomInput = useCallback((key: keyof JointRomInputMap, value: string) => {
+        setJointRomInputs(prev => ({ ...prev, [key]: value }));
+    }, []);
+
+    const renderJointRomImproveBadge = useCallback((item: (typeof jointRomItems)[number]) => {
+        const change = formatChangeVsPrevious({
+            current: item.current,
+            previous: item.previous,
+            unit,
+        });
+        if (!change) return null;
+        return (
+            <Flex align="center" style={{ marginLeft: 8, flexShrink: 0 }}>
+                <Image
+                    style={[styles.rowImg, !change.isRise && styles.rowImgDown]}
+                    source={TREND_ICON}
+                    tintColor={change.isRise ? TREND_COLOR_UP : TREND_COLOR_DOWN}
+                />
+                {change.amountText ? (
+                    <Text style={[styles.rowText, !change.isRise && styles.rowTextDown]}>
+                        {change.amountText}
+                    </Text>
+                ) : null}
+            </Flex>
+        );
+    }, [unit]);
+
+    const renderJointRomItem = useCallback((item: (typeof jointRomItems)[number]) => (
+        <>
+            <Flex justify="between" align="center">
+                <Flex align="center" style={styles.jointRomTitleWrap}>
+                    <Text style={styles.jointRomTitle} numberOfLines={1}>{item.label}</Text>
+                    {renderJointRomImproveBadge(item)}
+                </Flex>
+                <Flex align="center" style={[
+                    styles.jointRomStatus,
+                    item.statusTone === 'warn' && styles.jointRomStatusWarn,
+                    item.statusTone === 'muted' && styles.jointRomStatusMuted,
+                ]}>
+                    {item.statusTone !== 'muted' ? (
+                        <Image
+                            style={styles.gaugeUpImg}
+                            source={require('@/assets/images/schedule/icon_up.png')}
+                        />
+                    ) : null}
+                    <Text style={[
+                        styles.jointRomStatusText,
+                        item.statusTone !== 'muted' ? { marginLeft: 4 } : null,
+                        item.statusTone === 'warn' && styles.jointRomStatusTextWarn,
+                        item.statusTone === 'muted' && styles.jointRomStatusTextMuted,
+                    ]}>
+                        {item.statusText}
+                    </Text>
+                </Flex>
+            </Flex>
+            <Flex style={styles.jointRomMetrics}>
+                <View style={styles.jointRomMetricBox}>
+                    <Text style={styles.jointRomMetricValue}>
+                        {formatGaugeValue(item.baseline)}
+                    </Text>
+                    <Text style={styles.jointRomMetricLabel}>初始({unit})</Text>
+                </View>
+                <View style={styles.jointRomMetricBox}>
+                    <Text style={styles.jointRomMetricValue}>
+                        {formatGaugeValue(item.current)}
+                    </Text>
+                    <Text style={styles.jointRomMetricLabel}>当前({unit})</Text>
+                </View>
+                <View style={styles.jointRomMetricBox}>
+                    <Text style={styles.jointRomMetricValue}>
+                        {formatGaugeValue(item.target)}
+                    </Text>
+                    <Text style={styles.jointRomMetricLabel}>目标({unit})</Text>
+                </View>
+            </Flex>
+        </>
+    ), [renderJointRomImproveBadge, unit]);
 
     return (
         <PageLayout
@@ -228,17 +449,49 @@ export default function TestingPage() {
                             <Text style={styles.rightText}>{detail?.estimatedTime?.trim() || '约1分钟'}</Text>
                         </Flex>
 
-                        <View>
-                            <Text style={styles.rowTitle}>{testName}</Text>
-                            <Flex style={{ marginTop: 6 }}>
-                                <Text style={styles.rowText}>{detail?.recommendFrequency?.trim() || '--'}</Text>
-                                <Image style={styles.rowImg} source={require('@/assets/images/schedule/up.png')} />
-                            </Flex>
-                        </View>
+                        <Flex align="center" style={{ paddingRight: 88 }}>
+                            <Text style={[styles.rowTitle, { flexShrink: 1 }]}>{cardTitle}</Text>
+                            {showImproveBadge ? (
+                                <Flex align="center" style={{ marginLeft: 8, flexShrink: 0 }}>
+                                    <Image
+                                        style={[
+                                            styles.rowImg,
+                                            (isJointRom
+                                                ? firstJointRomChange?.isRise === false
+                                                : isLowerBetter) && styles.rowImgDown,
+                                        ]}
+                                        source={TREND_ICON}
+                                        tintColor={
+                                            (isJointRom
+                                                ? firstJointRomChange?.isRise !== false
+                                                : !isLowerBetter)
+                                                ? TREND_COLOR_UP
+                                                : TREND_COLOR_DOWN
+                                        }
+                                    />
+                                    {(isJointRom
+                                        ? firstJointRomChange?.amountText
+                                        : improveTargetText) ? (
+                                        <Text
+                                            style={[
+                                                styles.rowText,
+                                                (isJointRom
+                                                    ? firstJointRomChange?.isRise === false
+                                                    : isLowerBetter) && styles.rowTextDown,
+                                            ]}
+                                        >
+                                            {isJointRom
+                                                ? firstJointRomChange?.amountText
+                                                : improveTargetText}
+                                        </Text>
+                                    ) : null}
+                                </Flex>
+                            ) : null}
+                        </Flex>
 
                         <Flex align="end" style={styles.gaugeBox}>
                             <Flex direction="column" style={styles.gaugeTitleBox}>
-                                <Text style={styles.gaugeValue}>{formatGaugeValue(firstValue)}</Text>
+                                <Text style={styles.gaugeValue}>{formatGaugeValue(gaugeFirstValue)}</Text>
                                 <Text style={styles.gaugeText}>初始({unit})</Text>
                             </Flex>
 
@@ -304,23 +557,36 @@ export default function TestingPage() {
                                         source={require('@/assets/images/schedule/topCenter.png')}
                                     />
                                     <View style={styles.gaugeTopCenterBox}>
-                                        <Text style={styles.gaugeTopCenterValue}>{formatGaugeValue(latestValue)}</Text>
+                                        <Text style={styles.gaugeTopCenterValue}>{formatGaugeValue(gaugeLatestValue)}</Text>
                                         <Text style={styles.gaugeTopCenterText}>当前({unit})</Text>
                                     </View>
                                 </View>
                             </View>
                             <Flex direction="column" style={styles.gaugeTitleBox}>
-                                <Text style={styles.gaugeValue}>{formatGaugeValue(targetValue)}</Text>
+                                <Text style={styles.gaugeValue}>{formatGaugeValue(gaugeTargetValue)}</Text>
                                 <Text style={styles.gaugeText}>目标({unit})</Text>
                             </Flex>
                         </Flex>
                         <Flex style={styles.gaugeUpBox}>
                             <Image style={styles.gaugeUpImg} source={require('@/assets/images/schedule/icon_up.png')} />
                             <Text style={styles.gaugeUpText}>
-                                {getImproveLabel(latestRecord?.firstChangePercent, { firstRecord, latestRecord })}
+                                {firstJointRomItem
+                                    ? firstJointRomItem.statusText
+                                    : getImproveLabel(latestRecord?.firstChangePercent, {
+                                        firstRecord,
+                                        latestRecord,
+                                        recordTotal,
+                                    })}
                             </Text>
                         </Flex>
                     </View>
+
+                    {restJointRomItems.map(item => (
+                        <View key={item.key} style={styles.jointRomCard}>
+                            {renderJointRomItem(item)}
+                        </View>
+                    ))}
+
                     <View style={styles.infoBox}>
                         <Text style={styles.infoTitle}>测试说明</Text>
                         <View style={styles.infoItem}>
@@ -361,47 +627,73 @@ export default function TestingPage() {
                         </Flex>
                         <View style={styles.infoRecordBox}>
                             {latestTwoRecords.length > 0 ? (
-                                latestTwoRecords.map((record, index) => (
-                                    <Flex
-                                        key={String(record.id ?? record.createTime ?? index)}
-                                        justify='between'
-                                        style={[
-                                            styles.infoRecordItem,
-                                            { paddingVertical: 12 },
-                                            index > 0 ? { marginTop: 12 } : null,
-                                        ]}>
-                                        <Flex>
-                                            <Image
-                                                style={styles.infoRecordImg}
-                                                source={require('@/assets/images/schedule/rl.png')}
-                                            />
-                                            <View>
-                                                <Text style={styles.infoRecordText}>
-                                                    {formatRecordDate(record.createTime)}
-                                                </Text>
-                                                <Flex style={[styles.infoRecordStatus, { marginTop: 6 }]}>
-                                                    <Text style={styles.infoRecordStatusText}>
-                                                        {getImproveLabel(record.firstChangePercent, {
-                                                            firstRecord,
-                                                            latestRecord: record,
-                                                        })}
-                                                    </Text>
+                                latestTwoRecords.map((record, index) => {
+                                    const previousRecord = latestTwoRecords[index + 1];
+                                    const showJointRomValues = isJointRom && hasJointRomObjValue(record.objValue);
+                                    const tone = showJointRomValues
+                                        ? null
+                                        : resolveRecordTrendTone({
+                                            currentValue: record.testValue,
+                                            previousValue: previousRecord?.testValue,
+                                            improveDirection: detail?.improveDirection,
+                                        });
+                                    return (
+                                        <View
+                                            key={String(record.id ?? record.createTime ?? index)}
+                                            style={[
+                                                styles.infoRecordItem,
+                                                { paddingVertical: 12 },
+                                                index > 0 ? { marginTop: 12 } : null,
+                                            ]}>
+                                            <Flex justify="between" align="start">
+                                                <Flex>
+                                                    <Image
+                                                        style={styles.infoRecordImg}
+                                                        source={require('@/assets/images/schedule/rl.png')}
+                                                    />
+                                                    <View>
+                                                        <Text style={styles.infoRecordText}>
+                                                            {formatRecordDate(record.createTime)}
+                                                        </Text>
+                                                        <Flex style={[styles.infoRecordStatus, { marginTop: 6 }]}>
+                                                            <Text style={styles.infoRecordStatusText}>
+                                                                {getImproveLabel(record.firstChangePercent, {
+                                                                    firstRecord,
+                                                                    latestRecord: record,
+                                                                })}
+                                                            </Text>
+                                                        </Flex>
+                                                    </View>
                                                 </Flex>
-                                            </View>
-                                        </Flex>
-                                        <Flex>
-                                            {(record.changeValue ?? 0) > 0 ? (
-                                                <Image
-                                                    style={styles.infoRecordUpImg}
-                                                    source={require('@/assets/images/schedule/icon_up.png')}
+                                                {!showJointRomValues ? (
+                                                    <Flex>
+                                                        {tone ? (
+                                                            <Image
+                                                                style={styles.infoRecordUpImg}
+                                                                source={
+                                                                    tone === 'up'
+                                                                        ? require('@/assets/images/schedule/icon_up.png')
+                                                                        : require('@/assets/images/schedule/icon_down1.png')
+                                                                }
+                                                            />
+                                                        ) : null}
+                                                        <Text style={styles.infoRecordText}>
+                                                            {formatTestValue(record.testValue, unit)}
+                                                        </Text>
+                                                    </Flex>
+                                                ) : null}
+                                            </Flex>
+                                            {showJointRomValues ? (
+                                                <JointRomRecordValues
+                                                    objValue={record.objValue}
+                                                    previousObjValue={previousRecord?.objValue}
+                                                    unit={unit}
+                                                    improveDirection={detail?.improveDirection}
                                                 />
                                             ) : null}
-                                            <Text style={styles.infoRecordText}>
-                                                {formatTestValue(record.testValue, unit)}
-                                            </Text>
-                                        </Flex>
-                                    </Flex>
-                                ))
+                                        </View>
+                                    );
+                                })
                             ) : (
                                 <Flex justify='center' style={styles.infoRecordItem}>
                                     <Text style={styles.infoItemText}>暂无测试记录</Text>
@@ -478,19 +770,52 @@ export default function TestingPage() {
                         </TouchableOpacity>
                     </View>
 
-                    <Flex align="center" style={recordModalStyles.inputWrap}>
-                        <Text style={recordModalStyles.inputLabel}>测试结果</Text>
-                        <TextInput
-                            style={recordModalStyles.recordModalInput}
-                            value={recordInput}
-                            onChangeText={setRecordInput}
-                            keyboardType="number-pad"
-                            placeholder="请输入测试成绩"
-                            placeholderTextColor="#CCCCCC"
-                            underlineColorAndroid="transparent"
-                        />
-                        <Text style={recordModalStyles.inputUnit}>{unit}</Text>
-                    </Flex>
+                    {isJointRom ? (
+                        <ScrollView
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}
+                            style={{ maxHeight: 420 }}
+                        >
+                            {JOINT_ROM_FIELDS.map(field => (
+                                <Flex
+                                    key={field.key}
+                                    align="center"
+                                    style={recordModalStyles.inputWrap}
+                                >
+                                    <Text style={recordModalStyles.inputLabel}>{field.label}</Text>
+                                    <TextInput
+                                        key={`joint-${field.key}-${recordInputSession}`}
+                                        style={recordModalStyles.recordModalInput}
+                                        value={jointRomInputs[field.key]}
+                                        onChangeText={text => updateJointRomInput(field.key, text)}
+                                        keyboardType="decimal-pad"
+                                        placeholder="请输入测试成绩"
+                                        placeholderTextColor="#CCCCCC"
+                                        underlineColorAndroid="transparent"
+                                        textAlign="center"
+                                    />
+                                    <Text style={recordModalStyles.inputUnit}>{unit}</Text>
+                                </Flex>
+                            ))}
+                        </ScrollView>
+                    ) : (
+                        <Flex align="center" style={recordModalStyles.inputWrap}>
+                            <Text style={recordModalStyles.inputLabel}>测试结果</Text>
+                            <TextInput
+                                key={`record-${recordInputSession}`}
+                                ref={recordInputRef}
+                                style={recordModalStyles.recordModalInput}
+                                value={recordInput}
+                                onChangeText={setRecordInput}
+                                keyboardType="number-pad"
+                                placeholder="请输入测试成绩"
+                                placeholderTextColor="#CCCCCC"
+                                underlineColorAndroid="transparent"
+                                textAlign="center"
+                            />
+                            <Text style={recordModalStyles.inputUnit}>{unit}</Text>
+                        </Flex>
+                    )}
                 </View>
                 <Flex style={recordModalStyles.btnBox}>
                     <TouchableOpacity

@@ -5,12 +5,12 @@ import {
   type MeasureDataAllRecordsMonthGroup,
   type MeasureDataItem,
 } from '@/api/measureData';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule, type ProgressInfo } from '@/api/schedule';
+import { type InUseExPatientRule, type ProgressInfo } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { flattenMeasureItems } from '../../vitalsHelpers';
 import { getLevelColor } from '../../vitalLevelColors';
 import { getItemTimestamp, parseMeasureNumber, pickLatestMeasureRecords } from './shared';
-import { enrichHealthGoalTargets, toHealthGoalDisplayItem } from '@/src/features/schedule/scheduleHelpers';
+import { toHealthGoalDisplayItem } from '@/src/features/schedule/scheduleHelpers';
 
 export const BLOOD_LIPID_RECENT_PAGE_SIZE = 10;
 
@@ -24,6 +24,17 @@ export type BloodLipidDetailPoint = {
   customerLocalDate?: string;
   statusLabel?: string;
   recordLabel?: string;
+};
+
+export type BloodLipidGoalDisplay = {
+  key: BloodLipidMetricKey;
+  shortLabel: string;
+  title: string;
+  planLabel: string;
+  targetText: string;
+  remainingLabel: string;
+  remainingText: string;
+  progressPercent: number;
 };
 
 export type BloodLipidGoalRow = {
@@ -61,6 +72,7 @@ export type BloodLipidPrescriptionGoalSummary = {
 const LIPID_METRICS: Array<{
   key: BloodLipidMetricKey;
   goalType: string;
+  pairKey: 'tc' | 'tg' | 'ldlC' | 'hdlC';
   shortLabel: string;
   fullLabel: string;
   normalRangeText: string;
@@ -71,6 +83,7 @@ const LIPID_METRICS: Array<{
     {
       key: 'TC',
       goalType: 'xuezhiTc',
+      pairKey: 'tc',
       shortLabel: 'TC',
       fullLabel: '总胆固醇',
       normalRangeText: '< 5.2 mmol/L',
@@ -81,6 +94,7 @@ const LIPID_METRICS: Array<{
     {
       key: 'TG',
       goalType: 'xuezhiTg',
+      pairKey: 'tg',
       shortLabel: 'TG',
       fullLabel: '甘油三酯',
       normalRangeText: '< 1.7 mmol/L',
@@ -91,6 +105,7 @@ const LIPID_METRICS: Array<{
     {
       key: 'LDL-C',
       goalType: 'xuezhiLdlC',
+      pairKey: 'ldlC',
       shortLabel: 'LDL-C',
       fullLabel: '低密度脂蛋白',
       normalRangeText: '< 3.4 mmol/L',
@@ -101,6 +116,7 @@ const LIPID_METRICS: Array<{
     {
       key: 'HDL-C',
       goalType: 'xuezhiHdlC',
+      pairKey: 'hdlC',
       shortLabel: 'HDL-C',
       fullLabel: '高密度脂蛋白',
       normalRangeText: '≥ 1.0 mmol/L',
@@ -348,6 +364,9 @@ function resolveConfiguredLipidTypes(target: HealthGoalTarget) {
     .map(metric => metric.goalType)
     .filter(type => {
       const metric = LIPID_METRICS.find(item => item.goalType === type)!;
+      const pair = target.bloodLipid?.[metric.pairKey];
+      if (toFiniteLipidNumber(pair?.target) != null) return true;
+      if (toFiniteLipidNumber(pair?.baseline) != null) return true;
       const rate = target[metric.rateKey] as number | undefined;
       return rate != null && !Number.isNaN(Number(rate));
     });
@@ -453,6 +472,97 @@ function formatBloodLipidProgressStatusText(progress: number) {
   return '已开始改善';
 }
 
+function toFiniteLipidNumber(value?: number | null) {
+  if (value == null) return null;
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : null;
+}
+
+function calcLipidAbsoluteTarget(
+  baseline: number,
+  ratePercent: number,
+  isGain: boolean,
+) {
+  const factor = ratePercent / 100;
+  const target = isGain
+    ? baseline * (1 + factor)
+    : baseline * (1 - factor);
+  return Number(Math.max(0, target).toFixed(2));
+}
+
+function calcLipidGoalProgressPercent(
+  baseline: number,
+  current: number | null,
+  targetValue: number,
+  isGain: boolean,
+) {
+  const totalChange = Math.abs(targetValue - baseline);
+  if (totalChange <= 0) {
+    if (current == null) return 0;
+    return isGain
+      ? (current >= targetValue ? 100 : 0)
+      : (current <= targetValue ? 100 : 0);
+  }
+  if (current == null) return 0;
+  const achieved = isGain ? current - baseline : baseline - current;
+  if (achieved <= 0) return 0;
+  return Math.min(100, Math.max(0, Math.round((achieved / totalChange) * 100)));
+}
+
+export function buildBloodLipidGoalDisplays(
+  target: HealthGoalTarget,
+  periodItems: MeasureDataItem[] = [],
+): BloodLipidGoalDisplay[] {
+  return resolveConfiguredLipidTypes(target)
+    .map(type => {
+      const metric = LIPID_METRICS.find(item => item.goalType === type);
+      if (!metric) return null;
+
+      const pair = target.bloodLipid?.[metric.pairKey];
+      const direction = target[metric.dirKey] as number | undefined;
+      const ratePercent = target[metric.rateKey] as number | undefined;
+      const isGain = direction === 1
+        || (direction !== -1 && metric.higherIsBetter);
+
+      const baseline = toFiniteLipidNumber(pair?.baseline)
+        ?? getBaselineLipidValue(periodItems, metric.key);
+      if (baseline == null) return null;
+
+      const absoluteTarget = toFiniteLipidNumber(pair?.target)
+        ?? (
+          ratePercent != null && !Number.isNaN(Number(ratePercent))
+            ? calcLipidAbsoluteTarget(baseline, Number(ratePercent), isGain)
+            : null
+        );
+      if (absoluteTarget == null || absoluteTarget <= 0) return null;
+
+      const current = getLatestLipidValue(periodItems, metric.key);
+      let remaining = 0;
+      if (current != null) {
+        remaining = isGain
+          ? Math.max(0, absoluteTarget - current)
+          : Math.max(0, current - absoluteTarget);
+      }
+
+      return {
+        key: metric.key,
+        shortLabel: metric.shortLabel,
+        title: `${metric.shortLabel}目标`,
+        planLabel: isGain ? '提升计划' : '降脂计划',
+        targetText: formatLipidDecimal(absoluteTarget),
+        remainingLabel: isGain ? '还需上升 (mmol/L)' : '还需下降 (mmol/L)',
+        remainingText: current != null ? formatLipidDecimal(remaining) : '--',
+        progressPercent: calcLipidGoalProgressPercent(
+          baseline,
+          current,
+          absoluteTarget,
+          isGain,
+        ),
+      };
+    })
+    .filter((row): row is BloodLipidGoalDisplay => row != null);
+}
+
 export function buildBloodLipidGoalRows(
   target: HealthGoalTarget,
   periodItems: MeasureDataItem[] = [],
@@ -462,44 +572,59 @@ export function buildBloodLipidGoalRows(
       const metric = LIPID_METRICS.find(item => item.goalType === type);
       if (!metric) return null;
 
-      const ratePercent = target[metric.rateKey] as number | undefined;
+      const pair = target.bloodLipid?.[metric.pairKey];
       const direction = target[metric.dirKey] as number | undefined;
-      if (ratePercent == null || Number.isNaN(Number(ratePercent))) return null;
+      const ratePercent = target[metric.rateKey] as number | undefined;
+      const isGain = direction === 1
+        || (direction !== -1 && metric.higherIsBetter);
 
-      const baseline = getBaselineLipidValue(periodItems, metric.key);
+      const baseline = toFiniteLipidNumber(pair?.baseline)
+        ?? getBaselineLipidValue(periodItems, metric.key);
       if (baseline == null || baseline <= 0) return null;
 
-      const displayAmount = calcLipidGoalTargetAmount(baseline, Number(ratePercent));
-      if (displayAmount <= 0) return null;
+      const absoluteTarget = toFiniteLipidNumber(pair?.target)
+        ?? (
+          ratePercent != null && !Number.isNaN(Number(ratePercent))
+            ? calcLipidAbsoluteTarget(baseline, Number(ratePercent), isGain)
+            : null
+        );
+
+      let displayAmount: number | null = null;
+      if (absoluteTarget != null && absoluteTarget > 0) {
+        displayAmount = Number(Math.abs(absoluteTarget - baseline).toFixed(2));
+      } else if (ratePercent != null && !Number.isNaN(Number(ratePercent))) {
+        displayAmount = calcLipidGoalTargetAmount(baseline, Number(ratePercent));
+      }
+      if (displayAmount == null || displayAmount <= 0) return null;
+
+      const icon: BloodLipidGoalRow['icon'] = direction === 1
+        ? 'up'
+        : direction === -1
+          ? 'down'
+          : isGain
+            ? 'up'
+            : 'down';
 
       return {
         shortLabel: metric.shortLabel,
         fullLabel: `${metric.fullLabel} (mmol/L)`,
         currentAmountText: formatLipidDecimal(displayAmount),
-        icon: direction === 1 ? 'up' : direction === -1 ? 'down' : null,
+        icon,
       };
     })
     .filter((row): row is BloodLipidGoalRow => row != null);
 }
 
+/** 基于 store 中的在用处方构建血脂目标摘要（不再单独请求 getInfo） */
 export async function loadBloodLipidPrescriptionGoalSummary(
+  rule: InUseExPatientRule | null | undefined,
   fallbackItems: MeasureDataItem[] = [],
 ): Promise<BloodLipidPrescriptionGoalSummary | null> {
   try {
-    const res = await getInUseExPatientRuleInfo();
-    const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
-    if (!isResourceApiOk(payload)) return null;
-
-    let rule = apiResourceData<InUseExPatientRule>(payload);
-    if (!rule) return null;
-
-    if (rule.healthGoalTargetList?.length) {
-      const enrichedTargets = await enrichHealthGoalTargets(rule.healthGoalTargetList);
-      rule = { ...rule, healthGoalTargetList: enrichedTargets };
-    }
+    if (!rule || !hasBloodLipidHealthGoal(rule)) return null;
 
     const target = findBloodLipidHealthGoal(rule.healthGoalTargetList);
-    if (!target || !hasBloodLipidHealthGoal(rule)) return null;
+    if (!target) return null;
 
     const periodItems = await loadPrescriptionPeriodItems(rule.startDate, rule.endDate);
     const baselineItems = resolveGoalBaselineItems(periodItems, fallbackItems);
@@ -611,12 +736,10 @@ function findBoundaryRecord(
 
 function buildCompareRow(
   metricKey: BloodLipidMetricKey,
-  initialItem?: MeasureDataItem,
-  recentItem?: MeasureDataItem,
+  initialValue: number | null,
+  recentValue: number | null,
 ): BloodLipidCompareRow | null {
   const metric = getMetricConfig(metricKey);
-  const initialValue = getLipidValueFromItem(initialItem, metricKey);
-  const recentValue = getLipidValueFromItem(recentItem, metricKey);
   if (initialValue == null || recentValue == null) return null;
 
   const diff = Number((recentValue - initialValue).toFixed(2));
@@ -638,32 +761,59 @@ function buildCompareRow(
   };
 }
 
+function formatPrescriptionDateText(date?: string | null) {
+  const raw = date?.trim();
+  if (!raw) return '--';
+  const parsed = moment(raw, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+  return parsed.isValid() ? parsed.format('YYYY/MM/DD') : raw;
+}
+
+/**
+ * 指标对比：
+ * - 有运动处方时：初始优先用处方 bloodLipid 基线；无基线则用处方周期内最早测量
+ * - 最近：处方周期（或近期）内最新测量
+ */
 export function buildBloodLipidCompareSummary(
   items: MeasureDataItem[],
   startDate?: string,
   endDate?: string,
+  target?: HealthGoalTarget | null,
 ): BloodLipidCompareSummary | null {
-  const sourceItems = startDate?.trim() && endDate?.trim()
+  const hasPrescriptionRange = Boolean(startDate?.trim() && endDate?.trim());
+  const sourceItems = hasPrescriptionRange
     ? items
     : getBloodLipidRecentItems(items);
   const rangedItems = filterItemsInDateRange(sourceItems, startDate, endDate);
-  if (!rangedItems.length) return null;
+  if (!rangedItems.length && !target?.bloodLipid) return null;
 
+  let usedConfiguredBaseline = false;
   const rows = LIPID_METRICS
-    .map(metric => buildCompareRow(
-      metric.key,
-      findBoundaryRecord(rangedItems, metric.key, 'first'),
-      findBoundaryRecord(rangedItems, metric.key, 'last'),
-    ))
+    .map(metric => {
+      const configuredBaseline = toFiniteLipidNumber(
+        target?.bloodLipid?.[metric.pairKey]?.baseline,
+      );
+      if (configuredBaseline != null) usedConfiguredBaseline = true;
+
+      const earliestItem = findBoundaryRecord(rangedItems, metric.key, 'first');
+      const latestItem = findBoundaryRecord(rangedItems, metric.key, 'last');
+      const initialValue = configuredBaseline
+        ?? getLipidValueFromItem(earliestItem, metric.key);
+      const recentValue = getLipidValueFromItem(latestItem, metric.key);
+      return buildCompareRow(metric.key, initialValue, recentValue);
+    })
     .filter((row): row is BloodLipidCompareRow => row != null);
 
   if (!rows.length) return null;
 
   const initialItem = rangedItems[0];
-  const recentItem = rangedItems[rangedItems.length - 1];
+  const recentItem = rangedItems.length
+    ? rangedItems[rangedItems.length - 1]
+    : undefined;
 
   return {
-    initialDateText: formatDisplayDate(initialItem),
+    initialDateText: usedConfiguredBaseline
+      ? formatPrescriptionDateText(startDate)
+      : formatDisplayDate(initialItem),
     recentDateText: formatDisplayDate(recentItem),
     rows,
   };

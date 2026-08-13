@@ -3,11 +3,12 @@ import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchInUsePrescription } from '@/store/actions/prescription';
 import styles from '@/css/vitals/bloodPage';
 import { Flex } from '@ant-design/react-native';
 import PageHeader from './components/pageHeader';
@@ -19,7 +20,6 @@ import BmiProgressBar from './components/BmiProgressBar';
 import VitalsProgressRing from './components/VitalsProgressRing';
 import { LinearGradient } from 'expo-linear-gradient';
 import TopHeaderTip from './components/TopHeaderTip';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import {
   getMeasureDataDetailByDate,
   getMeasureDataLatestByType,
@@ -33,23 +33,16 @@ import { flattenMeasureItems, getDateRange } from '../vitalsHelpers';
 import {
   buildWeightChartFromStatisGroups,
   buildWeightDetailTodaySeries,
-  buildWeightGoalSummary,
   calcTodayWeightOverview,
   calcWeightDetailStats,
   calcWeightTrendFromPoints,
-  findWeightHealthGoal,
   formatWeightCurrentValue,
   formatWeightDetailPointDisplay,
-  getInitialWeightFromPoints,
-  getEarliestWeightFromItems,
   getBmiCategory,
   BMI_CATEGORY_COLORS,
-  hasWeightHealthGoal,
   resolvePersonalWeightGoalDisplay,
   resolveWeightDetailBmi,
-  resolveWeightGoalDisplay,
   type TodayWeightOverview,
-  type WeightGoalSummary,
   type WeightTrendSummary,
 } from './helpers/weight';
 import { parseMeasureNumber } from './helpers/shared';
@@ -222,10 +215,14 @@ function WeightTrendCard({
 
 export default function WeightPage() {
   const navigation = useNavigation<Nav>();
+  const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const userHeight = useSelector((state: RootState) => state.user.info?.height);
   const userWeight = useSelector((state: RootState) => state.user.info?.weight);
   const storeWeightGoal = useSelector((state: RootState) => state.user.userExtr?.weightGoals);
+  const prescriptionTargetWeight = useSelector(
+    (state: RootState) => state.prescription.inUse?.targetWeight,
+  );
   const defaultPersonalWeightGoal = useMemo(
     () => resolveWeightTarget(storeWeightGoal),
     [storeWeightGoal],
@@ -241,9 +238,6 @@ export default function WeightPage() {
   const [displayBmi, setDisplayBmi] = useState<number | null>(null);
   const [stats, setStats] = useState(EMPTY_STATS);
   const [todayOverview, setTodayOverview] = useState<TodayWeightOverview>(EMPTY_TODAY_OVERVIEW);
-  const [showWeightGoal, setShowWeightGoal] = useState(false);
-  const [weightGoalSummary, setWeightGoalSummary] = useState<WeightGoalSummary | null>(null);
-  const [initialWeightKg, setInitialWeightKg] = useState<number | null>(null);
   const [personalWeightGoal, setPersonalWeightGoal] = useState(defaultPersonalWeightGoal);
   const rangeCacheRef = useRef<Partial<Record<WeightChartRange, WeightRangeSnapshot>>>({});
   const loadRequestRef = useRef(0);
@@ -262,17 +256,16 @@ export default function WeightPage() {
     [displayValue, latestItem],
   );
 
-  const weightGoalDisplay = useMemo(() => {
-    if (!weightGoalSummary) return null;
+  const prescriptionWeightGoalDisplay = useMemo(() => {
+    const target = Number(prescriptionTargetWeight);
+    if (!Number.isFinite(target) || target <= 0) return null;
     const currentKg = parseMeasureNumber(latestItem?.val)
       ?? parseMeasureNumber(currentWeightText);
-    const initialKg = initialWeightKg
-      ?? getInitialWeightFromPoints(chartData, latestItem);
-    return resolveWeightGoalDisplay(weightGoalSummary, currentKg, initialKg);
-  }, [chartData, currentWeightText, initialWeightKg, latestItem, weightGoalSummary]);
+    return resolvePersonalWeightGoalDisplay(target, currentKg);
+  }, [currentWeightText, latestItem, prescriptionTargetWeight]);
 
   const personalWeightGoalDisplay = useMemo(() => {
-    if (showWeightGoal) return null;
+    if (prescriptionWeightGoalDisplay) return null;
     if (storeWeightGoal == null || storeWeightGoal < WEIGHT_GOAL_MIN) return null;
     const currentKg = parseMeasureNumber(latestItem?.val)
       ?? parseMeasureNumber(currentWeightText);
@@ -281,14 +274,12 @@ export default function WeightPage() {
     currentWeightText,
     latestItem,
     personalWeightGoal,
-    showWeightGoal,
+    prescriptionWeightGoalDisplay,
     storeWeightGoal,
   ]);
 
-  const activeGoalDisplay = weightGoalDisplay ?? personalWeightGoalDisplay;
-  const goalPlanLabel = activeGoalDisplay?.planLabel
-    ?? weightGoalSummary?.planLabel
-    ?? '减重计划';
+  const activeGoalDisplay = prescriptionWeightGoalDisplay ?? personalWeightGoalDisplay;
+  const goalPlanLabel = activeGoalDisplay?.planLabel ?? '减重计划';
 
   const navigateToAddData = useCallback(() => {
     navigation.navigate('AddDataPage', { type: '体重' });
@@ -342,64 +333,6 @@ export default function WeightPage() {
     setDisplayStatusColor(emptyDisplay.statusColor);
     setCurrentLabel(emptyDisplay.currentLabel);
   }, [applyRangeSnapshot, userHeight]);
-
-  const loadWeightGoal = useCallback(async () => {
-    try {
-      const res = await getInUseExPatientRuleInfo();
-      const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
-      if (!isResourceApiOk(payload)) {
-        setShowWeightGoal(false);
-        setWeightGoalSummary(null);
-        setInitialWeightKg(null);
-        return;
-      }
-
-      const rule = apiResourceData<InUseExPatientRule>(payload);
-      if (!rule || !hasWeightHealthGoal(rule)) {
-        setShowWeightGoal(false);
-        setWeightGoalSummary(null);
-        setInitialWeightKg(null);
-        return;
-      }
-
-      const summary = buildWeightGoalSummary(findWeightHealthGoal(rule?.healthGoalTargetList));
-      if (!summary) {
-        setShowWeightGoal(false);
-        setWeightGoalSummary(null);
-        setInitialWeightKg(null);
-        return;
-      }
-
-      let earliestWeight: number | null = null;
-      const startDate = rule.startDate?.trim();
-      const endDate = rule.endDate?.trim();
-      if (startDate && endDate) {
-        try {
-          const statisRes = (await getMeasureDataStatisByDateRange({
-            startDate,
-            endDate,
-            type: '体重',
-          })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
-          if (isResourceApiOk(statisRes)) {
-            const groups = normalizeStatisRangeData(apiResourceData<unknown>(statisRes));
-            earliestWeight = getEarliestWeightFromItems(
-              groups.flatMap(group => group.childList ?? []),
-            );
-          }
-        } catch {
-          earliestWeight = null;
-        }
-      }
-
-      setShowWeightGoal(true);
-      setWeightGoalSummary(summary);
-      setInitialWeightKg(earliestWeight);
-    } catch {
-      setShowWeightGoal(false);
-      setWeightGoalSummary(null);
-      setInitialWeightKg(null);
-    }
-  }, []);
 
   const loadMeasureData = useCallback(async (
     range: WeightChartRange,
@@ -463,7 +396,7 @@ export default function WeightPage() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadWeightGoal();
+      dispatch(fetchInUsePrescription({ force: true }));
       const range = selectedTypeRef.current;
       const cached = rangeCacheRef.current[range];
       if (cached) {
@@ -471,13 +404,13 @@ export default function WeightPage() {
       }
       void loadMeasureData(range);
       prefetchOtherRanges(range);
-    }, [applyRangeSnapshot, loadMeasureData, loadWeightGoal, prefetchOtherRanges]),
+    }, [applyRangeSnapshot, dispatch, loadMeasureData, prefetchOtherRanges]),
   );
 
   const { menuModals } = useVitalsDetailMoreMenu({
     allRecordsType: '体重',
     goalKind: 'weight',
-    goalDisabled: showWeightGoal,
+    goalDisabled: prescriptionWeightGoalDisplay != null,
     onGoalSaved: (target) => {
       setPersonalWeightGoal(target);
     },
