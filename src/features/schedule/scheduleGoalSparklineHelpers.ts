@@ -12,12 +12,14 @@ import { listExUserQuestions } from '@/api/exUserQuestion';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { parseMeasureNumber } from '@/src/features/profile/vitals/detail/helpers/shared';
 import {
+  isFastingBloodGlucoseMeasure,
   isHealthTestGoal,
   isJointRomGoal,
   isQuestionnaireGoal,
   resolveHealthTestItemIdFromTarget,
   resolveQuestionnaireTypeFromTarget,
 } from './scheduleGoalHelpers';
+import { flattenMeasureItems } from '@/src/features/profile/vitals/vitalsHelpers';
 
 export type ScheduleGoalChartSeries = {
   weight: number[];
@@ -148,6 +150,41 @@ async function loadBloodLipidDailySeries(startDate: string, endDate: string) {
   }
 }
 
+/** 空腹血糖：按日取当天最后一条空腹记录 */
+async function loadFastingBloodGlucoseDailySeries(startDate: string, endDate: string) {
+  try {
+    const res = await getMeasureDataDetailByDateRange({
+      startDate,
+      endDate,
+      type: '血糖',
+    });
+    if (!isResourceApiOk(res as unknown as { code?: number })) return [] as number[];
+    const rows = apiResourceData<MeasureDataDayGroup[]>(
+      res as unknown as { code?: number; data?: MeasureDataDayGroup[] },
+    );
+    const groups = (Array.isArray(rows) ? rows : [])
+      .filter(group => group.customerLocalDate?.trim())
+      .sort((a, b) => {
+        const timeA = moment(a.customerLocalDate).valueOf();
+        const timeB = moment(b.customerLocalDate).valueOf();
+        return (Number.isFinite(timeA) ? timeA : 0) - (Number.isFinite(timeB) ? timeB : 0);
+      });
+
+    return groups
+      .map(group => {
+        const fastingItems = flattenMeasureItems([group]).filter(isFastingBloodGlucoseMeasure);
+        for (let index = fastingItems.length - 1; index >= 0; index -= 1) {
+          const value = parseMeasureNumber(fastingItems[index]?.val);
+          if (value != null && value > 0) return value;
+        }
+        return null;
+      })
+      .filter((value): value is number => value != null);
+  } catch {
+    return [] as number[];
+  }
+}
+
 async function loadHealthTestSeriesMaps(
   exPatientRuleId: string | number,
   targets: HealthGoalTarget[],
@@ -262,7 +299,7 @@ export async function loadScheduleGoalChartSeries(options: {
 
   const [
     weightGroups,
-    glucoseGroups,
+    fastingBloodGlucose,
     pressureGroups,
     uricAcidGroups,
     bloodLipid,
@@ -270,7 +307,7 @@ export async function loadScheduleGoalChartSeries(options: {
     questionnaireByGoalId,
   ] = await Promise.all([
     loadMeasureStatisGroups('体重', startDate, endDate),
-    loadMeasureStatisGroups('血糖', startDate, endDate),
+    loadFastingBloodGlucoseDailySeries(startDate, endDate),
     loadMeasureStatisGroups('血压', startDate, endDate),
     loadMeasureStatisGroups('尿酸', startDate, endDate),
     loadBloodLipidDailySeries(startDate, endDate),
@@ -284,7 +321,7 @@ export async function loadScheduleGoalChartSeries(options: {
 
   return {
     weight: buildDailySeriesFromStatis(weightGroups, group => parseMeasureNumber(group.avgVal)),
-    bloodGlucose: buildDailySeriesFromStatis(glucoseGroups, group => parseMeasureNumber(group.avgVal)),
+    bloodGlucose: fastingBloodGlucose,
     bloodPressureSbp: buildDailySeriesFromStatis(pressureGroups, group => parseMeasureNumber(group.avgVal)),
     bloodPressureDbp: buildDailySeriesFromStatis(pressureGroups, group => parseMeasureNumber(group.avgVal2)),
     uricAcid: buildDailySeriesFromStatis(uricAcidGroups, group => parseMeasureNumber(group.avgVal)),

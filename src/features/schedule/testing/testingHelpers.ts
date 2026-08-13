@@ -387,6 +387,14 @@ export function parseJointRomObjValue(
   return result;
 }
 
+/** 记录是否带有关节活动度分项数据 */
+export function hasJointRomObjValue(
+  objValue?: Record<string, number | string | null> | null,
+) {
+  const parsed = parseJointRomObjValue(objValue);
+  return JOINT_ROM_FIELDS.some(field => parsed[field.key] != null);
+}
+
 export type JointRomDisplayItem = {
   key: JointRomFieldKey;
   label: string;
@@ -394,6 +402,7 @@ export type JointRomDisplayItem = {
   statusTone: 'good' | 'warn' | 'muted';
   baseline: number | null;
   current: number | null;
+  previous: number | null;
   target: number | null;
 };
 
@@ -420,6 +429,48 @@ function getJointRomFieldStatus(
   return { statusText: '需关注', statusTone: 'warn' };
 }
 
+/** 相对上次评估的升降文案（按该指标自身数值） */
+export function formatChangeVsPrevious(options: {
+  current?: number | null;
+  previous?: number | null;
+  unit?: string;
+}): {
+  directionLabel: '上升' | '下降' | '持平';
+  amountText: string | null;
+  isRise: boolean;
+} | null {
+  const current = options.current != null && Number.isFinite(Number(options.current))
+    ? Number(options.current)
+    : null;
+  const previous = options.previous != null && Number.isFinite(Number(options.previous))
+    ? Number(options.previous)
+    : null;
+  if (current == null || previous == null) return null;
+
+  const delta = current - previous;
+  const unit = options.unit ?? '';
+  const formatAmount = (value: number) => (
+    Number.isInteger(value) ? String(value) : String(Number(value.toFixed(1)))
+  );
+
+  if (delta === 0) {
+    return { directionLabel: '持平', amountText: null, isRise: true };
+  }
+  const abs = Math.abs(delta);
+  if (delta > 0) {
+    return {
+      directionLabel: '上升',
+      amountText: `${formatAmount(abs)}${unit}`,
+      isRise: true,
+    };
+  }
+  return {
+    directionLabel: '下降',
+    amountText: `${formatAmount(abs)}${unit}`,
+    isRise: false,
+  };
+}
+
 /** 关节活动度 6 项：初始 / 当前 / 目标 + 状态 */
 export function buildJointRomDisplayItems(options: {
   jointRomTarget?: {
@@ -432,6 +483,8 @@ export function buildJointRomDisplayItems(options: {
   } | null;
   firstObjValue?: Record<string, number | string | null> | null;
   latestObjValue?: Record<string, number | string | null> | null;
+  /** 倒数第二次记录，用于相对上次升降 */
+  previousObjValue?: Record<string, number | string | null> | null;
   improveDirectionVal?: number | null;
   improveDirection?: number | null;
   /** 是否已有至少两次测试记录 */
@@ -439,6 +492,7 @@ export function buildJointRomDisplayItems(options: {
 }): JointRomDisplayItem[] {
   const firstValues = parseJointRomObjValue(options.firstObjValue);
   const latestValues = parseJointRomObjValue(options.latestObjValue);
+  const previousValues = parseJointRomObjValue(options.previousObjValue);
   const lowerBetter = options.improveDirection === -1;
   const hasMultipleRecords = Boolean(options.hasMultipleRecords);
 
@@ -452,6 +506,7 @@ export function buildJointRomDisplayItems(options: {
       : null;
     const firstValue = firstValues[field.key] ?? null;
     const current = latestValues[field.key] ?? null;
+    const previous = previousValues[field.key] ?? null;
     const baseline = configuredBaseline ?? firstValue;
     const target = configuredTarget
       ?? calcTargetFromInitial(baseline, options.improveDirectionVal, options.improveDirection);
@@ -469,6 +524,7 @@ export function buildJointRomDisplayItems(options: {
       statusTone,
       baseline,
       current,
+      previous,
       target,
     };
   });

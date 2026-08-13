@@ -736,12 +736,10 @@ function findBoundaryRecord(
 
 function buildCompareRow(
   metricKey: BloodLipidMetricKey,
-  initialItem?: MeasureDataItem,
-  recentItem?: MeasureDataItem,
+  initialValue: number | null,
+  recentValue: number | null,
 ): BloodLipidCompareRow | null {
   const metric = getMetricConfig(metricKey);
-  const initialValue = getLipidValueFromItem(initialItem, metricKey);
-  const recentValue = getLipidValueFromItem(recentItem, metricKey);
   if (initialValue == null || recentValue == null) return null;
 
   const diff = Number((recentValue - initialValue).toFixed(2));
@@ -763,32 +761,59 @@ function buildCompareRow(
   };
 }
 
+function formatPrescriptionDateText(date?: string | null) {
+  const raw = date?.trim();
+  if (!raw) return '--';
+  const parsed = moment(raw, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+  return parsed.isValid() ? parsed.format('YYYY/MM/DD') : raw;
+}
+
+/**
+ * 指标对比：
+ * - 有运动处方时：初始优先用处方 bloodLipid 基线；无基线则用处方周期内最早测量
+ * - 最近：处方周期（或近期）内最新测量
+ */
 export function buildBloodLipidCompareSummary(
   items: MeasureDataItem[],
   startDate?: string,
   endDate?: string,
+  target?: HealthGoalTarget | null,
 ): BloodLipidCompareSummary | null {
-  const sourceItems = startDate?.trim() && endDate?.trim()
+  const hasPrescriptionRange = Boolean(startDate?.trim() && endDate?.trim());
+  const sourceItems = hasPrescriptionRange
     ? items
     : getBloodLipidRecentItems(items);
   const rangedItems = filterItemsInDateRange(sourceItems, startDate, endDate);
-  if (!rangedItems.length) return null;
+  if (!rangedItems.length && !target?.bloodLipid) return null;
 
+  let usedConfiguredBaseline = false;
   const rows = LIPID_METRICS
-    .map(metric => buildCompareRow(
-      metric.key,
-      findBoundaryRecord(rangedItems, metric.key, 'first'),
-      findBoundaryRecord(rangedItems, metric.key, 'last'),
-    ))
+    .map(metric => {
+      const configuredBaseline = toFiniteLipidNumber(
+        target?.bloodLipid?.[metric.pairKey]?.baseline,
+      );
+      if (configuredBaseline != null) usedConfiguredBaseline = true;
+
+      const earliestItem = findBoundaryRecord(rangedItems, metric.key, 'first');
+      const latestItem = findBoundaryRecord(rangedItems, metric.key, 'last');
+      const initialValue = configuredBaseline
+        ?? getLipidValueFromItem(earliestItem, metric.key);
+      const recentValue = getLipidValueFromItem(latestItem, metric.key);
+      return buildCompareRow(metric.key, initialValue, recentValue);
+    })
     .filter((row): row is BloodLipidCompareRow => row != null);
 
   if (!rows.length) return null;
 
   const initialItem = rangedItems[0];
-  const recentItem = rangedItems[rangedItems.length - 1];
+  const recentItem = rangedItems.length
+    ? rangedItems[rangedItems.length - 1]
+    : undefined;
 
   return {
-    initialDateText: formatDisplayDate(initialItem),
+    initialDateText: usedConfiguredBaseline
+      ? formatPrescriptionDateText(startDate)
+      : formatDisplayDate(initialItem),
     recentDateText: formatDisplayDate(recentItem),
     rows,
   };

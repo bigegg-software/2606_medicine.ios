@@ -33,6 +33,7 @@ import {
   getPrescriptionDayProgress,
   loadScheduleHistoryArchivePreview,
   normalizeProgress,
+  resolveMilestoneWeekSummaryText,
   type ScheduleHistoryArchiveItem,
 } from './scheduleHelpers';
 import {
@@ -211,9 +212,8 @@ export default function SchedulePage() {
       return Number.isFinite(num) ? num : null;
     };
 
-    const [weightItem, glucoseItem, pressureItem, uricAcidItem, lipidItem, earliest] = await Promise.all([
+    const [weightItem, pressureItem, uricAcidItem, lipidItem, earliest] = await Promise.all([
       readLatestItem('体重'),
-      readLatestItem('血糖'),
       readLatestItem('血压'),
       readLatestItem('尿酸'),
       readLatestItem('血脂'),
@@ -221,7 +221,7 @@ export default function SchedulePage() {
     ]);
 
     setLatestWeightKg(toNumber(weightItem?.val));
-    setLatestBloodGlucose(toNumber(glucoseItem?.val));
+    setLatestBloodGlucose(earliest.latestBloodGlucose);
     setLatestBloodPressure(
       pressureItem
         ? { sbp: toNumber(pressureItem.val), dbp: toNumber(pressureItem.val2) }
@@ -420,6 +420,13 @@ export default function SchedulePage() {
   const selectedWeekOverallRate = useMemo(
     () => calcMilestoneWeekOverallRate(selectedWeekStat),
     [selectedWeekStat],
+  );
+  const selectedWeekSummaryText = useMemo(
+    () => resolveMilestoneWeekSummaryText(selectedWeekStat, {
+      weekIndex: selectedWeekIndex,
+      overallRate: selectedWeekOverallRate,
+    }),
+    [selectedWeekIndex, selectedWeekOverallRate, selectedWeekStat],
   );
 
   const persistDaysText = useMemo(() => {
@@ -729,9 +736,7 @@ export default function SchedulePage() {
           </View>
           <Flex align="start" style={styles.kcalInfoBox}>
             <Image style={styles.kcalInfoIcon} source={require('@/assets/images/nutrition/kllInfo.png')} />
-            <Text style={styles.kcalInfoText}>
-              {`点击上方周次可查看分项；当前 W${selectedWeekIndex + 1} 整体完成率 ${selectedWeekOverallRate}%。`}
-            </Text>
+            <Text style={styles.kcalInfoText}>{selectedWeekSummaryText}</Text>
           </Flex>
         </View>
 

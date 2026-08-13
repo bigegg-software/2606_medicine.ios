@@ -10,7 +10,10 @@ import type { UserBaseInfo } from '@/api/patient';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { getExRecordDayStatis, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import {
+  getExPatientRuleHealthGoalProgress,
   getExPatientRuleModuleCompleteRate,
+  type ExPatientRuleHealthGoalProgress,
+  type ExPatientRuleHealthGoalProgressField,
   type ExPatientRuleModuleCompleteRate,
 } from '@/api/exPatientRule';
 import {
@@ -55,6 +58,17 @@ export type HistoryPlanItem = {
 };
 
 /** 日程页「历史干预计划档案」卡片 */
+export type ScheduleHistoryArchiveMaxProgress = {
+  /** 如 空腹血糖(mmol/L) */
+  label: string;
+  /** 最新值 */
+  currentText: string;
+  /** 基准值（划线展示）；无则不展示 */
+  baselineText: string | null;
+  /** 相对基准的数值升降 */
+  trend: 'up' | 'down' | null;
+};
+
 export type ScheduleHistoryArchiveItem = {
   id: string;
   title: string;
@@ -63,7 +77,8 @@ export type ScheduleHistoryArchiveItem = {
   dateText: string;
   sessionCountText: string;
   durationHoursText: string;
-  completeRateText: string;
+  /** 进步最大分项；无有效数据时为 null（卡片不展示该列） */
+  maxProgress: ScheduleHistoryArchiveMaxProgress | null;
   summaryText: string;
   isInProgress: boolean;
   isDone: boolean;
@@ -744,7 +759,6 @@ export async function enrichHealthGoalTargets(
 
       try {
         const res = await getHealthGoalInfo(merged.healthGoalId);
-        console.log(res)
         if (!isResourceApiOk(res)) return merged;
         const info = apiResourceData<HealthGoalInfo>(res as any);
         return info ? { ...merged, healthGoalVo: info } : merged;
@@ -993,9 +1007,104 @@ function formatHistoryDurationHours(sumExerciseDuration?: number | null) {
   return Number.isInteger(fixed) ? String(fixed) : String(fixed);
 }
 
+const HEALTH_GOAL_PROGRESS_FIELD_UNIT: Record<string, string> = {
+  sbp: 'mmHg',
+  dbp: 'mmHg',
+  tc: 'mmol/L',
+  tg: 'mmol/L',
+  hdlC: 'mmol/L',
+  ldlC: 'mmol/L',
+  bloodGlucose: 'mmol/L',
+  weight: 'kg',
+  shoulderFlexion: '°',
+  shoulderAbduction: '°',
+  elbowFlexion: '°',
+  hipFlexion: '°',
+  kneeFlexion: '°',
+  ankleDorsiflexion: '°',
+  exImpRate: '%',
+};
+
+function resolveHealthGoalProgressFieldUnit(fieldKey?: string | null) {
+  const key = fieldKey?.trim();
+  if (!key) return '';
+  return HEALTH_GOAL_PROGRESS_FIELD_UNIT[key] ?? '';
+}
+
+function formatHistoryMetricNumber(value?: number | null) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  if (Number.isInteger(num)) return String(num);
+  return String(Number(num.toFixed(2)));
+}
+
+/** 从 maxProcess 中取进度最大的分项 */
+export function resolveMaxHealthGoalProgressField(
+  maxProcess?: ExPatientRuleHealthGoalProgress['maxProcess'],
+): ScheduleHistoryArchiveMaxProgress | null {
+  const fields = (maxProcess?.fieldList ?? []).filter(Boolean);
+  let best: ExPatientRuleHealthGoalProgressField | null = null;
+  let bestProgress = Number.NEGATIVE_INFINITY;
+
+  for (const field of fields) {
+    if (field.progress == null || Number.isNaN(Number(field.progress))) continue;
+    const progress = Number(field.progress);
+    if (progress > bestProgress) {
+      best = field;
+      bestProgress = progress;
+    }
+  }
+
+  if (!best) return null;
+
+  const currentText = formatHistoryMetricNumber(best.current);
+  if (!currentText) return null;
+
+  const fieldName = best.fieldName?.trim() || maxProcess?.goalName?.trim() || '';
+  const unit = resolveHealthGoalProgressFieldUnit(best.fieldKey);
+  let label = fieldName;
+  if (fieldName && unit && !fieldName.includes(unit)) {
+    label = `${fieldName}(${unit})`;
+  } else if (!fieldName && unit) {
+    label = unit;
+  }
+  if (!label) return null;
+
+  const baselineText = formatHistoryMetricNumber(best.baseline);
+  const current = Number(best.current);
+  const baseline = best.baseline != null ? Number(best.baseline) : null;
+  let trend: 'up' | 'down' | null = null;
+  if (baseline != null && Number.isFinite(baseline) && Number.isFinite(current) && current !== baseline) {
+    const direction = best.direction;
+    // direction: 1 需提高，-1 需降低；按目标方向判断进步/下降
+    if (direction === -1) {
+      trend = current < baseline ? 'up' : 'down';
+    } else if (direction === 1) {
+      trend = current > baseline ? 'up' : 'down';
+    } else if (best.target != null && Number.isFinite(Number(best.target))) {
+      const target = Number(best.target);
+      const lowerBetter = target < baseline;
+      trend = lowerBetter
+        ? (current < baseline ? 'up' : 'down')
+        : (current > baseline ? 'up' : 'down');
+    } else {
+      trend = current > baseline ? 'up' : 'down';
+    }
+  }
+
+  return {
+    label,
+    currentText,
+    baselineText,
+    trend,
+  };
+}
+
 export function toScheduleHistoryArchiveItem(
   info: HistoryExPatientRule,
   ruleStat?: ExMilestoneRuleStat | null,
+  healthGoalProgress?: ExPatientRuleHealthGoalProgress | null,
 ): ScheduleHistoryArchiveItem {
   const id = info.exPatientRuleId != null && info.exPatientRuleId !== ''
     ? String(info.exPatientRuleId)
@@ -1007,12 +1116,11 @@ export function toScheduleHistoryArchiveItem(
   const durationHours = formatHistoryDurationHours(
     ruleStat?.exerciseDuration ?? info.progressInfo?.sumExerciseDuration,
   );
-  const completeRate = info.mainCompleteRate != null && Number.isFinite(Number(info.mainCompleteRate))
-    ? normalizeProgress(info.mainCompleteRate)
-    : null;
+
+  const maxProgress = resolveMaxHealthGoalProgressField(healthGoalProgress?.maxProcess);
   const summary = info.completeSummary?.trim()
     || info.aiAnalysis?.summary?.trim()
-    || (completeRate != null ? `主训练完成率 ${completeRate}%` : '');
+    || '';
 
   return {
     id,
@@ -1026,7 +1134,7 @@ export function toScheduleHistoryArchiveItem(
         ? String(Math.round(Number(info.progressInfo.complateNum)))
         : '--'),
     durationHoursText: durationHours,
-    completeRateText: completeRate != null ? String(completeRate) : '--',
+    maxProgress,
     summaryText: summary,
     isInProgress: info.status === 0,
     isDone: info.status === 2,
@@ -1054,6 +1162,19 @@ async function loadRuleStatForArchive(exPatientRuleId?: string | number | null) 
   }
 }
 
+async function loadHealthGoalProgressForArchive(exPatientRuleId?: string | number | null) {
+  if (exPatientRuleId == null || exPatientRuleId === '') return null;
+  try {
+    const res = await getExPatientRuleHealthGoalProgress(exPatientRuleId);
+    if (!isResourceApiOk(res as unknown as { code?: number })) return null;
+    return apiResourceData<ExPatientRuleHealthGoalProgress>(
+      res as unknown as { code?: number; data?: ExPatientRuleHealthGoalProgress },
+    ) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** 日程页预览：进行中 + 已暂停 + 已结束 */
 export async function loadScheduleHistoryArchivePreview(pageSize = HISTORY_ARCHIVE_PREVIEW_SIZE) {
   const [inProgressRes, pausedRes, endedRes] = await Promise.all([
@@ -1070,8 +1191,11 @@ export async function loadScheduleHistoryArchivePreview(pageSize = HISTORY_ARCHI
 
   return Promise.all(
     plans.map(async plan => {
-      const ruleStat = await loadRuleStatForArchive(plan.exPatientRuleId);
-      return toScheduleHistoryArchiveItem(plan, ruleStat);
+      const [ruleStat, healthGoalProgress] = await Promise.all([
+        loadRuleStatForArchive(plan.exPatientRuleId),
+        loadHealthGoalProgressForArchive(plan.exPatientRuleId),
+      ]);
+      return toScheduleHistoryArchiveItem(plan, ruleStat, healthGoalProgress);
     }),
   );
 }
@@ -1133,7 +1257,7 @@ export async function fetchHistoryPlanPage(
   };
 }
 
-/** 历史计划列表页：分页 + ruleStat 指标 */
+/** 历史计划列表页：分页 + ruleStat / healthGoalProgress 指标 */
 export async function fetchHistoryArchivePage(
   filter: HistoryPlanFilter,
   pageNum: number,
@@ -1142,8 +1266,11 @@ export async function fetchHistoryArchivePage(
   const { rows, hasMore } = await fetchHistoryPlanPage(filter, pageNum, pageSize);
   const items = await Promise.all(
     rows.map(async plan => {
-      const ruleStat = await loadRuleStatForArchive(plan.exPatientRuleId);
-      return toScheduleHistoryArchiveItem(plan, ruleStat);
+      const [ruleStat, healthGoalProgress] = await Promise.all([
+        loadRuleStatForArchive(plan.exPatientRuleId),
+        loadHealthGoalProgressForArchive(plan.exPatientRuleId),
+      ]);
+      return toScheduleHistoryArchiveItem(plan, ruleStat, healthGoalProgress);
     }),
   );
   return { rows: items, hasMore };
@@ -1188,31 +1315,69 @@ export type MilestoneWeekModuleRateItem = {
   color: string;
 };
 
-/** 分项完成率展示顺序：有氧 / 抗阻 / 平衡 / 拉伸 */
-export function buildMilestoneWeekModuleRates(week?: {
-  cardioCompleteRate?: number;
-  strengthCompleteRate?: number;
-  flexibilityCompleteRate?: number;
-  balanceCompleteRate?: number;
-} | null): MilestoneWeekModuleRateItem[] {
-  return [
-    { key: 'cardio', title: '有氧', progress: normalizeProgress(week?.cardioCompleteRate), color: '#6D925E' },
-    { key: 'strength', title: '抗阻', progress: normalizeProgress(week?.strengthCompleteRate), color: '#72A1C5' },
-    { key: 'balance', title: '平衡', progress: normalizeProgress(week?.balanceCompleteRate), color: '#0951AE' },
-    { key: 'flexibility', title: '拉伸', progress: normalizeProgress(week?.flexibilityCompleteRate), color: '#EE9C44' },
-  ];
+function toOptionalProgress(value?: number | null) {
+  if (value == null || Number.isNaN(Number(value))) return null;
+  return normalizeProgress(value);
 }
 
-/** 分项整体完成率（四项平均） */
+/** 分项完成率展示顺序：有氧 / 抗阻 / 平衡 / 拉伸（无安排的模块不展示） */
+export function buildMilestoneWeekModuleRates(week?: {
+  cardioCompleteRate?: number | null;
+  strengthCompleteRate?: number | null;
+  flexibilityCompleteRate?: number | null;
+  balanceCompleteRate?: number | null;
+} | null): MilestoneWeekModuleRateItem[] {
+  const candidates: Array<{
+    key: string;
+    title: string;
+    raw?: number | null;
+    color: string;
+  }> = [
+    { key: 'cardio', title: '有氧', raw: week?.cardioCompleteRate, color: '#6D925E' },
+    { key: 'strength', title: '抗阻', raw: week?.strengthCompleteRate, color: '#72A1C5' },
+    { key: 'balance', title: '平衡', raw: week?.balanceCompleteRate, color: '#0951AE' },
+    { key: 'flexibility', title: '拉伸', raw: week?.flexibilityCompleteRate, color: '#EE9C44' },
+  ];
+
+  return candidates
+    .map(item => {
+      const progress = toOptionalProgress(item.raw);
+      if (progress == null) return null;
+      return {
+        key: item.key,
+        title: item.title,
+        progress,
+        color: item.color,
+      };
+    })
+    .filter((item): item is MilestoneWeekModuleRateItem => item != null);
+}
+
+/** 分项整体完成率（仅对有安排的模块取平均） */
 export function calcMilestoneWeekOverallRate(
   week?: {
-    cardioCompleteRate?: number;
-    strengthCompleteRate?: number;
-    flexibilityCompleteRate?: number;
-    balanceCompleteRate?: number;
+    cardioCompleteRate?: number | null;
+    strengthCompleteRate?: number | null;
+    flexibilityCompleteRate?: number | null;
+    balanceCompleteRate?: number | null;
   } | null,
 ) {
   const rates = buildMilestoneWeekModuleRates(week).map(item => item.progress);
   if (rates.length === 0) return 0;
   return normalizeProgress(rates.reduce((sum, item) => sum + item, 0) / rates.length);
+}
+
+/** 近 6 周底部总结文案：优先接口 summary */
+export function resolveMilestoneWeekSummaryText(
+  week?: { summary?: string | null } | null,
+  options?: {
+    weekIndex?: number;
+    overallRate?: number;
+  },
+) {
+  const summary = week?.summary?.trim();
+  if (summary) return summary;
+  const weekNo = (options?.weekIndex ?? 0) + 1;
+  const rate = options?.overallRate ?? 0;
+  return `点击上方周次可查看分项；当前 W${weekNo} 整体完成率 ${rate}%。`;
 }

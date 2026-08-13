@@ -9,7 +9,9 @@ const styles = StyleSheet.create({
     rowBox: { position: "relative", backgroundColor: "#FFF", marginTop: 10, padding: 10, borderRadius: 15, shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3 },
     rowTitle: { fontWeight: 800, fontSize: 15, color: "#333333" },
     rowImg: { width: 13, height: 13, marginRight: 4 },
+    rowImgDown: { transform: [{ rotate: '180deg' }] },
     rowText: { fontWeight: 800, fontSize: 13, color: "#6D925E" },
+    rowTextDown: { color: "#E85D4C" },
     rightBox: { borderTopRightRadius: 15, position: "absolute", right: 0, top: 0, height: 30, backgroundColor: "#6D925E", paddingRight: 15 },
     rightImg: { width: 20, height: 30, position: "absolute", left: -20, top: 0 },
     rightTime: { width: 12, height: 12, marginRight: 6 },
@@ -49,10 +51,14 @@ const styles = StyleSheet.create({
         shadowRadius: 4,
         elevation: 3,
     },
-    jointRomTitle: {
+    jointRomTitleWrap: {
         flex: 1,
         flexShrink: 1,
+        minWidth: 0,
         paddingRight: 8,
+    },
+    jointRomTitle: {
+        flexShrink: 1,
         fontWeight: '500',
         fontSize: 15,
         color: '#333333',
@@ -186,6 +192,27 @@ const styles = StyleSheet.create({
         width: 50,
         height: 50,
         marginRight: 12
+    },
+    jointRomRecordValues: {
+        marginTop: 10,
+        paddingTop: 8,
+        borderTopWidth: 1,
+        borderTopColor: '#E8ECF0',
+    },
+    jointRomRecordRow: {
+        marginTop: 8,
+    },
+    jointRomRecordLabel: {
+        flexShrink: 1,
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#666666',
+        paddingRight: 8,
+    },
+    jointRomRecordValue: {
+        fontWeight: 'bold',
+        fontSize: 14,
+        color: '#333333',
     },
     infoRecordUpImg: {
         width: 12,

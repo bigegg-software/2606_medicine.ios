@@ -152,3 +152,36 @@ export const getExPatientRuleModuleCompleteRate = (exPatientRuleId: string) =>
     '/patient/exPatientRule/moduleCompleteRate',
     { params: { exPatientRuleId } },
   );
+
+/** 健康目标分项进度字段 */
+export type ExPatientRuleHealthGoalProgressField = {
+  fieldKey?: string;
+  fieldName?: string;
+  baseline?: number | null;
+  target?: number | null;
+  current?: number | null;
+  /** 1 提高；-1 降低；无法判断为 null */
+  direction?: number | null;
+  /** 进度 0-100；缺数据时为 null */
+  progress?: number | null;
+};
+
+export type ExPatientRuleHealthGoalProgressItem = {
+  healthGoalId?: number | string;
+  goalName?: string;
+  fieldList?: ExPatientRuleHealthGoalProgressField[];
+};
+
+/** 指定处方健康目标各分项进度 */
+export type ExPatientRuleHealthGoalProgress = {
+  exPatientRuleId?: number | string;
+  healthGoalProgressList?: ExPatientRuleHealthGoalProgressItem[];
+  /** 本处方下进度最大的健康目标 */
+  maxProcess?: ExPatientRuleHealthGoalProgressItem | null;
+};
+
+export const getExPatientRuleHealthGoalProgress = (exPatientRuleId: string | number) =>
+  request.get<{ code?: number; msg?: string; data?: ExPatientRuleHealthGoalProgress }>(
+    '/patient/exPatientRule/healthGoalProgress',
+    { params: { exPatientRuleId: String(exPatientRuleId) } },
+  );

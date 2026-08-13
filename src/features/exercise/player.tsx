@@ -15,7 +15,6 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
-  addExRecord,
   markCompleteGroups,
   recordDuration,
   recordGroupCounts,
@@ -113,7 +112,6 @@ export default function ExercisePlayerPage() {
   const isTrainingRef = useRef(false);
   const isGroupRestingRef = useRef(false);
   const groupRestTotalSecondsRef = useRef(0);
-  const isSubmittingSessionRef = useRef(false);
   const hasAutoStartedRef = useRef(false);
   const hasRecordedViewRef = useRef(false);
   const allowExitRef = useRef(false);
@@ -213,85 +211,6 @@ export default function ExercisePlayerPage() {
     [video?.precautions],
   );
 
-  const submitSessionRecord = useCallback(async (elapsedSecondsOverride?: number) => {
-    if (isSubmittingSessionRef.current) return;
-
-    const elapsedSeconds = elapsedSecondsOverride ?? sessionElapsedRef.current;
-    const minutes = sessionSecondsToRecordMinutes(elapsedSeconds);
-    const context = prescriptionContextRef.current;
-    const currentVideo = videoRef.current;
-
-    if (minutes <= 0 || !context.exPatientRuleId || !context.rule?.exerciseType?.trim()) {
-      setSessionElapsedSeconds(0);
-      return;
-    }
-
-    isSubmittingSessionRef.current = true;
-    setSubmitting(true);
-    try {
-      await addExRecord({
-        exPatientRuleId: context.exPatientRuleId,
-        customerLocalDate: moment().format('YYYY-MM-DD'),
-        exerciseType: context.rule.exerciseType.trim(),
-        exerciseChildType: currentVideo?.exerciseChildType?.trim()
-          || context.rule.exerciseChildType?.trim()
-          || '',
-        exerciseDuration: minutes,
-      });
-
-      const exVideoId = currentVideo?.exVideoId != null
-        ? String(currentVideo.exVideoId)
-        : route.params?.exVideoId?.trim();
-      const exerciseKcal = calcExerciseKcal(currentVideo?.kcalPerMinute, minutes);
-      if (exVideoId && exerciseKcal > 0) {
-        await recordKcal({
-          exPatientRuleId: String(context.exPatientRuleId),
-          customerLocalDate: moment().format('YYYY-MM-DD'),
-          trainingPhase,
-          exerciseType: trainingPhase === 'main'
-            ? context.rule.exerciseType.trim()
-            : undefined,
-          exVideoId,
-          exerciseDuration: 0,
-          exerciseKcal,
-          complateGroups: [],
-          complateGroupCounts: [],
-        }).catch(() => undefined);
-      }
-
-      setSessionElapsedSeconds(0);
-      const nextDuration = await refreshExercisePlayerDuration({
-        exPatientRuleId: context.exPatientRuleId,
-        trainingPhase,
-        exerciseType: context.rule.exerciseType,
-        exVideoId: currentVideo?.exVideoId != null
-          ? String(currentVideo.exVideoId)
-          : route.params?.exVideoId,
-        fallbackTargetMinutes: targetMinutesRef.current || context.rule.duration,
-      });
-      setTodayDuration({
-        completedMinutes: nextDuration.completedMinutes,
-        targetMinutes: targetMinutesRef.current || nextDuration.targetMinutes,
-      });
-    } finally {
-      isSubmittingSessionRef.current = false;
-      setSubmitting(false);
-    }
-  }, [route.params?.exVideoId, trainingPhase]);
-
-  const finishTrainingAndExit = useCallback(async (exitAction?: () => void) => {
-    const sessionSeconds = sessionElapsedRef.current;
-    if (sessionSeconds >= 60) {
-      await submitSessionRecord(sessionSeconds);
-    }
-    allowExitRef.current = true;
-    if (exitAction) {
-      exitAction();
-    } else {
-      navigation.goBack();
-    }
-  }, [navigation, submitSessionRecord]);
-
   /** 不足 1 分钟：取消继续 / 结束离开（不计入记录） */
   const showShortSessionAlert = useCallback((exitAction?: () => void) => {
     safePauseVideoPlayer(player);
@@ -318,32 +237,6 @@ export default function ExercisePlayerPage() {
       ],
     );
   }, [navigation, player]);
-
-  const showEndTrainingConfirm = useCallback((exitAction?: () => void) => {
-    if (submitting) return;
-
-    safePauseVideoPlayer(player);
-    isTrainingRef.current = false;
-    setIsTraining(false);
-
-    const content = getExitConfirmContent(
-      sessionElapsedRef.current,
-      todayDurationRef.current.completedMinutes,
-      targetMinutesRef.current,
-    );
-
-    Modal.alert(
-      <Text style={styles.confirmTitle}>{content.title}</Text>,
-      <Text style={styles.exitConfirmMessage}>{content.message}</Text>,
-      [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '结束',
-          onPress: () => void finishTrainingAndExit(exitAction),
-        },
-      ],
-    );
-  }, [finishTrainingAndExit, player, submitting]);
 
   const loadPageData = useCallback(async () => {
     allowExitRef.current = false;
@@ -425,27 +318,6 @@ export default function ExercisePlayerPage() {
       void loadPageData();
     }, [loadPageData]),
   );
-
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', event => {
-      safePauseVideoPlayer(player);
-
-      if (readOnly || allowExitRef.current || sessionElapsedRef.current <= 0) {
-        return;
-      }
-
-      // 仅计时类型需要时长退出确认；其它类型直接离开
-      if (!isDurationTimer) {
-        return;
-      }
-
-      event.preventDefault();
-      showEndTrainingConfirm(() => {
-        navigation.dispatch(event.data.action);
-      });
-    });
-    return unsubscribe;
-  }, [isDurationTimer, navigation, player, readOnly, showEndTrainingConfirm]);
 
   useEffect(() => {
     // 标题居中省略；限制标题最大宽度，避免挤出右侧标签
@@ -804,6 +676,84 @@ export default function ExercisePlayerPage() {
     trainingPhase,
   ]);
 
+  /** 满 1 分钟：提交本次时长后离开 */
+  const finishTrainingAndExit = useCallback(async (exitAction?: () => void) => {
+    const sessionSeconds = sessionElapsedRef.current;
+    if (sessionSeconds >= 60) {
+      const ok = await submitRecordToServer([], {
+        goBackAfterSuccess: false,
+        successMessage: '保存成功',
+      });
+      if (!ok) return;
+    }
+    allowExitRef.current = true;
+    if (exitAction) {
+      exitAction();
+    } else {
+      navigation.goBack();
+    }
+  }, [navigation, submitRecordToServer]);
+
+  /** 满 1 分钟结束确认；确认后提交数据 */
+  const showEndTrainingConfirm = useCallback((exitAction?: () => void) => {
+    if (submitting || markingGroup) return;
+
+    safePauseVideoPlayer(player);
+    isTrainingRef.current = false;
+    setIsTraining(false);
+
+    const content = getExitConfirmContent(
+      sessionElapsedRef.current,
+      todayDurationRef.current.completedMinutes,
+      targetMinutesRef.current,
+    );
+
+    Modal.alert(
+      <Text style={styles.confirmTitle}>{content.title}</Text>,
+      <Text style={styles.exitConfirmMessage}>{content.message}</Text>,
+      [
+        { text: '取消', style: 'cancel' },
+        {
+          text: '结束',
+          onPress: () => void finishTrainingAndExit(exitAction),
+        },
+      ],
+    );
+  }, [finishTrainingAndExit, markingGroup, player, submitting]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', event => {
+      safePauseVideoPlayer(player);
+
+      if (readOnly || allowExitRef.current || sessionElapsedRef.current <= 0) {
+        return;
+      }
+
+      // 仅计时类型需要时长退出确认；其它类型直接离开
+      if (!isDurationTimer) {
+        return;
+      }
+
+      event.preventDefault();
+      const exitAction = () => {
+        navigation.dispatch(event.data.action);
+      };
+      if (sessionElapsedRef.current < 60) {
+        showShortSessionAlert(exitAction);
+        return;
+      }
+      showEndTrainingConfirm(exitAction);
+    });
+    return unsubscribe;
+  }, [
+    isDurationTimer,
+    navigation,
+    player,
+    readOnly,
+    showEndTrainingConfirm,
+    showShortSessionAlert,
+  ]);
+
   const handlePressGroupTag = useCallback((index: number) => {
     if (readOnly || isDurationTimer || markingGroup || submitting || isGroupRestingRef.current) return;
     const groupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
@@ -866,10 +816,7 @@ export default function ExercisePlayerPage() {
         return;
       }
 
-      void submitRecordToServer([], {
-        goBackAfterSuccess: true,
-        successMessage: '保存成功',
-      });
+      showEndTrainingConfirm();
       return;
     }
 
@@ -902,6 +849,7 @@ export default function ExercisePlayerPage() {
     navigation,
     player,
     readOnly,
+    showEndTrainingConfirm,
     showShortSessionAlert,
     submitting,
     submitRecordToServer,
@@ -1031,7 +979,7 @@ export default function ExercisePlayerPage() {
               <Flex style={styles.btnBox} justify="center">
                 <TouchableOpacity
                   style={styles.btnIcon}
-                  disabled={submitting}
+                  disabled={submitting || markingGroup}
                   onPress={handleResetTimer}>
                   <Image
                     style={styles.btnIcon}
@@ -1040,7 +988,7 @@ export default function ExercisePlayerPage() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.btnImgBox}
-                  disabled={submitting}
+                  disabled={submitting || markingGroup}
                   onPress={handleToggleTraining}>
                   <Image
                     style={styles.btnImg}
@@ -1053,7 +1001,7 @@ export default function ExercisePlayerPage() {
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.btnIcon}
-                  disabled={submitting}
+                  disabled={submitting || markingGroup}
                   onPress={handleSubmitTraining}>
                   <Image
                     style={styles.btnIcon}

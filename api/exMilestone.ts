@@ -24,14 +24,22 @@ export type ExMilestoneInfoResult = {
 
 /** 近 6 个自然周统计（周一至周日，含本周，从早到晚） */
 export type ExMilestoneWeekStat = {
+  /** 周起始日期（周一）yyyy-MM-dd */
   weekStartDate?: string;
+  /** 周结束日期（周日）yyyy-MM-dd */
   weekEndDate?: string;
-  /** 本周总运动时长（分钟） */
-  exerciseDuration?: number;
-  cardioCompleteRate?: number;
-  strengthCompleteRate?: number;
-  flexibilityCompleteRate?: number;
-  balanceCompleteRate?: number;
+  /** 本周总运动时长（分钟），含热身、冷身、主训练 */
+  exerciseDuration?: number | null;
+  /** 本周有氧心肺完成率平均值 0-100；无该模块安排时为 null */
+  cardioCompleteRate?: number | null;
+  /** 本周抗阻增肌完成率平均值 0-100；无该模块安排时为 null */
+  strengthCompleteRate?: number | null;
+  /** 本周柔韧拉伸完成率平均值 0-100；无该模块安排时为 null */
+  flexibilityCompleteRate?: number | null;
+  /** 本周平衡控制完成率平均值 0-100；无该模块安排时为 null */
+  balanceCompleteRate?: number | null;
+  /** 本周训练总结文案（趋势 + 整体完成率 + 模块表现 + 完成度） */
+  summary?: string | null;
 };
 
 export type ExMilestoneWeekStatsResult = {

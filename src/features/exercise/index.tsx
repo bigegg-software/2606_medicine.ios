@@ -41,7 +41,6 @@ export default function ExercisePage() {
   const loadExerciseRule = useCallback(async () => {
     try {
       const res = await getInUseExPatientRuleInfo();
-      console.log(res)
       if (!isResourceApiOk(res as unknown as { code?: number })) {
         setExerciseRule(null);
         return;

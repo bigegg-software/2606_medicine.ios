@@ -146,12 +146,14 @@ export default function BloodLipidPage() {
             const prescriptionSummary = await loadPrescriptionGoal(items);
 
             const rule = prescriptionSummary?.rule;
-            const baselineItems = prescriptionSummary?.periodItems ?? [];
-            const compareFromPrescription = rule?.startDate && rule?.endDate && baselineItems.length
+            const target = prescriptionSummary?.target;
+            // 有运动处方：初始优先处方基线，无基线用周期内最早测量；最近用周期内最新
+            const compareFromPrescription = rule?.startDate && rule?.endDate
                 ? buildBloodLipidCompareSummary(
-                    baselineItems,
+                    items,
                     rule.startDate,
                     rule.endDate,
+                    target,
                 )
                 : null;
 

@@ -183,6 +183,12 @@ const styles = StyleSheet.create({
     color: "#999999",
     textDecorationLine: "line-through"
   },
+  historyTrendIcon: {
+    width: 12,
+    height: 12,
+    marginTop: 14,
+    marginLeft: 4,
+  },
   historyInfo: {
     marginTop: 17,
     padding: 12,

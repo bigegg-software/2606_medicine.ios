@@ -10,6 +10,8 @@ type Props = {
 };
 
 export default function HistoryArchiveCard({ item, onPress }: Props) {
+  const maxProgress = item.maxProgress;
+
   return (
     <TouchableOpacity
       style={styles.historyItem}
@@ -52,13 +54,32 @@ export default function HistoryArchiveCard({ item, onPress }: Props) {
           </Flex>
           <Text style={styles.historyValue}>{item.durationHoursText}</Text>
         </View>
-        <View>
-          <Flex>
-            <View style={[styles.historyLine, { backgroundColor: '#FB4550' }]} />
-            <Text style={styles.historyTitle}>完成率(%)</Text>
-          </Flex>
-          <Text style={styles.historyValue}>{item.completeRateText}</Text>
-        </View>
+        {maxProgress ? (
+          <View style={{ flexShrink: 1 }}>
+            <Flex>
+              <View style={[styles.historyLine, { backgroundColor: '#FB4550' }]} />
+              <Text style={styles.historyTitle} numberOfLines={1}>
+                {maxProgress.label}
+              </Text>
+            </Flex>
+            <Flex align="center">
+              <Text style={styles.historyValue}>{maxProgress.currentText}</Text>
+              {maxProgress.baselineText ? (
+                <Text style={styles.historyUnit}>{maxProgress.baselineText}</Text>
+              ) : null}
+              {maxProgress.trend ? (
+                <Image
+                  style={styles.historyTrendIcon}
+                  source={
+                    maxProgress.trend === 'up'
+                      ? require('@/assets/images/schedule/icon_gs.png')
+                      : require('@/assets/images/schedule/icon_xx.png')
+                  }
+                />
+              ) : null}
+            </Flex>
+          </View>
+        ) : null}
       </Flex>
       {item.summaryText ? (
         <Flex style={styles.historyInfo}>

@@ -19,7 +19,6 @@ export const fetchInUsePrescription = (options?: { force?: boolean }) =>
     dispatch({ type: SET_PRESCRIPTION_LOADING, payload: true });
     try {
       const res = await getInUseExPatientRuleInfo();
-      console.log(res)
       const payload = res as unknown as { code?: number; data?: InUseExPatientRule };
       if (!isResourceApiOk(payload)) {
         dispatch({

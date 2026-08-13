@@ -156,6 +156,20 @@ function formatImproveDelta(value?: number | null) {
   return formatMetricNumber(Math.abs(num));
 }
 
+/**
+ * 仅将处方配置基线插到图表最前。
+ * 无配置基线时不插入（周期内最早测量已是序列首点）；首点已等于基线时也不重复插入。
+ */
+function prependConfiguredBaselineToChart(
+  values: number[],
+  configuredBaseline: number | null,
+): number[] {
+  if (configuredBaseline == null) return values;
+  if (!values.length) return [configuredBaseline];
+  if (Math.abs(values[0] - configuredBaseline) < 1e-6) return values;
+  return [configuredBaseline, ...values];
+}
+
 function getCycleDayCount(startDate?: string, endDate?: string) {
   const start = moment(startDate);
   const end = moment(endDate);
@@ -644,16 +658,22 @@ export function toScheduleGoalProgressItem(
   const questionnaireType = resolveQuestionnaireTypeFromTarget(target);
   const isQuestionnaire = questionnaireType != null;
   const isExImpRate = isExImpRateGoal(target);
+  const isWeight = !lipidMeta && !bpMeta && !jointRomMeta && isWeightGoal(target);
+  const isBloodGlucose = !lipidMeta && !bpMeta && !jointRomMeta && isBloodGlucoseGoal(target);
 
   const title = lipidMeta?.title
     || bpMeta?.title
     || jointRomMeta?.label
+    || (isBloodGlucose ? '空腹血糖' : '')
+    || (isWeight ? '体重' : '')
     || goalVo?.assessmentValueName?.trim()
     || goalVo?.goalName?.trim()
     || goalVo?.healthTestItemVo?.testName?.trim()
     || '健康目标';
   const subtitleCandidate = lipidMeta?.shortLabel
     || bpMeta?.shortLabel
+    || (isBloodGlucose ? 'Fasting Glucose' : '')
+    || (isWeight ? 'Weight' : '')
     || (jointRomMeta
       ? ''
       : (goalVo?.goalName?.trim() || goalVo?.healthTestItemVo?.testName?.trim() || ''));
@@ -674,6 +694,9 @@ export function toScheduleGoalProgressItem(
         : resolveGoalMetric(target, {
           prescriptionTargetWeight: options?.prescriptionTargetWeight,
         });
+
+  // 图表只使用处方配置基线；接口回退基线已体现在序列首点，再插入会重复
+  const configuredBaseline = metric.baseline;
 
   // 处方基线为空时，回退处方周期内最早一次测量 / 首次测试
   if (lipidMeta) {
@@ -989,6 +1012,8 @@ export function toScheduleGoalProgressItem(
     chartValues = chartSeries?.healthTestByGoalId?.[baseKey] ?? [];
   }
 
+  chartValues = prependConfiguredBaselineToChart(chartValues, configuredBaseline);
+
   return {
     key,
     detailId: baseKey,
@@ -1127,6 +1152,8 @@ export function buildScheduleGoalProgressItems(
 export type PrescriptionEarliestMeasures = {
   weightKg: number | null;
   bloodGlucose: number | null;
+  /** 处方周期内最新一次空腹血糖 */
+  latestBloodGlucose: number | null;
   bloodPressure: { sbp: number | null; dbp: number | null } | null;
   uricAcid: number | null;
   bloodLipid: {
@@ -1140,10 +1167,18 @@ export type PrescriptionEarliestMeasures = {
 const EMPTY_EARLIEST_MEASURES: PrescriptionEarliestMeasures = {
   weightKg: null,
   bloodGlucose: null,
+  latestBloodGlucose: null,
   bloodPressure: null,
   uricAcid: null,
   bloodLipid: null,
 };
+
+/** 是否为空腹血糖记录 */
+export function isFastingBloodGlucoseMeasure(
+  item?: Pick<MeasureDataItem, 'measurementStatus'> | null,
+) {
+  return item?.measurementStatus?.trim() === '空腹';
+}
 
 async function loadMeasureItemsInPrescriptionRange(
   type: '体重' | '血糖' | '血压' | '尿酸' | '血脂',
@@ -1178,7 +1213,18 @@ function pickEarliestValidMeasure(
   return null;
 }
 
-/** 处方周期内最早一次测量（血脂/血压/血糖/体重/尿酸基线回退） */
+function pickLatestValidMeasure(
+  items: MeasureDataItem[],
+  pick: (item: MeasureDataItem) => number | null,
+) {
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    const value = pick(items[index]);
+    if (value != null && value > 0) return value;
+  }
+  return null;
+}
+
+/** 处方周期内最早一次测量（血脂/血压/血糖/体重/尿酸基线回退）；血糖仅取空腹 */
 export async function loadPrescriptionEarliestMeasures(
   startDate?: string,
   endDate?: string,
@@ -1192,6 +1238,8 @@ export async function loadPrescriptionEarliestMeasures(
     loadMeasureItemsInPrescriptionRange('尿酸', startDate, endDate),
     loadMeasureItemsInPrescriptionRange('血脂', startDate, endDate),
   ]);
+
+  const fastingGlucoseItems = glucoseItems.filter(isFastingBloodGlucoseMeasure);
 
   const sbp = pickEarliestValidMeasure(pressureItems, item => parseMeasureNumber(item.val));
   const dbp = pickEarliestValidMeasure(pressureItems, item => parseMeasureNumber(item.val2));
@@ -1214,7 +1262,8 @@ export async function loadPrescriptionEarliestMeasures(
 
   return {
     weightKg: pickEarliestValidMeasure(weightItems, item => parseMeasureNumber(item.val)),
-    bloodGlucose: pickEarliestValidMeasure(glucoseItems, item => parseMeasureNumber(item.val)),
+    bloodGlucose: pickEarliestValidMeasure(fastingGlucoseItems, item => parseMeasureNumber(item.val)),
+    latestBloodGlucose: pickLatestValidMeasure(fastingGlucoseItems, item => parseMeasureNumber(item.val)),
     bloodPressure: sbp != null || dbp != null ? { sbp, dbp } : null,
     uricAcid: pickEarliestValidMeasure(uricAcidItems, item => parseMeasureNumber(item.val)),
     bloodLipid: {
