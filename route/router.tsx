@@ -404,6 +404,7 @@ const darkMediaScreenOptions = {
 const styles = StyleSheet.create({
   stackHeader: {
     paddingLeft: 10,
+    paddingBottom: 8,
     overflow: 'hidden',
   },
   stackHeaderPlain: {

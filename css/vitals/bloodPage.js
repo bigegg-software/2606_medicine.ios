@@ -362,10 +362,6 @@ const styles = StyleSheet.create({
     dbImage: {
         width: 60,
         height: 20,
-        marginHorizontal: 6,
-    },
-    dbBoxItem: {
-        flex: 1,
     },
     dbBoxItemText: {
         fontWeight: 500,
@@ -374,9 +370,9 @@ const styles = StyleSheet.create({
     },
     dbBoxItemValue: {
         fontWeight: 500,
+        letterSpacing: 1,
         fontSize: 12,
         color: "#999999",
-        marginLeft: 6,
     },
     dbCol: {
         marginTop: 10,

@@ -642,8 +642,8 @@ export default function TestingPage() {
                                                 { paddingVertical: 12 },
                                                 index > 0 ? { marginTop: 12 } : null,
                                             ]}>
-                                            <Flex justify="between" align="start">
-                                                <Flex>
+                                            <Flex justify="between" align="center">
+                                                <Flex align="center">
                                                     <Image
                                                         style={styles.infoRecordImg}
                                                         source={require('@/assets/images/schedule/rl.png')}
@@ -662,7 +662,7 @@ export default function TestingPage() {
                                                         </Flex>
                                                     </View>
                                                 </Flex>
-                                                <Flex>
+                                                <Flex align="center">
                                                     {tone ? (
                                                         <Image
                                                             style={styles.infoRecordUpImg}

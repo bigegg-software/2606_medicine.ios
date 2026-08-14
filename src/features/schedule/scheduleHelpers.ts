@@ -263,42 +263,54 @@ export function buildWeekStatsFromStatis(data?: ExRecordDayStatisData | null): S
   };
 }
 
+let scheduleDictMapsPromise: Promise<ScheduleDictMaps> | null = null;
+
+/** 字典初始化后复用，避免切日重复请求 */
 export async function loadScheduleDictMaps(): Promise<ScheduleDictMaps> {
-  const requests = [
-    { key: 'exerciseType', dictType: DICT_TYPES.exerciseType },
-    { key: 'strengthLevel', dictType: DICT_TYPES.strengthLevel },
-    ...Object.entries(EXERCISE_CHILD_DICT_BY_TYPE).map(([exerciseType, dictType]) => ({
-      key: exerciseType,
-      dictType,
-    })),
-  ] as const;
+  if (scheduleDictMapsPromise) return scheduleDictMapsPromise;
 
-  const responses = await Promise.all(
-    requests.map(item =>
-      getDictDataByType(item.dictType)
-        .then(res => ({ ...item, items: isResourceApiOk(res) ? apiResourceData<DictDataItem[]>(res as any) : [] }))
-        .catch(() => ({ ...item, items: [] as DictDataItem[] })),
-    ),
-  );
+  scheduleDictMapsPromise = (async () => {
+    const requests = [
+      { key: 'exerciseType', dictType: DICT_TYPES.exerciseType },
+      { key: 'strengthLevel', dictType: DICT_TYPES.strengthLevel },
+      ...Object.entries(EXERCISE_CHILD_DICT_BY_TYPE).map(([exerciseType, dictType]) => ({
+        key: exerciseType,
+        dictType,
+      })),
+    ] as const;
 
-  const maps: ScheduleDictMaps = {
-    exerciseType: {},
-    strengthLevel: {},
-    childTypeByExercise: {},
-  };
+    const responses = await Promise.all(
+      requests.map(item =>
+        getDictDataByType(item.dictType)
+          .then(res => ({ ...item, items: isResourceApiOk(res) ? apiResourceData<DictDataItem[]>(res as any) : [] }))
+          .catch(() => ({ ...item, items: [] as DictDataItem[] })),
+      ),
+    );
 
-  for (const item of responses) {
-    const labelMap = buildDictLabelMap(item.items);
-    if (item.key === 'exerciseType') {
-      maps.exerciseType = labelMap;
-    } else if (item.key === 'strengthLevel') {
-      maps.strengthLevel = labelMap;
-    } else {
-      maps.childTypeByExercise[item.key] = labelMap;
+    const maps: ScheduleDictMaps = {
+      exerciseType: {},
+      strengthLevel: {},
+      childTypeByExercise: {},
+    };
+
+    for (const item of responses) {
+      const labelMap = buildDictLabelMap(item.items);
+      if (item.key === 'exerciseType') {
+        maps.exerciseType = labelMap;
+      } else if (item.key === 'strengthLevel') {
+        maps.strengthLevel = labelMap;
+      } else {
+        maps.childTypeByExercise[item.key] = labelMap;
+      }
     }
-  }
 
-  return maps;
+    return maps;
+  })().catch(error => {
+    scheduleDictMapsPromise = null;
+    throw error;
+  });
+
+  return scheduleDictMapsPromise;
 }
 
 export function buildScheduleWeekDays(

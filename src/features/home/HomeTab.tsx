@@ -65,11 +65,10 @@ import {
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import {
   buildExercisePrescriptionMetrics,
-  loadModuleCompleteRateProgressMap,
   loadScheduleDictMaps,
-  resolveTodayExerciseMetricTypeKeys,
   type ScheduleDictMaps,
 } from '@/src/features/schedule/scheduleHelpers';
+import { loadCalendarDayCompleteRateProgressMap } from '@/src/features/schedule/calendarDayCompleteRateHelpers';
 import {
   loadHomePrescriptionGoalDisplay,
   type HomePrescriptionGoalDisplay,
@@ -253,7 +252,7 @@ export default function HomeTab() {
       exerciseDictMaps ?? undefined,
       exerciseProgressMap,
       {
-        availableTypeKeys: resolveTodayExerciseMetricTypeKeys(exercisePrescription),
+        availableTypeKeys: new Set(Object.keys(exerciseProgressMap)),
       },
     ),
     [exerciseDictMaps, exercisePrescription, exerciseProgressMap],
@@ -420,9 +419,9 @@ export default function HomeTab() {
         return;
       }
 
-      const progressMap = prescription.exPatientRuleId != null
-        ? await loadModuleCompleteRateProgressMap(prescription.exPatientRuleId).catch(() => ({}))
-        : {};
+      const progressMap = await loadCalendarDayCompleteRateProgressMap(
+        moment().format('YYYY-MM-DD'),
+      );
       setExerciseProgressMap(progressMap);
       const goalDisplay = await loadHomePrescriptionGoalDisplay(prescription, userId);
       setHomePrescriptionGoal(goalDisplay);
@@ -705,7 +704,7 @@ export default function HomeTab() {
                   <Flex justify='between' style={styles.cfContent}>
                     {exercisePrescriptionMetrics.map(item => {
                       const hasType = item.value != null;
-                      const progress = hasType ? item.value : 0;
+                      const progress = item.value ?? 0;
                       return (
                         <View key={item.key} style={styles.cfItem}>
                           <Text style={styles.cfValue}>

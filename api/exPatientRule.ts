@@ -153,6 +153,27 @@ export const getExPatientRuleModuleCompleteRate = (exPatientRuleId: string) =>
     { params: { exPatientRuleId } },
   );
 
+/** 指定日期主训练完成率及四模块完成率（0-100）；当日无该模块安排时对应字段为 null */
+export type ExPatientRuleDayCompleteRate = {
+  date?: string;
+  /** 训练时长（主训练，分钟） */
+  mainExerciseDuration?: number;
+  exerciseKcal?: number;
+  mainCompleteRate?: number;
+  cardioCompleteRate?: number | null;
+  strengthCompleteRate?: number | null;
+  flexibilityCompleteRate?: number | null;
+  balanceCompleteRate?: number | null;
+  hotCompleteRate?: number | null;
+  coldCompleteRate?: number | null;
+};
+
+export const getExPatientRuleDayCompleteRate = (customerLocalDate: string) =>
+  request.get<{ code?: number; msg?: string; data?: ExPatientRuleDayCompleteRate }>(
+    '/patient/exPatientRule/dayCompleteRate',
+    { params: { customerLocalDate: String(customerLocalDate) } },
+  );
+
 /** 健康目标分项进度字段 */
 export type ExPatientRuleHealthGoalProgressField = {
   fieldKey?: string;

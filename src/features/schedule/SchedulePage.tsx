@@ -477,24 +477,40 @@ export default function SchedulePage() {
                   <Text style={styles.pageTopBgText}>长期投入 · 成效总览</Text>
                 </Flex>
 
-                <Flex wrap='wrap' justify='between'>
+                <Flex wrap="wrap" justify="between" align="start" style={styles.topRowBox}>
                   <View style={styles.topRowBoxItem}>
-                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back1.png')} />
+                    <Image
+                      style={styles.topRowBoxItemImg}
+                      resizeMode="contain"
+                      source={require('@/assets/images/schedule/top_back1.png')}
+                    />
                     <Text style={styles.topRowBoxItemValue}>{overviewHoursText}</Text>
                     <Text style={styles.topRowBoxItemText}>累计训练(小时)</Text>
                   </View>
                   <View style={styles.topRowBoxItem}>
-                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back2.png')} />
+                    <Image
+                      style={styles.topRowBoxItemImg}
+                      resizeMode="contain"
+                      source={require('@/assets/images/schedule/top_back2.png')}
+                    />
                     <Text style={styles.topRowBoxItemValue}>{overviewLessonsText}</Text>
                     <Text style={styles.topRowBoxItemText}>累计课次</Text>
                   </View>
                   <View style={styles.topRowBoxItem}>
-                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back3.png')} />
+                    <Image
+                      style={styles.topRowBoxItemImg}
+                      resizeMode="contain"
+                      source={require('@/assets/images/schedule/top_back3.png')}
+                    />
                     <Text style={styles.topRowBoxItemValue}>{overviewRateText}</Text>
                     <Text style={styles.topRowBoxItemText}>平均完成率</Text>
                   </View>
                   <View style={styles.topRowBoxItem}>
-                    <Image style={styles.topRowBoxItemImg} source={require('@/assets/images/schedule/top_back4.png')} />
+                    <Image
+                      style={styles.topRowBoxItemImg}
+                      resizeMode="contain"
+                      source={require('@/assets/images/schedule/top_back4.png')}
+                    />
                     <Text style={styles.topRowBoxItemValue}>{overviewImproveText}</Text>
                     <Text style={styles.topRowBoxItemText}>改善指标数</Text>
                   </View>
@@ -751,7 +767,7 @@ export default function SchedulePage() {
               </Flex>
             ))}
           </View>
-          <Flex align="start" style={styles.kcalInfoBox}>
+          <Flex align="start" style={[styles.kcalInfoBox, { marginTop: 25 }]}>
             <Image style={styles.kcalInfoIcon} source={require('@/assets/images/nutrition/kllInfo.png')} />
             <Text style={styles.kcalInfoText}>{selectedWeekSummaryText}</Text>
           </Flex>

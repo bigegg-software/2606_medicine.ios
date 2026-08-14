@@ -156,18 +156,20 @@ export default function ExercisePage() {
         </View>
       )}
 
-      <TouchableOpacity
-        style={styles.checkInFab}
-        activeOpacity={0.85}
-        onPress={() => void onPressExerciseCheckInFab(exerciseRule)}>
-        <Flex align="center">
-          <Image
-            style={styles.checkInFabIcon}
-            source={require('@/assets/images/exercise/icon_dk.png')}
-          />
-          <Text style={styles.checkInFabText}>戳我打卡</Text>
-        </Flex>
-      </TouchableOpacity>
+      {activeNav === 0 ? (
+        <TouchableOpacity
+          style={styles.checkInFab}
+          activeOpacity={0.85}
+          onPress={() => void onPressExerciseCheckInFab(exerciseRule)}>
+          <Flex align="center">
+            <Image
+              style={styles.checkInFabIcon}
+              source={require('@/assets/images/exercise/icon_dk.png')}
+            />
+            <Text style={styles.checkInFabText}>戳我打卡</Text>
+          </Flex>
+        </TouchableOpacity>
+      ) : null}
     </PageLayout>
   );
 }

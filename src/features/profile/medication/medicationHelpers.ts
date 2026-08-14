@@ -516,44 +516,55 @@ export function buildMedicationCheckInConfirmMessage(items: MedicationPlanItemVi
   return `确定要把【${names}】全部标记为“已服用”吗？`;
 }
 
+let medicationDictMapsPromise: Promise<MedicationDictMaps> | null = null;
+
 export async function loadMedicationDictMaps(): Promise<MedicationDictMaps> {
-  const requests = [
-    { key: 'amountUnit', dictType: DICT_TYPES.drugAmountUnit },
-    { key: 'eventBased', dictType: DICT_TYPES.medicationEventBased },
-  ] as const;
+  if (medicationDictMapsPromise) return medicationDictMapsPromise;
 
-  const responses = await Promise.all(
-    requests.map(item =>
-      getDictDataByType(item.dictType)
-        .then(res => ({
-          ...item,
-          items: isResourceApiOk(res) ? apiResourceData<DictDataItem[]>(res as any) ?? [] : [],
-        }))
-        .catch(() => ({ ...item, items: [] as DictDataItem[] })),
-    ),
-  );
+  medicationDictMapsPromise = (async () => {
+    const requests = [
+      { key: 'amountUnit', dictType: DICT_TYPES.drugAmountUnit },
+      { key: 'eventBased', dictType: DICT_TYPES.medicationEventBased },
+    ] as const;
 
-  const maps: MedicationDictMaps = { ...EMPTY_DICT_MAPS };
+    const responses = await Promise.all(
+      requests.map(item =>
+        getDictDataByType(item.dictType)
+          .then(res => ({
+            ...item,
+            items: isResourceApiOk(res) ? apiResourceData<DictDataItem[]>(res as any) ?? [] : [],
+          }))
+          .catch(() => ({ ...item, items: [] as DictDataItem[] })),
+      ),
+    );
 
-  for (const item of responses) {
-    const labelMap = buildDictLabelMap(item.items);
-    const options = item.items
-      .filter(row => row.dictValue)
-      .map(row => ({
-        label: row.dictLabel?.trim() || String(row.dictValue),
-        value: String(row.dictValue),
-      }));
+    const maps: MedicationDictMaps = { ...EMPTY_DICT_MAPS };
 
-    if (item.key === 'amountUnit') {
-      maps.amountUnit = labelMap;
-      maps.amountUnitOptions = options;
-    } else {
-      maps.eventBased = labelMap;
-      maps.eventBasedOptions = options;
+    for (const item of responses) {
+      const labelMap = buildDictLabelMap(item.items);
+      const options = item.items
+        .filter(row => row.dictValue)
+        .map(row => ({
+          label: row.dictLabel?.trim() || String(row.dictValue),
+          value: String(row.dictValue),
+        }));
+
+      if (item.key === 'amountUnit') {
+        maps.amountUnit = labelMap;
+        maps.amountUnitOptions = options;
+      } else {
+        maps.eventBased = labelMap;
+        maps.eventBasedOptions = options;
+      }
     }
-  }
 
-  return maps;
+    return maps;
+  })().catch(error => {
+    medicationDictMapsPromise = null;
+    throw error;
+  });
+
+  return medicationDictMapsPromise;
 }
 
 export async function loadMedicationPlanGroups(dictMaps?: MedicationDictMaps) {

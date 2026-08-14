@@ -266,7 +266,6 @@ const styles = StyleSheet.create({
     avatarValue: { fontWeight: 500, fontSize: 14, color: "#999999" },
     rankingItemBox: {
         marginTop: 12,
-        height: 70,
         paddingHorizontal: 24,
         paddingVertical: 14,
         backgroundColor: "#FEFFFF",
@@ -314,8 +313,10 @@ const styles = StyleSheet.create({
         transform: [],
     },
     rankingItemText2: {
+        marginTop:4,
         fontWeight: 500,
         fontSize: 13,
+        lineHeight:20,
         color: "#999999"
     },
     rankingPage: { flex: 1 },

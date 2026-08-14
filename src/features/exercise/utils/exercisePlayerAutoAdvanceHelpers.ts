@@ -34,18 +34,49 @@ export function resolveVideoDurationSeconds(
   apiDuration?: number | null,
 ) {
   const fromPlayer = Math.round(Number(playerDuration) || 0);
-  if (fromPlayer > 0) return fromPlayer;
+  // expo-video duration 单位为秒
+  if (Number.isFinite(fromPlayer) && fromPlayer > 0 && fromPlayer <= 7200) {
+    return fromPlayer;
+  }
+
   const fromApi = Math.round(Number(apiDuration) || 0);
-  if (fromApi > 0) return fromApi;
-  return 0;
+  if (!Number.isFinite(fromApi) || fromApi <= 0) return 0;
+  // 后端偶发毫秒（如 30000 → 30 秒）
+  if (fromApi >= 10000) {
+    const asSeconds = Math.round(fromApi / 1000);
+    if (asSeconds > 0 && asSeconds <= 7200) return asSeconds;
+    return 0;
+  }
+  if (fromApi > 7200) return 0;
+  return fromApi;
 }
 
-/** 按秒计进度条（组训：每组按视频时长） */
+/**
+ * 组训每组计时目标（秒）：
+ * - keep_second_number（如 20秒 x 组）→ keepSecondVal
+ * - group_number（如 2次 x 组）及其他组训 → 视频时长
+ */
+export function resolveGroupSessionTargetSeconds(params: {
+  timerType?: string | null;
+  keepSecondVal?: number | null;
+  playerDuration?: number | null;
+  apiDuration?: number | null;
+}) {
+  const timerType = params.timerType?.trim() || '';
+  if (timerType === 'keep_second_number') {
+    const keepSeconds = Math.round(Number(params.keepSecondVal) || 0);
+    if (keepSeconds > 0) return keepSeconds;
+  }
+  return resolveVideoDurationSeconds(params.playerDuration, params.apiDuration);
+}
+
+/** 按秒计进度条（组训：每组目标秒） */
 export function calcTrainingProgressPercentBySeconds(
   elapsedSeconds: number,
   targetSeconds: number,
 ) {
-  const target = Math.max(1, Math.round(Number(targetSeconds) || 0) || 1);
+  const target = Math.round(Number(targetSeconds) || 0);
+  if (target <= 0) return 0;
   return Math.min(100, (Math.max(0, elapsedSeconds) / target) * 100);
 }
 

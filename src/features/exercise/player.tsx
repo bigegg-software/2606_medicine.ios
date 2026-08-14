@@ -46,7 +46,6 @@ import PolarBle from '@/src/test/utils/polarBle';
 import {
   calcExerciseKcal,
   calcGroupRestProgressPercent,
-  calcTrainingProgressPercent,
   canPressGroupCountTag,
   deriveCompleteGroupsFromCounts,
   EXERCISE_HR_RANGE,
@@ -75,8 +74,8 @@ import {
   calcTrainingProgressPercentBySeconds,
   isExercisePlayerFullyCompleted,
   resolveGroupAutoMaxCount,
+  resolveGroupSessionTargetSeconds,
   resolveNextExercisePlayerParams,
-  resolveVideoDurationSeconds,
 } from './utils/exercisePlayerAutoAdvanceHelpers';
 
 type PrescriptionContext = {
@@ -112,7 +111,7 @@ export default function ExercisePlayerPage() {
     targetMinutes: 0,
   });
   const [sessionElapsedSeconds, setSessionElapsedSeconds] = useState(0);
-  const [isTraining, setIsTraining] = useState(false);
+  const [isTraining, setIsTraining] = useState(() => !Boolean(route.params?.readOnly));
   const [submitting, setSubmitting] = useState(false);
   const [groupCounts, setGroupCounts] = useState<number[]>([]);
   const [markingGroup, setMarkingGroup] = useState(false);
@@ -125,6 +124,8 @@ export default function ExercisePlayerPage() {
   const [heartRate, setHeartRate] = useState<number | null>(null);
   /** 视频时长（秒），组训每组按此计时 */
   const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
+  /** 播放器是否真正在播（与进度条、图标对齐） */
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const hrStreamingDeviceIdRef = useRef<string | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
@@ -137,7 +138,7 @@ export default function ExercisePlayerPage() {
   const prescriptionContextRef = useRef<PrescriptionContext>({});
   const videoRef = useRef<ExVideoInfo | null>(null);
   const groupCountsRef = useRef<number[]>([]);
-  const isTrainingRef = useRef(false);
+  const isTrainingRef = useRef(!Boolean(route.params?.readOnly));
   const isGroupRestingRef = useRef(false);
   const groupRestTotalSecondsRef = useRef(0);
   const hasAutoStartedRef = useRef(false);
@@ -200,21 +201,25 @@ export default function ExercisePlayerPage() {
     0,
     Math.round(Number(targetMinutes) || 0) - Math.round(Number(todayDuration.completedMinutes) || 0),
   );
-  const groupSessionTargetSeconds = resolveVideoDurationSeconds(
-    videoDurationSeconds,
-    video?.duration,
-  );
+  // 次数组按视频时长；秒数组按 keepSecond（如 20秒）；分钟计时按剩余处方分钟
+  const groupSessionTargetSeconds = resolveGroupSessionTargetSeconds({
+    timerType,
+    keepSecondVal: scheduleRule.keepSecondVal,
+    playerDuration: videoDurationSeconds,
+    apiDuration: video?.duration,
+  });
+  const progressTargetSeconds = isDurationTimer
+    ? Math.max(0, remainingDurationMinutes) * 60
+    : groupSessionTargetSeconds;
   const sessionTargetSeconds = isDurationTimer
     ? Math.max(0, remainingDurationMinutes) * 60
     : groupSessionTargetSeconds;
   const progressPercent = isGroupResting
     ? calcGroupRestProgressPercent(groupRestRemainingSeconds, groupRestTotalSecondsRef.current)
-    : isDurationTimer
-      ? calcTrainingProgressPercent(
-        sessionElapsedSeconds + Math.max(0, todayDuration.completedMinutes) * 60,
-        targetMinutes,
-      )
-      : calcTrainingProgressPercentBySeconds(sessionElapsedSeconds, sessionTargetSeconds || 1);
+    : calcTrainingProgressPercentBySeconds(
+      sessionElapsedSeconds,
+      progressTargetSeconds,
+    );
   const sessionTimeText = isGroupResting
     ? formatSessionDuration(groupRestRemainingSeconds)
     : formatSessionDuration(sessionElapsedSeconds);
@@ -287,11 +292,15 @@ export default function ExercisePlayerPage() {
   const loadPageData = useCallback(async () => {
     allowExitRef.current = false;
     setLoading(true);
-    setIsTraining(false);
+    // 非只读默认视为播放中，图标显示暂停态
+    const defaultTraining = !Boolean(route.params?.readOnly);
+    isTrainingRef.current = defaultTraining;
+    setIsTraining(defaultTraining);
     hasAutoStartedRef.current = false;
     hasRecordedViewRef.current = false;
     autoSubmittingRef.current = false;
     setVideoDurationSeconds(0);
+    setIsVideoPlaying(false);
     isGroupRestingRef.current = false;
     groupRestTotalSecondsRef.current = 0;
     setIsGroupResting(false);
@@ -356,6 +365,7 @@ export default function ExercisePlayerPage() {
     route.params?.timerType,
     route.params?.strengthLevel,
     route.params?.taskIndex,
+    route.params?.readOnly,
     customerLocalDate,
     trainingPhase,
   ]);
@@ -444,14 +454,17 @@ export default function ExercisePlayerPage() {
   }, [headerRightText, navigation, pageTitle]);
 
   useEffect(() => {
-    if (readOnly || !isTraining || isGroupResting) return undefined;
+    // 训练中推进进度（与日程播放器一致）；暂停态由 isTraining 控制，不依赖 player.playing
+    if (readOnly || loading || !isTraining || isGroupResting) {
+      return undefined;
+    }
 
     const timer = setInterval(() => {
       setSessionElapsedSeconds(prev => prev + 1);
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isGroupResting, isTraining, readOnly]);
+  }, [isGroupResting, isTraining, loading, readOnly]);
 
   // 组间休息倒计时（可由暂停/播放暂停或继续，不控视频）
   useEffect(() => {
@@ -472,10 +485,11 @@ export default function ExercisePlayerPage() {
     if (!readOnly) {
       isTrainingRef.current = true;
       setIsTraining(true);
+      setIsVideoPlaying(true);
     }
   }, [loading, player, readOnly, videoUrl]);
 
-  // player 在视频源就绪后可能重建；训练中则续播，避免图标显示暂停但视频未在播
+  // player 在视频源就绪后可能重建；训练中则续播
   useEffect(() => {
     if (loading || !videoUrl || !hasAutoStartedRef.current || readOnly) return;
     if (isTrainingRef.current && !isGroupRestingRef.current) {
@@ -488,6 +502,18 @@ export default function ExercisePlayerPage() {
     if (status !== 'readyToPlay' || readOnly) return;
     if (!isTrainingRef.current || isGroupRestingRef.current) return;
     safePlayVideoPlayer(player);
+    const seconds = Math.round(Number(player?.duration) || 0);
+    if (seconds > 0) setVideoDurationSeconds(seconds);
+  });
+
+  useEventListener(player, 'playingChange', ({ isPlaying }) => {
+    const playing = Boolean(isPlaying);
+    setIsVideoPlaying(playing);
+    if (readOnly || isGroupRestingRef.current) return;
+    if (playing && !isTrainingRef.current) {
+      isTrainingRef.current = true;
+      setIsTraining(true);
+    }
   });
 
   useEventListener(player, 'sourceLoad', ({ duration }) => {
@@ -563,15 +589,17 @@ export default function ExercisePlayerPage() {
     }
 
     if (isTraining) {
-      safePauseVideoPlayer(player);
       isTrainingRef.current = false;
       setIsTraining(false);
+      setIsVideoPlaying(false);
+      safePauseVideoPlayer(player);
       return;
     }
 
-    safePlayVideoPlayer(player);
     isTrainingRef.current = true;
     setIsTraining(true);
+    setIsVideoPlaying(true);
+    safePlayVideoPlayer(player);
   }, [isTraining, player, readOnly, submitting]);
 
   const handleResetTimer = useCallback(() => {
@@ -1235,9 +1263,9 @@ export default function ExercisePlayerPage() {
                   styles.progressBar,
                   {
                     width: `${readOnly
-                      ? calcTrainingProgressPercent(
+                      ? calcTrainingProgressPercentBySeconds(
                         (todayDuration.completedMinutes || 0) * 60,
-                        targetMinutes,
+                        progressTargetSeconds || Math.max(1, (targetMinutes || 0) * 60),
                       )
                       : progressPercent}%`,
                   },

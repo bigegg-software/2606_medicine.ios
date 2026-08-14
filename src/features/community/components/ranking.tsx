@@ -1,14 +1,28 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, ScrollView, Image, ActivityIndicator, ImageSourcePropType, TouchableOpacity, RefreshControl } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+    View,
+    Text,
+    ScrollView,
+    Image,
+    ActivityIndicator,
+    ImageSourcePropType,
+    TouchableOpacity,
+    RefreshControl,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { useSelector } from 'react-redux';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/community/community';
-import { getRankingList, type RankingItem } from '@/api/ranking';
-import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootState } from '@/store/store';
-
 import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+import {
+    findMyRankingEntry,
+    formatMyRankLabel,
+    loadRankingDisplayList,
+    resolveRankingAvatarSource,
+    type RankingDisplayItem,
+    type RankingTab,
+} from '../utils/rankingHelpers';
 
 const PODIUM_FRAMES = [
     require('@/assets/images/community/image2.png'),
@@ -17,18 +31,10 @@ const PODIUM_FRAMES = [
 ] as const;
 const PODIUM_ORDER = [1, 0, 2] as const;
 
-type RankingTab = 'growth' | 'vitality';
-
 const RANKING_TABS: { key: RankingTab; label: string; icon: ImageSourcePropType }[] = [
     { key: 'growth', label: '成长成果榜', icon: require('@/assets/images/community/icon_cz.png') },
     { key: 'vitality', label: '活力打卡榜', icon: require('@/assets/images/community/icon_hl.png') },
 ];
-
-const PODIUM_SCORE_COLORS: Record<number, string> = {
-    0: '#FEAB27',
-    1: '#9BAAD8',
-    2: '#EC8E63',
-};
 
 function RankBadge({
     rank,
@@ -46,70 +52,30 @@ function RankBadge({
     );
 }
 
-type RankingRowProps = {
-    rankLabel: string;
-    name: string;
-    streak: string;
-    score: number;
-    avatarSource: ImageSourcePropType;
-    rankLabelStyle?: object;
-    scoreColor?: string;
-};
-
-function formatStreak(days?: number) {
-    const value = Number.isFinite(days) ? Math.max(0, Math.round(days as number)) : 0;
-    return `连续${value}天`;
-}
-
-function formatScore(value?: number) {
-    const num = Number(value);
-    if (!Number.isFinite(num)) return '0.00';
-    return num.toFixed(2);
-}
-
-function resolveAvatarSource(
-    avatar?: number | string,
-    gender?: string | number | null,
-): ImageSourcePropType {
-    if (typeof avatar === 'string' && /^https?:\/\//.test(avatar)) {
-        return { uri: avatar };
-    }
-    return getDefaultAvatarByGender(gender == null ? undefined : String(gender));
-}
-
-function sortRankingList(list: RankingItem[]) {
-    return [...list].sort((a, b) => {
-        const sortA = a.sort ?? Number.MAX_SAFE_INTEGER;
-        const sortB = b.sort ?? Number.MAX_SAFE_INTEGER;
-        if (sortA !== sortB) return sortA - sortB;
-        return (b.tokens ?? 0) - (a.tokens ?? 0);
-    });
-}
-
-function formatMyRankLabel(rank?: number | null) {
-    const value = Math.round(Number(rank));
-    if (!Number.isFinite(value) || value <= 0 || value > 100) return '未上榜';
-    return String(value);
-}
-
 function RankingRow({
     rankLabel,
     name,
-    streak,
-    score,
+    subtitle,
+    trailing,
     avatarSource,
     rankLabelStyle,
-    scoreColor = '#333',
-}: RankingRowProps) {
+}: {
+    rankLabel: string;
+    name: string;
+    subtitle: string;
+    trailing: string;
+    avatarSource: ImageSourcePropType;
+    rankLabelStyle?: object;
+}) {
     return (
         <Flex style={styles.rankingItemBox}>
             <RankBadge rank={rankLabel} labelStyle={rankLabelStyle} />
             <Image source={avatarSource} style={styles.listImg} />
             <View style={styles.rankingListInfo}>
                 <Text style={styles.rankingItemText}>{name}</Text>
-                <Text style={styles.rankingItemText2}>空腹血糖下降0.9</Text>
+                <Text style={styles.rankingItemText2} >{subtitle}</Text>
             </View>
-            <Text style={styles.avatarValue}>3个月</Text>
+            <Text style={styles.avatarValue}>{trailing}</Text>
         </Flex>
     );
 }
@@ -119,13 +85,13 @@ function PodiumItem({
     rankIndex,
     frameSource,
 }: {
-    item?: RankingItem;
+    item?: RankingDisplayItem;
     rankIndex: number;
     frameSource: ImageSourcePropType;
 }) {
     const name = item?.nickName?.trim() || '暂无';
-    const score = item?.tokens ?? 0;
-    const scoreColor = PODIUM_SCORE_COLORS[rankIndex] ?? PODIUM_SCORE_COLORS[2];
+    const subtitle = item?.subtitle || '--';
+    const trailing = item?.trailing || '--';
 
     return (
         <View style={[
@@ -137,7 +103,7 @@ function PodiumItem({
                 align="center"
                 style={styles.podiumInner}>
                 <Image
-                    source={resolveAvatarSource(item?.avatar, item?.gender)}
+                    source={resolveRankingAvatarSource(item?.avatar)}
                     style={[styles.headImg, rankIndex === 0 && styles.headImgFirst]}
                 />
                 <View style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}>
@@ -147,25 +113,18 @@ function PodiumItem({
                     />
                     <View style={styles.headBgContent}>
                         <Text
-                            style={[styles.rankingItemText, { textAlign: "center" }, rankIndex === 0 && styles.rankingItemTextFirst,
-                                , rankIndex === 1 && {
-                                    color: '#6B738C'
-                                }, rankIndex === 2 && {
-                                    color: '#A56125'
-                                }]}
+                            style={[
+                                styles.rankingItemText,
+                                { textAlign: 'center' },
+                                rankIndex === 0 && styles.rankingItemTextFirst,
+                                rankIndex === 1 && { color: '#6B738C' },
+                                rankIndex === 2 && { color: '#A56125' },
+                            ]}
                             numberOfLines={1}>
                             {name}
                         </Text>
-                        <Text style={styles.rankingItemText3}>空腹血糖下降1.8</Text>
-                        <Text style={styles.rankingItemText4}>3个月</Text>
-                        {/* <Flex justify='center' style={styles.rankingScoreRow}>
-                            <Image
-                                style={styles.avatarIcon}
-                                tintColor={scoreColor}
-                                source={require('@/assets/images/community/jf.png')}
-                            />
-                            <Text style={[styles.avatarValue]}>{formatScore(score)}</Text>
-                        </Flex> */}
+                        <Text style={styles.rankingItemText3} numberOfLines={1}>{subtitle}</Text>
+                        <Text style={styles.rankingItemText4} numberOfLines={1}>{trailing}</Text>
                     </View>
                 </View>
             </Flex>
@@ -190,19 +149,27 @@ export default function RankingPage() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [activeTab, setActiveTab] = useState<RankingTab>('growth');
-    const [rankingList, setRankingList] = useState<RankingItem[]>([]);
+    const [rankingList, setRankingList] = useState<RankingDisplayItem[]>([]);
+    const cacheByTabRef = useRef<Partial<Record<RankingTab, RankingDisplayItem[]>>>({});
 
-    const loadRanking = useCallback(async (mode: 'initial' | 'refresh' = 'initial') => {
+    const loadRanking = useCallback(async (
+        tab: RankingTab,
+        mode: 'initial' | 'refresh' | 'switch' = 'initial',
+    ) => {
         if (mode === 'refresh') {
             setRefreshing(true);
+        } else if (mode === 'switch' && cacheByTabRef.current[tab]) {
+            setRankingList(cacheByTabRef.current[tab] ?? []);
+            return;
         } else {
             setLoading(true);
         }
         try {
-            const res = (await getRankingList()) as unknown as { code?: number; data?: RankingItem[] };
-            const data = apiResourceData<RankingItem[]>(res);
-            setRankingList(Array.isArray(data) ? sortRankingList(data) : []);
+            const list = await loadRankingDisplayList(tab);
+            cacheByTabRef.current[tab] = list;
+            setRankingList(list);
         } catch {
+            cacheByTabRef.current[tab] = [];
             setRankingList([]);
         } finally {
             setLoading(false);
@@ -211,28 +178,36 @@ export default function RankingPage() {
     }, []);
 
     useEffect(() => {
-        void loadRanking('initial');
+        void loadRanking('growth', 'initial');
     }, [loadRanking]);
 
     const handleRefresh = useCallback(() => {
-        void loadRanking('refresh');
+        void loadRanking(activeTab, 'refresh');
+    }, [activeTab, loadRanking]);
+
+    const handleTabPress = useCallback((tab: RankingTab) => {
+        setActiveTab(prev => {
+            if (prev === tab) return prev;
+            void loadRanking(tab, 'switch');
+            return tab;
+        });
     }, [loadRanking]);
 
     const topThree = useMemo(() => rankingList.slice(0, 3), [rankingList]);
-    const listItems = useMemo(() => rankingList.slice(3, 10), [rankingList]);
+    const listItems = useMemo(() => rankingList.slice(3), [rankingList]);
 
     const myEntry = useMemo(
-        () => rankingList.find(item => item.userId != null && item.userId === currentUserId),
+        () => findMyRankingEntry(rankingList, currentUserId),
         [currentUserId, rankingList],
     );
 
     const myRankLabel = formatMyRankLabel(myEntry?.sort);
     const myRankUnlisted = myRankLabel === '未上榜';
     const myName = myEntry?.nickName?.trim() || currentUserName || '我';
-    const myStreak = formatStreak(myEntry?.continuousDays);
-    const myScore = myEntry?.tokens ?? 0;
+    const mySubtitle = myEntry?.subtitle || (activeTab === 'vitality' ? '打卡0天' : '暂无改善数据');
+    const myTrailing = myEntry?.trailing || '0分钟';
     const myAvatarSource = myEntry?.avatar
-        ? resolveAvatarSource(myEntry.avatar, myEntry.gender ?? currentUserGender)
+        ? resolveRankingAvatarSource(myEntry.avatar, currentUserGender)
         : currentUserAvatar
             ? { uri: currentUserAvatar }
             : getDefaultAvatarByGender(currentUserGender);
@@ -259,8 +234,6 @@ export default function RankingPage() {
                         tintColor={AppTheme.primaryColor}
                     />
                 }>
-
-
                 <Flex style={styles.tabBox}>
                     {RANKING_TABS.map(tab => {
                         const isActive = activeTab === tab.key;
@@ -268,7 +241,7 @@ export default function RankingPage() {
                             <TouchableOpacity
                                 key={tab.key}
                                 activeOpacity={0.85}
-                                onPress={() => setActiveTab(tab.key)}
+                                onPress={() => handleTabPress(tab.key)}
                                 style={[styles.tabItem, isActive && styles.tabItemActive]}
                             >
                                 <Flex justify="center" style={{ flex: 1 }}>
@@ -301,12 +274,12 @@ export default function RankingPage() {
                     <>
                         {listItems.map(item => (
                             <RankingRow
-                                key={String(item.id ?? `${item.userId}-${item.sort}`)}
-                                rankLabel={String(item.sort ?? '-')}
-                                name={item.nickName?.trim() || '用户'}
-                                streak={formatStreak(item.continuousDays)}
-                                score={item.tokens ?? 0}
-                                avatarSource={resolveAvatarSource(item.avatar, item.gender)}
+                                key={item.key}
+                                rankLabel={String(item.sort)}
+                                name={item.nickName}
+                                subtitle={item.subtitle}
+                                trailing={item.trailing}
+                                avatarSource={resolveRankingAvatarSource(item.avatar)}
                             />
                         ))}
                         <Text style={styles.rankingUpdateHint}>温馨提示：每小时更新1次，按本月数据统计</Text>
@@ -324,9 +297,9 @@ export default function RankingPage() {
                     <Image source={myAvatarSource} style={styles.listImg} />
                     <View style={styles.rankingListInfo}>
                         <Text style={styles.rankingItemText}>{myName}</Text>
-                        <Text style={styles.rankingItemText2}>空腹血糖下降0.9</Text>
+                        <Text style={styles.rankingItemText2} numberOfLines={1}>{mySubtitle}</Text>
                     </View>
-                    <Text style={styles.avatarValue}>3个月</Text>
+                    <Text style={styles.avatarValue}>{myTrailing}</Text>
                 </Flex>
             </View>
         </View>

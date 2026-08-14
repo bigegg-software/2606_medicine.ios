@@ -19,6 +19,7 @@ import styles from '@/css/schedule/calendar';
 import type { DailyRecordStatusItem } from '@/api/dailyRecordStatus';
 import {
   CALENDAR_DAY_DOT_COLORS,
+  buildLocalCalendarDotStatus,
   clampScheduleCalendarDate,
   clampScheduleCalendarMonth,
   getCalendarDayDotColors,
@@ -34,17 +35,18 @@ import {
   loadCalendarDayTimelineItems,
   loadDailyRecordStatusMap,
   mapTodayMedicationGroupsToTimelineItems,
+  type CalendarDayLocalDotStatus,
   type CalendarTimelineItem,
 } from './calendarHelpers';
 import {
   buildExercisePrescriptionMetrics,
   EXERCISE_TYPE_COLORS,
   EXERCISE_TYPE_IMAGES,
-  loadModuleCompleteRateProgressMap,
   loadScheduleDictMaps,
   type ExercisePrescriptionMetricItem,
   type ScheduleDictMaps,
 } from './scheduleHelpers';
+import { loadCalendarDayCompleteRateProgressMap } from './calendarDayCompleteRateHelpers';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchInUsePrescription } from '@/store/actions/prescription';
@@ -689,7 +691,6 @@ function TimelineSection({
 function ScheduleTimeline({
   items,
   exerciseMetrics,
-  hasExercisePrescription,
   loading,
   isToday,
   selectedDate,
@@ -701,7 +702,6 @@ function ScheduleTimeline({
 }: {
   items: CalendarTimelineItem[];
   exerciseMetrics: ExercisePrescriptionMetricItem[];
-  hasExercisePrescription: boolean;
   loading: boolean;
   isToday: boolean;
   selectedDate: string;
@@ -713,9 +713,7 @@ function ScheduleTimeline({
 }) {
   const grouped = useMemo(() => groupTimelineItems(items), [items]);
   const hasScheduledItems = grouped.morning.length > 0 || grouped.afternoon.length > 0;
-  const showExerciseSection = hasExercisePrescription
-    && isToday
-    && (exerciseMetrics.length > 0 || grouped.exercise.length > 0);
+  const showExerciseSection = grouped.exercise.length > 0;
 
   if (loading) {
     return (
@@ -774,11 +772,13 @@ function CalendarMonthGrid({
   calendarDays,
   selectedDate,
   statusMap,
+  todayLocalStatus,
   onSelectDate,
 }: {
   calendarDays: CalendarDay[];
   selectedDate: string;
   statusMap: Map<string, DailyRecordStatusItem>;
+  todayLocalStatus?: CalendarDayLocalDotStatus | null;
   onSelectDate: (dateKey: string) => void;
 }) {
   const todayKey = moment().format('YYYY-MM-DD');
@@ -789,7 +789,10 @@ function CalendarMonthGrid({
         const dateKey = day.date.format('YYYY-MM-DD');
         const isSelected = selectedDate === dateKey;
         const isTodayCell = dateKey === todayKey;
-        const dayDots = getCalendarDayDotColors(statusMap.get(dateKey));
+        const dayDots = getCalendarDayDotColors(
+          statusMap.get(dateKey),
+          isTodayCell ? todayLocalStatus : undefined,
+        );
         const overlapDots = dayDots.length >= 4;
         const isFirstRow = index < 7;
 
@@ -850,6 +853,8 @@ export default function ScheduleCalendarPage() {
   const [medicationPlanGroups, setMedicationPlanGroups] = useState<MedicationPlanGroupView[]>([]);
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
+  const [todayLocalStatus, setTodayLocalStatus] = useState<CalendarDayLocalDotStatus>({});
+  const todayDotsLockedRef = useRef(false);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
   const [loadingMedication, setLoadingMedication] = useState(false);
@@ -861,23 +866,31 @@ export default function ScheduleCalendarPage() {
   const skipFocusRefreshRef = useRef(true);
   const prescriptionRef = useRef(prescription);
   const exerciseProgressMapRef = useRef(exerciseProgressMap);
+  const exerciseDictMapsRef = useRef(exerciseDictMaps);
 
   statusMapRef.current = statusMap;
   currentMonthRef.current = currentMonth;
   selectedDateRef.current = selectedDate;
   prescriptionRef.current = prescription;
   exerciseProgressMapRef.current = exerciseProgressMap;
+  exerciseDictMapsRef.current = exerciseDictMaps;
 
-  const hasExercisePrescription = Boolean(prescription?.ruleRatioList?.length);
+  const hasExercisePrescription = Boolean(prescription?.exPatientRuleId || prescription?.ruleRatioList?.length);
+  const exerciseAvailableTypeKeys = useMemo(
+    () => new Set(Object.keys(exerciseProgressMap)),
+    [exerciseProgressMap],
+  );
   const exerciseMetrics = useMemo(
-    () => (hasExercisePrescription
+    () => (hasExercisePrescription || exerciseAvailableTypeKeys.size > 0
       ? buildExercisePrescriptionMetrics(
         prescription?.ruleRatioList,
         exerciseDictMaps ?? undefined,
         exerciseProgressMap,
+        { availableTypeKeys: exerciseAvailableTypeKeys },
       )
       : []),
     [
+      exerciseAvailableTypeKeys,
       exerciseDictMaps,
       exerciseProgressMap,
       hasExercisePrescription,
@@ -910,23 +923,44 @@ export default function ScheduleCalendarPage() {
     }
   }, []);
 
-  const loadExercisePrescription = useCallback(async () => {
+  const loadExercisePrescription = useCallback(async (
+    dateKey: string,
+    status?: DailyRecordStatusItem,
+  ) => {
     try {
-      const [dictMaps, rule] = await Promise.all([
-        loadScheduleDictMaps().catch(() => null),
-        dispatch(fetchInUsePrescription()),
-      ]);
-      if (dictMaps) setExerciseDictMaps(dictMaps);
+      // 字典只初始化一次；处方优先复用 store，避免切日重复请求
+      let dictMaps = exerciseDictMapsRef.current;
+      let rule = prescriptionRef.current;
+      const needDict = !dictMaps;
+      const needRule = !rule;
 
-      if (!rule?.exPatientRuleId) {
-        setExerciseProgressMap({});
-        return null;
+      if (needDict || needRule) {
+        const [nextDictMaps, nextRule] = await Promise.all([
+          needDict ? loadScheduleDictMaps().catch(() => null) : Promise.resolve(dictMaps),
+          needRule ? dispatch(fetchInUsePrescription()) : Promise.resolve(rule),
+        ]);
+        if (needDict && nextDictMaps) {
+          dictMaps = nextDictMaps;
+          exerciseDictMapsRef.current = nextDictMaps;
+          setExerciseDictMaps(nextDictMaps);
+        }
+        if (needRule) {
+          rule = nextRule;
+        }
       }
 
-      const progressMap = await loadModuleCompleteRateProgressMap(rule.exPatientRuleId)
-        .catch(() => ({} as Record<string, number>));
+      const todayKey = moment().format('YYYY-MM-DD');
+      const hasCurrentExercise = Boolean(rule?.exPatientRuleId);
+      const hasDayExercise = Boolean(status?.isEx);
+      const shouldLoadDayRate = hasDayExercise || (dateKey === todayKey && hasCurrentExercise);
+      if (!shouldLoadDayRate) {
+        setExerciseProgressMap({});
+        return { rule, progressMap: {} as Record<string, number>, dictMaps };
+      }
+
+      const progressMap = await loadCalendarDayCompleteRateProgressMap(dateKey);
       setExerciseProgressMap(progressMap);
-      return { rule, progressMap };
+      return { rule, progressMap, dictMaps };
     } catch {
       setExerciseProgressMap({});
       return null;
@@ -939,6 +973,7 @@ export default function ScheduleCalendarPage() {
     options?: {
       prescription?: typeof prescription;
       progressMap?: Record<string, number>;
+      dictMaps?: ScheduleDictMaps | null;
     },
   ) => {
     setLoadingDay(true);
@@ -946,10 +981,13 @@ export default function ScheduleCalendarPage() {
       const items = await loadCalendarDayTimelineItems(dateKey, status, {
         prescription: options?.prescription ?? prescriptionRef.current,
         progressMap: options?.progressMap ?? exerciseProgressMapRef.current,
+        dictMaps: options?.dictMaps ?? exerciseDictMapsRef.current ?? undefined,
       });
       setTimelineItems(items);
+      return items;
     } catch {
       setTimelineItems([]);
+      return [] as CalendarTimelineItem[];
     } finally {
       setLoadingDay(false);
     }
@@ -957,19 +995,41 @@ export default function ScheduleCalendarPage() {
 
   const loadTodayMedication = useCallback(async (dateKey: string) => {
     if (dateKey !== moment().format('YYYY-MM-DD')) {
-      setMedicationPlanGroups([]);
-      return;
+      return [] as MedicationPlanGroupView[];
     }
 
     setLoadingMedication(true);
     try {
       const groups = await loadMedicationPlanGroupsForDate(dateKey);
       setMedicationPlanGroups(groups);
+      return groups;
     } catch {
       setMedicationPlanGroups([]);
+      return [] as MedicationPlanGroupView[];
     } finally {
       setLoadingMedication(false);
     }
+  }, []);
+
+  const lockTodayDotsIfNeeded = useCallback((
+    dateKey: string,
+    items: CalendarTimelineItem[],
+    groups: MedicationPlanGroupView[],
+  ) => {
+    if (todayDotsLockedRef.current) return;
+    if (dateKey !== moment().format('YYYY-MM-DD')) return;
+    const merged = [
+      ...items.filter(item => item.kind !== 'drug'),
+      ...mapTodayMedicationGroupsToTimelineItems(groups),
+    ];
+    setTodayLocalStatus(buildLocalCalendarDotStatus(merged, {
+      isEx: Boolean(
+        prescriptionRef.current?.exPatientRuleId
+        || prescriptionRef.current?.ruleRatioList?.length,
+      ),
+      hasMedicationPlan: groups.length > 0,
+    }));
+    todayDotsLockedRef.current = true;
   }, []);
 
   const handleSelectDate = useCallback((dateKey: string) => {
@@ -986,23 +1046,27 @@ export default function ScheduleCalendarPage() {
     void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
 
+  const dayLoadFingerprintRef = useRef('');
+
   // 仅随选中日期请求当日详情，避免 statusMap 回填导致进入页面重复请求
   useEffect(() => {
     void (async () => {
-      if (selectedDate === moment().format('YYYY-MM-DD')) {
-        const loaded = await loadExercisePrescription();
-        await loadDayTimeline(selectedDate, statusMap.get(selectedDate), {
-          prescription: loaded?.rule ?? prescriptionRef.current,
-          progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
-        });
-      } else {
-        await loadDayTimeline(selectedDate, statusMap.get(selectedDate));
+      const status = statusMap.get(selectedDate);
+      if (selectedDate !== moment().format('YYYY-MM-DD') && status) {
+        dayLoadFingerprintRef.current = `${selectedDate}|ex:${Boolean(status.isEx)}|drug:${Boolean(status.isDrug)}`;
       }
-      void loadTodayMedication(selectedDate);
+      const loaded = await loadExercisePrescription(selectedDate, status);
+      const items = await loadDayTimeline(selectedDate, status, {
+        prescription: loaded?.rule ?? prescriptionRef.current,
+        progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
+        dictMaps: loaded?.dictMaps ?? exerciseDictMapsRef.current,
+      });
+      const groups = await loadTodayMedication(selectedDate);
+      lockTodayDotsIfNeeded(selectedDate, items, groups);
     })();
     // statusMap 有意不作为依赖：今日时间轴不依赖 status；历史日在下方补拉
     // eslint-disable-next-line react-hooks/exhaustive-deps -- see above
-  }, [selectedDate, loadDayTimeline, loadTodayMedication, loadExercisePrescription]);
+  }, [selectedDate, loadDayTimeline, loadTodayMedication, loadExercisePrescription, lockTodayDotsIfNeeded]);
 
   // 从记餐等页面返回时刷新；勿把 selectedDate 放进依赖，否则切日期会误触发整月重载
   useFocusEffect(
@@ -1015,18 +1079,17 @@ export default function ScheduleCalendarPage() {
       const date = selectedDateRef.current;
       void loadMonthlyOverview(month, { silent: true });
       void (async () => {
-        if (date === moment().format('YYYY-MM-DD')) {
-          const loaded = await loadExercisePrescription();
-          await loadDayTimeline(date, statusMapRef.current.get(date), {
-            prescription: loaded?.rule ?? prescriptionRef.current,
-            progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
-          });
-        } else {
-          await loadDayTimeline(date, statusMapRef.current.get(date));
-        }
+        const status = statusMapRef.current.get(date);
+        const loaded = await loadExercisePrescription(date, status);
+        const items = await loadDayTimeline(date, status, {
+          prescription: loaded?.rule ?? prescriptionRef.current,
+          progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
+          dictMaps: loaded?.dictMaps ?? exerciseDictMapsRef.current,
+        });
+        const groups = await loadTodayMedication(date);
+        lockTodayDotsIfNeeded(date, items, groups);
       })();
-      void loadTodayMedication(date);
-    }, [loadMonthlyOverview, loadDayTimeline, loadTodayMedication, loadExercisePrescription]),
+    }, [loadMonthlyOverview, loadDayTimeline, loadTodayMedication, loadExercisePrescription, lockTodayDotsIfNeeded]),
   );
 
   // 月度 status 返回后，仅历史日且需要运动/用药时再补一次（今日跳过）
@@ -1034,8 +1097,26 @@ export default function ScheduleCalendarPage() {
     if (selectedDate === moment().format('YYYY-MM-DD')) return;
     const status = statusMap.get(selectedDate);
     if (!status?.isEx && !status?.isDrug) return;
-    void loadDayTimeline(selectedDate, status);
-  }, [statusMap, selectedDate, loadDayTimeline]);
+    const fingerprint = `${selectedDate}|ex:${Boolean(status.isEx)}|drug:${Boolean(status.isDrug)}`;
+    if (dayLoadFingerprintRef.current === fingerprint) return;
+    dayLoadFingerprintRef.current = fingerprint;
+    void (async () => {
+      if (status.isEx && !prescriptionRef.current?.exPatientRuleId) {
+        const loaded = await loadExercisePrescription(selectedDate, status);
+        await loadDayTimeline(selectedDate, status, {
+          prescription: loaded?.rule ?? prescriptionRef.current,
+          progressMap: loaded?.progressMap ?? exerciseProgressMapRef.current,
+          dictMaps: loaded?.dictMaps ?? exerciseDictMapsRef.current,
+        });
+        return;
+      }
+      await loadDayTimeline(selectedDate, status, {
+        prescription: prescriptionRef.current,
+        progressMap: exerciseProgressMapRef.current,
+        dictMaps: exerciseDictMapsRef.current,
+      });
+    })();
+  }, [statusMap, selectedDate, loadDayTimeline, loadExercisePrescription]);
 
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
     if (item.kind === 'diet') {
@@ -1234,6 +1315,7 @@ export default function ScheduleCalendarPage() {
               calendarDays={calendarDays}
               selectedDate={selectedDate}
               statusMap={statusMap}
+              todayLocalStatus={todayLocalStatus}
               onSelectDate={handleSelectDate}
             />
           )}
@@ -1263,7 +1345,6 @@ export default function ScheduleCalendarPage() {
           <ScheduleTimeline
             items={displayTimelineItems}
             exerciseMetrics={exerciseMetrics}
-            hasExercisePrescription={hasExercisePrescription}
             loading={loadingDay || (isToday && loadingMedication)}
             isToday={isToday}
             selectedDate={selectedDate}

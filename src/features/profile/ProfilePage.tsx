@@ -385,7 +385,7 @@ export default function ProfilePage() {
 
         <Flex justify="between" align="center" style={styles.modelTitleRow}>
           <Text style={[styles.modelTitle, styles.modelTitleInRow]}>我的家人</Text>
-          <TouchableOpacity
+          {familyList.length > 0 && <TouchableOpacity
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             onPress={() => navigation.navigate('MyFamily')}
@@ -394,7 +394,7 @@ export default function ProfilePage() {
               style={{ width: 8, height: 13 }}
               source={require('@/assets/images/user/icon_right.png')}
             />
-          </TouchableOpacity>
+          </TouchableOpacity>}
         </Flex>
         <View style={[styles.familyBox, { paddingVertical: 10 }]}>
           {familyList.length === 0 ? (

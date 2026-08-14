@@ -247,16 +247,12 @@ export default function BloodLipidPage() {
                     {compareSummary ? (
                         <View style={[styles.rowBox, { marginTop: 10 }]}>
                             <Text style={[styles.rowLeftValue, { fontSize: 16 }]}>指标对比</Text>
-                            <Flex style={styles.dbBox}>
-                                <Flex style={styles.dbBoxItem}>
-                                    <Text style={styles.dbBoxItemText}>初始</Text>
-                                    <Text style={styles.dbBoxItemValue}>{compareSummary.initialDateText}</Text>
-                                </Flex>
+                            <Flex style={styles.dbBox} justify="between" >
+                                <Text style={styles.dbBoxItemText}>初始</Text>
+                                <Text style={styles.dbBoxItemValue}>{compareSummary.initialDateText}</Text>
                                 <Image style={styles.dbImage} source={require('@/assets/images/vitals/db.png')} />
-                                <Flex style={styles.dbBoxItem}>
-                                    <Text style={styles.dbBoxItemText}>最近</Text>
-                                    <Text style={styles.dbBoxItemValue}>{compareSummary.recentDateText}</Text>
-                                </Flex>
+                                <Text style={styles.dbBoxItemText}>最近</Text>
+                                <Text style={styles.dbBoxItemValue}>{compareSummary.recentDateText}</Text>
                             </Flex>
                             {compareSummary.rows.map(row => {
                                 const isImproved = row.outcome === 'improved';

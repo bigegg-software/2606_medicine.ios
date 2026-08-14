@@ -180,13 +180,41 @@ export const CALENDAR_DAY_DOT_COLORS = {
   other: '#FB4550',
 } as const;
 
-export function getCalendarDayDotColors(status?: DailyRecordStatusItem | null): string[] {
-  if (!status) return [];
+export type CalendarDayLocalDotStatus = {
+  isDiet?: boolean;
+  isDrug?: boolean;
+  isEx?: boolean;
+  isActivity?: boolean;
+  isLive?: boolean;
+};
+
+export function buildLocalCalendarDotStatus(
+  items: CalendarTimelineItem[],
+  options?: { isEx?: boolean; hasMedicationPlan?: boolean },
+): CalendarDayLocalDotStatus {
+  return {
+    isEx: Boolean(options?.isEx),
+    isDiet: items.some(item => item.kind === 'diet'),
+    isDrug: Boolean(options?.hasMedicationPlan) || items.some(item => item.kind === 'drug'),
+    isActivity: items.some(item => item.kind === 'activity'),
+    isLive: items.some(item => item.kind === 'live'),
+  };
+}
+
+export function getCalendarDayDotColors(
+  status?: DailyRecordStatusItem | null,
+  local?: CalendarDayLocalDotStatus | null,
+): string[] {
+  const isDiet = Boolean(status?.isDiet || local?.isDiet);
+  const isDrug = Boolean(status?.isDrug || local?.isDrug);
+  const isEx = Boolean(status?.isEx || local?.isEx);
+  const isOther = Boolean(status?.isActivity || status?.isLive || local?.isActivity || local?.isLive);
+  if (!isDiet && !isDrug && !isEx && !isOther) return [];
   const colors: string[] = [];
-  if (status.isDiet) colors.push(CALENDAR_DAY_DOT_COLORS.diet);
-  if (status.isDrug) colors.push(CALENDAR_DAY_DOT_COLORS.drug);
-  if (status.isEx) colors.push(CALENDAR_DAY_DOT_COLORS.ex);
-  if (status.isActivity || status.isLive) colors.push(CALENDAR_DAY_DOT_COLORS.other);
+  if (isDiet) colors.push(CALENDAR_DAY_DOT_COLORS.diet);
+  if (isDrug) colors.push(CALENDAR_DAY_DOT_COLORS.drug);
+  if (isEx) colors.push(CALENDAR_DAY_DOT_COLORS.ex);
+  if (isOther) colors.push(CALENDAR_DAY_DOT_COLORS.other);
   return colors;
 }
 
@@ -471,17 +499,28 @@ function mapLiveTimelineItem(
   };
 }
 
+let livePlatformLabelMapPromise: Promise<Record<string, string>> | null = null;
+
 async function loadLivePlatformLabelMap(): Promise<Record<string, string>> {
-  try {
-    const res = await getDictDataByType(DICT_TYPES.livePlatform);
-    const dictRes = res as unknown as { code?: number; data?: DictDataItem[] };
-    if (isResourceApiOk(dictRes)) {
-      return buildDictLabelMap(dictRes.data);
+  if (livePlatformLabelMapPromise) return livePlatformLabelMapPromise;
+
+  livePlatformLabelMapPromise = (async () => {
+    try {
+      const res = await getDictDataByType(DICT_TYPES.livePlatform);
+      const dictRes = res as unknown as { code?: number; data?: DictDataItem[] };
+      if (isResourceApiOk(dictRes)) {
+        return buildDictLabelMap(dictRes.data);
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // ignore
-  }
-  return {};
+    return {};
+  })().catch(() => {
+    livePlatformLabelMapPromise = null;
+    return {};
+  });
+
+  return livePlatformLabelMapPromise;
 }
 
 function formatExerciseDurationText(minutes?: number | null) {
@@ -570,6 +609,8 @@ function mapDayTypeExerciseTimelineItems(
 export type LoadCalendarDayTimelineOptions = {
   prescription?: InUseExPatientRule | null;
   progressMap?: Record<string, number>;
+  /** 已缓存的运动字典，传入后不再重复请求 */
+  dictMaps?: ScheduleDictMaps;
 };
 
 function formatMedicationEventLabel(label?: string) {
@@ -764,6 +805,8 @@ async function loadDietTimelineItems(customerLocalDate: string): Promise<Calenda
   }
 }
 
+const DAY_EXERCISE_TYPE_ORDER = ['cardio', 'strength', 'flexibility', 'balance'] as const;
+
 async function loadExerciseTimelineItems(
   customerLocalDate: string,
   prescription: InUseExPatientRule | null | undefined,
@@ -771,28 +814,27 @@ async function loadExerciseTimelineItems(
   progressMap?: Record<string, number>,
 ): Promise<CalendarTimelineItem[]> {
   try {
-    // 仅今日：用 store 在用处方拼「随时」运动类型；历史日不展示
-    if (customerLocalDate !== moment().format('YYYY-MM-DD')) return [];
-    const ratioList = prescription?.ruleRatioList ?? [];
-    if (!ratioList.length) return [];
+    const scheduledTypes = DAY_EXERCISE_TYPE_ORDER.filter(
+      typeKey => progressMap != null && Object.prototype.hasOwnProperty.call(progressMap, typeKey),
+    );
+    if (scheduledTypes.length === 0) return [];
 
-    const list: DayTypeDetailItem[] = ratioList.map(rule => {
-      const typeKey = rule.exerciseType?.trim() ?? '';
-      const progress = typeKey && progressMap?.[typeKey] != null
-        ? progressMap[typeKey]
-        : Number(rule.ratio ?? 0);
-      const targetMinutes = Math.round(Number(rule.duration ?? 0));
+    const ratioList = prescription?.ruleRatioList ?? [];
+    const list: DayTypeDetailItem[] = scheduledTypes.map(typeKey => {
+      const rule = ratioList.find(item => item.exerciseType?.trim() === typeKey);
+      const progress = progressMap?.[typeKey] ?? 0;
+      const targetMinutes = Math.round(Number(rule?.duration ?? 0));
       const doneMinutes = targetMinutes > 0
         ? Math.round((Math.max(0, Math.min(100, progress)) / 100) * targetMinutes)
         : 0;
 
       return {
         customerLocalDate,
-        exerciseType: rule.exerciseType,
-        exerciseChildType: rule.exerciseChildType,
+        exerciseType: typeKey,
+        exerciseChildType: rule?.exerciseChildType,
         typeNeedExerciseDuration: targetMinutes,
         typeSumExerciseDuration: doneMinutes,
-        childTypeList: (rule.exerciseChildType ?? '')
+        childTypeList: (rule?.exerciseChildType ?? '')
           .split(',')
           .map(item => item.trim())
           .filter(Boolean)
@@ -804,17 +846,14 @@ async function loadExerciseTimelineItems(
       const typeKey = item.exerciseType?.trim();
       if (!typeKey) return item;
       const taskIndex = ratioList.findIndex(rule => rule.exerciseType?.trim() === typeKey);
-      if (taskIndex < 0) return item;
-      const rule = ratioList[taskIndex];
-      const progress = progressMap?.[typeKey] != null
-        ? progressMap[typeKey]
-        : Number(rule.ratio ?? 0);
+      const rule = taskIndex >= 0 ? ratioList[taskIndex] : undefined;
+      const progress = progressMap?.[typeKey] ?? 0;
       return {
         ...item,
-        exerciseType: rule.exerciseType,
-        exerciseChildType: rule.exerciseChildType,
-        strengthLevel: rule.strengthLevel,
-        exerciseTaskIndex: taskIndex,
+        exerciseType: rule?.exerciseType ?? typeKey,
+        exerciseChildType: rule?.exerciseChildType,
+        strengthLevel: rule?.strengthLevel,
+        exerciseTaskIndex: taskIndex >= 0 ? taskIndex : undefined,
         exerciseProgress: Math.max(0, Math.min(100, Math.round(Number(progress) || 0))),
       };
     });
@@ -889,21 +928,20 @@ export async function loadCalendarDayTimelineItems(
       loadDietTimelineItems(customerLocalDate),
     ];
 
-    const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
-    if (isToday) {
+    const progressMap = options?.progressMap;
+    if (progressMap && Object.keys(progressMap).length > 0) {
       detailTasks.push(
         (async () => {
-          const dictMaps = await loadScheduleDictMaps().catch(() => undefined);
+          const dictMaps = options?.dictMaps
+            ?? await loadScheduleDictMaps().catch(() => undefined);
           return loadExerciseTimelineItems(
             customerLocalDate,
             options?.prescription,
             dictMaps,
-            options?.progressMap,
+            progressMap,
           );
         })(),
       );
-    } else if (status?.isEx) {
-      // 历史日运动详情接口已下线，仅保留日程圆点提示
     }
 
     if (status?.isDrug && customerLocalDate !== moment().format('YYYY-MM-DD')) {

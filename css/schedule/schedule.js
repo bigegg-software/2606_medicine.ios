@@ -27,7 +27,8 @@ const styles = StyleSheet.create({
     shadowColor: '#B4C9FF', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.14, shadowRadius: 4, elevation: 3
   },
   pageTopBg: { borderRadius: 12, overflow: "hidden" },
-  pageTopBgImg: { position: "absolute", top: 0, left: 0, right: 0, width: '100%', height: undefined, aspectRatio: 1404 / 856 },
+  pageTopBgImg: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, width: '100%', height: '100%' },
+  topRowBox: { marginTop: 4 },
   pageTopBgIcon: { width: 18, height: 18 },
   pageTopBgText: { fontWeight: "bold", fontSize: 12, color: "#333333", marginLeft: 4 },
   sectionTitleWrap: { marginLeft: 4, position: 'relative', alignSelf: 'flex-start' },
@@ -43,8 +44,9 @@ const styles = StyleSheet.create({
   topRowBoxItem: {
     position: "relative",
     marginTop: 12,
-    height: 78,
     width: "47%",
+    aspectRatio: 614 / 312,
+    flexShrink: 0,
   },
   topRowBoxItemImg: {
     width: "100%",
@@ -54,8 +56,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
   },
 
   topRowBoxItemValue: { marginLeft: 12, marginTop: 27, fontWeight: "bold", fontSize: 18, color: "#333333" },

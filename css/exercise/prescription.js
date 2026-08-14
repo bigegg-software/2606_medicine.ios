@@ -13,6 +13,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
     shadowRadius: 10,
+    marginTop: 2,
     elevation: 2,
   },
   prescriptionMetaIcon: {
@@ -32,12 +33,11 @@ const styles = StyleSheet.create({
   },
   prescriptionSectionOuter: {
     marginHorizontal: 12,
-    marginTop: 12,
     position: 'relative',
     overflow: 'visible',
   },
   prescriptionSectionWrap: {
-    marginTop: 11,
+    marginTop: 12,
     position: 'relative',
     borderRadius: 12,
     borderWidth: 1,
