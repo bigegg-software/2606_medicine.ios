@@ -6,7 +6,10 @@ const bannerHeight = (bannerWidth * 115) / 351;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
-  content: { paddingTop: 8, paddingBottom: 24 },
+  body: {
+    flex: 1,
+    paddingTop: 8,
+  },
   /** 顶部横幅：屏宽 - 24，宽高比 351:115 */
   banner: {
     marginHorizontal: 12,
@@ -54,6 +57,13 @@ const styles = StyleSheet.create({
   },
   backImage1Text: { fontWeight: 'bold', fontSize: 16, color: '#333333' },
 
+  deviceScroll: {
+    flex: 1,
+  },
+  deviceScrollContent: {
+    paddingBottom: 24,
+    flexGrow: 1,
+  },
   deviceList: {
     marginHorizontal: 12,
   },

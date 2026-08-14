@@ -242,8 +242,8 @@ export default function ProfilePage() {
   }, [dispatch, loadSignStatus, loadSignTip, signedToday, signing]);
 
   const switchToFamilyPerspective = useCallback(async () => {
-    // Toast.show('正在开发中', 1.5);
-    // return;
+    Toast.show('正在开发中', 1.5);
+    return;
     if (switchingIdentity) return;
     setSwitchingIdentity(true);
     try {

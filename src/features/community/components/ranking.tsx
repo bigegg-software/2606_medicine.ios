@@ -104,7 +104,13 @@ function PodiumItem({
                 style={styles.podiumInner}>
                 <Image
                     source={resolveRankingAvatarSource(item?.avatar)}
-                    style={[styles.headImg, rankIndex === 0 && styles.headImgFirst]}
+                    style={[
+                        styles.headImg,
+                        rankIndex === 0 && styles.headImgFirst,
+                        rankIndex === 0 && styles.headImgBorderFirst,
+                        rankIndex === 1 && styles.headImgBorderSecond,
+                        rankIndex === 2 && styles.headImgBorderThird,
+                    ]}
                 />
                 <View style={[styles.headBg, rankIndex === 0 && styles.headBgFirst]}>
                     <Image

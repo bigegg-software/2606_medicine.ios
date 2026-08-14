@@ -4,6 +4,8 @@ import type { BoundEquipment } from '@/store/type/equipment';
 const BOUND_DEVICES_KEY = 'equipment.boundDevices';
 /** 按用户记录：是否允许冷启动自动重连 */
 const AUTO_RECONNECT_KEY = 'equipment.autoReconnect';
+/** 首次连接心率设备说明文案是否已同意 */
+const HR_CONNECT_CONSENT_KEY = 'equipment.hrConnectConsent';
 
 export type EquipmentAutoReconnectPref = {
   /** 用户 id（string） */
@@ -126,4 +128,19 @@ export async function clearAutoReconnectForDevice(
   if (current.userId === uid && current.deviceId === did) {
     await saveAutoReconnectPref(null);
   }
+}
+
+/** 是否已同意首次连接心率设备说明 */
+export async function loadHrConnectConsent(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(HR_CONNECT_CONSENT_KEY);
+    return raw === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** 保存首次连接说明同意状态 */
+export async function saveHrConnectConsent() {
+  await AsyncStorage.setItem(HR_CONNECT_CONSENT_KEY, '1');
 }

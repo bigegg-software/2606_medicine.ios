@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
     },
     blurCardSparklineWrap: {
         marginTop: 4,
-        height: 18,
+        height: 30,
         alignItems: 'center',
         justifyContent: 'center',
     },

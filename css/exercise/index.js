@@ -890,6 +890,9 @@ const styles = StyleSheet.create({
   playerRealtimeHrStatusTextDanger: {
     color: '#FF3B30',
   },
+  playerRealtimeHrStatusTextMuted: {
+    color: '#999999',
+  },
 });
 
 export default styles;

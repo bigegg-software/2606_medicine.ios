@@ -48,7 +48,6 @@ import {
   calcGroupRestProgressPercent,
   canPressGroupCountTag,
   deriveCompleteGroupsFromCounts,
-  EXERCISE_HR_RANGE,
   findNextGroupInputIndex,
   formatSessionDuration,
   getExerciseHeartRateZone,
@@ -62,10 +61,12 @@ import {
   normalizeGroupCounts,
   refreshExercisePlayerDuration,
   resolveDurationSaveGroupTotal,
+  resolveExerciseHrRangeByAge,
   resolveGroupInputMeta,
   resolvePlayerScheduleRule,
   resolveRestBetweenGroupSeconds,
   resolveSaveGroupTargetCount,
+  resolveUserAgeYears,
   sessionSecondsToRecordMinutes,
   setGroupCountAtIndex,
   type ExercisePlayerDuration,
@@ -129,6 +130,7 @@ export default function ExercisePlayerPage() {
   const hrStreamingDeviceIdRef = useRef<string | null>(null);
 
   const dispatch = useDispatch<AppDispatch>();
+  const user = useSelector((state: RootState) => state.user.info);
   const connectedDevice = useSelector((state: RootState) =>
     state.equipment.boundDevices.find(item => item.connected),
   );
@@ -419,10 +421,15 @@ export default function ExercisePlayerPage() {
     }, [connectedDevice?.deviceId]),
   );
 
+  const exerciseHrRange = useMemo(
+    () => resolveExerciseHrRangeByAge(resolveUserAgeYears(user?.birthDate)),
+    [user?.birthDate],
+  );
+
   const hrZone = useMemo(() => {
     if (heartRate == null || heartRate <= 0) return null;
-    return getExerciseHeartRateZone(heartRate);
-  }, [heartRate]);
+    return getExerciseHeartRateZone(heartRate, exerciseHrRange.min, exerciseHrRange.max);
+  }, [exerciseHrRange.max, exerciseHrRange.min, heartRate]);
 
   useEffect(() => {
     // 标题居中省略；限制标题最大宽度，避免挤出右侧标签
@@ -1234,10 +1241,10 @@ export default function ExercisePlayerPage() {
                   source={require('@/assets/images/exercise/icon_tip.png')}
                 />
                 <Text style={exerciseStyles.playerRealtimeHrTargetText} numberOfLines={1}>
-                  {`目标心率区间：${EXERCISE_HR_RANGE.min}-${EXERCISE_HR_RANGE.max} 次/分`}
+                  {`目标心率区间：${exerciseHrRange.min}-${exerciseHrRange.max} 次/分`}
                 </Text>
               </Flex>
-              {deviceConnected && hrZone && hrZone !== 'normal' ? (
+              {deviceConnected && hrZone ? (
                 <Text
                   style={[
                     exerciseStyles.playerRealtimeHrStatusText,
@@ -1247,7 +1254,15 @@ export default function ExercisePlayerPage() {
                   ]}>
                   {getExerciseHeartRateZoneLabel(hrZone)}
                 </Text>
-              ) : null}
+              ) : (
+                <Text
+                  style={[
+                    exerciseStyles.playerRealtimeHrStatusText,
+                    exerciseStyles.playerRealtimeHrStatusTextMuted,
+                  ]}>
+                  --
+                </Text>
+              )}
             </Flex>
           </View>
           <Flex direction="column" style={styles.progressBoxWrap}>

@@ -23,6 +23,11 @@ import {
   stopEquipmentScan,
 } from '@/store/actions/equipment';
 import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
+import {
+  loadHrConnectConsent,
+  saveHrConnectConsent,
+} from './utils/equipmentStorage';
+import HrDeviceConsentModal from './components/HrDeviceConsentModal';
 import styles from '@/css/equipment/search';
 
 const SEARCH_TIMEOUT_MS = 30_000;
@@ -68,7 +73,11 @@ export default function EquipmentSearchPage() {
   const [searchKey, setSearchKey] = useState(0);
   const [searchTimedOut, setSearchTimedOut] = useState(false);
   const [bleReady, setBleReady] = useState(false);
+  const [consentVisible, setConsentVisible] = useState(false);
   const pendingConnectIdRef = useRef<string | null>(null);
+  const pendingConsentDeviceIdRef = useRef<string | null>(null);
+  /** 重新搜索时保留已有结果，避免结果页闪回搜索中态 */
+  const keepScanResultsRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,9 +118,11 @@ export default function EquipmentSearchPage() {
 
     let cancelled = false;
     setSearchTimedOut(false);
+    const clearResults = !keepScanResultsRef.current;
+    keepScanResultsRef.current = false;
 
     void (async () => {
-      await dispatch(startEquipmentScan());
+      await dispatch(startEquipmentScan({ clearResults }));
       if (cancelled) return;
     })();
 
@@ -139,23 +150,6 @@ export default function EquipmentSearchPage() {
     navigation.goBack();
   }, [boundDevices, navigation]);
 
-  const handleResearch = useCallback(() => {
-    setSearchTimedOut(false);
-    setSearchKey(key => key + 1);
-  }, []);
-
-  const handleConnect = useCallback(
-    async (deviceId: string) => {
-      if (isConnecting) return;
-      pendingConnectIdRef.current = String(deviceId);
-      const ok = await dispatch(connectEquipment(deviceId));
-      if (!ok) {
-        pendingConnectIdRef.current = null;
-      }
-    },
-    [dispatch, isConnecting],
-  );
-
   const connectedDeviceIds = useMemo(
     () => new Set(
       boundDevices.filter(item => item.connected).map(item => item.deviceId),
@@ -170,8 +164,62 @@ export default function EquipmentSearchPage() {
   const hasFound = visibleScannedDevices.length > 0;
   const showEmpty = searchTimedOut && !hasFound;
 
+  const handleResearch = useCallback(() => {
+    keepScanResultsRef.current = hasFound;
+    setSearchTimedOut(false);
+    setSearchKey(key => key + 1);
+  }, [hasFound]);
+
+  const doConnect = useCallback(
+    async (deviceId: string) => {
+      if (isConnecting) return;
+      pendingConnectIdRef.current = String(deviceId);
+      const ok = await dispatch(connectEquipment(deviceId));
+      if (!ok) {
+        pendingConnectIdRef.current = null;
+      }
+    },
+    [dispatch, isConnecting],
+  );
+
+  const handleConnect = useCallback(
+    async (deviceId: string) => {
+      if (isConnecting) return;
+      const consented = await loadHrConnectConsent();
+      if (!consented) {
+        pendingConsentDeviceIdRef.current = String(deviceId);
+        setConsentVisible(true);
+        return;
+      }
+      await doConnect(deviceId);
+    },
+    [doConnect, isConnecting],
+  );
+
+  const handleConsentAgree = useCallback(() => {
+    void (async () => {
+      await saveHrConnectConsent();
+      setConsentVisible(false);
+      const deviceId = pendingConsentDeviceIdRef.current;
+      pendingConsentDeviceIdRef.current = null;
+      if (deviceId) {
+        await doConnect(deviceId);
+      }
+    })();
+  }, [doConnect]);
+
+  const handleConsentDecline = useCallback(() => {
+    pendingConsentDeviceIdRef.current = null;
+    setConsentVisible(false);
+  }, []);
+
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
+      <HrDeviceConsentModal
+        visible={consentVisible}
+        onAgree={handleConsentAgree}
+        onDecline={handleConsentDecline}
+      />
       <ScrollView
         contentContainerStyle={[
           styles.content,

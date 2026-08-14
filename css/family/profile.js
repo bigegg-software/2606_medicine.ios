@@ -4,12 +4,60 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
   scroll: { paddingHorizontal: 12, paddingBottom: 40 },
-  modelTitle: {
-    marginTop: 14,
-    marginLeft: 17,
+  familyTabBar: {
+    marginTop: 10,
+    minHeight: 36,
+  },
+  familyTabBarInner: {
+    height: 36,
+  },
+  familyTabScrollWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
+  familyTabScroll: {
+    alignItems: 'center',
+  },
+  familyTabGap: {
+    marginLeft: 10,
+  },
+  familyTabSelected: {
+    height: 36,
+    minWidth: 52,
+    paddingBottom:4,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  familyTabSelectedText: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#FFFFFF',
+  },
+  familyTabUnselected: {
+    height: 32,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 500,
+    paddingHorizontal: 12,
+    marginBottom: 4,
+  },
+  familyTabUnselectedText: {
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#333333',
+  },
+  familyReadonly: {
+    flexShrink: 0,
+  },
+  familyReadonlyIcon: {
+    width: 15,
+    height: 15,
+  },
+  familyReadonlyText: {
+    marginLeft: 3,
     fontWeight: '500',
-    fontSize: 16,
-    color: AppTheme.textPrimary,
+    fontSize: 14,
+    color: '#333333',
   },
   familyBox: {
     marginTop: 10,
@@ -23,8 +71,7 @@ const styles = StyleSheet.create({
     paddingRight: 26,
   },
   familyItem: {
-    paddingVertical: 14,
-    height: 58,
+    paddingVertical: 20,
     borderBottomWidth: 1,
     borderColor: 'rgba(5,58,147,0.06)',
   },
@@ -53,48 +100,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#999999',
   },
-  familyListItem: {
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(5,58,147,0.06)',
+  headerSettingBtn: {
+    marginRight: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  familyListItemLast: {
-    borderBottomWidth: 0,
-  },
-  familyListAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  familyListNameRow: {
-    flexShrink: 1,
-  },
-  familyListName: {
-    fontWeight: '500',
-    fontSize: 15,
-    color: AppTheme.textPrimary,
-  },
-  familyListRelation: {
-    marginLeft: 6,
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-    overflow: 'hidden',
-    backgroundColor: 'rgba(109,146,94,0.12)',
-    fontWeight: 'bold',
-    fontSize: 11,
-    color: AppTheme.primaryColor,
-  },
-  familyListStatus: {
-    fontWeight: '500',
-    fontSize: 12,
-    color: '#999999',
-  },
-  familyListStatusOk: {
-    color: AppTheme.primaryColor,
-  },
-  familyListStatusFail: {
-    color: '#FB4550',
+  headerSettingIcon: {
+    width: 24,
+    height: 24,
   },
 });
 

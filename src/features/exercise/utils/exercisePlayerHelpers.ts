@@ -591,15 +591,41 @@ export async function loadExercisePlayerContext(params: {
   };
 }
 
-/** 训练播放页建议目标心率默认范围 */
-export const EXERCISE_HR_RANGE = { min: 100, max: 130 } as const;
+export type ExerciseHrRange = { min: number; max: number };
+
+/** 训练播放页建议目标心率默认范围（18~29 岁） */
+export const EXERCISE_HR_RANGE: ExerciseHrRange = { min: 100, max: 170 };
 
 export type ExerciseHeartRateZone = 'low' | 'normal' | 'high';
 
+/** 按出生日期计算周岁；无效则返回 null */
+export function resolveUserAgeYears(birthDate?: string | null): number | null {
+  const birthMoment = moment(birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+  if (!birthMoment.isValid()) return null;
+  const age = moment().diff(birthMoment, 'years');
+  return Number.isFinite(age) && age >= 0 ? age : null;
+}
+
+/**
+ * 按年龄段返回建议运动心率区间（次/分）。
+ * 无年龄或 <18 时走 18~29 默认档。
+ */
+export function resolveExerciseHrRangeByAge(age?: number | null): ExerciseHrRange {
+  if (age == null || !Number.isFinite(age) || age < 18) {
+    return { min: EXERCISE_HR_RANGE.min, max: EXERCISE_HR_RANGE.max };
+  }
+  if (age >= 70) return { min: 75, max: 128 };
+  if (age >= 60) return { min: 80, max: 136 };
+  if (age >= 50) return { min: 85, max: 145 };
+  if (age >= 40) return { min: 90, max: 153 };
+  if (age >= 30) return { min: 95, max: 162 };
+  return { min: 100, max: 170 };
+}
+
 export function getExerciseHeartRateZone(
   heartRate: number,
-  min = EXERCISE_HR_RANGE.min,
-  max = EXERCISE_HR_RANGE.max,
+  min: number = EXERCISE_HR_RANGE.min,
+  max: number = EXERCISE_HR_RANGE.max,
 ): ExerciseHeartRateZone {
   if (heartRate < min) return 'low';
   if (heartRate > max) return 'high';
@@ -609,7 +635,7 @@ export function getExerciseHeartRateZone(
 export function getExerciseHeartRateZoneLabel(zone: ExerciseHeartRateZone) {
   if (zone === 'low') return '心率偏低';
   if (zone === 'high') return '心率偏高';
-  return '正常';
+  return '心率正常';
 }
 
 export function getExerciseHeartRateBadgeLabel(zone: ExerciseHeartRateZone) {

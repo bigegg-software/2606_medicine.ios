@@ -257,6 +257,9 @@ const styles = StyleSheet.create({
     podiumInner: {},
     headImg: { width: 48, height: 48, borderRadius: 24, marginTop: 4, zIndex: 1 },
     headImgFirst: { width: 59, height: 59, borderRadius: 30, marginTop: 4 },
+    headImgBorderFirst: { borderWidth: 1, borderColor: '#FFC60F' },
+    headImgBorderSecond: { borderWidth: 1, borderColor: '#8093B7' },
+    headImgBorderThird: { borderWidth: 1, borderColor: '#FFC60F' },
     headBg: { width: "100%", height: 123, marginTop: -2, position: "relative" },
     headBgContent: { position: "absolute", top: 52, width: "100%" },
     headBgFirst: { width: "100%", height: 152, marginTop: -4 },
@@ -265,7 +268,7 @@ const styles = StyleSheet.create({
     avatarIcon: { width: 18, height: 18 },
     avatarValue: { fontWeight: 500, fontSize: 14, color: "#999999" },
     rankingItemBox: {
-        marginTop: 12,
+        marginTop: 8,
         paddingHorizontal: 24,
         paddingVertical: 14,
         backgroundColor: "#FEFFFF",
@@ -281,9 +284,8 @@ const styles = StyleSheet.create({
         color: "#A4A4A4",
     },
     rankNumWrap: {
-        width: 48,
-        justifyContent: 'center',
-        alignItems: 'flex-start',
+        marginLeft: 12,
+        marginRight: 18,
     },
     rankNumWrapUnlisted: {
         width: 52,
@@ -294,12 +296,10 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     rankNumText: {
-        width: 40,
         fontFamily: AppFonts.puHuiTiBold,
         fontSize: 22,
-        lineHeight: 28,
         color: '#A4A4A4',
-        textAlign: 'left',
+        textAlign: 'center',
         fontStyle: 'italic',
         transform: [{ skewX: '-12deg' }],
     },
@@ -313,10 +313,10 @@ const styles = StyleSheet.create({
         transform: [],
     },
     rankingItemText2: {
-        marginTop:4,
+        marginTop: 4,
         fontWeight: 500,
         fontSize: 13,
-        lineHeight:20,
+        lineHeight: 20,
         color: "#999999"
     },
     rankingPage: { flex: 1 },
@@ -331,9 +331,9 @@ const styles = StyleSheet.create({
         bottom: 0,
     },
     rankingMeItemBox: {
-        height: 70,
-        paddingHorizontal: 42,
+        paddingHorizontal: 18,
         paddingVertical: 14,
+        paddingBottom: 20,
         backgroundColor: "#FEFFFF",
         shadowColor: '#053A93',
         shadowOffset: { width: 0, height: -4 },
@@ -388,6 +388,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#999999",
         marginTop: 4,
+        paddingHorizontal:4,
         textAlign: "center"
     },
     rankingItemText4: {

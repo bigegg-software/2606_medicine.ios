@@ -22,7 +22,7 @@ const FAMILY_TAB_TITLES: Record<keyof FamilyTabParamList, string> = {
   FamilyHome: '首页',
   FamilyData: '数据',
   FamilyAlert: '预警',
-  FamilyProfile: '我的',
+  FamilyProfile: '我的档案',
 };
 
 const Tab = createBottomTabNavigator<FamilyTabParamList>();
@@ -68,12 +68,41 @@ export default function FamilyTabs() {
   const syncFamilyTabTitle = useCallback(
     (routeName: string) => {
       const title = FAMILY_TAB_TITLES[routeName as keyof FamilyTabParamList] ?? '首页';
-      if (routeName === 'FamilyAlert') {
-        navigation.setOptions({ title });
+
+      if (routeName === 'FamilyHome') {
+        navigation.setOptions({
+          title: '',
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTitle: () => null,
+          headerLeft: () => null,
+          headerRight: () => null,
+        });
         return;
       }
+
+      if (routeName === 'FamilyAlert') {
+        navigation.setOptions({
+          title,
+          headerTitle: undefined,
+          headerLeft: undefined,
+        });
+        return;
+      }
+
+      if (routeName === 'FamilyProfile') {
+        navigation.setOptions({
+          title: '我的档案',
+          headerTitle: undefined,
+          headerLeft: undefined,
+        });
+        return;
+      }
+
       navigation.setOptions({
         title,
+        headerTitle: undefined,
+        headerLeft: undefined,
         headerRight: () => null,
       });
     },
@@ -81,11 +110,8 @@ export default function FamilyTabs() {
   );
 
   useEffect(() => {
-    navigation.setOptions({
-      title: FAMILY_TAB_TITLES.FamilyHome,
-      headerRight: () => null,
-    });
-  }, [navigation]);
+    syncFamilyTabTitle('FamilyHome');
+  }, [syncFamilyTabTitle]);
 
   return (
     <Tab.Navigator

@@ -15,7 +15,7 @@ import moment from 'moment';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/home/home';
 import MiniProgressRing from './components/MiniProgressRing';
-import MiniSparkline from './components/MiniSparkline';
+import MiniVitalScatter from './components/MiniVitalScatter';
 import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
@@ -28,10 +28,10 @@ import {
   getMeasureDataDetailByDateRange,
   type MeasureDataItem,
   type MeasureDataRangeDetailResult,
+  type MeasureDataType,
 } from '@/api/measureData';
 import {
   getWearableDataDetailByDateRange,
-  WEARABLE_DATA_TYPES,
   type WearableDataItem,
   type WearableDataRangeResult,
   type WearableDataType,
@@ -40,18 +40,16 @@ import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/ap
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import { HEALTH_KIT_SYNC_COMPLETED } from '@/utils/healthKit';
 import {
-  buildSingleValueSeries,
-  buildWearableHeartRateSeries,
-  filterMeasureItemsInRange,
   flattenMeasureItems,
-  formatSingleValueFromItems,
   getDateRange,
-  getEnergySummary,
-  getHeartRateDisplay,
   normalizeMeasureRangeData,
   sortWearableItems,
 } from '@/src/features/profile/vitals/vitalsHelpers';
-import { resolveRestingHeartRateDisplay } from '@/src/features/profile/vitals/detail/helpers/heartRate';
+import {
+  resolveEnergyTarget,
+  resolveSleepTargetHours,
+  resolveStepTarget,
+} from '@/src/features/profile/vitals/detail/helpers/vitalsGoalTargets';
 import {
   calcNutritionProgress,
   getDietRuleSummary,
@@ -73,6 +71,13 @@ import {
   loadHomePrescriptionGoalDisplay,
   type HomePrescriptionGoalDisplay,
 } from '@/src/features/home/homePrescriptionGoalHelpers';
+import {
+  buildHomeBlurVitalCards,
+  collectHomeBlurVitalFetchPlan,
+  getHomeBlurVitalKeys,
+  HOME_BLUR_DEFAULT_DYNAMIC_KEY,
+} from '@/src/features/home/utils/homeBlurVitalHelpers';
+import { matchPersonalizedDynamicIndicator } from '@/api/personalizedDynamicIndicator';
 import { fetchInUsePrescription } from '@/store/actions/prescription';
 
 type Nav = CompositeNavigationProp<
@@ -85,14 +90,6 @@ const BLUR_CARD_RADIUS = 12;
 const BLUR_CARD_BORDER_WIDTH = 1;
 const BLUR_CARD_GRADIENT_COLORS = ['rgba(210, 231, 255, 0.01)', 'rgba(210, 231, 255, 0.7)'] as const;
 const CF_PROGRESS_TRACK_WIDTH = 70;
-const BLUR_CARD_ENERGY_TRACK_WIDTH = 74;
-
-function toSparklineValues(series: { value: number }[]) {
-  const values = series.map(point => point.value).filter(value => value > 0);
-  if (values.length >= 2) return values;
-  if (values.length === 1) return [values[0], values[0]];
-  return [];
-}
 
 type HomeMealKey = 'breakfast' | 'lunch' | 'dinner';
 
@@ -225,10 +222,9 @@ export default function HomeTab() {
   const [blurCardLayout, setBlurCardLayout] = useState({ width: 0, height: 0 });
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [todayMealList, setTodayMealList] = useState<MealDetailItem[]>([]);
-  const [bloodGlucose, setBloodGlucose] = useState<MeasureDataItem[]>([]);
-  const [wearableHeartRate, setWearableHeartRate] = useState<WearableDataItem[]>([]);
-  const [wearableRestingHeartRate, setWearableRestingHeartRate] = useState<WearableDataItem[]>([]);
-  const [wearableActiveEnergy, setWearableActiveEnergy] = useState<WearableDataItem[]>([]);
+  const [measureByType, setMeasureByType] = useState<Partial<Record<MeasureDataType, MeasureDataItem[]>>>({});
+  const [wearableByType, setWearableByType] = useState<Partial<Record<WearableDataType, WearableDataItem[]>>>({});
+  const [dynamicVitalType, setDynamicVitalType] = useState<string | null>(HOME_BLUR_DEFAULT_DYNAMIC_KEY);
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [homePrescriptionGoal, setHomePrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(null);
@@ -289,37 +285,33 @@ export default function HomeTab() {
   const proteinProgress = calcNutritionProgress(todayProtein, dietSummary.targetProtein);
   const carbsProgress = calcNutritionProgress(todayCarbs, dietSummary.targetCarbs);
 
-  const heartRate = useMemo(() => getHeartRateDisplay(wearableHeartRate), [wearableHeartRate]);
-  const heartRateSparkline = useMemo(
-    () => toSparklineValues(buildWearableHeartRateSeries(wearableHeartRate, 'today')),
-    [wearableHeartRate],
+  const blurVitalKeys = useMemo(
+    () => getHomeBlurVitalKeys(dynamicVitalType),
+    [dynamicVitalType],
   );
-  const restingHeartRate = useMemo(
-    () => resolveRestingHeartRateDisplay(wearableRestingHeartRate, 'today'),
-    [wearableRestingHeartRate],
+  const energyTarget = resolveEnergyTarget(userExtr?.energyGoals);
+  const stepTarget = resolveStepTarget(userExtr?.stepGoals);
+  const sleepTargetHours = resolveSleepTargetHours(userExtr?.sleepGoals);
+  const blurVitalCards = useMemo(
+    () =>
+      buildHomeBlurVitalCards(blurVitalKeys, {
+        measureByType,
+        wearableByType,
+        energyGoal: energyTarget,
+        stepGoal: stepTarget,
+        sleepGoalHours: sleepTargetHours,
+        userGender: user?.gender != null ? String(user.gender) : null,
+      }),
+    [
+      blurVitalKeys,
+      energyTarget,
+      measureByType,
+      sleepTargetHours,
+      stepTarget,
+      user?.gender,
+      wearableByType,
+    ],
   );
-
-  const glucose = useMemo(
-    () => formatSingleValueFromItems(bloodGlucose, '血糖', 'today'),
-    [bloodGlucose],
-  );
-  const glucoseSparkline = useMemo(
-    () => toSparklineValues(buildSingleValueSeries(bloodGlucose, 'today')),
-    [bloodGlucose],
-  );
-  const glucoseSubtitle = useMemo(() => {
-    const items = filterMeasureItemsInRange(bloodGlucose, 'today');
-    const latest = items[items.length - 1];
-    return latest?.measurementStatus?.trim() || '--';
-  }, [bloodGlucose]);
-
-  const energySummary = useMemo(
-    () => getEnergySummary(wearableActiveEnergy, [], 'today'),
-    [wearableActiveEnergy],
-  );
-  const energyTarget = userExtr?.energyGoals ?? 2000;
-  const energyTotal = energySummary.total === '--' ? 0 : Number(energySummary.total);
-  const blurCardEnergyProgress = calcNutritionProgress(energyTotal, energyTarget);
 
   const blurCardWidth = useMemo(() => windowWidth - 36, [windowWidth]);
   const blurViewProps = useMemo(
@@ -356,6 +348,23 @@ export default function HomeTab() {
   const loadVitalsData = useCallback(async () => {
     const { startDate, endDate } = getDateRange('today');
 
+    let dynamicType: string | null = HOME_BLUR_DEFAULT_DYNAMIC_KEY;
+    try {
+      const matchRes = await matchPersonalizedDynamicIndicator();
+      if (isResourceApiOk(matchRes as { code?: number })) {
+        const data = apiResourceData<{ type?: string | null }>(
+          matchRes as unknown as ApiResult<{ type?: string | null }>,
+        );
+        dynamicType = data?.type?.trim() || HOME_BLUR_DEFAULT_DYNAMIC_KEY;
+      }
+    } catch {
+      dynamicType = HOME_BLUR_DEFAULT_DYNAMIC_KEY;
+    }
+    setDynamicVitalType(dynamicType);
+
+    const keys = getHomeBlurVitalKeys(dynamicType);
+    const { measureTypes, wearableTypes } = collectHomeBlurVitalFetchPlan(keys);
+
     const fetchWearableItems = async (type: WearableDataType) => {
       try {
         const res = (await getWearableDataDetailByDateRange({
@@ -363,43 +372,46 @@ export default function HomeTab() {
           endDate,
           type,
         })) as unknown as WearableDataRangeResult;
-        if (!isResourceApiOk(res)) return [];
+        if (!isResourceApiOk(res)) return [] as WearableDataItem[];
         const data = apiResourceData<WearableDataItem[]>(res);
         return sortWearableItems(Array.isArray(data) ? data : []);
       } catch {
-        return [];
+        return [] as WearableDataItem[];
+      }
+    };
+
+    const fetchMeasureItems = async (type: MeasureDataType) => {
+      try {
+        const res = await getMeasureDataDetailByDateRange({
+          startDate,
+          endDate,
+          type,
+        });
+        if (!isResourceApiOk(res as { code?: number })) return [] as MeasureDataItem[];
+        const groups = normalizeMeasureRangeData(
+          apiResourceData<unknown>(res as unknown as MeasureDataRangeDetailResult),
+        );
+        return flattenMeasureItems(groups);
+      } catch {
+        return [] as MeasureDataItem[];
       }
     };
 
     try {
-      const [glucoseRes, heartRateItems, restingHeartRateItems, activeEnergyItems] = await Promise.all([
-        getMeasureDataDetailByDateRange({
-          startDate,
-          endDate,
-          type: '血糖',
-        }),
-        fetchWearableItems(WEARABLE_DATA_TYPES.heartRate),
-        fetchWearableItems(WEARABLE_DATA_TYPES.restingHeartRate),
-        fetchWearableItems(WEARABLE_DATA_TYPES.activeEnergy),
+      const [measureEntries, wearableEntries] = await Promise.all([
+        Promise.all(
+          measureTypes.map(async type => [type, await fetchMeasureItems(type)] as const),
+        ),
+        Promise.all(
+          wearableTypes.map(async type => [type, await fetchWearableItems(type)] as const),
+        ),
       ]);
 
-      if (isResourceApiOk(glucoseRes as { code?: number })) {
-        const groups = normalizeMeasureRangeData(
-          apiResourceData<unknown>(glucoseRes as unknown as MeasureDataRangeDetailResult),
-        );
-        setBloodGlucose(flattenMeasureItems(groups));
-      } else {
-        setBloodGlucose([]);
-      }
-
-      setWearableHeartRate(heartRateItems);
-      setWearableRestingHeartRate(restingHeartRateItems);
-      setWearableActiveEnergy(activeEnergyItems);
+      setMeasureByType(Object.fromEntries(measureEntries));
+      setWearableByType(Object.fromEntries(wearableEntries));
     } catch {
-      setBloodGlucose([]);
-      setWearableHeartRate([]);
-      setWearableRestingHeartRate([]);
-      setWearableActiveEnergy([]);
+      setMeasureByType({});
+      setWearableByType({});
     }
   }, []);
 
@@ -529,110 +541,38 @@ export default function HomeTab() {
               </TouchableOpacity>
             </View>
             <Flex justify='between' style={styles.blurCardContentListBox}>
-              <View style={styles.blurCardContentList}>
-                <View style={styles.blurCardListRow}>
-                  <TouchableOpacity onPress={() => setVitalInfoKey('心率')}>
-                    <Flex align="center">
-                      <Image source={require('@/assets/images/home/xl_Icon.png')} style={styles.blurCardListIcon} />
+              {blurVitalCards.map(card => (
+                <View key={card.key} style={styles.blurCardContentList}>
+                  <View style={styles.blurCardListRow}>
+                    <TouchableOpacity onPress={() => setVitalInfoKey(card.infoKey)}>
                       <Flex align="center">
-                        <Text style={styles.blurCardListText}>心率</Text>
-                        <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
+                        <Image source={card.icon} style={styles.blurCardListIcon} />
+                        <Flex align="center">
+                          <Text style={styles.blurCardListText}>{card.label}</Text>
+                          <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
+                        </Flex>
                       </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => navigation.navigate(card.route)}>
+                      <Flex style={{ flex: 1 }}>
+                        <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                      </Flex>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity onPress={() => navigation.navigate(card.route)}>
+                    <Flex align="end" style={styles.blurCardValueCol}>
+                      <Text style={styles.blurCardValue}>{card.value}</Text>
+                      <Text style={styles.blurCardUnit}>{card.unit}</Text>
                     </Flex>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => navigation.navigate('HeartRatePage')}>
-                    <Flex style={{ flex: 1 }}>
-                      <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
+                    <Flex align="center" style={styles.blurCardSparklineWrap}>
+                      {card.sparkline.length > 0 ? (
+                        <MiniVitalScatter data={card.sparkline} color={card.chartColor} />
+                      ) : null}
                     </Flex>
+                    <Text style={styles.blurCardValueText}>{card.subtitle}</Text>
                   </TouchableOpacity>
                 </View>
-                <TouchableOpacity onPress={() => navigation.navigate('HeartRatePage')}>
-                  <Flex align="end" style={styles.blurCardValueCol}>
-                    <Text style={styles.blurCardValue}>{heartRate.value}</Text>
-                    <Text style={styles.blurCardUnit}>次/分</Text>
-                  </Flex>
-                  <Flex align="center" style={styles.blurCardSparklineWrap}>
-                    {heartRateSparkline.length > 0 ? (
-                      <MiniSparkline data={heartRateSparkline} />
-                    ) : null}
-                  </Flex>
-                  <Text style={styles.blurCardValueText}>静息心率:{restingHeartRate}次/分</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.blurCardContentList} >
-                <View style={styles.blurCardListRow}>
-                  <TouchableOpacity onPress={() => setVitalInfoKey('卡路里')}>
-                    <Flex align="center">
-                      <Image source={require('@/assets/images/home/kll_Icon.png')} style={styles.blurCardListIcon} />
-                      <Flex align="center">
-                        <Text style={styles.blurCardListText}>卡路里</Text>
-                        <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
-                      </Flex>
-                    </Flex>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => navigation.navigate('ConsumptionPage')}>
-                    <Flex style={{ flex: 1 }}>
-                      <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
-                    </Flex>
-                  </TouchableOpacity>
-                </View>
-
-                <TouchableOpacity onPress={() => navigation.navigate('ConsumptionPage')}>
-                  <Flex align="end" style={styles.blurCardValueCol}>
-                    <Text style={styles.blurCardValue}>{energySummary.total}</Text>
-                    <Text style={styles.blurCardUnit}>千卡</Text>
-                  </Flex>
-                  <Flex align="center" style={styles.blurCardSparklineWrap}>
-                    <View style={styles.blurCardProgressTrack}>
-                      <View
-                        style={[
-                          styles.blurCardProgressFill,
-                          {
-                            width: Math.max(
-                              0,
-                              Math.min(
-                                BLUR_CARD_ENERGY_TRACK_WIDTH,
-                                (BLUR_CARD_ENERGY_TRACK_WIDTH * blurCardEnergyProgress) / 100,
-                              ),
-                            ),
-                          },
-                        ]}
-                      />
-                    </View>
-                  </Flex>
-                  <Text style={styles.blurCardValueText}>目标:{energyTarget}千卡</Text>
-                </TouchableOpacity>
-              </View>
-              <View style={styles.blurCardContentList}>
-                <View style={styles.blurCardListRow}>
-                  <TouchableOpacity onPress={() => setVitalInfoKey('血糖')}>
-                    <Flex align="center">
-                      <Image source={require('@/assets/images/home/xt_Icon.png')} style={styles.blurCardListIcon} />
-                      <Flex align="center">
-                        <Text style={styles.blurCardListText}>血糖</Text>
-                        <Image style={styles.blurCardInfoIcon} source={require('@/assets/images/home/info.png')} />
-                      </Flex>
-                    </Flex>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={() => navigation.navigate('BloodSugarPage')}>
-                    <Flex style={{ flex: 1 }}>
-                      <Image tintColor="#333333" style={styles.blurCardListMoreIcon} source={require('@/assets/images/home/more.png')} />
-                    </Flex>
-                  </TouchableOpacity>
-                </View>
-                <TouchableOpacity onPress={() => navigation.navigate('BloodSugarPage')}>
-                  <Flex align="end" style={styles.blurCardValueCol}>
-                    <Text style={styles.blurCardValue}>{glucose.value}</Text>
-                    <Text style={styles.blurCardUnit}>mmol/L</Text>
-                  </Flex>
-                  <Flex align="center" style={styles.blurCardSparklineWrap}>
-                    {glucoseSparkline.length > 0 ? (
-                      <MiniSparkline data={glucoseSparkline} color="#EE9C44" />
-                    ) : null}
-                  </Flex>
-                  <Text style={styles.blurCardValueText}>{glucoseSubtitle}</Text>
-                </TouchableOpacity>
-              </View>
+              ))}
             </Flex>
             {blurCardLayout.height > 0 ? (
               <Svg

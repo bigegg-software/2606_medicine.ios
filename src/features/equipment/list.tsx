@@ -50,7 +50,7 @@ export default function EquipmentListPage() {
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <View style={styles.body}>
         <View style={styles.banner}>
           <Image
             source={require('@/assets/images/equipment/back.png')}
@@ -73,82 +73,88 @@ export default function EquipmentListPage() {
           </Flex>
         </ImageBackground>
 
-        <View style={styles.deviceList}>
-          {boundDevices.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyText}>暂无已绑定设备，请点击下方添加</Text>
-            </View>
-          ) : (
-            boundDevices.map((item, index) => (
-              <TouchableOpacity
-                key={item.deviceId}
-                activeOpacity={0.75}
-                style={[
-                  styles.deviceCard,
-                  index === 0 ? styles.deviceCardFirst : null,
-                ]}
-                onPress={() =>
-                  navigation.navigate('EquipmentDetailPage', {
-                    id: String(item.deviceId),
-                  })
-                }>
-                <Image
-                  source={require('@/assets/images/equipment/logo.png')}
-                  style={styles.deviceLogo}
-                />
-                <View style={styles.deviceInfo}>
-                  <Text style={styles.deviceName} numberOfLines={1}>
-                    {item.name}
-                  </Text>
-                  <Flex align="center" style={styles.deviceStatusRow}>
-                    <View
-                      style={[
-                        styles.deviceStatusDot,
-                        item.connected
-                          ? styles.deviceStatusDotOn
-                          : styles.deviceStatusDotOff,
-                      ]}
-                    />
-                    <Text style={styles.deviceStatusText}>
-                      {item.connected ? '已连接' : '未连接'}
+        <ScrollView
+          style={styles.deviceScroll}
+          contentContainerStyle={styles.deviceScrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces>
+          <View style={styles.deviceList}>
+            {boundDevices.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>暂无已绑定设备，请点击下方添加</Text>
+              </View>
+            ) : (
+              boundDevices.map((item, index) => (
+                <TouchableOpacity
+                  key={item.deviceId}
+                  activeOpacity={0.75}
+                  style={[
+                    styles.deviceCard,
+                    index === 0 ? styles.deviceCardFirst : null,
+                  ]}
+                  onPress={() =>
+                    navigation.navigate('EquipmentDetailPage', {
+                      id: String(item.deviceId),
+                    })
+                  }>
+                  <Image
+                    source={require('@/assets/images/equipment/logo.png')}
+                    style={styles.deviceLogo}
+                  />
+                  <View style={styles.deviceInfo}>
+                    <Text style={styles.deviceName} numberOfLines={1}>
+                      {item.name}
                     </Text>
-                    {item.connected ? (
-                      <Flex align="center" style={styles.deviceBatteryWrap}>
-                        <View style={styles.deviceBatteryIcon}>
-                          <View style={styles.deviceBatteryFillTrack}>
-                            <View
-                              style={[
-                                styles.deviceBatteryFill,
-                                {
-                                  width: getBatteryFillWidth(item.batteryPercent),
-                                  backgroundColor: getBatteryFillColor(
-                                    item.batteryPercent,
-                                  ),
-                                },
-                              ]}
+                    <Flex align="center" style={styles.deviceStatusRow}>
+                      <View
+                        style={[
+                          styles.deviceStatusDot,
+                          item.connected
+                            ? styles.deviceStatusDotOn
+                            : styles.deviceStatusDotOff,
+                        ]}
+                      />
+                      <Text style={styles.deviceStatusText}>
+                        {item.connected ? '已连接' : '未连接'}
+                      </Text>
+                      {item.connected ? (
+                        <Flex align="center" style={styles.deviceBatteryWrap}>
+                          <View style={styles.deviceBatteryIcon}>
+                            <View style={styles.deviceBatteryFillTrack}>
+                              <View
+                                style={[
+                                  styles.deviceBatteryFill,
+                                  {
+                                    width: getBatteryFillWidth(item.batteryPercent),
+                                    backgroundColor: getBatteryFillColor(
+                                      item.batteryPercent,
+                                    ),
+                                  },
+                                ]}
+                              />
+                            </View>
+                            <Image
+                              source={require('@/assets/images/equipment/icon_battery.png')}
+                              style={styles.deviceBatteryOutline}
                             />
                           </View>
-                          <Image
-                            source={require('@/assets/images/equipment/icon_battery.png')}
-                            style={styles.deviceBatteryOutline}
-                          />
-                        </View>
-                        <Text style={styles.deviceBatteryText}>
-                          {clampBatteryPercent(item.batteryPercent)}%
-                        </Text>
-                      </Flex>
-                    ) : null}
-                  </Flex>
-                </View>
-                <Image
-                  source={require('@/assets/images/equipment/icon_right.png')}
-                  style={styles.deviceArrow}
-                />
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
-      </ScrollView>
+                          <Text style={styles.deviceBatteryText}>
+                            {clampBatteryPercent(item.batteryPercent)}%
+                          </Text>
+                        </Flex>
+                      ) : null}
+                    </Flex>
+                  </View>
+                  <Image
+                    source={require('@/assets/images/equipment/icon_right.png')}
+                    style={styles.deviceArrow}
+                  />
+                </TouchableOpacity>
+              ))
+            )}
+          </View>
+        </ScrollView>
+      </View>
 
       <Flex
         style={[

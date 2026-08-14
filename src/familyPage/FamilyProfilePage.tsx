@@ -3,6 +3,7 @@ import {
   View,
   Text,
   Image,
+  ImageBackground,
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
@@ -23,15 +24,16 @@ import { getFamilyBindMyList, type FamilyBindItem } from '@/api/familyBind';
 import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
 import type { DictDataItem } from '@/api/dict';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
-import { getFamilyBindStatusMeta } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
-import {
-  getChildFamilyDisplayName,
-  getChildFamilySubtitle,
-} from './utils/familyProfileHelpers';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/family/profile';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+function getFamilyTabKey(item: FamilyBindItem, index: number) {
+  if (item.id != null) return String(item.id);
+  if (item.patientUserId != null) return String(item.patientUserId);
+  return `family-${index}`;
+}
 
 export default function FamilyProfilePage() {
   const navigation = useNavigation<Nav>();
@@ -39,8 +41,9 @@ export default function FamilyProfilePage() {
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
   const [loadingFamily, setLoadingFamily] = useState(true);
-  const [familyList, setFamilyList] = useState<FamilyBindItem[]>([]);
+  const [familyList, setFamilyList] = useState<FamilyBindItem[]>([{},{}]);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
+  const [selectedFamilyKey, setSelectedFamilyKey] = useState<string | null>(null);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
 
   useEffect(() => {
@@ -67,11 +70,19 @@ export default function FamilyProfilePage() {
   const loadFamilyList = useCallback(async () => {
     setLoadingFamily(true);
     try {
-      const res = await getFamilyBindMyList();
-      const data = apiResourceData(res as unknown as ApiResult<FamilyBindItem[]>) ?? [];
-      setFamilyList(Array.isArray(data) ? data : []);
+      // const res = await getFamilyBindMyList();
+      // const data = apiResourceData(res as unknown as ApiResult<FamilyBindItem[]>) ?? [];
+      // const list = Array.isArray(data) ? data : [];
+      // setFamilyList(list);
+      // setSelectedFamilyKey(prev => {
+      //   if (prev && list.some((item, index) => getFamilyTabKey(item, index) === prev)) {
+      //     return prev;
+      //   }
+      //   return list.length ? getFamilyTabKey(list[0], 0) : null;
+      // });
     } catch {
       setFamilyList([]);
+      setSelectedFamilyKey(null);
     } finally {
       setLoadingFamily(false);
     }
@@ -81,6 +92,30 @@ export default function FamilyProfilePage() {
     useCallback(() => {
       void loadFamilyList();
     }, [loadFamilyList]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      const parent = navigation.getParent();
+      parent?.setOptions({
+        headerRight: () => (
+          <TouchableOpacity
+            style={styles.headerSettingBtn}
+            activeOpacity={0.8}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            onPress={() => navigation.navigate('NotificationSettingPage')}
+          >
+            <Image
+              source={require('@/assets/family/profile/icon_sys.png')}
+              style={styles.headerSettingIcon}
+            />
+          </TouchableOpacity>
+        ),
+      });
+      return () => {
+        parent?.setOptions({ headerRight: undefined });
+      };
+    }, [navigation]),
   );
 
   const switchToUserPerspective = useCallback(async () => {
@@ -105,8 +140,7 @@ export default function FamilyProfilePage() {
   return (
     <TabPageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.modelTitle}>家人列表</Text>
-        <View style={styles.familyBox}>
+        <View style={styles.familyTabBar}>
           {loadingFamily ? (
             <View style={styles.familyListEmpty}>
               <ActivityIndicator color={AppTheme.primaryColor} />
@@ -116,61 +150,55 @@ export default function FamilyProfilePage() {
               <Text style={styles.familyListEmptyText}>暂无绑定家人</Text>
             </View>
           ) : (
-            familyList.map((item, index) => {
-              const relationLabel =
-                relationLabelMap[String(item.relationType ?? '')] ||
-                item.relationType ||
-                '家人';
-              const status = getFamilyBindStatusMeta(item.bindStatus);
-              const isLast = index === familyList.length - 1;
-              return (
-                <TouchableOpacity
-                  key={item.id != null ? String(item.id) : `${item.patientUserId}-${index}`}
-                  activeOpacity={0.8}
-                  onPress={() => {
-                    if (item.id == null) return;
-                    navigation.navigate('FamilyBindInvitePage', { id: String(item.id) });
-                  }}
-                >
-                  <Flex
-                    align="center"
-                    justify="between"
-                    style={[styles.familyListItem, isLast && styles.familyListItemLast]}
-                  >
-                    <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
-                      <Image
-                        style={styles.familyListAvatar}
-                        source={require('@/assets/images/family/family.png')}
-                      />
-                      <View style={[styles.familyItemContent, { flex: 1, minWidth: 0 }]}>
-                        <Flex align="center" style={styles.familyListNameRow}>
-                          <Text style={styles.familyListName} numberOfLines={1}>
-                            {getChildFamilyDisplayName(item)}
-                          </Text>
-                          <Text style={styles.familyListRelation}>{relationLabel}</Text>
-                        </Flex>
-                        <Text style={styles.familyItemRelation} numberOfLines={1}>
-                          {getChildFamilySubtitle(item)}
-                        </Text>
-                      </View>
-                    </Flex>
-                    <Text
-                      style={[
-                        styles.familyListStatus,
-                        status.authorized && styles.familyListStatusOk,
-                        !status.authorized && !status.pending && styles.familyListStatusFail,
-                      ]}
+            <Flex align="center" justify="between" style={styles.familyTabBarInner}>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.familyTabScroll}
+                style={styles.familyTabScrollWrap}
+              >
+                {familyList.map((item, index) => {
+                  const key = getFamilyTabKey(item, index);
+                  const label =
+                    relationLabelMap[String(item.relationType ?? '')] ||
+                    item.relationType ||
+                    '家人';
+                  const selected = selectedFamilyKey === key;
+                  return (
+                    <TouchableOpacity
+                      key={key}
+                      activeOpacity={0.85}
+                      onPress={() => setSelectedFamilyKey(key)}
+                      style={index > 0 ? styles.familyTabGap : undefined}
                     >
-                      {status.label}
-                    </Text>
-                  </Flex>
-                </TouchableOpacity>
-              );
-            })
+                      {selected ? (
+                        <ImageBackground
+                          source={require('@/assets/family/profile/icon_select.png')}
+                          style={styles.familyTabSelected}
+                          resizeMode="stretch"
+                        >
+                          <Text style={styles.familyTabSelectedText}>{label}</Text>
+                        </ImageBackground>
+                      ) : (
+                        <Flex style={styles.familyTabUnselected}>
+                          <Text style={styles.familyTabUnselectedText}>{label}</Text>
+                        </Flex>
+                      )}
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+              <Flex align="center" style={styles.familyReadonly}>
+                <Image
+                  source={require('@/assets/family/profile/icon_sz.png')}
+                  style={styles.familyReadonlyIcon}
+                />
+                <Text style={styles.familyReadonlyText}>只读</Text>
+              </Flex>
+            </Flex>
           )}
         </View>
 
-        <Text style={styles.modelTitle}>设置</Text>
         <View style={styles.familyBox}>
           <TouchableOpacity
             onPress={switchToUserPerspective}

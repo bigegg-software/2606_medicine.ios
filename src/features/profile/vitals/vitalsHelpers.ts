@@ -275,6 +275,32 @@ export function buildSingleValueSeries(items: MeasureDataItem[], range: VitalsRa
   });
 }
 
+/** 血脂卡片图：用总胆固醇 TC（xuezhiTc / val） */
+export function buildBloodLipidTcSeries(items: MeasureDataItem[], range: VitalsRange): LabeledValue[] {
+  const rangedItems = filterMeasureItemsInRange(items, range);
+  if (range === 'today') {
+    return rangedItems.map(item => {
+      const ts = getItemTimestamp(item);
+      return {
+        label: ts.format('HH:mm'),
+        value: parseMeasureNumber(item.xuezhiTc ?? item.val) ?? 0,
+        x: mapTimeToTodayChartX(ts.hour(), ts.minute()),
+      };
+    });
+  }
+
+  const labels = getChartLabels(range);
+  return labels.map((label, index) => {
+    const bucketItems = pickBucketItems(rangedItems, range, index, labels.length);
+    const latest = getLatestItem(bucketItems);
+    return { label, value: parseMeasureNumber(latest?.xuezhiTc ?? latest?.val) ?? 0 };
+  });
+}
+
+export function getBloodLipidTcPointColor(value: number) {
+  return getLevelColor(getTotalCholesterolStatusLabel(value));
+}
+
 export function buildBloodGlucoseSeriesFromItems(
   items: MeasureDataItem[],
   range: VitalsRange,

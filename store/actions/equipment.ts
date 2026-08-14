@@ -53,7 +53,7 @@ export const prepareEquipmentSdk = () => async () => {
 };
 
 export const startEquipmentScan =
-  (options?: { autoStopMs?: number }) => async () => {
+  (options?: { autoStopMs?: number; clearResults?: boolean }) => async () => {
     return startPolarEquipmentScan(options);
   };
 

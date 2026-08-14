@@ -17,6 +17,7 @@ import BloodPressureChart from '../components/BloodPressureChart';
 import BloodGlucoseChart from '../components/BloodGlucoseChart';
 import BloodOxygenChart from '../components/BloodOxygenChart';
 import BodyTemperatureChart from '../components/BodyTemperatureChart';
+import BloodLipidChart from '../components/BloodLipidChart';
 import HeartRateChart from '../components/HeartRateChart';
 import WeightChart from '../components/WeightChart';
 import UricAcidChart from '../components/UricAcidChart';
@@ -96,6 +97,7 @@ import {
   getWearableReturnOriginalDataParam,
   sortWearableItems,
   toHourPoints,
+  buildBloodLipidTcSeries,
   VITAL_KEYS,
   type VitalsRange,
 } from './vitalsHelpers';
@@ -560,6 +562,17 @@ export default function VitalsPage() {
         : formatBloodLipidsFromItems(measureData.bloodLipids, activeNav),
     [activeNav, latestMeasure.bloodLipids, measureData.bloodLipids],
   );
+  const bloodLipidsSeries = useMemo(
+    () => buildBloodLipidTcSeries(measureData.bloodLipids, activeNav),
+    [measureData.bloodLipids, activeNav],
+  );
+  const bloodLipidsDataTime = useMemo(
+    () =>
+      activeNav === 'today'
+        ? formatMeasureDataTime(latestMeasure.bloodLipids)
+        : getLatestMeasureDataTime(measureData.bloodLipids, activeNav),
+    [activeNav, latestMeasure.bloodLipids, measureData.bloodLipids],
+  );
 
   const weightSeries = useMemo(
     () => buildSingleValueSeries(weightData, activeNav),
@@ -596,7 +609,11 @@ export default function VitalsPage() {
       血氧: { key: '血氧', status: bloodOxygen.status, statusColor: bloodOxygen.statusColor },
       体温: { key: '体温', status: bodyTemperature.status, statusColor: bodyTemperature.statusColor },
       体重: { key: '体重', status: weight.status, statusColor: weight.statusColor },
-      血脂: { key: '血脂', status: bloodLipids.status, statusColor: bloodLipids.statusColor },
+      血脂: {
+        key: '血脂',
+        status: bloodLipids.tcStatus,
+        statusColor: bloodLipids.tcStatusColor,
+      },
       尿酸: { key: '尿酸', status: uricAcid.statusLabel, statusColor: uricAcid.statusColor },
     };
     return orderedVitalKeys.map(key => ({
@@ -623,8 +640,8 @@ export default function VitalsPage() {
     bodyTemperature.statusColor,
     weight.status,
     weight.statusColor,
-    bloodLipids.status,
-    bloodLipids.statusColor,
+    bloodLipids.tcStatus,
+    bloodLipids.tcStatusColor,
     uricAcid.statusLabel,
     uricAcid.statusColor,
   ]);
@@ -808,71 +825,25 @@ export default function VitalsPage() {
         );
       case '血脂':
         return (
-          <View style={styles.vCard}>
-            <Flex justify="between" align="center">
-              <Flex>
-                <Image source={require('@/assets/images/vitals/icon_xz.png')} style={styles.vIcon} />
-                <Text style={styles.vLabel}>血脂</Text>
-              </Flex>
-              <Flex>
-                <TouchableOpacity onPress={() => navigation.navigate('AddDataPage', { type: '血脂' })}>
-                  <Text style={styles.vMore}>新增记录</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => navigation.navigate('AllDataPage', { type: '血脂' })}>
-                  <Text style={styles.vMore}>全部记录</Text>
-                </TouchableOpacity>
-              </Flex>
-            </Flex>
-            <TouchableOpacity onPress={() => navigation.navigate('BloodLipidPage')}>
-              <Flex style={styles.vValueBox} justify="between" align="center">
-                <View>
-                  <Text style={styles.vUnit}>总胆固醇 TC</Text>
-                  <Text style={styles.vValue}>{bloodLipids.tcValue}</Text>
-                  <Text style={styles.vUnit}>mmol/L</Text>
-                  {bloodLipids.tcStatus ? (
-                    <Text style={[styles.vStatus, { color: bloodLipids.tcStatusColor }]}>
-                      {bloodLipids.tcStatus}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.vRightBox}>
-                  <Flex justify="between" style={{ marginBottom: 6 }}>
-                    <Text style={styles.vText1}>TG</Text>
-                    <Flex align="center">
-                      <Text style={styles.vText2}>{bloodLipids.tgValue}</Text>
-                      {bloodLipids.tgStatus ? (
-                        <Text style={[styles.vStatus, { marginLeft: 6, color: bloodLipids.tgStatusColor }]}>
-                          {bloodLipids.tgStatus}
-                        </Text>
-                      ) : null}
-                    </Flex>
-                  </Flex>
-                  <Flex justify="between" style={{ marginBottom: 6 }}>
-                    <Text style={styles.vText1}>HDL-C</Text>
-                    <Flex align="center">
-                      <Text style={styles.vText2}>{bloodLipids.hdlValue}</Text>
-                      {bloodLipids.hdlStatus ? (
-                        <Text style={[styles.vStatus, { marginLeft: 6, color: bloodLipids.hdlStatusColor }]}>
-                          {bloodLipids.hdlStatus}
-                        </Text>
-                      ) : null}
-                    </Flex>
-                  </Flex>
-                  <Flex justify="between">
-                    <Text style={styles.vText1}>LDL-C</Text>
-                    <Flex align="center">
-                      <Text style={styles.vText2}>{bloodLipids.ldlValue}</Text>
-                      {bloodLipids.ldlStatus ? (
-                        <Text style={[styles.vStatus, { marginLeft: 6, color: bloodLipids.ldlStatusColor }]}>
-                          {bloodLipids.ldlStatus}
-                        </Text>
-                      ) : null}
-                    </Flex>
-                  </Flex>
-                </View>
-              </Flex>
-            </TouchableOpacity>
-          </View>
+          <VitalCard
+            label="血脂"
+            icon={require('@/assets/images/vitals/icon_xz.png')}
+            unit="TC mmol/L"
+            value={bloodLipids.tcValue}
+            status={bloodLipids.tcStatus}
+            statusColor={bloodLipids.tcStatusColor}
+            dataTime={bloodLipidsDataTime}
+            onAdd={() => navigation.navigate('AddDataPage', { type: '血脂' })}
+            onAll={() => navigation.navigate('AllDataPage', { type: '血脂' })}
+            onPress={() => navigation.navigate('BloodLipidPage')}
+            chart={
+              <BloodLipidChart
+                data={toHourPoints(bloodLipidsSeries)}
+                labels={chartLabels}
+                hideXAxis
+              />
+            }
+          />
         );
       case '尿酸':
         return (
@@ -893,6 +864,8 @@ export default function VitalsPage() {
     }
   }, [
     bloodLipids,
+    bloodLipidsDataTime,
+    bloodLipidsSeries,
     bloodOxygen,
     bloodOxygenDataTime,
     bloodOxygenSeries,

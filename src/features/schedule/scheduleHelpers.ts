@@ -1297,7 +1297,7 @@ export const HISTORY_PLAN_FILTER_OPTIONS: { label: string; value: HistoryPlanFil
   { label: '全部', value: 'all' },
   { label: '进行中', value: 'inProgress' },
   { label: '已暂停', value: 'paused' },
-  { label: '已结束', value: 'ended' },
+  { label: '已完成', value: 'ended' },
 ];
 
 export async function fetchHistoryPlanPage(

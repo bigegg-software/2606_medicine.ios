@@ -129,13 +129,17 @@ export default function ScheduleHistoryPage() {
   return (
     <PageLayout style={styles.container} contentStyle={styles.historyPageBody}>
       <View style={styles.historyFilterSection}>
-        <View style={styles.filterRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
           {HISTORY_PLAN_FILTER_OPTIONS.map(option => {
             const active = filter === option.value;
             return (
               <TouchableOpacity
                 key={option.value}
-                activeOpacity={0.7}
+                activeOpacity={0.85}
                 style={[styles.filterItem, active && styles.filterItemActive]}
                 onPress={() => handleFilterChange(option.value)}
               >
@@ -145,7 +149,7 @@ export default function ScheduleHistoryPage() {
               </TouchableOpacity>
             );
           })}
-        </View>
+        </ScrollView>
       </View>
 
       <ScrollView

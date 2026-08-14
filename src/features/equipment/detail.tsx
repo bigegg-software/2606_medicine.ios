@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
@@ -20,6 +20,11 @@ import {
   resolveEquipmentProductName,
 } from './utils/equipmentHelpers';
 import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
+import {
+  loadHrConnectConsent,
+  saveHrConnectConsent,
+} from './utils/equipmentStorage';
+import HrDeviceConsentModal from './components/HrDeviceConsentModal';
 import styles from '@/css/equipment/detail';
 
 type Route = RouteProp<RootStackParamList, 'EquipmentDetailPage'>;
@@ -45,6 +50,8 @@ export default function EquipmentDetailPage() {
   const connectingDeviceId = useSelector(
     (state: RootState) => state.equipment.connectingDeviceId,
   );
+  const [consentVisible, setConsentVisible] = useState(false);
+  const pendingConsentRef = useRef(false);
 
   useEffect(() => {
     void (async () => {
@@ -113,19 +120,53 @@ export default function EquipmentDetailPage() {
     ]);
   };
 
-  const onToggleConnect = () => {
+  const doConnect = useCallback(() => {
+    if (isConnecting) return;
+    void dispatch(connectEquipment(deviceId));
+  }, [deviceId, dispatch, isConnecting]);
+
+  const onToggleConnect = useCallback(() => {
     if (isConnecting) return;
     if (connected) {
       void dispatch(disconnectEquipment(deviceId));
       return;
     }
-    void dispatch(connectEquipment(deviceId));
-  };
+    void (async () => {
+      const consented = await loadHrConnectConsent();
+      if (!consented) {
+        pendingConsentRef.current = true;
+        setConsentVisible(true);
+        return;
+      }
+      doConnect();
+    })();
+  }, [connected, deviceId, dispatch, doConnect, isConnecting]);
+
+  const handleConsentAgree = useCallback(() => {
+    void (async () => {
+      await saveHrConnectConsent();
+      setConsentVisible(false);
+      if (pendingConsentRef.current) {
+        pendingConsentRef.current = false;
+        doConnect();
+      }
+    })();
+  }, [doConnect]);
+
+  const handleConsentDecline = useCallback(() => {
+    pendingConsentRef.current = false;
+    setConsentVisible(false);
+  }, []);
 
   if (!device) return null;
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
+      <HrDeviceConsentModal
+        visible={consentVisible}
+        onAgree={handleConsentAgree}
+        onDecline={handleConsentDecline}
+      />
       <ScrollView contentContainerStyle={styles.content}>
         <Image
           source={require('@/assets/images/equipment/detail.png')}

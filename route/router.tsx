@@ -465,7 +465,7 @@ export default function RootStack() {
       <Stack.Screen
         name="FamilyTabs"
         component={FamilyTabs}
-        options={{ title: '首页', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
+        options={{ title: '', headerTransparent: true, headerStyle: { backgroundColor: 'transparent' } }}
       />
       <Stack.Screen name="ExercisePage" component={ExercisePage} options={{ title: "运动处方" }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailPage} options={{ title: "" }} />

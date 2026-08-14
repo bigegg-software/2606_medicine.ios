@@ -178,6 +178,8 @@ export async function initPolarEquipmentSdk() {
 export async function startPolarEquipmentScan(options?: {
   /** 自动停扫毫秒；默认不自动停，由页面超时/重搜控制 */
   autoStopMs?: number;
+  /** 是否清空已扫到的设备；重新搜索时传 false，避免结果页闪一下 */
+  clearResults?: boolean;
 }) {
   const ready = await ensureEquipmentBluetoothReady();
   if (!ready.ok) {
@@ -187,7 +189,9 @@ export async function startPolarEquipmentScan(options?: {
 
   ensurePolarEquipmentListeners();
   clearScanAutoStop();
-  dispatch({ type: CLEAR_SCANNED_DEVICES });
+  if (options?.clearResults !== false) {
+    dispatch({ type: CLEAR_SCANNED_DEVICES });
+  }
   dispatch({ type: SET_EQUIPMENT_SCANNING, payload: true });
 
   const ok = await PolarBle.startScan();
