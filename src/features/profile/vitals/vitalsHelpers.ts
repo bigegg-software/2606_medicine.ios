@@ -393,7 +393,7 @@ export function getLevelLabel(item?: MeasureDataItem) {
 
 export function formatMeasureDisplay(item: MeasureDataItem | undefined, type: VitalsMeasureType) {
   if (!item) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
 
   const levelLabel = getLevelLabel(item);
@@ -498,9 +498,9 @@ export function formatUricAcidFromItems(
   if (val == null) {
     return {
       value: '--',
-      status: '',
+      status: '暂无数据',
       statusColor: '#999999',
-      statusLabel: '',
+      statusLabel: '暂无数据',
       recordTime: '',
     };
   }
@@ -552,15 +552,15 @@ export function formatBloodLipidsFromItems(items: MeasureDataItem[], range: Vita
       tgValue: '--',
       hdlValue: '--',
       ldlValue: '--',
-      tcStatus: '',
-      tgStatus: '',
-      hdlStatus: '',
-      ldlStatus: '',
+      tcStatus: '暂无数据',
+      tgStatus: '暂无数据',
+      hdlStatus: '暂无数据',
+      ldlStatus: '暂无数据',
       tcStatusColor: '#999999',
       tgStatusColor: '#999999',
       hdlStatusColor: '#999999',
       ldlStatusColor: '#999999',
-      status: '',
+      status: '暂无数据',
       statusColor: '#999999',
     };
   }
@@ -868,7 +868,7 @@ export const SLEEP_SCORE_QUALITY_TIERS = [
 
 export function getSleepScoreQuality(score?: number | null) {
   if (score == null || !Number.isFinite(score)) {
-    return { label: '', color: '#999999', description: '暂无睡眠质量数据' };
+    return { label: '暂无数据', color: '#999999', description: '暂无睡眠质量数据' };
   }
 
   const normalized = Math.max(0, Math.min(100, score));
@@ -883,7 +883,7 @@ export function getSleepScoreQuality(score?: number | null) {
 }
 
 export function getSleepQuality(item?: WearableDataItem) {
-  if (!item) return { label: '', color: '#999999' };
+  if (!item) return { label: '暂无数据', color: '#999999' };
   if (item.isHigh === 1) return { label: '偏高', color: '#EE9C44' };
   if (item.isLow === 1) return { label: '偏低', color: '#72A1C5' };
   const score = parseMeasureNumber(item.sqsScore);
@@ -1061,7 +1061,7 @@ function isIncrementalEnergyDay(activeItems: WearableDataItem[], basalItems: Wea
   const checkItems = (items: WearableDataItem[], field: 'activeEnergyBurned' | 'basalEnergyBurned') => {
     const item = getLatestWearableItem(items);
     if (!item) return null;
-    const fieldValue = Math.round(parseMeasureNumber(item[field]) ?? 0);
+    const fieldValue = roundEnergyValue(parseMeasureNumber(item[field]) ?? 0);
     const values = flattenWearableOriginalData(item)
       .map(reading => parseMeasureNumber(reading.value) ?? 0)
       .filter(value => value > 0);
@@ -1460,7 +1460,7 @@ export function getBloodOxygenDisplay(items: WearableDataItem[]) {
   const item = getTodayWearableItem(items) ?? getLatestWearableItem(items);
   const value = latestReading?.value ?? parseWearableOxygenValue(item);
   if (value == null) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
 
   let status = '正常';
@@ -1489,7 +1489,7 @@ export function getHeartRateDisplay(items: WearableDataItem[]) {
   const item = getTodayWearableItem(items) ?? getLatestWearableItem(items);
   const value = latestReading?.value ?? parseWearableHeartRateValue(item);
   if (value == null) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
 
   const { status, statusColor } = formatHeartRateValueStatus(value);
@@ -1597,7 +1597,7 @@ export function formatHeartRateFromItem(item?: WearableDataItem) {
   const latestReading = readings.length ? readings[readings.length - 1] : undefined;
   const value = latestReading?.value ?? parseWearableHeartRateValue(item);
   if (value == null) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
   const { status, statusColor } = formatHeartRateStatus(item, value);
   return { value: String(value), status, statusColor };
@@ -1608,7 +1608,7 @@ export function formatBloodOxygenFromItem(item?: WearableDataItem) {
   const latestReading = readings.length ? readings[readings.length - 1] : undefined;
   const value = latestReading?.value ?? parseWearableOxygenValue(item);
   if (value == null) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
   const { status, statusColor } = formatBloodOxygenStatus(item, value);
   return { value: String(value), status, statusColor };

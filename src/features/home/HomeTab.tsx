@@ -15,6 +15,7 @@ import moment from 'moment';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/home/home';
 import MiniProgressRing from './components/MiniProgressRing';
+import MiniVitalBars from './components/MiniVitalBars';
 import MiniVitalScatter from './components/MiniVitalScatter';
 import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
@@ -561,12 +562,22 @@ export default function HomeTab() {
                   </View>
                   <TouchableOpacity onPress={() => navigation.navigate(card.route)}>
                     <Flex align="end" style={styles.blurCardValueCol}>
-                      <Text style={styles.blurCardValue}>{card.value}</Text>
+                      <Text
+                        style={[
+                          styles.blurCardValue,
+                          card.key === '血压' && styles.blurCardValueBp,
+                        ]}>
+                        {card.value}
+                      </Text>
                       <Text style={styles.blurCardUnit}>{card.unit}</Text>
                     </Flex>
                     <Flex align="center" style={styles.blurCardSparklineWrap}>
                       {card.sparkline.length > 0 ? (
-                        <MiniVitalScatter data={card.sparkline} color={card.chartColor} />
+                        card.chartKind === 'bar' ? (
+                          <MiniVitalBars data={card.sparkline} color={card.chartColor} />
+                        ) : (
+                          <MiniVitalScatter data={card.sparkline} color={card.chartColor} />
+                        )
                       ) : null}
                     </Flex>
                     <Text style={styles.blurCardValueText}>{card.subtitle}</Text>

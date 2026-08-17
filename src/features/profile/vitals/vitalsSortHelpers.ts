@@ -54,13 +54,23 @@ export function normalizeVitalsSortItems(items?: VitalsSortItem[] | null): Vital
   const order = resolveVitalsDisplayOrder(items?.map(item => item.key));
   const itemMap = new Map((items ?? []).map(item => [item.key, item]));
 
-  return order.map(key => itemMap.get(key) ?? {
-    key,
-    status: '',
-    statusColor: '#999999',
+  return order.map(key => {
+    const existing = itemMap.get(key);
+    if (!existing) {
+      return { key, status: '暂无数据', statusColor: '#999999' };
+    }
+    const status = formatVitalsSortStatus(existing.status);
+    return {
+      key,
+      status,
+      statusColor: status === '暂无数据' ? '#999999' : (existing.statusColor || '#999999'),
+    };
   });
 }
 
+/** 排序页状态文案：无数据统一为「暂无数据」（对齐消耗/步数） */
 export function formatVitalsSortStatus(status?: string) {
-  return status?.replace(/^・/, '').trim() ?? '';
+  const text = status?.replace(/^・/, '').trim() ?? '';
+  if (!text || text === '--') return '暂无数据';
+  return text;
 }

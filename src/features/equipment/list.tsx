@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Image,
   ImageBackground,
@@ -25,6 +25,11 @@ import {
   getBatteryFillWidth,
 } from './utils/equipmentHelpers';
 import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
+import {
+  loadHrConnectConsent,
+  saveHrConnectConsent,
+} from './utils/equipmentStorage';
+import HrDeviceConsentModal from './components/HrDeviceConsentModal';
 import styles from '@/css/equipment/list';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -39,17 +44,46 @@ export default function EquipmentListPage() {
   const boundDevices = useSelector(
     (state: RootState) => state.equipment.boundDevices,
   );
+  const [consentVisible, setConsentVisible] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     void (async () => {
+      const consented = await loadHrConnectConsent();
+      if (cancelled) return;
+      if (!consented) {
+        setConsentVisible(true);
+      }
       await ensureEquipmentBluetoothReady();
       await dispatch(hydrateEquipment());
       await dispatch(prepareEquipmentSdk());
     })();
+    return () => {
+      cancelled = true;
+    };
   }, [dispatch]);
+
+  const handleConsentAgree = useCallback(() => {
+    void (async () => {
+      await saveHrConnectConsent();
+      setConsentVisible(false);
+    })();
+  }, []);
+
+  const handleConsentDecline = useCallback(() => {
+    setConsentVisible(false);
+    navigation.goBack();
+  }, [navigation]);
 
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
+      <HrDeviceConsentModal
+        visible={consentVisible}
+        onAgree={handleConsentAgree}
+        onDecline={handleConsentDecline}
+        declineLabel="返回"
+        agreeLabel="同意"
+      />
       <View style={styles.body}>
         <View style={styles.banner}>
           <Image

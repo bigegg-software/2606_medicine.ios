@@ -30,7 +30,7 @@ import {
     getEnergyDetailGoal,
     type EnergyDetailPoint,
 } from './helpers/energy';
-import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
+import { mapDetailChartRangeToVitalsRange, roundEnergyValue } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 import { resolveEnergyTarget } from './helpers/vitalsGoalTargets';
 
@@ -41,7 +41,10 @@ const EMPTY_OVERVIEW = {
 };
 
 function formatOverviewNumber(value: number) {
-    return value.toLocaleString('en-US');
+    return roundEnergyValue(value).toLocaleString('en-US', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+    });
 }
 
 function resetHeaderDisplay(range: StepsChartRange, goal: number) {
@@ -254,9 +257,9 @@ export default function ConsumptionPage() {
     });
 
     const todayEnergyCard = useMemo(() => {
-        const total = Math.max(0, Math.round(todayTotalEnergy));
+        const total = Math.max(0, roundEnergyValue(todayTotalEnergy));
         const goal = Math.max(0, Math.round(energyGoal));
-        const remaining = Math.max(0, goal - total);
+        const remaining = Math.max(0, roundEnergyValue(goal - total));
         const progressPercent = goal > 0 ? Math.min(100, Math.round((total / goal) * 100)) : 0;
         return {
             activeText: total > 0 ? formatOverviewNumber(total) : '--',

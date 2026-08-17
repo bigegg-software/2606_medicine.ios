@@ -169,7 +169,7 @@ export function formatBloodPressureFromStatisGroups(groups: MeasureDataStatisDay
     .sort((a, b) => moment(b.customerLocalDate).valueOf() - moment(a.customerLocalDate).valueOf())[0];
 
   if (!latest) {
-    return { value: '--', status: '', statusColor: '#999999', latestGroup: undefined as MeasureDataStatisDayGroup | undefined };
+    return { value: '--', status: '暂无数据', statusColor: '#999999', latestGroup: undefined as MeasureDataStatisDayGroup | undefined };
   }
 
   const values = parseStatisBloodPressureValues(latest)!;
@@ -185,7 +185,7 @@ export function formatBloodPressureFromStatisGroups(groups: MeasureDataStatisDay
 export function formatBloodPressurePeriodDisplay(groups: MeasureDataStatisDayGroup[]) {
   const average = calcBloodPressurePeriodAverage(groups);
   if (!average) {
-    return { value: '--', status: '', statusColor: '#999999', latestGroup: undefined as MeasureDataStatisDayGroup | undefined };
+    return { value: '--', status: '暂无数据', statusColor: '#999999', latestGroup: undefined as MeasureDataStatisDayGroup | undefined };
   }
 
   const latest = [...groups]

@@ -392,13 +392,17 @@ export default function BloodAddPage({ route }: Props) {
     }
 
     if (measureType === '血脂') {
-      const optionalFields = [
+      const requiredFields = [
         { label: '甘油三酯（TG）', value: lipidTg },
         { label: '高密度脂蛋白（HDL-C）', value: lipidHdl },
         { label: '低密度脂蛋白（LDL-C）', value: lipidLdl },
       ];
-      for (const field of optionalFields) {
-        if (field.value.trim() && !Number.isFinite(Number(field.value))) {
+      for (const field of requiredFields) {
+        if (!field.value.trim()) {
+          Alert.alert('提示', `请填写${field.label}`);
+          return;
+        }
+        if (!Number.isFinite(Number(field.value))) {
           Alert.alert('提示', `请输入有效的${field.label}`);
           return;
         }
@@ -421,9 +425,9 @@ export default function BloodAddPage({ route }: Props) {
         ...(measureType === '血脂'
           ? {
             xuezhiTc: val,
-            ...(lipidTg.trim() ? { xuezhiTg: Number(lipidTg) } : {}),
-            ...(lipidHdl.trim() ? { xuezhiHdlC: Number(lipidHdl) } : {}),
-            ...(lipidLdl.trim() ? { xuezhiLdlC: Number(lipidLdl) } : {}),
+            xuezhiTg: Number(lipidTg),
+            xuezhiHdlC: Number(lipidHdl),
+            xuezhiLdlC: Number(lipidLdl),
           }
           : {}),
       };

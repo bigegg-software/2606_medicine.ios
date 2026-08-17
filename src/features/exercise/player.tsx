@@ -1241,7 +1241,7 @@ export default function ExercisePlayerPage() {
                   source={require('@/assets/images/exercise/icon_tip.png')}
                 />
                 <Text style={exerciseStyles.playerRealtimeHrTargetText} numberOfLines={1}>
-                  {`目标心率区间：${exerciseHrRange.min}-${exerciseHrRange.max} 次/分`}
+                  {`建议运动心率范围：${exerciseHrRange.min}-${exerciseHrRange.max} 次/分`}
                 </Text>
               </Flex>
               {deviceConnected && hrZone ? (

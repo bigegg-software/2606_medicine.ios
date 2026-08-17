@@ -4,6 +4,7 @@ import {
   getLatestWearableItem,
   getWearableDate,
   parseMeasureNumber,
+  roundEnergyValue,
   sumEnergyFromItem,
 } from './shared';
 import { getTodayWearableItem, buildEnergyTodayBarSeries } from '../../vitalsHelpers';
@@ -44,9 +45,9 @@ function getDayEnergyTotals(
 ) {
   const activeDayItems = activeItems.filter(item => getWearableDate(item).isSame(day, 'day'));
   const basalDayItems = basalItems.filter(item => getWearableDate(item).isSame(day, 'day'));
-  const active = Math.round(sumEnergyFromItem(getLatestWearableItem(activeDayItems), 'activeEnergyBurned'));
-  const basal = Math.round(sumEnergyFromItem(getLatestWearableItem(basalDayItems), 'basalEnergyBurned'));
-  return { active, basal, total: active + basal };
+  const active = roundEnergyValue(sumEnergyFromItem(getLatestWearableItem(activeDayItems), 'activeEnergyBurned'));
+  const basal = roundEnergyValue(sumEnergyFromItem(getLatestWearableItem(basalDayItems), 'basalEnergyBurned'));
+  return { active, basal, total: roundEnergyValue(active + basal) };
 }
 
 export function getEnergyDetailGoal(
@@ -75,15 +76,22 @@ function getEnergyStatusDisplay(total: number, goal: number) {
   if (total >= goal) {
     return { status: '达标', statusColor: '#6D925E' };
   }
-  const remaining = Math.max(0, Math.round(goal - total));
+  const remaining = Math.max(0, roundEnergyValue(goal - total));
   return {
-    status: `距目标还差${remaining.toLocaleString('en-US')}千卡`,
+    status: `距目标还差${formatEnergyDetailNumber(remaining)}千卡`,
     statusColor: '#EE9C44',
   };
 }
 
 function isValidEnergyDetailPoint(point?: EnergyDetailPoint) {
   return point != null && point.value > 0;
+}
+
+function formatEnergyDetailNumber(value: number) {
+  return roundEnergyValue(value).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
 }
 
 export function buildEnergyDetailTodaySeries(
@@ -129,10 +137,13 @@ export function buildEnergyDetailPeriodSeries(
   });
 }
 
-function resolveEnergyYAxisInterval(peak: number, range: EnergyDetailChartRange) {
-  const candidates = range === 'today'
-    ? [20, 50, 100, 200, 500]
-    : [200, 500, 1000, 2000, 3000];
+function resolveEnergyYAxisInterval(peak: number) {
+  // 按活动消耗峰值自适应，覆盖亚千卡（如 0.04）到全天大量消耗
+  const candidates = [
+    0.01, 0.02, 0.05, 0.1, 0.2, 0.5,
+    1, 2, 5, 10, 20, 50,
+    100, 200, 500, 1000, 2000, 3000, 5000,
+  ];
 
   for (const interval of candidates) {
     if (peak <= interval * 5) return interval;
@@ -146,13 +157,24 @@ export function buildEnergyDetailYAxis(
   range: EnergyDetailChartRange,
 ) {
   const values = points.map(point => point.value).filter(value => value > 0);
-  const peak = values.length ? Math.max(...values) : range === 'today' ? 100 : 2000;
-  const interval = resolveEnergyYAxisInterval(peak, range);
   const tickCount = range === 'today' ? 4 : 5;
+  // 无数据时给可读默认轴；有数据则严格跟活动消耗峰值走
+  const peak = values.length
+    ? Math.max(...values)
+    : range === 'today'
+      ? 100
+      : 2000;
+  const paddedPeak = peak * 1.2;
+  const interval = resolveEnergyYAxisInterval(paddedPeak);
+  const rawMax = Math.max(
+    interval * tickCount,
+    Math.ceil(paddedPeak / interval) * interval,
+  );
+  const max = roundEnergyValue(rawMax) || rawMax;
 
   return {
     min: 0,
-    max: Math.max(interval * tickCount, Math.ceil(peak / interval) * interval),
+    max,
     interval,
   };
 }
@@ -187,7 +209,7 @@ export function formatEnergyDetailPointDisplay(
   const { status, statusColor } = getEnergyStatusDisplay(point!.value, goal);
 
   return {
-    value: Math.round(point!.value).toLocaleString('en-US'),
+    value: formatEnergyDetailNumber(point!.value),
     status,
     statusColor,
     currentLabel: formatEnergyCurrentLabel(range, point),
@@ -198,7 +220,7 @@ export function formatEnergyDetailPointDisplay(
 function averagePositiveValues(values: number[]) {
   const validValues = values.filter(value => value > 0);
   if (!validValues.length) return 0;
-  return Math.round(validValues.reduce((sum, value) => sum + value, 0) / validValues.length);
+  return roundEnergyValue(validValues.reduce((sum, value) => sum + value, 0) / validValues.length);
 }
 
 export function calcEnergyDetailOverview(

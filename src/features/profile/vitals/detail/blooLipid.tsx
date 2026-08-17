@@ -272,22 +272,26 @@ export default function BloodLipidPage() {
                                             <Text style={styles.dbColValue1}>{row.recentText}</Text>
                                         </Flex>
                                         <Flex align="center" justify="end" style={styles.dbColSection}>
-                                            <Text
-                                                style={isWorsened ? styles.dbRightValue_1 : styles.dbRightValue}
-                                            >
-                                                {row.diffText}
-                                            </Text>
-                                            {isImproved ? (
-                                                <Image
-                                                    style={styles.dbColRightImg}
-                                                    source={require('@/assets/images/vitals/xia.png')}
-                                                />
-                                            ) : null}
-                                            {isWorsened ? (
-                                                <Image
-                                                    style={styles.dbColRightImg}
-                                                    source={require('@/assets/images/vitals/shang.png')}
-                                                />
+                                            {row.outcome !== 'unchanged' ? (
+                                                <>
+                                                    <Text
+                                                        style={isWorsened ? styles.dbRightValue_1 : styles.dbRightValue}
+                                                    >
+                                                        {row.diffText}
+                                                    </Text>
+                                                    {isImproved ? (
+                                                        <Image
+                                                            style={styles.dbColRightImg}
+                                                            source={require('@/assets/images/vitals/xia.png')}
+                                                        />
+                                                    ) : null}
+                                                    {isWorsened ? (
+                                                        <Image
+                                                            style={styles.dbColRightImg}
+                                                            source={require('@/assets/images/vitals/shang.png')}
+                                                        />
+                                                    ) : null}
+                                                </>
                                             ) : null}
                                             <Text
                                                 style={isWorsened ? styles.dbRightValue1_1 : styles.dbRightValue1}

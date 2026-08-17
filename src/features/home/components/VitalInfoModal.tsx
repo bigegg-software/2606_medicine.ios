@@ -139,14 +139,14 @@ function BloodPressureTable({
   headers,
   rows,
 }: {
-  headers: [string, string, string, string];
+  headers: [string, string, string];
   rows: VitalInfoTableRow[];
 }) {
   const matrix = useMemo(
     () =>
       buildTransposedMatrix(
         [...headers],
-        rows.map(row => [row.category ?? '', row.label, row.systolic, row.diastolic]),
+        rows.map(row => [row.category ?? '', row.systolic, row.diastolic]),
       ),
     [headers, rows],
   );

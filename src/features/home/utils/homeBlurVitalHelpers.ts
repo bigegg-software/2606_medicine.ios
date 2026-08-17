@@ -36,7 +36,7 @@ export const HOME_BLUR_CHART_WIDTH = 72;
 export const HOME_BLUR_CHART_HEIGHT = 30;
 export const HOME_BLUR_PROGRESS_WIDTH = 74;
 
-export type HomeBlurVitalChartKind = 'scatter' | 'progress';
+export type HomeBlurVitalChartKind = 'scatter' | 'bar' | 'progress';
 
 export type HomeBlurVitalCardView = {
   key: VitalIndexKey;
@@ -89,7 +89,7 @@ type HomeBlurVitalMeta = {
 const HOME_ICONS: Record<VitalIndexKey, ImageSourcePropType> = {
   心率: require('@/assets/images/home/xl_Icon.png'),
   消耗: require('@/assets/images/home/kll_Icon.png'),
-  血糖: require('@/assets/images/home/icon_tz.png'),
+  血糖: require('@/assets/images/home/xt_Icon.png'),
   血压: require('@/assets/images/home/icon_xy.png'),
   步数: require('@/assets/images/home/icon_bs.png'),
   睡眠: require('@/assets/images/home/icon_sm.png'),
@@ -119,8 +119,8 @@ const HOME_BLUR_VITAL_META: Record<VitalIndexKey, HomeBlurVitalMeta> = {
     infoKey: '卡路里',
     icon: HOME_ICONS.消耗,
     route: 'ConsumptionPage',
-    chartKind: 'progress',
-    chartColor: '#72A1C5',
+    chartKind: 'bar',
+    chartColor: '#EE9C44',
     wearableTypes: [WEARABLE_DATA_TYPES.activeEnergy],
   },
   血糖: {
@@ -335,13 +335,26 @@ export function buildHomeBlurVitalCards(
       }
       case '消耗': {
         const items = bag.wearableByType[WEARABLE_DATA_TYPES.activeEnergy] ?? [];
+        // 与 VitalsPage energySummary 同源：getEnergySummary → barSeries
         const summary = getEnergySummary(items, [], 'today');
         const total = summary.total === '--' ? 0 : Number(summary.total);
+        const barValues = summary.barSeries
+          .map(item => item.value)
+          .filter(value => Number.isFinite(value) && value > 0);
+        const sparkline =
+          barValues.length > 0
+            ? barValues
+            : total > 0
+              ? [total]
+              : [];
         return {
           ...base,
           value: summary.total,
+          unit: summary.unit,
           subtitle: `目标：${bag.energyGoal}千卡`,
+          chartColor: '#EE9C44',
           progress: calcNutritionProgress(total, bag.energyGoal),
+          sparkline,
         };
       }
       case '血糖': {

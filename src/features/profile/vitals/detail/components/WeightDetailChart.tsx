@@ -326,6 +326,14 @@ function getCategoryGridExtensionPositions(range: WeightChartRange, labels: stri
     }
 
     const count = labels.length;
+    // 无数据时避免除以 0，仅保留左右边界延伸线
+    if (count <= 0) {
+        return [
+            { left: PLOT_LEFT, dashed: false },
+            { left: PLOT_LEFT + PLOT_WIDTH, dashed: false },
+        ];
+    }
+
     return Array.from({ length: count + 1 }, (_, index) => ({
         left: PLOT_LEFT + (index / count) * PLOT_WIDTH,
         dashed: index !== 0 && index !== count,

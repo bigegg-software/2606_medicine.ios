@@ -111,7 +111,8 @@ export function collectWearableReadings(
       const ts = getOriginalReadingTimestamp(reading);
       const value = parseValue(reading);
       if (ts && value != null && value > 0) {
-        readings.push({ ts, value: Math.round(value) });
+        // 保留小数：活动能量等可为亚千卡增量，Math.round 会丢成 0
+        readings.push({ ts, value });
       }
     }
   }
@@ -120,7 +121,10 @@ export function collectWearableReadings(
 }
 
 export function collectHeartRateReadings(items: WearableDataItem[]) {
-  return collectWearableReadings(items, reading => parseMeasureNumber(reading.value));
+  return collectWearableReadings(items, reading => {
+    const raw = parseMeasureNumber(reading.value);
+    return raw != null ? Math.round(raw) : null;
+  });
 }
 
 export function collectOxygenReadings(items: WearableDataItem[]) {
@@ -191,10 +195,15 @@ export function parseStepsFromItem(item?: WearableDataItem) {
   return Math.round(parseMeasureNumber(item.stepCount) ?? 0);
 }
 
+/** 能量数值：四舍五入保留两位小数（亚千卡如 0.04 不可 Math.round 成 0） */
+export function roundEnergyValue(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
 export function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'activeEnergyBurned' | 'basalEnergyBurned') {
   if (!item) return 0;
 
-  const fieldValue = Math.round(parseMeasureNumber(item[field]) ?? 0);
+  const fieldValue = roundEnergyValue(parseMeasureNumber(item[field]) ?? 0);
   const readings = flattenWearableOriginalData(item);
   if (!readings.length) return fieldValue;
 
@@ -203,8 +212,8 @@ export function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'ac
     .filter(value => value > 0);
   if (!values.length) return fieldValue;
 
-  const sumReadings = Math.round(values.reduce((sum, value) => sum + value, 0) * 100) / 100;
-  const maxReading = Math.max(...values);
+  const sumReadings = roundEnergyValue(values.reduce((sum, value) => sum + value, 0));
+  const maxReading = roundEnergyValue(Math.max(...values));
   const isIncremental = (() => {
     if (values.length === 1) return false;
     if (fieldValue > 0) {
@@ -220,8 +229,8 @@ export function sumEnergyFromItem(item: WearableDataItem | undefined, field: 'ac
     return fieldValue > 0 ? Math.max(fieldValue, sumReadings) : sumReadings;
   }
 
-  const lastReading = Math.round(values[values.length - 1]);
-  return Math.max(fieldValue, Math.round(maxReading), lastReading);
+  const lastReading = roundEnergyValue(values[values.length - 1]);
+  return Math.max(fieldValue, maxReading, lastReading);
 }
 
 export function normalizeStatisRangeData(raw: unknown): MeasureDataStatisDayGroup[] {

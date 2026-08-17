@@ -616,10 +616,15 @@ export default function VitalsPage() {
       },
       尿酸: { key: '尿酸', status: uricAcid.statusLabel, statusColor: uricAcid.statusColor },
     };
-    return orderedVitalKeys.map(key => ({
-      ...statusMap[key],
-      status: formatVitalsSortStatus(statusMap[key].status),
-    }));
+    return orderedVitalKeys.map(key => {
+      const raw = statusMap[key];
+      const status = formatVitalsSortStatus(raw.status);
+      return {
+        ...raw,
+        status,
+        statusColor: status === '暂无数据' ? '#999999' : raw.statusColor,
+      };
+    });
   }, [
     orderedVitalKeys,
     heartRate.status,

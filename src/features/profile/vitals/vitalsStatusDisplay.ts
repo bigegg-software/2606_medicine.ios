@@ -121,7 +121,7 @@ export function getBodyTemperatureItemStatusLabel(item: MeasureDataItem) {
 
 export function formatBodyTemperatureMeasureStatus(item?: MeasureDataItem) {
   if (!item) {
-    return { status: '', statusColor: '#999999' };
+    return { status: '暂无数据', statusColor: '#999999' };
   }
   const status = getBodyTemperatureItemStatusLabel(item);
   return {
@@ -132,7 +132,7 @@ export function formatBodyTemperatureMeasureStatus(item?: MeasureDataItem) {
 
 export function formatBodyTemperatureMeasureDisplay(item?: MeasureDataItem) {
   if (!item) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
 
   const parsed = parseMeasureNumber(item.val);

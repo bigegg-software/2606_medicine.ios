@@ -571,7 +571,7 @@ export default function WeightPage() {
               </View>
             </Flex>
           ) : (
-            <Flex style={styles.colRow}>
+            <Flex style={[styles.colRow, { marginTop: 30 }]}>
               <WeightTrendCard title="体重趋势（kg）" trend={weightTrend} />
               <WeightTrendCard title="BMI趋势" trend={bmiTrend} />
             </Flex>

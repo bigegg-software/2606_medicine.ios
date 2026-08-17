@@ -491,27 +491,8 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     ]);
 
     const bottomAction = useMemo(() => {
-        if (!isToday) {
-            if (activePhase === 'warmup') {
-                return {
-                    label: isPast ? '查看主训练' : '进入主训练',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            if (activePhase === 'main') {
-                return {
-                    label: isPast ? '查看冷身' : '进入冷身',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            return null;
-        }
+        // 非今天不展示底部操作按钮
+        if (!isToday) return null;
 
         const signAction = {
             label: getExerciseSignButtonLabel(signInfo),
@@ -589,7 +570,6 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
         activePhase,
         canFinishSign,
         cooldownAllPlayed,
-        isPast,
         isToday,
         mainAllPlayed,
         signInfo,

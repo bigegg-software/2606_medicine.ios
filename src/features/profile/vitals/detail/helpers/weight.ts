@@ -78,7 +78,7 @@ function resolveItemBmi(item?: MeasureDataItem | null, heightCm?: number | null)
 
 export function formatWeightVitalsDisplay(item?: MeasureDataItem, heightCm?: number | null) {
   if (!item) {
-    return { value: '--', status: '', statusColor: '#999999' };
+    return { value: '--', status: '暂无数据', statusColor: '#999999' };
   }
 
   const parsed = parseMeasureNumber(item.val);

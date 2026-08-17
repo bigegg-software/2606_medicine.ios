@@ -23,14 +23,11 @@ import {
   stopEquipmentScan,
 } from '@/store/actions/equipment';
 import { ensureEquipmentBluetoothReady } from './utils/equipmentPermissions';
-import {
-  loadHrConnectConsent,
-  saveHrConnectConsent,
-} from './utils/equipmentStorage';
-import HrDeviceConsentModal from './components/HrDeviceConsentModal';
 import styles from '@/css/equipment/search';
 
 const SEARCH_TIMEOUT_MS = 30_000;
+/** 重新搜索：先清空列表，至少展示 1s「搜索中」再露出结果 */
+const RESEARCH_SEARCHING_HOLD_MS = 1_000;
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -73,11 +70,9 @@ export default function EquipmentSearchPage() {
   const [searchKey, setSearchKey] = useState(0);
   const [searchTimedOut, setSearchTimedOut] = useState(false);
   const [bleReady, setBleReady] = useState(false);
-  const [consentVisible, setConsentVisible] = useState(false);
+  /** 重新搜索后强制停留在「搜索中」，避免结果秒回闪 */
+  const [holdSearching, setHoldSearching] = useState(false);
   const pendingConnectIdRef = useRef<string | null>(null);
-  const pendingConsentDeviceIdRef = useRef<string | null>(null);
-  /** 重新搜索时保留已有结果，避免结果页闪回搜索中态 */
-  const keepScanResultsRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,11 +113,9 @@ export default function EquipmentSearchPage() {
 
     let cancelled = false;
     setSearchTimedOut(false);
-    const clearResults = !keepScanResultsRef.current;
-    keepScanResultsRef.current = false;
 
     void (async () => {
-      await dispatch(startEquipmentScan({ clearResults }));
+      await dispatch(startEquipmentScan({ clearResults: true }));
       if (cancelled) return;
     })();
 
@@ -138,6 +131,14 @@ export default function EquipmentSearchPage() {
       void dispatch(stopEquipmentScan());
     };
   }, [bleReady, dispatch, searchKey]);
+
+  useEffect(() => {
+    if (!holdSearching) return undefined;
+    const timer = setTimeout(() => {
+      setHoldSearching(false);
+    }, RESEARCH_SEARCHING_HOLD_MS);
+    return () => clearTimeout(timer);
+  }, [holdSearching, searchKey]);
 
   useEffect(() => {
     const pendingId = pendingConnectIdRef.current;
@@ -161,16 +162,17 @@ export default function EquipmentSearchPage() {
     [connectedDeviceIds, scannedDevices],
   );
 
-  const hasFound = visibleScannedDevices.length > 0;
-  const showEmpty = searchTimedOut && !hasFound;
+  const hasDevices = visibleScannedDevices.length > 0;
+  const hasFound = hasDevices && !holdSearching;
+  const showEmpty = searchTimedOut && !hasDevices && !holdSearching;
 
   const handleResearch = useCallback(() => {
-    keepScanResultsRef.current = hasFound;
     setSearchTimedOut(false);
+    setHoldSearching(true);
     setSearchKey(key => key + 1);
-  }, [hasFound]);
+  }, []);
 
-  const doConnect = useCallback(
+  const handleConnect = useCallback(
     async (deviceId: string) => {
       if (isConnecting) return;
       pendingConnectIdRef.current = String(deviceId);
@@ -182,44 +184,8 @@ export default function EquipmentSearchPage() {
     [dispatch, isConnecting],
   );
 
-  const handleConnect = useCallback(
-    async (deviceId: string) => {
-      if (isConnecting) return;
-      const consented = await loadHrConnectConsent();
-      if (!consented) {
-        pendingConsentDeviceIdRef.current = String(deviceId);
-        setConsentVisible(true);
-        return;
-      }
-      await doConnect(deviceId);
-    },
-    [doConnect, isConnecting],
-  );
-
-  const handleConsentAgree = useCallback(() => {
-    void (async () => {
-      await saveHrConnectConsent();
-      setConsentVisible(false);
-      const deviceId = pendingConsentDeviceIdRef.current;
-      pendingConsentDeviceIdRef.current = null;
-      if (deviceId) {
-        await doConnect(deviceId);
-      }
-    })();
-  }, [doConnect]);
-
-  const handleConsentDecline = useCallback(() => {
-    pendingConsentDeviceIdRef.current = null;
-    setConsentVisible(false);
-  }, []);
-
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
-      <HrDeviceConsentModal
-        visible={consentVisible}
-        onAgree={handleConsentAgree}
-        onDecline={handleConsentDecline}
-      />
       <ScrollView
         contentContainerStyle={[
           styles.content,

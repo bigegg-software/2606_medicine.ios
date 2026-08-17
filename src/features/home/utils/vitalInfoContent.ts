@@ -19,7 +19,6 @@ export type VitalInfoLevel = {
 export type VitalInfoTableRow = {
   /** 左侧大类，同组首行展示 */
   category?: string;
-  label: string;
   systolic: string;
   diastolic: string;
 };
@@ -35,7 +34,7 @@ export type VitalInfoContent = {
   body: string;
   levels?: VitalInfoLevel[];
   table?: {
-    headers: [string, string, string, string];
+    headers: [string, string, string];
     rows: VitalInfoTableRow[];
   };
   sections?: VitalInfoSection[];
@@ -46,14 +45,14 @@ const VITAL_INFO_CONTENT: Record<VitalInfoKey, VitalInfoContent> = {
     title: '关于血压',
     body: '血液对血管壁的侧压力。收缩压是心脏挤血时的峰值压力，舒张压是心脏舒张时的最低压力。反映心脏泵血能力与血管弹性，是心血管健康的基础指标。',
     table: {
-      headers: ['分类', '说明', '收缩压', '舒张压'],
+      headers: ['状态', '收缩压', '舒张压'],
       rows: [
-        { category: '正常', label: '正常', systolic: '90–119', diastolic: '60–79' },
-        { category: '正常', label: '正常高值', systolic: '120–139', diastolic: '或 80–89' },
-        { category: '高血压', label: '轻度高血压', systolic: '140–159', diastolic: '或 90–99' },
-        { category: '高血压', label: '中度高血压', systolic: '160–179', diastolic: '或 100–109' },
-        { category: '高血压', label: '重度高血压', systolic: '≥180', diastolic: '或 ≥110' },
-        { category: '低血压', label: '低血压', systolic: '<90', diastolic: '且/或 <60' },
+        { category: '正常', systolic: '90–119', diastolic: '60–79' },
+        { category: '正常高值', systolic: '120–139', diastolic: '80–89' },
+        { category: '轻度高血压', systolic: '140–159', diastolic: '90–99' },
+        { category: '中度高血压', systolic: '160–179', diastolic: '100–109' },
+        { category: '重度高血压', systolic: '≥180', diastolic: '≥110' },
+        { category: '低血压', systolic: '<90', diastolic: '<60' },
       ],
     },
   },
@@ -128,12 +127,12 @@ const VITAL_INFO_CONTENT: Record<VitalInfoKey, VitalInfoContent> = {
     sections: [
       {
         title: '参考标准',
-        headers: ['范围', '状态', '含义'],
+        headers: ['范围', '状态'],
         rows: [
-          ['≥ 95%', '正常', '血氧状态良好'],
-          ['93%–94%', '偏低', '建议休息并持续观察'],
-          ['90%–92%', '较低', '建议减少活动，必要时咨询医生'],
-          ['< 90%', '异常偏低', '血氧过低，请及时就医'],
+          ['≥ 95%', '正常'],
+          ['93%–94%', '偏低'],
+          ['90%–92%', '较低'],
+          ['< 90%', '异常偏低'],
         ],
       },
     ],
@@ -162,20 +161,20 @@ const VITAL_INFO_CONTENT: Record<VitalInfoKey, VitalInfoContent> = {
     sections: [
       {
         title: '男',
-        headers: ['分级', '状态', '范围'],
+        headers: ['状态', '范围'],
         rows: [
-          ['正常', '正常', '208-420'],
-          ['偏高', '偏高', '421-480'],
-          ['高尿酸血症', '异常偏高', '＞480'],
+          ['正常', '208-420'],
+          ['偏高', '421-480'],
+          ['异常偏高', '＞480'],
         ],
       },
       {
         title: '女',
-        headers: ['分级', '状态', '范围'],
+        headers: ['状态', '范围'],
         rows: [
-          ['正常', '正常', '155-360'],
-          ['偏高', '偏高', '361-420'],
-          ['高尿酸血症', '异常偏高', '＞420'],
+          ['正常', '155-360'],
+          ['偏高', '361-420'],
+          ['异常偏高', '＞420'],
         ],
       },
     ],
@@ -186,37 +185,37 @@ const VITAL_INFO_CONTENT: Record<VitalInfoKey, VitalInfoContent> = {
     sections: [
       {
         title: '总胆固醇（TC）',
-        headers: ['分级', '状态', '范围'],
+        headers: ['状态', '范围'],
         rows: [
-          ['正常', '正常', '＜5.2'],
-          ['临界升高', '偏高', '5.2-6.2'],
-          ['升高', '异常偏高', '≥6.2'],
+          ['正常', '＜5.2'],
+          ['偏高', '5.2-6.2'],
+          ['异常偏高', '≥6.2'],
         ],
       },
       {
         title: '低密度脂蛋白（LDL-C）',
-        headers: ['分级', '状态', '范围'],
+        headers: ['状态', '范围'],
         rows: [
-          ['理想', '正常', '＜3.4'],
-          ['偏高', '偏高', '3.4-4.1'],
-          ['高', '异常偏高', '≥4.1'],
+          ['正常', '＜3.4'],
+          ['偏高', '3.4-4.1'],
+          ['异常偏高', '≥4.1'],
         ],
       },
       {
         title: '高密度脂蛋白（HDL-C）',
-        headers: ['分级', '状态', '范围'],
+        headers: ['状态', '范围'],
         rows: [
-          ['正常', '正常', '≥1.0'],
-          ['偏低', '偏低', '＜1.0'],
+          ['正常', '≥1.0'],
+          ['偏低', '＜1.0'],
         ],
       },
       {
         title: '甘油三酯（TG）',
-        headers: ['分级', '状态', '范围'],
+        headers: ['状态', '范围'],
         rows: [
-          ['正常', '正常', '＜1.7'],
-          ['临界升高', '偏高', '1.7-2.3'],
-          ['升高', '异常偏高', '≥2.3'],
+          ['正常', '＜1.7'],
+          ['偏高', '1.7-2.3'],
+          ['异常偏高', '≥2.3'],
         ],
       },
     ],

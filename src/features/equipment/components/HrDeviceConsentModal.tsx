@@ -9,6 +9,10 @@ export type HrDeviceConsentModalProps = {
   visible: boolean;
   onAgree: () => void;
   onDecline: () => void;
+  /** 左侧按钮文案，默认「暂不连接」 */
+  declineLabel?: string;
+  /** 右侧按钮文案，默认「同意并连接」 */
+  agreeLabel?: string;
 };
 
 /**
@@ -18,6 +22,8 @@ export default function HrDeviceConsentModal({
   visible,
   onAgree,
   onDecline,
+  declineLabel = '暂不连接',
+  agreeLabel = '同意并连接',
 }: HrDeviceConsentModalProps) {
   const insets = useSafeAreaInsets();
 
@@ -25,6 +31,7 @@ export default function HrDeviceConsentModal({
     <BottomSheetModal
       visible={visible}
       onClose={onDecline}
+      dismissOnBackdropPress={false}
       sheetStyle={styles.sheetHost}>
       <View style={styles.wrap}>
         <Image
@@ -89,7 +96,7 @@ export default function HrDeviceConsentModal({
               activeOpacity={0.8}
               onPress={onDecline}
               style={styles.cancelBtn}>
-              <Text style={styles.cancelText}>暂不连接</Text>
+              <Text style={styles.cancelText}>{declineLabel}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               activeOpacity={0.8}
@@ -101,7 +108,7 @@ export default function HrDeviceConsentModal({
                 start={{ x: 0, y: 0.5 }}
                 end={{ x: 1, y: 0.5 }}
                 style={styles.confirmBtn}>
-                <Text style={styles.confirmText}>同意并连接</Text>
+                <Text style={styles.confirmText}>{agreeLabel}</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
