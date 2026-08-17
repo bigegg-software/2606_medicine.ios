@@ -35,3 +35,12 @@ export function getResourceRows<T>(
   if (!isResourceApiOk(res)) return [];
   return Array.isArray(res?.rows) ? res.rows : [];
 }
+
+/** 子女端代查家人数据：请求头 X-Patient-User-Id（统一 string） */
+export function withPatientUserIdHeaders(
+  patientUserId?: string | number | null,
+): Record<string, string> | undefined {
+  const id = patientUserId != null ? String(patientUserId).trim() : '';
+  if (!id) return undefined;
+  return { 'X-Patient-User-Id': id };
+}

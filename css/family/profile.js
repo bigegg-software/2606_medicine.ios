@@ -24,7 +24,7 @@ const styles = StyleSheet.create({
   familyTabSelected: {
     height: 36,
     minWidth: 52,
-    paddingBottom:4,
+    paddingBottom: 4,
     paddingHorizontal: 12,
     justifyContent: 'center',
     alignItems: 'center',
@@ -108,6 +108,162 @@ const styles = StyleSheet.create({
   headerSettingIcon: {
     width: 24,
     height: 24,
+  },
+  memberCard: {
+    marginTop: 15,
+    padding: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    shadowColor: '#EAEAEA',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.5,
+    shadowRadius: 5,
+    elevation: 2,
+  },
+  memberCardTitle: {
+    fontWeight: "bold",
+    fontSize: 16,
+    color: "#333333"
+  },
+  memberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  memberInfo: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 12,
+  },
+  memberNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  memberName: {
+    flexShrink: 1,
+    marginRight: 8,
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#333333',
+  },
+  memberCertifiedBadge: {
+    width: 92,
+    height: 25,
+    flexShrink: 0,
+  },
+  memberMeta: {
+    marginTop: 6,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+  },
+  memberDivider: {
+    marginTop: 15,
+    alignSelf: 'center',
+    width: 321,
+    maxWidth: '100%',
+    height: 1,
+    backgroundColor: '#F0F4FD',
+    borderRadius: 1,
+  },
+  memberInfoRow: {
+    marginTop: 15,
+  },
+  memberInfoIcon: {
+    width: 15,
+    height: 15,
+  },
+  memberInfoTitle: {
+    width: 90,
+    marginLeft: 6,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+  },
+  memberInfoValue: {
+    flex: 1,
+    minWidth: 0,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#333333',
+  },
+  memberViewAllBtn: {
+    marginTop: 15,
+    padding: 13,
+    backgroundColor: 'rgba(109,146,94,0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(109,146,94,0.3)',
+  },
+  memberViewAllText: {
+    marginRight: 6,
+    fontWeight: '500',
+    fontSize: 15,
+    color: '#6D925E',
+  },
+  memberViewAllIcon: {
+    width: 5,
+    height: 9,
+  },
+  deviceItem: {
+    paddingVertical: 14,
+    paddingHorizontal: 15,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E7EAEB',
+  },
+  deviceItemFirst: {
+    marginTop: 15,
+  },
+  deviceItemGap: {
+    marginTop: 12,
+  },
+  deviceIcon: {
+    width: 15,
+    height: 15,
+  },
+  deviceName: {
+    marginLeft: 3,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#333333',
+  },
+  deviceStatusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  deviceStatusDotOnline: {
+    backgroundColor: '#39BF56',
+  },
+  deviceStatusDotOffline: {
+    backgroundColor: '#CBCBCB',
+  },
+  deviceStatusText: {
+    marginLeft: 6,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#666666',
+  },
+  deviceSyncBtn: {
+    marginTop: 12,
+    paddingVertical: 13,
+    paddingHorizontal: 15,
+    backgroundColor: 'rgba(109,146,94,0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(109,146,94,0.3)',
+  },
+  deviceSyncIcon: {
+    width: 18,
+    height: 18,
+    marginRight: 6,
+  },
+  deviceSyncText: {
+    fontWeight: '500',
+    fontSize: 15,
+    color: '#6D925E',
   },
 });
 

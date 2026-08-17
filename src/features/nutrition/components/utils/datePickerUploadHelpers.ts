@@ -42,6 +42,7 @@ async function loadUploadMarkerMapByDateRange(
   marker: Pick<DatePickerUploadMarker, 'source' | 'type'>,
   startDate: string,
   endDate: string,
+  options?: { patientUserId?: string | number | null },
 ): Promise<DatePickerUploadMap> {
   const map: DatePickerUploadMap = {};
   try {
@@ -51,12 +52,12 @@ async function loadUploadMarkerMapByDateRange(
             type: marker.type,
             startDate,
             endDate,
-          })
+          }, options)
         : await getMeasureDataIsUploadByDateRange({
             type: marker.type,
             startDate,
             endDate,
-          });
+          }, options);
 
     if (isResourceApiOk(res as unknown as { code?: number })) {
       applyUploadExists(
@@ -79,8 +80,9 @@ async function loadUploadMarkerMapByDateRange(
 export async function loadUploadMarkerMapByYear(
   marker: Pick<DatePickerUploadMarker, 'source' | 'type'>,
   year: number,
+  options?: { patientUserId?: string | number | null },
 ): Promise<DatePickerUploadMap | null> {
   const range = getUploadYearRange(year);
   if (!range) return null;
-  return loadUploadMarkerMapByDateRange(marker, range.startDate, range.endDate);
+  return loadUploadMarkerMapByDateRange(marker, range.startDate, range.endDate, options);
 }

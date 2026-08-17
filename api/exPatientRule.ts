@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type ExPatientRuleRatio = {
   exerciseType?: string;
@@ -168,10 +169,16 @@ export type ExPatientRuleDayCompleteRate = {
   coldCompleteRate?: number | null;
 };
 
-export const getExPatientRuleDayCompleteRate = (customerLocalDate: string) =>
+export const getExPatientRuleDayCompleteRate = (
+  customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleDayCompleteRate }>(
     '/patient/exPatientRule/dayCompleteRate',
-    { params: { customerLocalDate: String(customerLocalDate) } },
+    {
+      params: { customerLocalDate: String(customerLocalDate) },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 /** 健康目标分项进度字段 */

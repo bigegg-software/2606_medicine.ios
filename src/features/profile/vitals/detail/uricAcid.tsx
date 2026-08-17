@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSelector } from 'react-redux';
@@ -30,6 +30,7 @@ import {
     type UricAcidDetailPoint,
 } from './helpers/uricAcid';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -66,6 +67,14 @@ function applyEmptyDisplay(
 
 export default function UricAcidPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const userGender = useSelector((state: RootState) => state.user.info?.gender);
     const [chartData, setChartData] = useState<UricAcidDetailPoint[]>([]);
@@ -105,7 +114,7 @@ export default function UricAcidPage() {
                 type: '尿酸',
                 pageSize: URIC_ACID_RECENT_PAGE_SIZE,
                 pageNum: 1,
-            })) as unknown as MeasureDataAllRecordsResult;
+            }, readOptions)) as unknown as MeasureDataAllRecordsResult;
 
             if (!isResourceApiOk(res)) {
                 applyEmptyDisplay(userGender, setters);
@@ -118,7 +127,7 @@ export default function UricAcidPage() {
         } catch {
             applyEmptyDisplay(userGender, setters);
         }
-    }, [userGender]);
+    }, [readOptions, userGender]);
 
     useFocusEffect(
         useCallback(() => {
@@ -143,6 +152,8 @@ export default function UricAcidPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '尿酸',
+        readOnly,
+        viewNavParams,
     });
 
     return (
@@ -203,6 +214,7 @@ export default function UricAcidPage() {
                         <Text style={styles.btmText}>最近10次测量</Text>
                     </View>
                 </ScrollView>
+                {!readOnly ? (
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
                         style={styles.bottomBarButtonLeft}
@@ -218,6 +230,7 @@ export default function UricAcidPage() {
                         </Flex>
                     </TouchableOpacity>
                 </View>
+                ) : null}
             </View>
             {menuModals}
         </PageLayout>

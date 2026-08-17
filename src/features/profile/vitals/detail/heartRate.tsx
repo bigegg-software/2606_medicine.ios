@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, Image } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/vitals/bloodPage';
@@ -26,6 +26,7 @@ import {
 } from './helpers/heartRate';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 function formatStatusText(status?: string) {
     return status?.replace(/^・/, '') || '--';
@@ -44,6 +45,14 @@ const EMPTY_STATS = {
 };
 
 export default function VitalsPage() {
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const [selectedType, setSelectedType] = useState<HeartRateChartRange>('today');
     const [chartData, setChartData] = useState<HeartRatePoint[]>([]);
@@ -74,18 +83,18 @@ export default function VitalsPage() {
                     endDate,
                     type: WEARABLE_DATA_TYPES.heartRate,
                     ...originalDataParam,
-                }),
+                }, readOptions),
                 getWearableDataDetailByDateRange({
                     startDate,
                     endDate,
                     type: WEARABLE_DATA_TYPES.restingHeartRate,
                     ...originalDataParam,
-                }),
+                }, readOptions),
                 getHeartRateAbnormalCount({
                     startDate,
                     endDate,
                     ...originalDataParam,
-                }),
+                }, readOptions),
             ]);
             const res = heartRateRes as unknown as { code?: number; data?: WearableDataItem[] };
 
@@ -144,7 +153,7 @@ export default function VitalsPage() {
                 periodLabel: range === 'week' ? '近7天' : range === 'month' ? '近30天' : '今日区间',
             });
         }
-    }, []);
+    }, [readOptions]);
 
     useFocusEffect(
         useCallback(() => {
@@ -154,6 +163,8 @@ export default function VitalsPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '心率',
+        readOnly,
+        viewNavParams,
     });
 
     return (

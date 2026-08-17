@@ -14,6 +14,7 @@ import {
   loadVitalsUploadMapByYear,
   type VitalsUploadMap,
 } from './utils/vitalsUploadCalendarHelpers';
+import { resolveVitalsViewMode } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 import {
   formatMeasureBmi,
   getMeasureBmiLevelLabel,
@@ -978,6 +979,11 @@ function GoalSummaryCard({ data }: { data: AllDataGoalSummaryCardData }) {
 }
 export default function AllDataPage({ route }: Props) {
   const measureType = (route.params?.type ?? '血压') as VitalsMeasureType;
+  const { readOnly, patientUserId } = resolveVitalsViewMode(route.params);
+  const readOptions = useMemo(
+    () => (patientUserId ? { patientUserId } : undefined),
+    [patientUserId],
+  );
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
   const userExtr = useSelector((state: RootState) => state.user.userExtr);
   const storeStepGoal = userExtr?.stepGoals;
@@ -986,11 +992,11 @@ export default function AllDataPage({ route }: Props) {
   const isEnergyType = measureType === '消耗';
   const isSleepType = measureType === '睡眠';
   const isGoalSummaryType = isEnergyType || measureType === '步数';
-  const canDeleteWearableRecord = measureType === '心率' || measureType === '血氧';
+  const canDeleteWearableRecord = !readOnly && (measureType === '心率' || measureType === '血氧');
   const showFilterButton = measureType === '血氧' || measureType === '心率';
   const wearableConfig = WEARABLE_DETAIL_CONFIG[measureType as '血氧' | '心率' | '步数'];
   const isWearableType = Boolean(wearableConfig) || isEnergyType || isSleepType;
-  const showAddButton = !isWearableType;
+  const showAddButton = !readOnly && !isWearableType;
   const navigation = useNavigation<Nav>();
   const [selectedDate, setSelectedDate] = useState(() => {
     const paramDate = route.params?.date?.trim();
@@ -1040,7 +1046,7 @@ export default function AllDataPage({ route }: Props) {
 
     loadingUploadYearsRef.current.add(year);
     try {
-      const nextMap = await loadVitalsUploadMapByYear(uploadMarker, year);
+      const nextMap = await loadVitalsUploadMapByYear(uploadMarker, year, readOptions);
       if (nextMap) {
         loadedUploadYearsRef.current.add(year);
         setUploadMap(prev => ({ ...prev, ...nextMap }));
@@ -1048,7 +1054,7 @@ export default function AllDataPage({ route }: Props) {
     } finally {
       loadingUploadYearsRef.current.delete(year);
     }
-  }, [uploadMarker]);
+  }, [readOptions, uploadMarker]);
 
   // 切换指标类型时重置上传标记缓存
   useEffect(() => {
@@ -1130,7 +1136,7 @@ export default function AllDataPage({ route }: Props) {
         const activeRes = await getWearableDataDetailByCustomerLocalDate({
           customerLocalDate: selectedDate,
           type: WEARABLE_DATA_TYPES.activeEnergy,
-        });
+        }, readOptions);
 
         const activeData = isResourceApiOk(activeRes)
           ? apiResourceData<WearableDataItem>(activeRes as unknown as WearableDataDetailResult)
@@ -1153,7 +1159,7 @@ export default function AllDataPage({ route }: Props) {
         const res = (await getWearableDataDetailByCustomerLocalDate({
           customerLocalDate: selectedDate,
           type: WEARABLE_DATA_TYPES.sleep,
-        })) as unknown as WearableDataDetailResult;
+        }, readOptions)) as unknown as WearableDataDetailResult;
         if (!isResourceApiOk(res)) {
           setSleepRecord(undefined);
           setWearableRecords([]);
@@ -1169,7 +1175,7 @@ export default function AllDataPage({ route }: Props) {
         const res = (await getWearableDataDetailByCustomerLocalDate({
           customerLocalDate: selectedDate,
           type: wearableConfig.apiType,
-        })) as unknown as WearableDataDetailResult;
+        }, readOptions)) as unknown as WearableDataDetailResult;
         if (!isResourceApiOk(res)) {
           setGoalSummary(null);
           setWearableRecords([]);
@@ -1205,7 +1211,7 @@ export default function AllDataPage({ route }: Props) {
       const res = (await getMeasureDataDetailByDate({
         customerLocalDate: selectedDate,
         type: measureType as MeasureDataType,
-      })) as unknown as MeasureDataDetailResult;
+      }, readOptions)) as unknown as MeasureDataDetailResult;
       if (!isResourceApiOk(res)) {
         setRecords([]);
         return;
@@ -1220,7 +1226,7 @@ export default function AllDataPage({ route }: Props) {
     } finally {
       setLoading(false);
     }
-  }, [isEnergyType, isSleepType, measureType, selectedDate, storeEnergyGoal, storeStepGoal, wearableConfig]);
+  }, [isEnergyType, isSleepType, measureType, readOptions, selectedDate, storeEnergyGoal, storeStepGoal, wearableConfig]);
 
   const loadRecordsRef = useRef(loadRecords);
   loadRecordsRef.current = loadRecords;
@@ -1417,7 +1423,10 @@ export default function AllDataPage({ route }: Props) {
                 gender={userGender}
                 expanded={expandedKey === itemKey}
                 onToggle={() => setExpandedKey(prev => (prev === itemKey ? null : itemKey))}
-                onPress={() => navigation.navigate('AddDataPage', { type: measureType as MeasureDataType, item })}
+                onPress={() => {
+                  if (readOnly) return;
+                  navigation.navigate('AddDataPage', { type: measureType as MeasureDataType, item });
+                }}
               />
             );
           })

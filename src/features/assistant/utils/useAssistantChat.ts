@@ -394,6 +394,7 @@ export function useAssistantChat() {
       if (!currentChatId || (!trimmedQuestion && attachments.length === 0)) return;
 
       cleanupStream();
+      // 外部可能已 setLoading(true)；此处保证流式开始时为回答中
       setLoading(true);
 
       const frontId = isResume && resumeFrontId ? resumeFrontId : generateUUID();
@@ -782,7 +783,7 @@ export function useAssistantChat() {
 
   const sendMessage = useCallback(async () => {
     const text = input.replace(/^\s+|\s+$/g, '');
-    if (!text || loadingRef.current || !chatIdRef.current) return;
+    if (!text || loadingRef.current || actionLoadingRef.current || !chatIdRef.current) return;
     setInput('');
     if (text === TODAY_SCHEDULE_QUESTION) {
       const ok = await runTodayScheduleQuickAction(text);
@@ -798,11 +799,12 @@ export function useAssistantChat() {
       }
       return;
     }
+    // 尽早进入回答中，避免清空输入后仍可继续输入
+    setLoading(true);
     await sendStream(text, false);
   }, [input, runHealthStatusQuickAction, runTodayScheduleQuickAction, sendStream]);
 
   const stopMessage = useCallback(async () => {
-    if (!loadingRef.current) return;
     const list = messagesRef.current;
     const fid = frontIdRef.current;
     let row = list[list.length - 1];
@@ -810,8 +812,11 @@ export function useAssistantChat() {
       const matched = [...list].reverse().find(item => item.frontId === fid);
       if (matched) row = matched;
     }
+    if (!loadingRef.current && !row?.streaming) return;
 
     cleanupStream();
+    const stoppedAnswer = row?.answer ?? fullTextRef.current ?? '';
+    updateLastAnswer(stoppedAnswer, false);
     setLoading(false);
     await disconnectChatStream(chatIdRef.current);
 
@@ -823,7 +828,7 @@ export function useAssistantChat() {
             chatId: chatIdRef.current,
             frontId: fid,
             question: row.question ?? '',
-            answer: row.answer ?? fullTextRef.current ?? '',
+            answer: stoppedAnswer,
             action: 'ai_chat',
             userChatGuideId: guide.userChatGuideId,
             userChatGuideText: guide.userChatGuideText,
@@ -837,7 +842,7 @@ export function useAssistantChat() {
       }
     }
     await clearIncompleteSession();
-  }, [cleanupStream]);
+  }, [cleanupStream, updateLastAnswer]);
 
   const runMedicationReminder = useCallback(async () => {
     if (loadingRef.current || actionLoadingRef.current || initializing || !chatIdRef.current) return false;

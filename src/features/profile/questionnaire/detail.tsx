@@ -109,22 +109,28 @@ function renderQuestionBlock(
     );
 }
 
-export default function QuestionnaireDetailPage({ route }: { route: { params: { id: string } } }) {
-    const { id } = route.params;
+export default function QuestionnaireDetailPage({
+    route,
+}: {
+    route: { params: { id: string; patientUserId?: string } };
+}) {
+    const { id, patientUserId } = route.params;
     const [detail, setDetail] = useState<UserQuestionRecord | null>(null);
     const [loading, setLoading] = useState(true);
 
     const loadDetail = useCallback(async () => {
         setLoading(true);
         try {
-            const res = (await getUserQuestionDetail(id)) as unknown as UserQuestionDetailResult;
+            const res = (await getUserQuestionDetail(id, {
+                patientUserId,
+            })) as unknown as UserQuestionDetailResult;
             setDetail(apiResourceData<UserQuestionRecord>(res) ?? null);
         } catch {
             setDetail(null);
         } finally {
             setLoading(false);
         }
-    }, [id]);
+    }, [id, patientUserId]);
 
     useEffect(() => {
         loadDetail();

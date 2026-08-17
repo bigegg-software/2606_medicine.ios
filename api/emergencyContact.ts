@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type EmergencyContact = {
   id?: number;
@@ -42,13 +43,17 @@ export type EmergencyContactInfoResult = {
   data?: EmergencyContact;
 };
 
-export const getEmergencyContactList = (params: EmergencyContactListParams = {}) =>
+export const getEmergencyContactList = (
+  params: EmergencyContactListParams = {},
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<EmergencyContactListResult>('/patient/emergencyContact/list', {
     params: {
       pageNum: params.pageNum ?? 1,
       pageSize: params.pageSize ?? 10,
       ...params,
     },
+    headers: withPatientUserIdHeaders(options?.patientUserId),
   });
 
 export const getEmergencyContactInfo = (id: number | string) =>

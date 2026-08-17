@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type WearableDataType =
   | 'sleepAnalysis'
@@ -78,30 +79,48 @@ export type WearableDataDetailResult = {
   data?: WearableDataItem;
 };
 
-export const getWearableDataDetailByDateRange = (params: {
-  startDate: string;
-  endDate: string;
-  type: WearableDataType;
-  returnOriginalData?: boolean;
-}) =>
+export const getWearableDataDetailByDateRange = (
+  params: {
+    startDate: string;
+    endDate: string;
+    type: WearableDataType;
+    returnOriginalData?: boolean;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.post<WearableDataRangeResult>(
     '/patient/wearableData/detailByBetweenCustomerLocalDate',
     {},
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
-export const getWearableDataDetailByCustomerLocalDate = (params: {
-  customerLocalDate: string;
-  type: WearableDataType;
-}) =>
+export const getWearableDataDetailByCustomerLocalDate = (
+  params: {
+    customerLocalDate: string;
+    type: WearableDataType;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.post<WearableDataDetailResult>(
     '/patient/wearableData/detailByCustomerLocalDate',
     {},
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
-export const getWearableDataLatestByType = (type: WearableDataType) =>
-  request.get<WearableDataDetailResult>('/patient/wearableData/latestByType', { params: { type } });
+export const getWearableDataLatestByType = (
+  type: WearableDataType,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<WearableDataDetailResult>('/patient/wearableData/latestByType', {
+    params: { type },
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 /** 按 id 查询单条穿戴数据（消息跳转存在性校验） */
 export const getWearableDataById = (wearableDataId: string | number) =>
@@ -149,15 +168,21 @@ export type HeartRateAbnormalCountResult = {
   data?: HeartRateAbnormalCount;
 };
 
-export const getHeartRateAbnormalCount = (params: {
-  startDate: string;
-  endDate: string;
-  returnOriginalData?: boolean;
-}) =>
+export const getHeartRateAbnormalCount = (
+  params: {
+    startDate: string;
+    endDate: string;
+    returnOriginalData?: boolean;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.post<HeartRateAbnormalCountResult>(
     '/patient/wearableData/heartRateAbnormalCount',
     {},
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 export type WearableRemoveResult = {
@@ -182,12 +207,18 @@ export type WearableIsUploadByDateRangeResult = {
 };
 
 /** 按日期范围查询指定类型穿戴数据每日是否上传过 */
-export const getWearableDataIsUploadByDateRange = (params: {
-  type: WearableDataType | string;
-  startDate: string;
-  endDate: string;
-}) =>
+export const getWearableDataIsUploadByDateRange = (
+  params: {
+    type: WearableDataType | string;
+    startDate: string;
+    endDate: string;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<WearableIsUploadByDateRangeResult>(
     '/patient/wearableData/isUploadByDateRange',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );

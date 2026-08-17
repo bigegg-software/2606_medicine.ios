@@ -6,6 +6,7 @@ import userReducer from './reducers/userReducer';
 import uploadReducer from './reducers/uploadReducer';
 import equipmentReducer from './reducers/equipmentReducer';
 import prescriptionReducer from './reducers/prescriptionReducer';
+import familyReducer from './reducers/familyReducer';
 
 const store = createStore(combineReducers({
     login: loginReducer,
@@ -13,6 +14,7 @@ const store = createStore(combineReducers({
     upload: uploadReducer,
     equipment: equipmentReducer,
     prescription: prescriptionReducer,
+    family: familyReducer,
 }), undefined, applyMiddleware(thunk));
 export default store;
 export type RootState = ReturnType<typeof store.getState>;

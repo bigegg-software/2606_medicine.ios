@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch } from 'react-redux';
@@ -39,6 +39,7 @@ import {
     type BloodLipidMetricKey,
 } from './helpers/bloodLipid';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 import type { HealthGoalTarget } from '@/api/healthGoal';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -69,6 +70,14 @@ function applyEmptyDisplay(
 
 export default function BloodLipidPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const dispatch = useDispatch<AppDispatch>();
     const insets = useSafeAreaInsets();
     const lipidTabs = useMemo(() => getBloodLipidMetricTabs(), []);
@@ -83,7 +92,7 @@ export default function BloodLipidPage() {
     const [prescriptionPeriodItems, setPrescriptionPeriodItems] = useState<MeasureDataItem[]>([]);
     const [compareSummary, setCompareSummary] = useState<BloodLipidCompareSummary | null>(null);
 
-    const showGoalSummary = goalRows.length > 0;
+    const showGoalSummary = !readOnly && goalRows.length > 0;
 
     const navigateToAddData = useCallback(() => {
         navigation.navigate('AddDataPage', { type: '血脂' });
@@ -101,8 +110,14 @@ export default function BloodLipidPage() {
     }, [selectedLipidType]);
 
     const loadPrescriptionGoal = useCallback(async (fallbackItems: MeasureDataItem[]) => {
+        if (readOnly) {
+            setGoalRows([]);
+            setPrescriptionTarget(null);
+            setPrescriptionPeriodItems([]);
+            return null;
+        }
         const rule = await dispatch(fetchInUsePrescription({ force: true }));
-        const summary = await loadBloodLipidPrescriptionGoalSummary(rule, fallbackItems);
+        const summary = await loadBloodLipidPrescriptionGoalSummary(rule, fallbackItems, readOptions);
         if (!summary) {
             setGoalRows([]);
             setPrescriptionTarget(null);
@@ -114,7 +129,7 @@ export default function BloodLipidPage() {
         setPrescriptionTarget(summary.target);
         setPrescriptionPeriodItems(summary.periodItems);
         return summary;
-    }, [dispatch]);
+    }, [dispatch, readOnly, readOptions]);
 
     const loadMeasureData = useCallback(async () => {
         const setters = {
@@ -131,7 +146,7 @@ export default function BloodLipidPage() {
                 type: '血脂',
                 pageSize: BLOOD_LIPID_RECENT_PAGE_SIZE,
                 pageNum: 1,
-            })) as unknown as MeasureDataAllRecordsResult;
+            }, readOptions)) as unknown as MeasureDataAllRecordsResult;
 
             if (!isResourceApiOk(res)) {
                 applyEmptyDisplay(setters, selectedLipidType);
@@ -167,7 +182,7 @@ export default function BloodLipidPage() {
         } catch {
             applyEmptyDisplay(setters, selectedLipidType);
         }
-    }, [loadPrescriptionGoal, selectedLipidType]);
+    }, [loadPrescriptionGoal, readOptions, selectedLipidType]);
 
     useFocusEffect(
         useCallback(() => {
@@ -177,6 +192,8 @@ export default function BloodLipidPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '血脂',
+        readOnly,
+        viewNavParams,
     });
 
     const chartData = useMemo(
@@ -364,6 +381,7 @@ export default function BloodLipidPage() {
                         <Text style={styles.btmText}>最近10次测量</Text>
                     </View>
                 </ScrollView>
+                {!readOnly ? (
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
                         style={styles.bottomBarButtonLeft}
@@ -379,6 +397,7 @@ export default function BloodLipidPage() {
                         </Flex>
                     </TouchableOpacity>
                 </View>
+                ) : null}
             </View>
             {menuModals}
         </PageLayout>

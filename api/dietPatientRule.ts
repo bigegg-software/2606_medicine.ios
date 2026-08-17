@@ -1,5 +1,6 @@
 import request from '@/utils/axios';
 import type { ApiResult } from '@/src/utils/apiHelpers';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type DietRecommendedIntake = {
     category?: string;
@@ -139,8 +140,12 @@ export type DietPatientRuleInfo = {
 
 export type DietPatientRuleInfoResult = ApiResult<DietPatientRuleInfo>;
 
-export const getInUseDietPatientRuleInfo = () =>
-    request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getInUseInfo');
+export const getInUseDietPatientRuleInfo = (
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getInUseInfo', {
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
 
 /** 按指定日期查询用餐处方快照 */
 export const getDietPatientRuleSnapshotByDate = (params: { customerLocalDate: string }) =>

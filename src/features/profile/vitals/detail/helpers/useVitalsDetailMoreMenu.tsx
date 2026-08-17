@@ -18,6 +18,10 @@ import {
   saveVitalsGoalTarget,
   type VitalsDetailMenuConfig,
 } from './vitalsGoalTargets';
+import {
+  withVitalsViewParams,
+  type VitalsViewParams,
+} from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -25,6 +29,9 @@ type Options = VitalsDetailMenuConfig & {
   onGoalSaved?: (target: number) => void;
   /** 数据说明 key，默认使用 allRecordsType */
   infoKey?: string;
+  readOnly?: boolean;
+  patientUserId?: string;
+  viewNavParams?: VitalsViewParams;
 };
 
 export function useVitalsDetailMoreMenu({
@@ -33,6 +40,9 @@ export function useVitalsDetailMoreMenu({
   goalDisabled = false,
   onGoalSaved,
   infoKey,
+  readOnly = false,
+  patientUserId,
+  viewNavParams,
 }: Options) {
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
@@ -49,6 +59,15 @@ export function useVitalsDetailMoreMenu({
 
   const resolvedInfoKey = infoKey ?? allRecordsType;
   const hasDataInfo = Boolean(resolvedInfoKey && getVitalInfoContent(resolvedInfoKey));
+  const effectiveViewNavParams =
+    viewNavParams
+    ?? (readOnly || patientUserId
+      ? {
+          ...(readOnly ? { readOnly: true as const } : {}),
+          ...(patientUserId ? { patientUserId } : {}),
+        }
+      : undefined);
+  const showGoalAction = Boolean(goalKind) && !readOnly;
 
   useEffect(() => {
     if (!goalKind) return;
@@ -66,9 +85,12 @@ export function useVitalsDetailMoreMenu({
   const handleAllRecords = useCallback(() => {
     closeMenu();
     if (allRecordsType) {
-      navigation.navigate('AllDataPage', { type: allRecordsType });
+      navigation.navigate(
+        'AllDataPage',
+        withVitalsViewParams({ type: allRecordsType }, effectiveViewNavParams),
+      );
     }
-  }, [allRecordsType, closeMenu, navigation]);
+  }, [allRecordsType, closeMenu, effectiveViewNavParams, navigation]);
 
   const handleSetGoal = useCallback(() => {
     if (!goalKind || goalDisabled) return;
@@ -117,19 +139,9 @@ export function useVitalsDetailMoreMenu({
     }
   }, [dispatch, goalDisabled, goalKind, onGoalSaved, userExtr]);
 
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={openMenu} activeOpacity={0.8}>
-          <Image source={require('@/assets/images/vitals/more.png')} style={styles.uploadIcon} />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, openMenu]);
-
   const sheetActions = useMemo(() => {
     const actions = [];
-    if (goalKind) {
+    if (showGoalAction) {
       actions.push({
         key: 'set-goal',
         label: '设置目标',
@@ -155,12 +167,24 @@ export function useVitalsDetailMoreMenu({
   }, [
     allRecordsType,
     goalDisabled,
-    goalKind,
     handleAllRecords,
     handleDataInfo,
     handleSetGoal,
     hasDataInfo,
+    showGoalAction,
   ]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: sheetActions.length
+        ? () => (
+          <TouchableOpacity onPress={openMenu} activeOpacity={0.8}>
+            <Image source={require('@/assets/images/vitals/more.png')} style={styles.uploadIcon} />
+          </TouchableOpacity>
+        )
+        : undefined,
+    });
+  }, [navigation, openMenu, sheetActions.length]);
 
   const goalModalConfig = goalKind ? getGoalTargetModalConfig(goalKind) : null;
 
@@ -172,7 +196,7 @@ export function useVitalsDetailMoreMenu({
         onClose={closeMenu}
         onDismissed={handleSheetDismissed}
       />
-      {goalKind && goalModalConfig ? (
+      {showGoalAction && goalModalConfig ? (
         <GoalTargetModal
           visible={goalVisible}
           title={goalModalConfig.title}

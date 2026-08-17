@@ -813,8 +813,13 @@ export default function SchedulePage() {
                 }}
               />
             )) : (
-              <View style={styles.historyItem}>
-                <Text style={styles.listItemBtmText}>暂无历史干预计划</Text>
+              <View style={styles.historyEmptyInline}>
+                <Image
+                  source={require('@/assets/images/common/zwjl.png')}
+                  style={styles.historyEmptyIcon}
+                  resizeMode="contain"
+                />
+                <Text style={styles.historyEmptyText}>暂无历史干预计划</Text>
               </View>
             )}
           </View>

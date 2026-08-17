@@ -9,7 +9,7 @@ import {
   type DailyRecordStatusItem,
 } from '@/api/dailyRecordStatus';
 import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
-import { getInUseExPatientRuleInfo, type ExPatientRuleRatio } from '@/api/schedule';
+import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
 import { buildSignedChatPayload, saveChatAction } from '@/api/assistant';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import {
@@ -29,10 +29,14 @@ import {
 } from '@/src/features/profile/medication/meal/utils/dietRuleHelpers';
 import {
   loadScheduleDictMaps,
-  loadTodayTaskProgressMap,
+  normalizeProgress,
   toTodayTaskItem,
 } from '@/src/features/schedule/scheduleHelpers';
+import { loadCalendarDayCompleteRateProgressMap } from '@/src/features/schedule/calendarDayCompleteRateHelpers';
 import type { ChatGuideState } from './types';
+import {
+  loadTodayExerciseMainMetaByType,
+} from './todayScheduleExerciseHelpers';
 
 export const TODAY_SCHEDULE_QUESTION = '今日安排';
 export const TODAY_SCHEDULE_ANSWER = '好的，为您发送今日安排，请查看。';
@@ -128,8 +132,9 @@ function getCurrentMealKey() {
 
 function isScheduleItemVisible(item: TodayScheduleItem, currentMinutes: number) {
   if (item.kind === 'ex') {
+    // 与首页一致：今日有主训安排即展示；已完成(100%)不再占用安排位
     const progress = item.progress ?? 0;
-    return progress > 0 && progress < 100;
+    return progress < 100;
   }
   if (item.kind === 'diet' && item.mealWindowEnd != null) {
     return item.mealWindowEnd > currentMinutes;
@@ -344,31 +349,47 @@ async function fetchExerciseItems() {
     ]);
     if (!isResourceApiOk(ruleRes as { code?: number })) return [];
 
-    const rule = apiResourceData<{ exPatientRuleId?: string | number; ruleRatioList?: ExPatientRuleRatio[] }>(
-      ruleRes as { code?: number; data?: { exPatientRuleId?: string | number; ruleRatioList?: ExPatientRuleRatio[] } },
+    const rule = apiResourceData<InUseExPatientRule>(
+      ruleRes as { code?: number; data?: InUseExPatientRule },
     );
     const ruleId = rule?.exPatientRuleId;
     const ratioList = rule?.ruleRatioList ?? [];
     if (!ruleId || ratioList.length === 0) return [];
 
-    const progressMap = await loadTodayTaskProgressMap(ruleId, getTodayDate());
-    return ratioList.map((ratio, index) => {
-      const task = toTodayTaskItem(ratio, index, dictMaps, progressMap);
-      return {
-        key: `ex-${task.key}`,
-        time: '随时',
-        sortValue: 24 * 60 + index,
-        title: task.title,
-        desc: task.intro,
-        kind: 'ex' as const,
-        icon: task.icon,
-        progress: task.progress,
-        exerciseType: ratio.exerciseType,
-        exerciseChildType: ratio.exerciseChildType,
-        strengthLevel: ratio.strengthLevel,
-        taskIndex: index,
-      };
-    });
+    const today = getTodayDate();
+    const [progressMap, mainMetaByType] = await Promise.all([
+      // 与首页运动处方卡片同一数据源：当日四模块完成率
+      loadCalendarDayCompleteRateProgressMap(today),
+      loadTodayExerciseMainMetaByType(rule, today),
+    ]);
+
+    return ratioList
+      .map((ratio, index) => {
+        const typeKey = ratio.exerciseType?.trim() ?? '';
+        // 今日主训练无该分类则不展示
+        const mainMeta = typeKey ? mainMetaByType[typeKey] : undefined;
+        if (!typeKey || !mainMeta) return null;
+
+        const task = toTodayTaskItem(ratio, index, dictMaps, progressMap);
+        const progress = progressMap[typeKey] != null
+          ? normalizeProgress(progressMap[typeKey])
+          : task.progress;
+        return {
+          key: `ex-${task.key}`,
+          time: '随时',
+          sortValue: 24 * 60 + index,
+          title: task.title,
+          desc: mainMeta.desc && mainMeta.desc !== '--' ? mainMeta.desc : task.intro,
+          kind: 'ex' as const,
+          icon: task.icon,
+          progress,
+          exerciseType: ratio.exerciseType,
+          exerciseChildType: ratio.exerciseChildType,
+          strengthLevel: ratio.strengthLevel,
+          taskIndex: index,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item != null);
   } catch {
     return [];
   }

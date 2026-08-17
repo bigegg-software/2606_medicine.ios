@@ -17,6 +17,7 @@ import BodyTemperatureChart from '@/src/features/profile/components/BodyTemperat
 import HeartRateChart from '@/src/features/profile/components/HeartRateChart';
 import WeightChart from '@/src/features/profile/components/WeightChart';
 import UricAcidChart from '@/src/features/profile/components/UricAcidChart';
+import BloodLipidChart from '@/src/features/profile/components/BloodLipidChart';
 import SleepStageChart from '@/src/features/profile/components/SleepStageChart';
 import StepsChart from '@/src/features/profile/components/StepsChart';
 import { getChartLabels } from '@/src/features/profile/vitals/vitalsHelpers';
@@ -72,11 +73,11 @@ function renderChart(chart: HealthStatusChartSnapshot) {
       return <WeightChart data={chart.points} />;
     case 'lipid':
       return (
-        <View style={styles.healthStatusLipidSummary}>
-          <Text style={styles.healthStatusLipidText}>TG {chart.tg}</Text>
-          <Text style={styles.healthStatusLipidText}>HDL {chart.hdl}</Text>
-          <Text style={styles.healthStatusLipidText}>LDL {chart.ldl}</Text>
-        </View>
+        <BloodLipidChart
+          data={chart.points}
+          labels={CHART_LABELS}
+          hideXAxis
+        />
       );
     case 'uric_acid':
       return <UricAcidChart data={chart.points} labels={CHART_LABELS} />;
@@ -87,6 +88,17 @@ function renderChart(chart: HealthStatusChartSnapshot) {
 
 function formatUpdateTime(dataTime?: string) {
   return dataTime ? `更新于${dataTime}` : '';
+}
+
+function formatHealthStatusHeaderTime(slide?: HealthStatusVitalSlide) {
+  const updateTime = formatUpdateTime(slide?.dataTime);
+  if (updateTime) return updateTime;
+  const hasNoData =
+    !slide
+    || !slide.value
+    || slide.value === '--'
+    || slide.status === '暂无数据';
+  return hasNoData ? '--' : (slide.key || '--');
 }
 
 function VitalSlide({
@@ -115,7 +127,8 @@ function VitalSlide({
             <Text style={styles.healthStatusValueTitle}>{slide.key}</Text>
             {slide.status ? (
               <Text style={[styles.healthStatusValueTitle, { color: slide.statusColor }]}>
-                ·{slide.status}
+                {slide.status === '暂无数据' ? ' ' : '·'}
+                {slide.status}
               </Text>
             ) : null}
           </Flex>
@@ -184,7 +197,7 @@ export default function HealthStatusCards({ slides }: { slides: HealthStatusVita
         <Flex justify="between">
           <Text style={styles.healthStatusTitle}>健康状态</Text>
           <Text style={styles.healthStatusTime}>
-            {formatUpdateTime(activeSlide?.dataTime) || activeSlide?.key}
+            {formatHealthStatusHeaderTime(activeSlide)}
           </Text>
         </Flex>
 

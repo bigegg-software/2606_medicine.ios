@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type FamilyMedicalItem = {
   familyRelationships?: string;
@@ -23,8 +24,10 @@ export type UpdateFamilyMedicalParams = {
   familyMedicalList: FamilyMedicalItem[];
 };
 
-export const getFamilyMedicalInfo = () =>
-  request.get<FamilyMedicalInfoResult>('/patient/familyMedical/getInfo');
+export const getFamilyMedicalInfo = (options?: { patientUserId?: string | number | null }) =>
+  request.get<FamilyMedicalInfoResult>('/patient/familyMedical/getInfo', {
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const updateFamilyMedical = (data: UpdateFamilyMedicalParams) =>
   request.put<{ code?: number; msg?: string }>('/patient/familyMedical/update', data);

@@ -7,6 +7,7 @@ const styles = StyleSheet.create({
 
     topBox: {
         marginTop: 16,
+        paddingLeft: 6,
         alignItems: 'center',
     },
     topLeft: {

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -52,6 +52,7 @@ import {
 } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
 import { resolveWeightTarget, WEIGHT_GOAL_MIN } from './helpers/vitalsGoalTargets';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -97,16 +98,17 @@ function resetHeaderDisplay(range: WeightChartRange, heightCm?: number | null) {
 async function fetchWeightRangeSnapshot(
   range: WeightChartRange,
   heightCm?: number | null,
+  options?: { patientUserId?: string | number | null },
 ): Promise<WeightRangeSnapshot | null> {
   if (range === 'today') {
     const todayDate = moment().format('YYYY-MM-DD');
     const [latestRawRes, latestTwoRawRes, todayDetailRawRes] = await Promise.all([
-      getMeasureDataLatestByType('体重'),
-      getMeasureDataLatestTwoByType('体重'),
+      getMeasureDataLatestByType('体重', options),
+      getMeasureDataLatestTwoByType('体重', options),
       getMeasureDataDetailByDate({
         customerLocalDate: todayDate,
         type: '体重',
-      }),
+      }, options),
     ]);
     const latestRes = latestRawRes as unknown as {
       code?: number;
@@ -134,7 +136,7 @@ async function fetchWeightRangeSnapshot(
       const detailRes = (await getMeasureDataDetailByDate({
         customerLocalDate: latestDate,
         type: '体重',
-      })) as unknown as { code?: number; data?: MeasureDataItem[] };
+      }, options)) as unknown as { code?: number; data?: MeasureDataItem[] };
 
       if (isResourceApiOk(detailRes)) {
         const dayItems = flattenMeasureItems(apiResourceData<MeasureDataItem[]>(detailRes));
@@ -168,7 +170,7 @@ async function fetchWeightRangeSnapshot(
     startDate,
     endDate,
     type: '体重',
-  })) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
+  }, options)) as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
 
   if (!isResourceApiOk(res)) return null;
 
@@ -215,6 +217,14 @@ function WeightTrendCard({
 
 export default function WeightPage() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute();
+  const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+    route.params as VitalsViewParams | undefined,
+  );
+  const readOptions = useMemo(
+    () => (patientUserId ? { patientUserId } : undefined),
+    [patientUserId],
+  );
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const userHeight = useSelector((state: RootState) => state.user.info?.height);
@@ -257,14 +267,16 @@ export default function WeightPage() {
   );
 
   const prescriptionWeightGoalDisplay = useMemo(() => {
+    if (readOnly) return null;
     const target = Number(prescriptionTargetWeight);
     if (!Number.isFinite(target) || target <= 0) return null;
     const currentKg = parseMeasureNumber(latestItem?.val)
       ?? parseMeasureNumber(currentWeightText);
     return resolvePersonalWeightGoalDisplay(target, currentKg);
-  }, [currentWeightText, latestItem, prescriptionTargetWeight]);
+  }, [currentWeightText, latestItem, prescriptionTargetWeight, readOnly]);
 
   const personalWeightGoalDisplay = useMemo(() => {
+    if (readOnly) return null;
     if (prescriptionWeightGoalDisplay) return null;
     if (storeWeightGoal == null || storeWeightGoal < WEIGHT_GOAL_MIN) return null;
     const currentKg = parseMeasureNumber(latestItem?.val)
@@ -276,6 +288,7 @@ export default function WeightPage() {
     personalWeightGoal,
     prescriptionWeightGoalDisplay,
     storeWeightGoal,
+    readOnly,
   ]);
 
   const activeGoalDisplay = prescriptionWeightGoalDisplay ?? personalWeightGoalDisplay;
@@ -345,7 +358,7 @@ export default function WeightPage() {
     }
 
     try {
-      const snapshot = await fetchWeightRangeSnapshot(range, userHeightRef.current);
+      const snapshot = await fetchWeightRangeSnapshot(range, userHeightRef.current, readOptions);
       if (snapshot == null) {
         if (background) return;
         if (requestId !== loadRequestRef.current) return;
@@ -362,7 +375,7 @@ export default function WeightPage() {
       if (requestId !== loadRequestRef.current) return;
       applyEmptyRangeState(range);
     }
-  }, [applyEmptyRangeState, applyRangeSnapshot]);
+  }, [applyEmptyRangeState, applyRangeSnapshot, readOptions]);
 
   const prefetchOtherRanges = useCallback((currentRange: WeightChartRange) => {
     WEIGHT_CHART_RANGES
@@ -396,7 +409,9 @@ export default function WeightPage() {
 
   useFocusEffect(
     useCallback(() => {
-      dispatch(fetchInUsePrescription({ force: true }));
+      if (!readOnly) {
+        dispatch(fetchInUsePrescription({ force: true }));
+      }
       const range = selectedTypeRef.current;
       const cached = rangeCacheRef.current[range];
       if (cached) {
@@ -404,13 +419,15 @@ export default function WeightPage() {
       }
       void loadMeasureData(range);
       prefetchOtherRanges(range);
-    }, [applyRangeSnapshot, dispatch, loadMeasureData, prefetchOtherRanges]),
+    }, [applyRangeSnapshot, dispatch, loadMeasureData, prefetchOtherRanges, readOnly]),
   );
 
   const { menuModals } = useVitalsDetailMoreMenu({
     allRecordsType: '体重',
     goalKind: 'weight',
-    goalDisabled: prescriptionWeightGoalDisplay != null,
+    goalDisabled: readOnly || prescriptionWeightGoalDisplay != null,
+    readOnly,
+    viewNavParams,
     onGoalSaved: (target) => {
       setPersonalWeightGoal(target);
     },
@@ -577,6 +594,7 @@ export default function WeightPage() {
             </Flex>
           )}
         </ScrollView >
+        {!readOnly ? (
         <View style={styles.bottomBar}>
           <TouchableOpacity
             style={styles.bottomBarButtonLeft}
@@ -592,6 +610,7 @@ export default function WeightPage() {
             </Flex>
           </TouchableOpacity>
         </View>
+        ) : null}
       </View >
       {menuModals}
     </PageLayout >

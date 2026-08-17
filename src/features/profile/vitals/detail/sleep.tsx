@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +43,7 @@ import {
 } from './helpers/sleep';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 const EMPTY_STATS: SleepDetailStats = {
     totalSleep: '--',
@@ -56,6 +57,14 @@ function resetHeaderDisplay(range: SleepChartRange, goalHours: number) {
 }
 
 export default function SleepPage() {
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const storeSleepGoalMinutes = useSelector((state: RootState) => state.user.userExtr?.sleepGoals);
     const defaultSleepGoal = useMemo(
@@ -118,7 +127,7 @@ export default function SleepPage() {
                 endDate,
                 type: WEARABLE_DATA_TYPES.sleep,
                 ...getWearableReturnOriginalDataParam(range),
-            })) as unknown as { code?: number; data?: WearableDataItem[] };
+            }, readOptions)) as unknown as { code?: number; data?: WearableDataItem[] };
 
             if (!isResourceApiOk(res)) {
                 setSleepItems([]);
@@ -162,7 +171,7 @@ export default function SleepPage() {
             setStats(EMPTY_STATS);
             setSleepGoal(goalHours);
         }
-    }, [defaultSleepGoal]);
+    }, [defaultSleepGoal, readOptions]);
 
     useFocusEffect(
         useCallback(() => {
@@ -173,6 +182,8 @@ export default function SleepPage() {
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '睡眠',
         goalKind: 'sleep',
+        readOnly,
+        viewNavParams,
         onGoalSaved: (target) => {
             void loadSleepData(selectedType, target);
         },

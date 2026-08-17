@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/vitals/bloodPage';
@@ -24,6 +24,7 @@ import {
 } from './helpers/bloodOxygen';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 function formatStatusText(status?: string) {
     return status?.replace(/^・/, '') || '--';
@@ -40,6 +41,14 @@ const EMPTY_OVERVIEW = {
 };
 
 export default function VitalsPage() {
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const [selectedType, setSelectedType] = useState<BloodOxygenChartRange>('today');
     const [chartData, setChartData] = useState<BloodOxygenPoint[]>([]);
@@ -68,7 +77,7 @@ export default function VitalsPage() {
                 endDate,
                 type: WEARABLE_DATA_TYPES.oxygen,
                 ...getWearableReturnOriginalDataParam(range),
-            })) as unknown as { code?: number; data?: WearableDataItem[] };
+            }, readOptions)) as unknown as { code?: number; data?: WearableDataItem[] };
 
             if (!isResourceApiOk(res)) {
                 setChartData([]);
@@ -108,7 +117,7 @@ export default function VitalsPage() {
             setCurrentLabel(emptyDisplay.currentLabel);
             setOverview(EMPTY_OVERVIEW);
         }
-    }, []);
+    }, [readOptions]);
 
     useFocusEffect(
         useCallback(() => {
@@ -118,6 +127,8 @@ export default function VitalsPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '血氧',
+        readOnly,
+        viewNavParams,
     });
 
     return (

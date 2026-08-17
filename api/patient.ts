@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type UserBaseInfo = {
   userId?: number;
@@ -25,7 +26,10 @@ export type UpdateUserBaseInfoParams = {
   dailyActivityLevel?: string;
 };
 
-export const getUserBaseInfo = () => request.get('/patient/userBaseInfo/getInfo');
+export const getUserBaseInfo = (options?: { patientUserId?: string | number | null }) =>
+  request.get('/patient/userBaseInfo/getInfo', {
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const updateUserBaseInfo = (data: UpdateUserBaseInfoParams) =>
   request.put('/patient/userBaseInfo/update', data);

@@ -7,6 +7,8 @@ const styles = StyleSheet.create({
   headerWrap: { paddingLeft: 10, overflow: 'hidden' },
   pageLine: { height: 1, marginTop: 10, backgroundColor: 'rgba(5,58,147,0.06)' },
   scroll: { paddingHorizontal: 18, paddingBottom: 40 },
+  scrollGrow: { flexGrow: 1 },
+  scrollPressable: { flexGrow: 1 },
   navIcon: { width: 24, height: 24 },
   headerRight: {
     marginRight: 18,
@@ -747,6 +749,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
   },
+  stopBtn: {
+    marginLeft: 10,
+    minWidth: 88,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#FB4550',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 14,
+  },
+  stopBtnText: {
+    color: '#FB4550',
+    fontSize: 15,
+    fontWeight: '500',
+  },
   sendBtnDisabled: {
     opacity: 0.5,
   },
@@ -754,6 +773,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '500',
+  },
+  inputWrapDisabled: {
+    opacity: 0.7,
+  },
+  quickActionBtnDisabled: {
+    opacity: 0.5,
   },
   addBtn: {
     marginLeft: 10,

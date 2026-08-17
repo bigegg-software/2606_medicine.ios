@@ -12,6 +12,7 @@ import {
   type TodayScheduleItem,
   type TodaySchedulePayload,
 } from '../utils/todayScheduleAction';
+import { setPendingTrainingPhaseTab } from '@/src/features/exercise/utils/trainingPhaseTabSync';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -94,7 +95,10 @@ function ScheduleCard({
             ) : null}
           </View>
           {item.desc ? (
-            <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
+            <Text
+              style={assistantStyles.todayScheduleMealFoods}
+              numberOfLines={item.kind === 'ex' ? 1 : 2}
+            >
               {item.desc}
             </Text>
           ) : null}
@@ -156,6 +160,11 @@ export default function TodayScheduleCards({ payload }: Props) {
       navigation.navigate('Medication', { tab: 'medication' });
       return;
     }
+    if (item.kind === 'ex') {
+      setPendingTrainingPhaseTab('main');
+      navigation.navigate('ExercisePage');
+      return;
+    }
     if (item.kind === 'activity' && item.activityId) {
       navigation.navigate('ActivityDetail', { id: item.activityId });
       return;
@@ -175,6 +184,7 @@ export default function TodayScheduleCards({ payload }: Props) {
         const canNavigate =
           item.kind === 'diet'
           || item.kind === 'drug'
+          || item.kind === 'ex'
           || (item.kind === 'activity' && item.activityId)
           || (item.kind === 'live' && item.liveId);
 

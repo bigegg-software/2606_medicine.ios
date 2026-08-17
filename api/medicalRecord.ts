@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type MedicalRecordAttachment = {
   ossId?: string;
@@ -44,8 +45,14 @@ export type MedicalRecordListResult = {
 
 export type MedicalRecordPayload = Omit<MedicalRecord, 'userId'>;
 
-export const getMedicalRecordFrontList = (params?: MedicalRecordListParams) =>
-  request.get<MedicalRecordListResult>('/patient/medicalRecord/frontList', { params });
+export const getMedicalRecordFrontList = (
+  params?: MedicalRecordListParams,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MedicalRecordListResult>('/patient/medicalRecord/frontList', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export type MedicalRecordInfoResult = {
   code?: number;

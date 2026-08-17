@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,6 +32,7 @@ import {
 } from './helpers/energy';
 import { mapDetailChartRangeToVitalsRange, roundEnergyValue } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 import { resolveEnergyTarget } from './helpers/vitalsGoalTargets';
 
 const EMPTY_OVERVIEW = {
@@ -66,6 +67,14 @@ function applyTodayGoalStatus(dayTotal: number, goal: number) {
 }
 
 export default function ConsumptionPage() {
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const storeEnergyGoal = useSelector((state: RootState) => state.user.userExtr?.energyGoals);
     const defaultEnergyGoal = useMemo(
@@ -136,13 +145,13 @@ export default function ConsumptionPage() {
                     endDate,
                     type: WEARABLE_DATA_TYPES.activeEnergy,
                     ...getWearableReturnOriginalDataParam(range),
-                }),
+                }, readOptions),
                 getWearableDataDetailByDateRange({
                     startDate,
                     endDate,
                     type: WEARABLE_DATA_TYPES.basalEnergy,
                     ...getWearableReturnOriginalDataParam(range),
-                }),
+                }, readOptions),
             ]);
             if (seq !== loadSeqRef.current) return;
 
@@ -233,7 +242,7 @@ export default function ConsumptionPage() {
                 loadingRef.current = false;
             }
         }
-    }, [defaultEnergyGoal]);
+    }, [defaultEnergyGoal, readOptions]);
 
     const handleSelectedTypeChange = useCallback((type: StepsChartRange) => {
         if (type === selectedTypeRef.current) return;
@@ -251,6 +260,8 @@ export default function ConsumptionPage() {
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '消耗',
         goalKind: 'energy',
+        readOnly,
+        viewNavParams,
         onGoalSaved: (target) => {
             void loadEnergyData(selectedType, target);
         },

@@ -7,8 +7,14 @@ import SyncDaysPickerModal from './components/SyncDaysPickerModal';
 import AutoSyncPromptModal from './components/AutoSyncPromptModal';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/vitals/index';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import type { RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import type { RootStackParamList } from '@/route/router';
+import {
+  resolveVitalsViewMode,
+  withVitalsViewParams,
+} from '@/src/features/profile/vitals/utils/vitalsViewMode';
 import { AppTheme } from '@/common/theme';
 import updateHealthKit, { HEALTH_KIT_SYNC_COMPLETED } from '@/utils/healthKit';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -126,6 +132,8 @@ const ENERGY_GOAL_MAX = 5000;
 export default function VitalsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation: any = useNavigation();
+  const route = useRoute<RouteProp<RootStackParamList, 'VitalsPage'>>();
+  const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(route.params);
   const insets = useSafeAreaInsets();
   const uploading = useSelector((state: RootState) => state.upload.uploading);
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
@@ -180,6 +188,8 @@ export default function VitalsPage() {
     }
     const { startDate, endDate } = getDateRange(activeNav);
 
+    const patientOpts = patientUserId ? { patientUserId } : undefined;
+
     const fetchWearableItems = async (type: WearableDataType, dateRange = { startDate, endDate }) => {
       try {
         const res = (await getWearableDataDetailByDateRange({
@@ -187,7 +197,7 @@ export default function VitalsPage() {
           endDate: dateRange.endDate,
           type,
           ...getWearableReturnOriginalDataParam(activeNav),
-        })) as unknown as WearableDataRangeResult;
+        }, patientOpts)) as unknown as WearableDataRangeResult;
         if (!isResourceApiOk(res)) return [];
         const data = apiResourceData<WearableDataItem[]>(res);
         return sortWearableItems(Array.isArray(data) ? data : []);
@@ -198,7 +208,7 @@ export default function VitalsPage() {
 
     const fetchLatestMeasure = async (type: MeasureDataType) => {
       try {
-        const res = (await getMeasureDataLatestByType(type)) as unknown as MeasureDataLatestResult;
+        const res = (await getMeasureDataLatestByType(type, patientOpts)) as unknown as MeasureDataLatestResult;
         if (!isResourceApiOk(res)) return undefined;
         return apiResourceData<MeasureDataItem>(res);
       } catch {
@@ -208,7 +218,7 @@ export default function VitalsPage() {
 
     const fetchLatestWearable = async (type: WearableDataType) => {
       try {
-        const res = (await getWearableDataLatestByType(type)) as unknown as WearableDataDetailResult;
+        const res = (await getWearableDataLatestByType(type, patientOpts)) as unknown as WearableDataDetailResult;
         if (!isResourceApiOk(res)) return undefined;
         return apiResourceData<WearableDataItem>(res);
       } catch {
@@ -227,7 +237,7 @@ export default function VitalsPage() {
         const res = (await getMeasureDataDetailByDate({
           customerLocalDate: latestDate,
           type,
-        })) as unknown as MeasureDataDetailResult;
+        }, patientOpts)) as unknown as MeasureDataDetailResult;
         if (!isResourceApiOk(res)) {
           return { latest, chartItems: latest ? [latest] : [] };
         }
@@ -317,7 +327,7 @@ export default function VitalsPage() {
                   startDate,
                   endDate,
                   type: VITAL_KEY_API_TYPE[key],
-                })) as unknown as MeasureDataRangeDetailResult;
+                }, patientOpts)) as unknown as MeasureDataRangeDetailResult;
                 if (!isResourceApiOk(res)) {
                   return [key, []] as const;
                 }
@@ -334,7 +344,7 @@ export default function VitalsPage() {
                 startDate,
                 endDate,
                 type: '体重',
-              })) as unknown as MeasureDataRangeDetailResult;
+              }, patientOpts)) as unknown as MeasureDataRangeDetailResult;
               if (!isResourceApiOk(res)) return [];
               const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res));
               return flattenMeasureItems(groups);
@@ -366,7 +376,7 @@ export default function VitalsPage() {
         setLoading(false);
       }
     }
-  }, [activeNav]);
+  }, [activeNav, patientUserId]);
 
   const loadMeasureDataRef = useRef(loadMeasureData);
   loadMeasureDataRef.current = loadMeasureData;
@@ -701,8 +711,8 @@ export default function VitalsPage() {
             status={heartRate.status}
             statusColor={heartRate.statusColor}
             dataTime={heartRateDataTime}
-            onAll={() => navigation.navigate('AllDataPage', { type: '心率' })}
-            onPress={() => navigation.navigate('HeartRatePage')}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '心率' }, viewNavParams))}
+            onPress={() => navigation.navigate('HeartRatePage', viewNavParams)}
             chart={<HeartRateChart data={toHourPoints(heartRateSeries)} hideXAxis />}
           />
         );
@@ -716,8 +726,8 @@ export default function VitalsPage() {
             status={energySummary.status.replace(/^・/, '')}
             statusColor={energySummary.statusColor}
             dataTime={energyDataTime}
-            onAll={() => navigation.navigate('AllDataPage', { type: '消耗' })}
-            onPress={() => navigation.navigate('ConsumptionPage')}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '消耗' }, viewNavParams))}
+            onPress={() => navigation.navigate('ConsumptionPage', viewNavParams)}
             chart={energyChart}
           />
         );
@@ -731,9 +741,9 @@ export default function VitalsPage() {
             status={glucose.status}
             statusColor={glucose.statusColor}
             dataTime={glucoseDataTime}
-            onAdd={() => navigation.navigate('AddDataPage', { type: '血糖' })}
-            onAll={() => navigation.navigate('AllDataPage', { type: '血糖' })}
-            onPress={() => navigation.navigate('BloodSugarPage')}
+            onAdd={readOnly ? undefined : () => navigation.navigate('AddDataPage', { type: '血糖' })}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '血糖' }, viewNavParams))}
+            onPress={() => navigation.navigate('BloodSugarPage', viewNavParams)}
             chart={<BloodGlucoseChart data={glucoseSeries} labels={chartLabels} hideXAxis />}
           />
         );
@@ -747,9 +757,9 @@ export default function VitalsPage() {
             status={bloodPressure.status}
             statusColor={bloodPressure.statusColor}
             dataTime={bloodPressureDataTime}
-            onAdd={() => navigation.navigate('AddDataPage', { type: '血压' })}
-            onAll={() => navigation.navigate('AllDataPage', { type: '血压' })}
-            onPress={() => navigation.navigate('BloodPressurePage')}
+            onAdd={readOnly ? undefined : () => navigation.navigate('AddDataPage', { type: '血压' })}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '血压' }, viewNavParams))}
+            onPress={() => navigation.navigate('BloodPressurePage', viewNavParams)}
             chart={<BloodPressureChart data={bloodPressureSeries} labels={chartLabels} hideXAxis />}
           />
         );
@@ -763,8 +773,8 @@ export default function VitalsPage() {
             status={stepsSummary.status.replace(/^・/, '')}
             statusColor={stepsSummary.statusColor}
             dataTime={stepsDataTime}
-            onAll={() => navigation.navigate('AllDataPage', { type: '步数' })}
-            onPress={() => navigation.navigate('StepsPage')}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '步数' }, viewNavParams))}
+            onPress={() => navigation.navigate('StepsPage', viewNavParams)}
             chart={stepsChart}
           />
         );
@@ -778,7 +788,7 @@ export default function VitalsPage() {
             status={sleepSummary.quality.label}
             statusColor={sleepSummary.quality.color}
             dataTime={sleepDataTime}
-            onPress={() => navigation.navigate('SleepPage')}
+            onPress={() => navigation.navigate('SleepPage', viewNavParams)}
             chart={sleepChart}
           />
         );
@@ -792,8 +802,8 @@ export default function VitalsPage() {
             status={bloodOxygen.status}
             statusColor={bloodOxygen.statusColor}
             dataTime={bloodOxygenDataTime}
-            onAll={() => navigation.navigate('AllDataPage', { type: '血氧' })}
-            onPress={() => navigation.navigate('BloodOxygenPage')}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '血氧' }, viewNavParams))}
+            onPress={() => navigation.navigate('BloodOxygenPage', viewNavParams)}
             chart={<BloodOxygenChart data={toHourPoints(bloodOxygenSeries)} labels={chartLabels} hideXAxis />}
           />
         );
@@ -807,9 +817,9 @@ export default function VitalsPage() {
             status={bodyTemperature.status}
             statusColor={bodyTemperature.statusColor}
             dataTime={bodyTemperatureDataTime}
-            onAdd={() => navigation.navigate('AddDataPage', { type: '体温' })}
-            onAll={() => navigation.navigate('AllDataPage', { type: '体温' })}
-            onPress={() => navigation.navigate('BodyTemperaturePage')}
+            onAdd={readOnly ? undefined : () => navigation.navigate('AddDataPage', { type: '体温' })}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '体温' }, viewNavParams))}
+            onPress={() => navigation.navigate('BodyTemperaturePage', viewNavParams)}
             chart={<BodyTemperatureChart data={toHourPoints(bodyTemperatureSeries)} labels={chartLabels} hideXAxis />}
           />
         );
@@ -823,8 +833,8 @@ export default function VitalsPage() {
             status={weight.status}
             statusColor={weight.statusColor}
             dataTime={weightDataTime}
-            onAll={() => navigation.navigate('AllDataPage', { type: '体重' })}
-            onPress={() => navigation.navigate('WeightPage')}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '体重' }, viewNavParams))}
+            onPress={() => navigation.navigate('WeightPage', viewNavParams)}
             chart={<WeightChart data={toHourPoints(weightSeries)} labels={chartLabels} hideXAxis />}
           />
         );
@@ -838,9 +848,9 @@ export default function VitalsPage() {
             status={bloodLipids.tcStatus}
             statusColor={bloodLipids.tcStatusColor}
             dataTime={bloodLipidsDataTime}
-            onAdd={() => navigation.navigate('AddDataPage', { type: '血脂' })}
-            onAll={() => navigation.navigate('AllDataPage', { type: '血脂' })}
-            onPress={() => navigation.navigate('BloodLipidPage')}
+            onAdd={readOnly ? undefined : () => navigation.navigate('AddDataPage', { type: '血脂' })}
+            onAll={() => navigation.navigate('AllDataPage', withVitalsViewParams({ type: '血脂' }, viewNavParams))}
+            onPress={() => navigation.navigate('BloodLipidPage', viewNavParams)}
             chart={
               <BloodLipidChart
                 data={toHourPoints(bloodLipidsSeries)}
@@ -860,7 +870,7 @@ export default function VitalsPage() {
             status={uricAcid.statusLabel}
             statusColor={uricAcid.statusColor}
             dataTime={uricAcidDataTime}
-            onPress={() => navigation.navigate('UricAcidPage')}
+            onPress={() => navigation.navigate('UricAcidPage', viewNavParams)}
             chart={<UricAcidChart data={toHourPoints(uricAcidSeries)} labels={chartLabels} hideXAxis />}
           />
         );
@@ -903,6 +913,9 @@ export default function VitalsPage() {
     weight,
     weightDataTime,
     weightSeries,
+    readOnly,
+    viewNavParams,
+    navigation,
   ]);
 
   const runHealthKitSync = useCallback(async (
@@ -1066,13 +1079,15 @@ export default function VitalsPage() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={() => navigation.navigate('SortPage', { items: vitalsSortItems })}>
-          <Image source={require('@/assets/images/vitals/sort.png')} style={{ width: 24, height: 24, marginRight: 8 }} />
-        </TouchableOpacity>
-      ),
+      headerRight: readOnly
+        ? undefined
+        : () => (
+            <TouchableOpacity onPress={() => navigation.navigate('SortPage', { items: vitalsSortItems })}>
+              <Image source={require('@/assets/images/vitals/sort.png')} style={{ width: 24, height: 24, marginRight: 8 }} />
+            </TouchableOpacity>
+          ),
     });
-  }, [navigation, vitalsSortItems]);
+  }, [navigation, vitalsSortItems, readOnly]);
   return (
     <PageLayout style={styles.container} edges={[]}>
       {/* <Flex style={styles.navBox}>
@@ -1105,97 +1120,108 @@ export default function VitalsPage() {
       ) : null}
 
       <View style={styles.pageContent}>
-        <ScrollView contentContainerStyle={[styles.body]}>
+        <ScrollView
+          contentContainerStyle={[
+            styles.body,
+            readOnly ? { paddingBottom: 16 + insets.bottom } : null,
+          ]}
+        >
           {orderedVitalKeys.map(key => (
             <React.Fragment key={key}>{renderVitalSection(key)}</React.Fragment>
           ))}
         </ScrollView>
-        <Flex
-          justify="between"
-          style={[
-            styles.bottomBar,
-            { height: 86 + insets.bottom, paddingBottom: insets.bottom },
-          ]}
-        >
-          <TouchableOpacity
-            style={[styles.bottomBarButtonLeft, { flex: 1 }, uploading && { opacity: 0.5 }]}
-            onPress={handleUploadData}
-            disabled={uploading}
-            activeOpacity={0.8}
+        {readOnly ? null : (
+          <Flex
+            justify="between"
+            style={[
+              styles.bottomBar,
+              { height: 86 + insets.bottom, paddingBottom: insets.bottom },
+            ]}
           >
-            <Flex justify="center" style={{ flex: 1 }}>
-              <Image
-                style={styles.bottomBarButtonImg}
-                source={require('@/assets/images/vitals/upload.png')}
-              />
-              <Text style={styles.bottomBarButtonTextLeft}>同步数据</Text>
-            </Flex>
-          </TouchableOpacity>
-        </Flex>
+            <TouchableOpacity
+              style={[styles.bottomBarButtonLeft, { flex: 1 }, uploading && { opacity: 0.5 }]}
+              onPress={handleUploadData}
+              disabled={uploading}
+              activeOpacity={0.8}
+            >
+              <Flex justify="center" style={{ flex: 1 }}>
+                <Image
+                  style={styles.bottomBarButtonImg}
+                  source={require('@/assets/images/vitals/upload.png')}
+                />
+                <Text style={styles.bottomBarButtonTextLeft}>同步数据</Text>
+              </Flex>
+            </TouchableOpacity>
+          </Flex>
+        )}
       </View>
 
-      <GoalTargetModal
-        visible={showSleepTargetModal}
-        title="设置睡眠目标"
-        label="每日目标（小时）"
-        unit="小时"
-        initialValue={sleepTarget}
-        saving={savingSleep}
-        min={1}
-        max={10}
-        step={0.5}
-        majorStep={1}
-        onCancel={() => setShowSleepTargetModal(false)}
-        onConfirm={handleSaveSleepTarget}
-      />
+      {readOnly ? null : (
+        <>
+          <GoalTargetModal
+            visible={showSleepTargetModal}
+            title="设置睡眠目标"
+            label="每日目标（小时）"
+            unit="小时"
+            initialValue={sleepTarget}
+            saving={savingSleep}
+            min={1}
+            max={10}
+            step={0.5}
+            majorStep={1}
+            onCancel={() => setShowSleepTargetModal(false)}
+            onConfirm={handleSaveSleepTarget}
+          />
 
-      <GoalTargetModal
-        visible={showStepTargetModal}
-        title="设置步数目标"
-        label="每日目标（步）"
-        unit="步"
-        initialValue={stepTarget}
-        saving={savingStep}
-        min={0}
-        max={20000}
-        step={500}
-        patternUnitSize={1000}
-        formatDisplay={value => value.toLocaleString()}
-        onCancel={() => setShowStepTargetModal(false)}
-        onConfirm={handleSaveStepTarget}
-      />
+          <GoalTargetModal
+            visible={showStepTargetModal}
+            title="设置步数目标"
+            label="每日目标（步）"
+            unit="步"
+            initialValue={stepTarget}
+            saving={savingStep}
+            min={0}
+            max={20000}
+            step={500}
+            patternUnitSize={1000}
+            formatDisplay={value => value.toLocaleString()}
+            onCancel={() => setShowStepTargetModal(false)}
+            onConfirm={handleSaveStepTarget}
+          />
 
-      <GoalTargetModal
-        visible={showEnergyTargetModal}
-        title="设置活动能量消耗"
-        label="每日目标（千卡）"
-        unit="千卡"
-        initialValue={energyTarget}
-        saving={savingEnergy}
-        min={0}
-        max={ENERGY_GOAL_MAX}
-        step={50}
-        patternUnitSize={100}
-        formatDisplay={value => value.toLocaleString()}
-        onCancel={() => setShowEnergyTargetModal(false)}
-        onConfirm={handleSaveEnergyTarget}
-      />
+          <GoalTargetModal
+            visible={showEnergyTargetModal}
+            title="设置活动能量消耗"
+            label="每日目标（千卡）"
+            unit="千卡"
+            initialValue={energyTarget}
+            saving={savingEnergy}
+            min={0}
+            max={ENERGY_GOAL_MAX}
+            step={50}
+            patternUnitSize={100}
+            formatDisplay={value => value.toLocaleString()}
+            onCancel={() => setShowEnergyTargetModal(false)}
+            onConfirm={handleSaveEnergyTarget}
+          />
 
-      <SyncDaysPickerModal
-        visible={dayPickerVisible}
-        initialValue={synWdataDays > 0 ? synWdataDays : 7}
-        saving={savingSynWdataDays}
-        onCancel={handleDayPickerCancel}
-        onConfirm={handleSaveSyncDays}
-        onDismissed={handleDayPickerDismissed}
-      />
+          <SyncDaysPickerModal
+            visible={dayPickerVisible}
+            initialValue={synWdataDays > 0 ? synWdataDays : 7}
+            saving={savingSynWdataDays}
+            onCancel={handleDayPickerCancel}
+            onConfirm={handleSaveSyncDays}
+            onDismissed={handleDayPickerDismissed}
+          />
 
-      <AutoSyncPromptModal
-        visible={autoSyncPromptVisible}
-        onClose={handleAutoSyncClose}
-        onCancel={handleAutoSyncCancel}
-        onConfirm={handleAutoSyncConfirm}
-      />
+          <AutoSyncPromptModal
+            visible={autoSyncPromptVisible}
+            onClose={handleAutoSyncClose}
+            onCancel={handleAutoSyncCancel}
+            onConfirm={handleAutoSyncConfirm}
+          />
+        </>
+      )}
     </PageLayout>
   );
 }

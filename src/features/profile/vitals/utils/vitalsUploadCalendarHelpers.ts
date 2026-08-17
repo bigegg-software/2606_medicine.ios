@@ -59,6 +59,7 @@ export function resolveVitalsUploadMarker(measureType: VitalsMeasureType): Vital
 export async function loadVitalsUploadMapByYear(
   marker: Pick<VitalsUploadMarker, 'source' | 'type'>,
   year: number,
+  options?: { patientUserId?: string | number | null },
 ): Promise<VitalsUploadMap | null> {
-  return loadUploadMarkerMapByYear(marker, year);
+  return loadUploadMarkerMapByYear(marker, year, options);
 }

@@ -17,34 +17,62 @@ import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchUserSession } from '@/store/actions/user';
 import {
+  fetchFamilyBindMyList,
+  setSelectedFamilyKey,
+} from '@/store/actions/family';
+import {
   getIdentityLabel,
   switchIdentityPerspective,
 } from '@/src/features/auth/utils/identityHelpers';
-import { getFamilyBindMyList, type FamilyBindItem } from '@/api/familyBind';
-import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
 import type { DictDataItem } from '@/api/dict';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import { AppTheme } from '@/common/theme';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+import {
+  FAMILY_DEVICE_ITEMS,
+  formatFamilyDeviceStatusText,
+  getApprovedFamilyBindList,
+  getChildFamilyDisplayName,
+  getChildFamilyMetaLine,
+  getFamilyTabKey,
+  isFamilyIdentityCertified,
+  type FamilyMemberInfoRow,
+} from './utils/familyProfileHelpers';
+import {
+  emptyFamilyMemberInfoRows,
+  loadFamilyMemberInfoRows,
+} from './utils/familyMemberInfoHelpers';
 import styles from '@/css/family/profile';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-function getFamilyTabKey(item: FamilyBindItem, index: number) {
-  if (item.id != null) return String(item.id);
-  if (item.patientUserId != null) return String(item.patientUserId);
-  return `family-${index}`;
-}
 
 export default function FamilyProfilePage() {
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
+  const familyListRaw = useSelector((s: RootState) => s.family.list);
+  const loadingFamily = useSelector((s: RootState) => s.family.loading);
+  const selectedFamilyKey = useSelector((s: RootState) => s.family.selectedKey);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
-  const [loadingFamily, setLoadingFamily] = useState(true);
-  const [familyList, setFamilyList] = useState<FamilyBindItem[]>([{},{}]);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
-  const [selectedFamilyKey, setSelectedFamilyKey] = useState<string | null>(null);
+  const [memberInfoRows, setMemberInfoRows] = useState<FamilyMemberInfoRow[]>(
+    emptyFamilyMemberInfoRows,
+  );
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
+
+  const familyList = useMemo(
+    () => getApprovedFamilyBindList(familyListRaw),
+    [familyListRaw],
+  );
+
+  const selectedFamily = useMemo(() => {
+    if (!selectedFamilyKey) return familyList[0] ?? null;
+    return (
+      familyList.find((item, index) => getFamilyTabKey(item, index) === selectedFamilyKey) ??
+      familyList[0] ??
+      null
+    );
+  }, [familyList, selectedFamilyKey]);
 
   useEffect(() => {
     void (async () => {
@@ -67,31 +95,43 @@ export default function FamilyProfilePage() {
     return map;
   }, [relationOptions]);
 
-  const loadFamilyList = useCallback(async () => {
-    setLoadingFamily(true);
+  const selectedRelationLabel = useMemo(() => {
+    if (!selectedFamily) return '家人';
+    return (
+      relationLabelMap[String(selectedFamily.relationType ?? '')] ||
+      selectedFamily.relationType ||
+      '家人'
+    );
+  }, [relationLabelMap, selectedFamily]);
+
+  const selectedPatientUserId = useMemo(() => {
+    const id = selectedFamily?.patientUserId;
+    return id != null ? String(id) : '';
+  }, [selectedFamily]);
+
+  const loadMemberInfo = useCallback(async (patientUserId: string) => {
+    if (!patientUserId) {
+      setMemberInfoRows(emptyFamilyMemberInfoRows());
+      return;
+    }
     try {
-      // const res = await getFamilyBindMyList();
-      // const data = apiResourceData(res as unknown as ApiResult<FamilyBindItem[]>) ?? [];
-      // const list = Array.isArray(data) ? data : [];
-      // setFamilyList(list);
-      // setSelectedFamilyKey(prev => {
-      //   if (prev && list.some((item, index) => getFamilyTabKey(item, index) === prev)) {
-      //     return prev;
-      //   }
-      //   return list.length ? getFamilyTabKey(list[0], 0) : null;
-      // });
+      const rows = await loadFamilyMemberInfoRows(patientUserId);
+      setMemberInfoRows(rows);
     } catch {
-      setFamilyList([]);
-      setSelectedFamilyKey(null);
-    } finally {
-      setLoadingFamily(false);
+      setMemberInfoRows(emptyFamilyMemberInfoRows());
     }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      void loadFamilyList();
-    }, [loadFamilyList]),
+      void dispatch(fetchFamilyBindMyList());
+    }, [dispatch]),
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadMemberInfo(selectedPatientUserId);
+    }, [loadMemberInfo, selectedPatientUserId]),
   );
 
   useFocusEffect(
@@ -103,7 +143,7 @@ export default function FamilyProfilePage() {
             style={styles.headerSettingBtn}
             activeOpacity={0.8}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            onPress={() => navigation.navigate('NotificationSettingPage')}
+            onPress={() => navigation.navigate('FamilyMemberProfilePage')}
           >
             <Image
               source={require('@/assets/family/profile/icon_sys.png')}
@@ -141,7 +181,7 @@ export default function FamilyProfilePage() {
     <TabPageLayout style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.familyTabBar}>
-          {loadingFamily ? (
+          {loadingFamily && familyList.length === 0 ? (
             <View style={styles.familyListEmpty}>
               <ActivityIndicator color={AppTheme.primaryColor} />
             </View>
@@ -168,7 +208,7 @@ export default function FamilyProfilePage() {
                     <TouchableOpacity
                       key={key}
                       activeOpacity={0.85}
-                      onPress={() => setSelectedFamilyKey(key)}
+                      onPress={() => dispatch(setSelectedFamilyKey(key))}
                       style={index > 0 ? styles.familyTabGap : undefined}
                     >
                       {selected ? (
@@ -198,6 +238,106 @@ export default function FamilyProfilePage() {
             </Flex>
           )}
         </View>
+
+        {selectedFamily ? (
+          <>
+            <View style={styles.memberCard}>
+              <Flex align="center">
+                <Image
+                  source={getDefaultAvatarByGender()}
+                  style={styles.memberAvatar}
+                  resizeMode="cover"
+                />
+                <View style={styles.memberInfo}>
+                  <Flex align="center" justify="between" style={styles.memberNameRow}>
+                    <Text style={styles.memberName} numberOfLines={1}>
+                      {getChildFamilyDisplayName(selectedFamily)}
+                    </Text>
+                    {isFamilyIdentityCertified(selectedFamily) ? (
+                      <Image
+                        source={require('@/assets/family/profile/yrz.png')}
+                        style={styles.memberCertifiedBadge}
+                        resizeMode="contain"
+                      />
+                    ) : null}
+                  </Flex>
+                  <Text style={styles.memberMeta} numberOfLines={1}>
+                    {getChildFamilyMetaLine(selectedFamily, selectedRelationLabel)}
+                  </Text>
+                </View>
+              </Flex>
+              <View style={styles.memberDivider} />
+              {memberInfoRows.map(row => (
+                <Flex key={row.key} align="center" style={styles.memberInfoRow}>
+                  <Image source={row.icon} style={styles.memberInfoIcon} resizeMode="contain" />
+                  <Text style={styles.memberInfoTitle}>{row.title}</Text>
+                  <Text style={styles.memberInfoValue} numberOfLines={1}>
+                    {row.value}
+                  </Text>
+                </Flex>
+              ))}
+
+              <TouchableOpacity activeOpacity={0.85} style={styles.memberViewAllBtn}>
+                <Flex align="center" justify="center">
+                  <Text style={styles.memberViewAllText}>查看全部</Text>
+                  <Image
+                    source={require('@/assets/images/user/icon_right.png')}
+                    style={styles.memberViewAllIcon}
+                    tintColor="#6D925E"
+                    resizeMode="contain"
+                  />
+                </Flex>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.memberCard}>
+              <Text style={styles.memberCardTitle}>设备连接状态</Text>
+              {FAMILY_DEVICE_ITEMS.map((item, index) => {
+                const online = item.status === 'online';
+                return (
+                  <View
+                    key={item.key}
+                    style={[
+                      styles.deviceItem,
+                      index === 0 ? styles.deviceItemFirst : styles.deviceItemGap,
+                    ]}
+                  >
+                    <Flex align="center" justify="between">
+                      <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
+                        <Image source={item.icon} style={styles.deviceIcon} resizeMode="contain" />
+                        <Text style={styles.deviceName} numberOfLines={1}>
+                          {item.name}
+                        </Text>
+                      </Flex>
+                      <Flex align="center">
+                        <View
+                          style={[
+                            styles.deviceStatusDot,
+                            online ? styles.deviceStatusDotOnline : styles.deviceStatusDotOffline,
+                          ]}
+                        />
+                        <Text style={styles.deviceStatusText}>
+                          {formatFamilyDeviceStatusText(item)}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                  </View>
+                );
+              })}
+              <TouchableOpacity activeOpacity={0.85} style={styles.deviceSyncBtn}>
+                <Flex align="center" justify="center">
+                  <Image
+                    source={require('@/assets/family/profile/device_sync.png')}
+                    style={styles.deviceSyncIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.deviceSyncText}>
+                    {`提醒${selectedRelationLabel}同步设备`}
+                  </Text>
+                </Flex>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : null}
 
         <View style={styles.familyBox}>
           <TouchableOpacity

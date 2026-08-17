@@ -1209,9 +1209,12 @@ export function toScheduleHistoryArchiveItem(
   );
 
   const maxProgress = resolveMaxHealthGoalProgressField(healthGoalProgress?.maxProcess);
-  const summary = info.completeSummary?.trim()
-    || info.aiAnalysis?.summary?.trim()
-    || '';
+  const isInProgress = info.status === 0;
+  const summary = isInProgress
+    ? (info.adjustReason?.trim() || '')
+    : (info.completeSummary?.trim()
+      || info.aiAnalysis?.summary?.trim()
+      || '');
 
   return {
     id,
@@ -1227,7 +1230,7 @@ export function toScheduleHistoryArchiveItem(
     durationHoursText: durationHours,
     maxProgress,
     summaryText: summary,
-    isInProgress: info.status === 0,
+    isInProgress,
     isDone: info.status === 2,
   };
 }

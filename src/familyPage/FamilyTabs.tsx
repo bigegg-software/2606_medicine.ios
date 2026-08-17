@@ -3,11 +3,14 @@ import { Image, type ImageSourcePropType } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useDispatch } from 'react-redux';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import type { RootStackParamList } from '@/route/router';
+import type { AppDispatch } from '@/store/store';
+import { fetchFamilyBindMyList } from '@/store/actions/family';
 import FamilyHomePage from './FamilyHomePage';
-import FamilyDataPage from './FamilyDataPage';
+import FamilyDataPage from './FamilyData/FamilyDataPage';
 import FamilyAlertPage from './FamilyAlertPage';
 import FamilyProfilePage from './FamilyProfilePage';
 
@@ -46,6 +49,7 @@ function TabIcon({
 
 export default function FamilyTabs() {
   const { scaleSize } = useFontSize();
+  const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const tabBarLabelStyle = useMemo(
     () => ({ fontSize: scaleSize(14), fontWeight: '600' as const }),
@@ -63,6 +67,10 @@ export default function FamilyTabs() {
     }),
     [],
   );
+
+  useEffect(() => {
+    void dispatch(fetchFamilyBindMyList());
+  }, [dispatch]);
 
   // 只更新 title，并清除非预警页可能残留的 headerRight
   const syncFamilyTabTitle = useCallback(

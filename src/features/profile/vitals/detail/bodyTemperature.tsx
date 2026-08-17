@@ -1,6 +1,6 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
@@ -28,6 +28,7 @@ import {
     type BodyTemperatureDetailPoint,
 } from './helpers/bodyTemperature';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -67,13 +68,16 @@ function applyEmptyBodyTemperatureState(
     setters.setStats(EMPTY_STATS);
 }
 
-async function loadBodyTemperatureDetailItems(range: BodyTemperatureChartRange) {
+async function loadBodyTemperatureDetailItems(
+    range: BodyTemperatureChartRange,
+    options?: { patientUserId?: string | number | null },
+) {
     const { startDate, endDate } = getBodyTemperatureDetailQueryRange(range);
     const res = (await getMeasureDataDetailByDateRange({
         startDate,
         endDate,
         type: '体温',
-    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+    }, options)) as unknown as { code?: number; data?: MeasureDataItem[] };
 
     if (!isResourceApiOk(res)) return null;
     return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
@@ -81,6 +85,14 @@ async function loadBodyTemperatureDetailItems(range: BodyTemperatureChartRange) 
 
 export default function VitalsPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const [selectedType, setSelectedType] = useState<BodyTemperatureChartRange>('today');
     const [chartData, setChartData] = useState<BodyTemperatureRangePoint[]>([]);
@@ -116,7 +128,7 @@ export default function VitalsPage() {
         };
 
         try {
-            const detailItems = await loadBodyTemperatureDetailItems(range);
+            const detailItems = await loadBodyTemperatureDetailItems(range, readOptions);
             if (detailItems == null) {
                 applyEmptyBodyTemperatureState(range, emptySetters);
                 return;
@@ -139,7 +151,7 @@ export default function VitalsPage() {
         } catch {
             applyEmptyBodyTemperatureState(range, emptySetters);
         }
-    }, []);
+    }, [readOptions]);
 
     useFocusEffect(
         useCallback(() => {
@@ -149,6 +161,8 @@ export default function VitalsPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '体温',
+        readOnly,
+        viewNavParams,
     });
 
     return (
@@ -238,6 +252,7 @@ export default function VitalsPage() {
                         </View>
                     </Flex>
                 </ScrollView>
+                {!readOnly ? (
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
                         style={styles.bottomBarButtonLeft}
@@ -253,6 +268,7 @@ export default function VitalsPage() {
                         </Flex>
                     </TouchableOpacity>
                 </View>
+                ) : null}
             </View>
             {menuModals}
         </PageLayout>

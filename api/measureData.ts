@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type MeasureDataType = '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '体重';
 export type VitalsMeasureType = MeasureDataType | '血氧' | '心率' | '步数' | '消耗' | '睡眠';
@@ -171,14 +172,30 @@ export const getMeasureDataById = (id: string | number) =>
     params: { id: String(id) },
   });
 
-export const getMeasureDataDetailByDate = (params: {
-  customerLocalDate: string;
-  type: MeasureDataType;
-}) =>
-  request.post<MeasureDataDetailResult>('/patient/measureData/detailByCustomerLocalDate', {}, { params });
+export const getMeasureDataDetailByDate = (
+  params: {
+    customerLocalDate: string;
+    type: MeasureDataType;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.post<MeasureDataDetailResult>(
+    '/patient/measureData/detailByCustomerLocalDate',
+    {},
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
+  );
 
-export const getMeasureDataLatestByType = (type: MeasureDataType) =>
-  request.get<MeasureDataLatestResult>('/patient/measureData/latestByType', { params: { type } });
+export const getMeasureDataLatestByType = (
+  type: MeasureDataType,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MeasureDataLatestResult>('/patient/measureData/latestByType', {
+    params: { type },
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export type MeasureDataLatestTwoResult = {
   code?: number;
@@ -187,18 +204,30 @@ export type MeasureDataLatestTwoResult = {
 };
 
 /** 指定类型最近两条测量数据 */
-export const getMeasureDataLatestTwoByType = (type: MeasureDataType) =>
-  request.get<MeasureDataLatestTwoResult>('/patient/measureData/latestTwoByType', { params: { type } });
+export const getMeasureDataLatestTwoByType = (
+  type: MeasureDataType,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MeasureDataLatestTwoResult>('/patient/measureData/latestTwoByType', {
+    params: { type },
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
-export const getMeasureDataDetailByDateRange = (params: {
-  startDate: string;
-  endDate: string;
-  type: MeasureDataType;
-}) =>
+export const getMeasureDataDetailByDateRange = (
+  params: {
+    startDate: string;
+    endDate: string;
+    type: MeasureDataType;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.post<MeasureDataRangeDetailResult>(
     '/patient/measureData/detailByBetweenCustomerLocalDate/detail',
     {},
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 export type MeasureDataStatisDayGroup = {
@@ -222,19 +251,31 @@ export type MeasureDataStatisResult = {
   data?: MeasureDataStatisDayGroup[];
 };
 
-export const getMeasureDataStatisByDateRange = (params: {
-  startDate: string;
-  endDate: string;
-  type: MeasureDataType;
-}) =>
+export const getMeasureDataStatisByDateRange = (
+  params: {
+    startDate: string;
+    endDate: string;
+    type: MeasureDataType;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.post<MeasureDataStatisResult>(
     '/patient/measureData/detailByBetweenCustomerLocalDate/statis',
     {},
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
-export const getMeasureDataAllRecords = (params: MeasureDataAllRecordsParams) =>
-  request.get<MeasureDataAllRecordsResult>('/patient/measureData/allRecords', { params });
+export const getMeasureDataAllRecords = (
+  params: MeasureDataAllRecordsParams,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MeasureDataAllRecordsResult>('/patient/measureData/allRecords', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export type MeasureDataNormalDayCountParams = {
   exPatientRuleId: string;
@@ -242,10 +283,16 @@ export type MeasureDataNormalDayCountParams = {
   userId?: string;
 };
 
-export const getMeasureDataNormalDayCount = (params: MeasureDataNormalDayCountParams) =>
+export const getMeasureDataNormalDayCount = (
+  params: MeasureDataNormalDayCountParams,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: number }>(
     '/patient/exMeasureData/normalDayCount',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 export type MeasureIsUploadByDateItem = {
@@ -260,12 +307,15 @@ export type MeasureIsUploadByDateRangeResult = {
 };
 
 /** 按日期范围查询指定类型测量数据每日是否上传过 */
-export const getMeasureDataIsUploadByDateRange = (params: {
-  type: MeasureDataType | string;
-  startDate: string;
-  endDate: string;
-}) =>
-  request.get<MeasureIsUploadByDateRangeResult>(
-    '/patient/measureData/isUploadByDateRange',
-    { params },
-  );
+export const getMeasureDataIsUploadByDateRange = (
+  params: {
+    type: MeasureDataType | string;
+    startDate: string;
+    endDate: string;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MeasureIsUploadByDateRangeResult>('/patient/measureData/isUploadByDateRange', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });

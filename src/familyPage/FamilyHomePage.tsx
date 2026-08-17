@@ -1,38 +1,82 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Image, ScrollView, Text, TouchableOpacity, DeviceEventEmitter } from 'react-native';
+import {
+  View,
+  Image,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  DeviceEventEmitter,
+} from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import HeaderBack from '@/src/components/HeaderBack';
 import { Flex } from '@ant-design/react-native';
 import type { RootStackParamList } from '@/route/router';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchFamilyBindMyList } from '@/store/actions/family';
+import type { DictDataItem } from '@/api/dict';
 import { getMessageUnreadCount } from '@/api/message';
+import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   buildMessageScopeParams,
   formatHomeUnreadBadge,
   MESSAGE_UNREAD_CHANGED,
 } from '@/src/features/message/utils/messageHelpers';
+import {
+  buildFamilyHomeMemberCards,
+  getFamilyHomeGreetingTitle,
+  getFamilyHomeSubtitle,
+} from './utils/familyHomeHelpers';
 import styles from '@/css/family/home';
 
 export default function FamilyHomePage() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const dispatch = useDispatch<AppDispatch>();
   const identityPerspective = useSelector(
     (state: RootState) => state.user.systemUser?.identityPerspective,
   );
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
   );
+  const userInfo = useSelector((state: RootState) => state.user.info);
+  const systemUser = useSelector((state: RootState) => state.user.systemUser);
+  const familyList = useSelector((state: RootState) => state.family.list);
+
   const messageScope = useMemo(
     () => buildMessageScopeParams({ identityPerspective, userId }),
     [identityPerspective, userId],
   );
   const [unreadCount, setUnreadCount] = useState(0);
+  const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const badgeText = formatHomeUnreadBadge(unreadCount);
+
+  const relationLabelMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    relationOptions.forEach(item => {
+      const value = String(item.dictValue ?? '');
+      if (!value) return;
+      map[value] = item.dictLabel || value;
+    });
+    return map;
+  }, [relationOptions]);
+
+  const greetingTitle = useMemo(
+    () => getFamilyHomeGreetingTitle(userInfo, systemUser),
+    [systemUser, userInfo],
+  );
+  const greetingSubtitle = useMemo(
+    () => getFamilyHomeSubtitle(familyList, relationLabelMap),
+    [familyList, relationLabelMap],
+  );
+  const memberCards = useMemo(
+    () => buildFamilyHomeMemberCards(familyList, relationLabelMap),
+    [familyList, relationLabelMap],
+  );
 
   const loadUnreadCount = useCallback(async () => {
     if (!messageScope.userIds) {
@@ -54,10 +98,22 @@ export default function FamilyHomePage() {
     }
   }, [messageScope]);
 
+  useEffect(() => {
+    void (async () => {
+      try {
+        const options = await loadRelationTypeOptions();
+        setRelationOptions(options);
+      } catch {
+        setRelationOptions([]);
+      }
+    })();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
+      void dispatch(fetchFamilyBindMyList());
       void loadUnreadCount();
-    }, [loadUnreadCount]),
+    }, [dispatch, loadUnreadCount]),
   );
 
   useEffect(() => {
@@ -88,13 +144,13 @@ export default function FamilyHomePage() {
           </TouchableOpacity>
         </View>
       </View>
-      <View style={{ paddingTop: insets.top + 44 }}></View>
+      <View style={{ paddingTop: insets.top + 44 }} />
       <ScrollView>
         <View style={styles.developingWrap}>
           <Flex style={styles.topBox} justify="between" align="start">
             <View>
-              <Text style={styles.topBoxTitle}>下午好，张伟</Text>
-              <Text style={styles.topBoxSubtitle}>父亲良好·母亲需关注</Text>
+              <Text style={styles.topBoxTitle}>{greetingTitle}</Text>
+              <Text style={styles.topBoxSubtitle}>{greetingSubtitle}</Text>
             </View>
 
             <Image source={require('@/assets/family/home/img.png')} style={styles.topBoxImg} />
@@ -112,7 +168,10 @@ export default function FamilyHomePage() {
                 <View style={styles.todoBar} />
                 <Text style={styles.todoTitle}>重要待办（2项）</Text>
               </Flex>
-              <Image source={require('@/assets/family/home/icon_rl.png')} style={styles.todoRightIcon} />
+              <Image
+                source={require('@/assets/family/home/icon_rl.png')}
+                style={styles.todoRightIcon}
+              />
             </Flex>
             <Flex style={[styles.todoItem, { marginTop: 12 }]} align="center" justify="between">
               <Flex align="center" style={{ flex: 1 }}>
@@ -139,63 +198,52 @@ export default function FamilyHomePage() {
             <Text style={styles.todoTitle}>家人健康速览</Text>
           </Flex>
 
-          <ScrollView horizontal style={styles.familyHealthWrap} showsHorizontalScrollIndicator={false}>
-            <View style={styles.familyHealthItem}>
-              <Flex align="center">
-                <Image source={require('@/assets/images/default/default1.png')} style={styles.familyHealthIcon} />
-                <Text style={styles.familyHealthName}>父亲</Text>
-              </Flex>
-              <Flex style={[styles.familyHealthRow, styles.familyHealthRowFirst]} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>血压</Text>
-                <Text style={styles.familyHealthValue}>128/82</Text>
-              </Flex>
-              <Flex style={styles.familyHealthRow} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>血糖</Text>
-                <Text style={styles.familyHealthValue}>5.6</Text>
-              </Flex>
-              <Flex style={styles.familyHealthRow} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>步数</Text>
-                <Text style={styles.familyHealthValue}>6,892</Text>
-              </Flex>
-              <Flex style={styles.familyHealthRow} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>用药</Text>
-                <View style={styles.familyHealthTagDone}>
-                  <Text style={styles.familyHealthTagDoneText}>完成</Text>
-                </View>
-              </Flex>
-            </View>
-            <View style={styles.familyHealthItem}>
-              <Flex align="center">
-                <Image source={require('@/assets/images/default/default1.png')} style={styles.familyHealthIcon} />
-                <Text style={styles.familyHealthName}>母亲</Text>
-              </Flex>
-              <Flex style={[styles.familyHealthRow, styles.familyHealthRowFirst]} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>血压</Text>
-                <Text style={styles.familyHealthValue}>128/82</Text>
-              </Flex>
-              <Flex style={styles.familyHealthRow} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>血糖</Text>
+          <ScrollView
+            horizontal
+            style={styles.familyHealthWrap}
+            showsHorizontalScrollIndicator={false}
+          >
+            {memberCards.map(member => (
+              <View key={member.key} style={styles.familyHealthItem}>
                 <Flex align="center">
-                  <Text style={styles.familyHealthValueWarn}>5.6</Text>
                   <Image
-                    source={require('@/assets/images/schedule/icon_down1.png')}
-                    style={styles.familyHealthTrendIcon}
+                    source={require('@/assets/images/default/default1.png')}
+                    style={styles.familyHealthIcon}
                   />
+                  <Text style={styles.familyHealthName}>{member.name}</Text>
                 </Flex>
-              </Flex>
-              <Flex style={styles.familyHealthRow} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>步数</Text>
-                <Text style={styles.familyHealthValue}>6,892</Text>
-              </Flex>
-              <Flex style={styles.familyHealthRow} justify="between" align="center">
-                <Text style={styles.familyHealthLabel}>用药</Text>
-                <View style={styles.familyHealthTagDone}>
-                  <Text style={styles.familyHealthTagDoneText}>完成</Text>
-                </View>
-              </Flex>
-            </View>
-            <Flex style={styles.familyHealthItem} direction="column" align="center" justify="center">
-              <Image source={require('@/assets/family/home/add.png')} style={styles.familyHealthAddIcon} />
+                <Flex
+                  style={[styles.familyHealthRow, styles.familyHealthRowFirst]}
+                  justify="between"
+                  align="center"
+                >
+                  <Text style={styles.familyHealthLabel}>血压</Text>
+                  <Text style={styles.familyHealthValue}>--</Text>
+                </Flex>
+                <Flex style={styles.familyHealthRow} justify="between" align="center">
+                  <Text style={styles.familyHealthLabel}>血糖</Text>
+                  <Text style={styles.familyHealthValue}>--</Text>
+                </Flex>
+                <Flex style={styles.familyHealthRow} justify="between" align="center">
+                  <Text style={styles.familyHealthLabel}>步数</Text>
+                  <Text style={styles.familyHealthValue}>--</Text>
+                </Flex>
+                <Flex style={styles.familyHealthRow} justify="between" align="center">
+                  <Text style={styles.familyHealthLabel}>用药</Text>
+                  <Text style={styles.familyHealthValue}>--</Text>
+                </Flex>
+              </View>
+            ))}
+            <Flex
+              style={styles.familyHealthItem}
+              direction="column"
+              align="center"
+              justify="center"
+            >
+              <Image
+                source={require('@/assets/family/home/add.png')}
+                style={styles.familyHealthAddIcon}
+              />
               <Text style={styles.familyHealthAddText}>添加家人</Text>
             </Flex>
           </ScrollView>
@@ -213,7 +261,10 @@ export default function FamilyHomePage() {
               end={{ x: 0.5, y: 1 }}
               style={styles.focusCard}
             >
-              <Image source={require('@/assets/family/home/icon_data.png')} style={styles.focusCardIcon} />
+              <Image
+                source={require('@/assets/family/home/icon_data.png')}
+                style={styles.focusCardIcon}
+              />
               <Text style={styles.focusCardTitle}>健康数据</Text>
               <Text style={styles.focusCardSubtitle}>2项异常</Text>
             </LinearGradient>
@@ -224,7 +275,10 @@ export default function FamilyHomePage() {
               end={{ x: 0.5, y: 1 }}
               style={styles.focusCard}
             >
-              <Image source={require('@/assets/family/home/icon_yd.png')} style={styles.focusCardIcon} />
+              <Image
+                source={require('@/assets/family/home/icon_yd.png')}
+                style={styles.focusCardIcon}
+              />
               <Text style={styles.focusCardTitle}>运动处方</Text>
               <Text style={styles.focusCardSubtitle}>进度 30%</Text>
             </LinearGradient>
@@ -235,51 +289,46 @@ export default function FamilyHomePage() {
               end={{ x: 0.5, y: 1 }}
               style={styles.focusCard}
             >
-              <Image source={require('@/assets/family/home/icon_yy.png')} style={styles.focusCardIcon} />
+              <Image
+                source={require('@/assets/family/home/icon_yy.png')}
+                style={styles.focusCardIcon}
+              />
               <Text style={styles.focusCardTitle}>营养处方</Text>
               <Text style={styles.focusCardSubtitle}>进度 40%</Text>
             </LinearGradient>
           </Flex>
-
 
           <Flex align="center" style={styles.todoTitleWrap}>
             <View style={styles.todoBar} />
             <Text style={styles.todoTitle}>家人本周活跃度</Text>
           </Flex>
 
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.activityScroll}>
-          <View style={styles.activityCard}>
-              <Flex align="center" justify="between">
-                <Text style={styles.activityName}>父亲</Text>
-                <Flex align="center">
-                  <Image source={require('@/assets/family/home/icon_jf.png')} style={styles.activityPointsIcon} />
-                  <Text style={styles.activityPoints}>380</Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.activityScroll}
+          >
+            {memberCards.map(member => (
+              <View key={`activity-${member.key}`} style={styles.activityCard}>
+                <Flex align="center" justify="between">
+                  <Text style={styles.activityName}>{member.name}</Text>
+                  <Flex align="center">
+                    <Image
+                      source={require('@/assets/family/home/icon_jf.png')}
+                      style={styles.activityPointsIcon}
+                    />
+                    <Text style={styles.activityPoints}>--</Text>
+                  </Flex>
                 </Flex>
-              </Flex>
-              <Flex style={styles.activityProgressRow} align="center" justify="between">
-                <Text style={styles.activityProgressLabel}>运动处方进度</Text>
-                <Text style={styles.activityProgressValue}>3天/5天</Text>
-              </Flex>
-              <View style={styles.activityProgressTrack}>
-                <View style={[styles.activityProgressFill, { width: `${(3 / 5) * 100}%` }]} />
-              </View>
-            </View> 
-            <View style={styles.activityCard}>
-              <Flex align="center" justify="between">
-                <Text style={styles.activityName}>父亲</Text>
-                <Flex align="center">
-                  <Image source={require('@/assets/family/home/icon_jf.png')} style={styles.activityPointsIcon} />
-                  <Text style={styles.activityPoints}>380</Text>
+                <Flex style={styles.activityProgressRow} align="center" justify="between">
+                  <Text style={styles.activityProgressLabel}>运动处方进度</Text>
+                  <Text style={styles.activityProgressValue}>--</Text>
                 </Flex>
-              </Flex>
-              <Flex style={styles.activityProgressRow} align="center" justify="between">
-                <Text style={styles.activityProgressLabel}>运动处方进度</Text>
-                <Text style={styles.activityProgressValue}>3天/5天</Text>
-              </Flex>
-              <View style={styles.activityProgressTrack}>
-                <View style={[styles.activityProgressFill, { width: `${(3 / 5) * 100}%` }]} />
+                <View style={styles.activityProgressTrack}>
+                  <View style={[styles.activityProgressFill, { width: '0%' }]} />
+                </View>
               </View>
-            </View>
+            ))}
           </ScrollView>
         </View>
       </ScrollView>

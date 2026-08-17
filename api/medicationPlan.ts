@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type MedicationPlan = {
   medicationPlanId?: number | null;
@@ -77,8 +78,14 @@ export type IndexMedicationPlanGroupResult = ApiResult & {
 export const getIndexMedicationPlan = (params?: { customerLocalDate?: string }) =>
   request.get<IndexMedicationPlanResult>('/patient/medicationPlan/indexPlan', { params });
 
-export const getIndexMedicationPlanGroupByTime = (params?: { customerLocalDate?: string }) =>
-  request.get<IndexMedicationPlanGroupResult>('/patient/medicationPlan/indexPlanGroupByTime', { params });
+export const getIndexMedicationPlanGroupByTime = (
+  params?: { customerLocalDate?: string },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<IndexMedicationPlanGroupResult>('/patient/medicationPlan/indexPlanGroupByTime', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const getMedicationPlanInfo = (medicationPlanId: string | number) =>
   request.get<MedicationPlanInfoResult>('/patient/medicationPlan/getInfo', {

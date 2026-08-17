@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 /** 0 跌倒风险评估 1 日常生活能力评估 2 营养风险评估 3 EQ-5D生活质量评估 */
 export type QuestionnaireType = 0 | 1 | 2 | 3;
@@ -76,8 +77,14 @@ export type UserQuestionListParams = {
     pageNum?: number;
 };
 
-export const getUserQuestionFrontList = (params: UserQuestionListParams) =>
-    request.get<UserQuestionListResult>('/patient/userQuestion/frontList', { params });
+export const getUserQuestionFrontList = (
+    params: UserQuestionListParams,
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<UserQuestionListResult>('/patient/userQuestion/frontList', {
+        params,
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
 
 export type UserQuestionNewListResult = {
     code?: number;
@@ -85,8 +92,12 @@ export type UserQuestionNewListResult = {
     data?: UserQuestionRecord[];
 };
 
-export const getUserQuestionNewList = () =>
-    request.get<UserQuestionNewListResult>('/patient/userQuestion/newList');
+export const getUserQuestionNewList = (
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<UserQuestionNewListResult>('/patient/userQuestion/newList', {
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
 
 export type AddUserQuestionPayload = {
     type: QuestionnaireType;
@@ -110,5 +121,11 @@ export type UserQuestionDetailResult = {
     data?: UserQuestionRecord;
 };
 
-export const getUserQuestionDetail = (id: number | string) =>
-    request.get<UserQuestionDetailResult>('/patient/userQuestion/detail', { params: { id } });
+export const getUserQuestionDetail = (
+    id: number | string,
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<UserQuestionDetailResult>('/patient/userQuestion/detail', {
+        params: { id },
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });

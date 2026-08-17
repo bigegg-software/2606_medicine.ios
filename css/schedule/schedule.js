@@ -189,6 +189,24 @@ const styles = StyleSheet.create({
   kcalInfoIcon: { width: 15, height: 15, marginRight: 6, marginTop: 1 },
   kcalInfoText: { flex: 1, flexShrink: 1, fontWeight: 500, fontSize: 12, color: "#C98A41", lineHeight: 18 },
   historyBox: { marginTop: 5 },
+  historyEmptyInline: {
+    marginTop: 12,
+    paddingVertical: 28,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  historyEmptyIcon: {
+    width: 72,
+    height: 72,
+  },
+  historyEmptyText: {
+    marginTop: 16,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
+  },
   historyItem: {
     padding: 15,
     marginTop: 12,

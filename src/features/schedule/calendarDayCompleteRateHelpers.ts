@@ -28,12 +28,13 @@ export function toDayCompleteRateProgressMap(
 /** 查询指定日期四模块完成率；无运动安排时返回空 map */
 export async function loadCalendarDayCompleteRateProgressMap(
   customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
 ): Promise<Record<string, number>> {
   const date = customerLocalDate?.trim();
   if (!date) return {};
 
   try {
-    const res = await getExPatientRuleDayCompleteRate(date);
+    const res = await getExPatientRuleDayCompleteRate(date, options);
     if (!isResourceApiOk(res as { code?: number })) return {};
     return toDayCompleteRateProgressMap(
       apiResourceData<ExPatientRuleDayCompleteRate>(

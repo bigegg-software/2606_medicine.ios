@@ -389,7 +389,11 @@ export function hasBloodLipidHealthGoal(rule?: InUseExPatientRule | null) {
   return Boolean(findBloodLipidHealthGoal(rule?.healthGoalTargetList));
 }
 
-async function loadPrescriptionPeriodItems(startDate?: string, endDate?: string) {
+async function loadPrescriptionPeriodItems(
+  startDate?: string,
+  endDate?: string,
+  options?: { patientUserId?: string | number | null },
+) {
   if (!startDate?.trim() || !endDate?.trim()) return [];
 
   try {
@@ -397,7 +401,7 @@ async function loadPrescriptionPeriodItems(startDate?: string, endDate?: string)
       startDate: startDate.trim(),
       endDate: endDate.trim(),
       type: '血脂',
-    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+    }, options)) as unknown as { code?: number; data?: MeasureDataItem[] };
 
     if (!isResourceApiOk(res)) return [];
     return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
@@ -610,6 +614,7 @@ export function buildBloodLipidGoalRows(
 export async function loadBloodLipidPrescriptionGoalSummary(
   rule: InUseExPatientRule | null | undefined,
   fallbackItems: MeasureDataItem[] = [],
+  options?: { patientUserId?: string | number | null },
 ): Promise<BloodLipidPrescriptionGoalSummary | null> {
   try {
     if (!rule || !hasBloodLipidHealthGoal(rule)) return null;
@@ -617,7 +622,7 @@ export async function loadBloodLipidPrescriptionGoalSummary(
     const target = findBloodLipidHealthGoal(rule.healthGoalTargetList);
     if (!target) return null;
 
-    const periodItems = await loadPrescriptionPeriodItems(rule.startDate, rule.endDate);
+    const periodItems = await loadPrescriptionPeriodItems(rule.startDate, rule.endDate, options);
     const baselineItems = resolveGoalBaselineItems(periodItems, fallbackItems);
     const rows = buildBloodLipidGoalRows(target, baselineItems);
     const statusText = formatBloodLipidGoalStatusText(target, rule.progressInfo);

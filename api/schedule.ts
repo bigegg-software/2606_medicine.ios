@@ -69,6 +69,8 @@ export type HistoryExPatientRule = {
   stopTime?: string;
   updateTime?: string;
   createTime?: string;
+  /** 进行中处方的调整原因 */
+  adjustReason?: string;
   completeSummary?: string;
   aiAnalysis?: ExPatientRuleAiAnalysis;
   progressInfo?: ProgressInfo;

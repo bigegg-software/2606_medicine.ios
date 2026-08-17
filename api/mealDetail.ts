@@ -1,5 +1,6 @@
 import request from '@/utils/axios';
 import type { ApiResult } from '@/src/utils/apiHelpers';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type MealDetailItem = {
     mealDetailId?: number;
@@ -73,8 +74,12 @@ export type MealDetailInfo = {
 export type TodayMealDetailListResult = ApiResult<MealDetailItem[]>;
 export type MealDetailInfoResult = ApiResult<MealDetailInfo | MealDetailItem>;
 
-export const getTodayMealDetailList = () =>
-    request.get<TodayMealDetailListResult>('/patient/fitpulse/mealDetail/todayMealDetailList');
+export const getTodayMealDetailList = (
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<TodayMealDetailListResult>('/patient/fitpulse/mealDetail/todayMealDetailList', {
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
 
 export const getMealDetailInfo = (mealDetailId: number) =>
     request.get<MealDetailInfoResult>(`/patient/fitpulse/mealDetail/${mealDetailId}`);

@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useRoute } from '@react-navigation/native';
 import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -34,6 +34,7 @@ import {
 } from './helpers/steps';
 import { mapDetailChartRangeToVitalsRange } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 const DEFAULT_STEP_TARGET = 10000;
 
@@ -59,6 +60,14 @@ function resetHeaderDisplay(range: StepsChartRange, goal: number) {
 }
 
 export default function StepsPage() {
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const insets = useSafeAreaInsets();
     const storeStepGoal = useSelector((state: RootState) => state.user.userExtr?.stepGoals);
     const defaultStepGoal = useMemo(
@@ -122,7 +131,7 @@ export default function StepsPage() {
                 endDate,
                 type: WEARABLE_DATA_TYPES.steps,
                 ...getWearableReturnOriginalDataParam(range),
-            })) as unknown as { code?: number; data?: WearableDataItem[] };
+            }, readOptions)) as unknown as { code?: number; data?: WearableDataItem[] };
 
             if (!isResourceApiOk(res)) {
                 setChartData([]);
@@ -177,7 +186,7 @@ export default function StepsPage() {
             setStepGoal(fallbackGoal);
             setTodayDaySteps(0);
         }
-    }, [defaultStepGoal]);
+    }, [defaultStepGoal, readOptions]);
 
     useFocusEffect(
         useCallback(() => {
@@ -188,6 +197,8 @@ export default function StepsPage() {
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '步数',
         goalKind: 'steps',
+        readOnly,
+        viewNavParams,
         onGoalSaved: (target) => {
             void loadStepsData(selectedType, target);
         },

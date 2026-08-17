@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useEffect, useCallback, useState } from 'react';
-import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Platform, ActivityIndicator, Keyboard, Alert, Modal, useWindowDimensions, type ImageSourcePropType, type KeyboardEvent, } from 'react-native';
+import { View, Text, Image, ScrollView, TextInput, TouchableOpacity, Pressable, Platform, ActivityIndicator, Keyboard, Alert, Modal, useWindowDimensions, type ImageSourcePropType, type KeyboardEvent, } from 'react-native';
 import Reanimated, { Easing, Extrapolation, interpolate, useAnimatedStyle, useSharedValue, withTiming, } from 'react-native-reanimated';
 import PageLayout from '@/src/components/PageLayout';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -310,7 +310,6 @@ export default function AssistantPage() {
   const inputRef = useRef<TextInput>(null);
   const speechToTextRef = useRef<SpeechToTextRef>(null);
   const voiceBaseTextRef = useRef('');
-  const keyboardHeightRef = useRef(PANEL_HEIGHT);
   const attachmentPanelOpenRef = useRef(false);
   const bottomOffset = useSharedValue(0);
   const [attachmentPanelOpen, setAttachmentPanelOpen] = useState(false);
@@ -518,9 +517,12 @@ export default function AssistantPage() {
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const onShow = Keyboard.addListener(showEvent, event => {
+      // 键盘接管时收起工具栏，避免因 panel 打开而跳过高度更新
+      if (attachmentPanelOpenRef.current) {
+        attachmentPanelOpenRef.current = false;
+        setAttachmentPanelOpen(false);
+      }
       const adjustedHeight = getBottomInset(event.endCoordinates.height);
-      keyboardHeightRef.current = adjustedHeight;
-      if (attachmentPanelOpenRef.current) return;
       bottomOffset.value = withTiming(adjustedHeight, {
         duration: getKeyboardDuration(event),
         easing: Easing.out(Easing.cubic),
@@ -528,6 +530,7 @@ export default function AssistantPage() {
     });
 
     const onHide = Keyboard.addListener(hideEvent, event => {
+      // 打开工具栏时主动 dismiss 键盘，保持 PANEL_HEIGHT，不要落回 0
       if (attachmentPanelOpenRef.current) return;
       bottomOffset.value = withTiming(0, {
         duration: getKeyboardDuration(event),
@@ -566,8 +569,19 @@ export default function AssistantPage() {
     inputRef.current?.blur();
     Keyboard.dismiss();
     void speechToTextRef.current?.stopListening();
-    animateBottomOffset(keyboardHeightRef.current || getBottomInset(PANEL_HEIGHT));
-  }, [animateBottomOffset, getBottomInset]);
+    // 工具栏固定高度，不能复用上次键盘高度
+    animateBottomOffset(PANEL_HEIGHT);
+  }, [animateBottomOffset]);
+
+  /** 点击/拖动聊天区：收起键盘与工具栏（与键盘交互一致） */
+  const dismissComposerChrome = useCallback(() => {
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+    void speechToTextRef.current?.stopListening();
+    if (attachmentPanelOpenRef.current) {
+      closeAttachmentPanel();
+    }
+  }, [closeAttachmentPanel]);
 
   const handleVoiceStart = useCallback(() => {
     void stopSpeech();
@@ -586,17 +600,6 @@ export default function AssistantPage() {
     inputRef.current?.blur();
     Keyboard.dismiss();
   }, [stopSpeech]);
-
-  const handleSendPress = useCallback(() => {
-    voiceBaseTextRef.current = '';
-    void speechToTextRef.current?.stopListening();
-    void stopSpeech();
-    if (loading) {
-      void stopMessage();
-    } else {
-      void sendMessage();
-    }
-  }, [loading, sendMessage, stopMessage, stopSpeech]);
 
   const handleAddPress = useCallback(() => {
     if (attachmentPanelOpenRef.current) {
@@ -689,6 +692,32 @@ export default function AssistantPage() {
   );
 
   const hasInput = !!input.trim();
+  const isStreamingReply = useMemo(
+    () => displayItems.some(item => item.type === 'ai' && Boolean(item.streaming)),
+    [displayItems],
+  );
+  /** AI 流式回答中 */
+  const isReplying = loading || isStreamingReply;
+  /** 回答中 / 快捷操作中不可输入 */
+  const isInputLocked = isReplying || actionLoading || initializing;
+
+  useEffect(() => {
+    if (!isInputLocked) return;
+    inputRef.current?.blur();
+    Keyboard.dismiss();
+    void speechToTextRef.current?.stopListening();
+  }, [isInputLocked]);
+
+  const handleSendPress = useCallback(() => {
+    voiceBaseTextRef.current = '';
+    void speechToTextRef.current?.stopListening();
+    void stopSpeech();
+    if (isReplying) {
+      void stopMessage();
+    } else if (!isInputLocked) {
+      void sendMessage();
+    }
+  }, [isInputLocked, isReplying, sendMessage, stopMessage, stopSpeech]);
 
   const bottomAreaStyle = useAnimatedStyle(() => ({
     height: bottomOffset.value,
@@ -732,20 +761,24 @@ export default function AssistantPage() {
         ) : (
           <ScrollView
             ref={scrollRef}
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled">
-            {displayItems.map(item => (
-              <MessageRow
-                key={item.key}
-                item={item}
-                userAvatarSource={userAvatarSource}
-                onPreviewImage={handlePreviewImage}
-                speakingKey={speakingKey}
-                onToggleSpeak={(key, text) => {
-                  void toggleSpeech(key, text);
-                }}
-              />
-            ))}
+            contentContainerStyle={[styles.scroll, styles.scrollGrow]}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            onScrollBeginDrag={dismissComposerChrome}>
+            <Pressable style={styles.scrollPressable} onPress={dismissComposerChrome}>
+              {displayItems.map(item => (
+                <MessageRow
+                  key={item.key}
+                  item={item}
+                  userAvatarSource={userAvatarSource}
+                  onPreviewImage={handlePreviewImage}
+                  speakingKey={speakingKey}
+                  onToggleSpeak={(key, text) => {
+                    void toggleSpeech(key, text);
+                  }}
+                />
+              ))}
+            </Pressable>
           </ScrollView>
         )}
 
@@ -759,9 +792,9 @@ export default function AssistantPage() {
             {QUICK_ACTIONS.map(item => (
               <TouchableOpacity
                 key={item.label}
-                style={styles.quickActionBtn}
+                style={[styles.quickActionBtn, isInputLocked && styles.quickActionBtnDisabled]}
                 activeOpacity={0.8}
-                disabled={loading || actionLoading || initializing}
+                disabled={isInputLocked}
                 onPress={() => handleQuickActionPress(item)}>
                 <Text style={styles.quickActionText}>{item.label}</Text>
               </TouchableOpacity>
@@ -769,17 +802,24 @@ export default function AssistantPage() {
           </ScrollView>
 
           <View style={styles.inputBar}>
-            <View style={styles.inputWrap}>
+            <View style={[styles.inputWrap, isInputLocked && styles.inputWrapDisabled]}>
               <TextInput
                 ref={inputRef}
                 style={styles.input}
                 value={input}
                 onChangeText={setInput}
-                placeholder="请输入您的问题"
+                placeholder={isReplying ? 'AI 回答中…' : '请输入您的问题'}
                 placeholderTextColor={AppTheme.textSecondary}
                 multiline
-                editable={!loading && !initializing}
+                editable={!isInputLocked}
+                showSoftInputOnFocus={!isInputLocked}
                 onFocus={() => {
+                  if (isInputLocked) {
+                    inputRef.current?.blur();
+                    Keyboard.dismiss();
+                    return;
+                  }
+                  // 面板关闭由 keyboardWill/DidShow 统一处理高度，避免抢先把 offset 清掉
                   if (attachmentPanelOpenRef.current) {
                     attachmentPanelOpenRef.current = false;
                     setAttachmentPanelOpen(false);
@@ -790,33 +830,33 @@ export default function AssistantPage() {
               />
               <SpeechToText
                 ref={speechToTextRef}
-                disabled={loading || actionLoading || initializing}
+                disabled={isInputLocked}
                 onMicPress={handleMicPress}
                 onStart={handleVoiceStart}
                 onTextChange={handleVoiceTextChange}
               />
             </View>
-            {loading ? (
+            {isReplying ? (
               <TouchableOpacity
-                style={[styles.sendBtn, initializing && styles.sendBtnDisabled]}
+                style={styles.stopBtn}
                 onPress={handleSendPress}
-                disabled={initializing}>
-                <Text style={styles.sendBtnText}>停止</Text>
+                activeOpacity={0.85}>
+                <Text style={styles.stopBtnText}>停止回答</Text>
               </TouchableOpacity>
             ) : hasInput ? (
               <TouchableOpacity
-                style={[styles.sendBtn, initializing && styles.sendBtnDisabled]}
+                style={[styles.sendBtn, isInputLocked && styles.sendBtnDisabled]}
                 onPress={handleSendPress}
-                disabled={initializing}>
+                disabled={isInputLocked}>
                 <Text style={styles.sendBtnText}>发送</Text>
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={styles.addBtn}
+                style={[styles.addBtn, isInputLocked && styles.sendBtnDisabled]}
                 onPress={handleAddPress}
-                disabled={initializing}
+                disabled={isInputLocked}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Image source={require('@/assets/images/assistant/add.png')} style={styles.addIcon} />
+                <Image tintColor={"#333"} source={require('@/assets/images/assistant/add.png')} style={styles.addIcon} />
               </TouchableOpacity>
             )}
           </View>

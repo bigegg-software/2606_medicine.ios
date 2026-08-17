@@ -1,6 +1,7 @@
 import type { BloodGlucosePoint } from '@/src/features/profile/components/BloodGlucoseChart';
 import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
 import type { BloodOxygenPoint } from '@/src/features/profile/components/BloodOxygenChart';
+import type { BloodLipidPoint } from '@/src/features/profile/components/BloodLipidChart';
 import type { BodyTemperaturePoint } from '@/src/features/profile/components/BodyTemperatureChart';
 import type { HeartRatePoint } from '@/src/features/profile/components/HeartRateChart';
 import type { SleepStageTimelineSegment } from '@/src/features/profile/components/sleepStageChartHelpers';
@@ -12,6 +13,7 @@ import {
 } from '@/src/features/profile/vitals/detail/helpers/weight';
 import {
   buildBloodGlucoseSeriesFromItems,
+  buildBloodLipidTcSeries,
   buildBloodPressureSeriesFromItems,
   buildSingleValueSeries,
   buildWearableHeartRateSeries,
@@ -48,7 +50,7 @@ export type HealthStatusChartSnapshot =
   | { kind: 'blood_oxygen'; points: BloodOxygenPoint[] }
   | { kind: 'body_temperature'; points: BodyTemperaturePoint[] }
   | { kind: 'weight'; points: WeightPoint[] }
-  | { kind: 'lipid'; tg: string; hdl: string; ldl: string }
+  | { kind: 'lipid'; points: BloodLipidPoint[] }
   | { kind: 'uric_acid'; points: UricAcidPoint[] };
 
 export type HealthStatusVitalSlide = {
@@ -65,16 +67,28 @@ function stripStatusPrefix(status: string) {
   return status.replace(/^・/, '');
 }
 
+/** 无数值时统一展示「暂无数据」 */
+function resolveEmptyStatus(value: string, status: string, statusColor: string) {
+  const normalizedStatus = stripStatusPrefix(status).trim();
+  const isEmptyValue = !value || value === '--';
+  if (isEmptyValue && (!normalizedStatus || normalizedStatus === '--')) {
+    return { status: '暂无数据', statusColor: '#999999' };
+  }
+  return {
+    status: normalizedStatus,
+    statusColor: normalizedStatus === '暂无数据' ? '#999999' : statusColor,
+  };
+}
+
 function normalizeChart(raw: unknown): HealthStatusChartSnapshot | null {
   if (!raw || typeof raw !== 'object') return null;
   const chart = raw as HealthStatusChartSnapshot;
   if (chart.kind === 'lipid') {
-    return {
-      kind: 'lipid',
-      tg: chart.tg ?? '--',
-      hdl: chart.hdl ?? '--',
-      ldl: chart.ldl ?? '--',
-    };
+    if (Array.isArray(chart.points)) {
+      return { kind: 'lipid', points: chart.points };
+    }
+    // 兼容旧版 TG/HDL/LDL 文案快照
+    return { kind: 'lipid', points: [] };
   }
   if (chart.kind === 'sleep' && Array.isArray(chart.segments)) {
     return { kind: 'sleep', segments: chart.segments };
@@ -91,12 +105,14 @@ function normalizeSlide(raw: unknown): HealthStatusVitalSlide | null {
   if (!item.key || !HEALTH_STATUS_VITAL_ORDER.includes(item.key)) return null;
   const chart = normalizeChart(item.chart);
   if (!chart) return null;
+  const value = item.value ?? '--';
+  const resolved = resolveEmptyStatus(value, item.status ?? '', item.statusColor ?? '#999999');
   return {
     key: item.key,
-    value: item.value ?? '--',
+    value,
     unit: item.key === '睡眠' ? '' : item.unit ?? '',
-    status: item.status ?? '',
-    statusColor: item.statusColor ?? '#999999',
+    status: resolved.status,
+    statusColor: resolved.statusColor,
     dataTime: item.dataTime ?? '',
     chart,
   };
@@ -113,6 +129,27 @@ export function parseHealthStatusSlidesFromInterfaceData(
   const respData = interfaceData?.respData as { slides?: unknown } | undefined;
   const slides = normalizeHealthStatusSlides(respData?.slides);
   return slides.length ? slides : null;
+}
+
+function toVitalSlide(params: {
+  key: HealthStatusVitalKey;
+  value: string;
+  unit: string;
+  status: string;
+  statusColor: string;
+  dataTime: string;
+  chart: HealthStatusChartSnapshot;
+}): HealthStatusVitalSlide {
+  const resolved = resolveEmptyStatus(params.value, params.status, params.statusColor);
+  return {
+    key: params.key,
+    value: params.value,
+    unit: params.key === '睡眠' ? '' : params.unit,
+    status: resolved.status,
+    statusColor: resolved.statusColor,
+    dataTime: params.dataTime,
+    chart: params.chart,
+  };
 }
 
 export function buildHealthStatusVitalsSlides(
@@ -145,14 +182,10 @@ export function buildHealthStatusVitalsSlides(
   const energyBarData = energySummary.barSeries.map(item => ({ label: item.label, value: item.value }));
 
   const glucoseSeries = buildBloodGlucoseSeriesFromItems(measureData.bloodGlucose, range);
-  const glucose = latestMeasure.bloodGlucose
-    ? formatMeasureDisplay(latestMeasure.bloodGlucose, '血糖')
-    : { value: '--', status: '', statusColor: '#999999' };
+  const glucose = formatMeasureDisplay(latestMeasure.bloodGlucose, '血糖');
 
   const bloodPressureSeries = buildBloodPressureSeriesFromItems(measureData.bloodPressure, range);
-  const bloodPressure = latestMeasure.bloodPressure
-    ? formatMeasureDisplay(latestMeasure.bloodPressure, '血压')
-    : { value: '--', status: '', statusColor: '#999999' };
+  const bloodPressure = formatMeasureDisplay(latestMeasure.bloodPressure, '血压');
 
   const stepsSummary = getStepsSummary(wearableSteps, range, stepTarget);
   const stepsBarData = stepsSummary.barSeries.map(item => ({ label: item.label, value: item.value }));
@@ -163,18 +196,15 @@ export function buildHealthStatusVitalsSlides(
   const bloodOxygen = formatBloodOxygenFromItem(getLatestWearableItem(wearableOxygen));
 
   const bodyTemperatureSeries = buildSingleValueSeries(measureData.bodyTemperature, range);
-  const bodyTemperature = latestMeasure.bodyTemperature
-    ? formatMeasureDisplay(latestMeasure.bodyTemperature, '体温')
-    : { value: '--', status: '', statusColor: '#999999' };
+  const bodyTemperature = formatMeasureDisplay(latestMeasure.bodyTemperature, '体温');
 
   const weightSeries = buildSingleValueSeries(weightData, range);
-  const weight = latestWeight
-    ? formatWeightVitalsDisplay(latestWeight)
-    : { value: '--', status: '', statusColor: '#999999' };
+  const weight = formatWeightVitalsDisplay(latestWeight);
 
   const bloodLipids = latestMeasure.bloodLipids
     ? formatBloodLipidsFromItems([latestMeasure.bloodLipids], range)
     : formatBloodLipidsFromItems(measureData.bloodLipids, range);
+  const bloodLipidsSeries = buildBloodLipidTcSeries(measureData.bloodLipids, range);
 
   const uricAcidSeries = buildSingleValueSeries(measureData.uricAcid, range);
   const uricAcid = latestMeasure.uricAcid
@@ -182,20 +212,20 @@ export function buildHealthStatusVitalsSlides(
     : formatUricAcidFromItems(measureData.uricAcid, range, gender);
 
   const slideMap: Record<HealthStatusVitalKey, HealthStatusVitalSlide> = {
-    心率: {
+    心率: toVitalSlide({
       key: '心率',
       value: heartRate.value,
       unit: '次/分钟',
-      status: stripStatusPrefix(heartRate.status),
+      status: heartRate.status,
       statusColor: heartRate.statusColor,
       dataTime: getHeartRateDisplayDataTime(wearableHeartRate, range),
       chart: { kind: 'heart_rate', points: toHourPoints(heartRateSeries) },
-    },
-    消耗: {
+    }),
+    消耗: toVitalSlide({
       key: '消耗',
       value: energySummary.total,
       unit: energySummary.unit,
-      status: stripStatusPrefix(energySummary.status),
+      status: energySummary.status,
       statusColor: energySummary.statusColor,
       dataTime: getEnergyDisplayDataTime(wearableActiveEnergy, wearableBasalEnergy, range),
       chart: {
@@ -204,35 +234,35 @@ export function buildHealthStatusVitalsSlides(
         metricLabel: '消耗',
         valueUnit: '千卡',
       },
-    },
-    血糖: {
+    }),
+    血糖: toVitalSlide({
       key: '血糖',
       value: glucose.value,
       unit: 'mmol/L',
-      status: stripStatusPrefix(glucose.status),
+      status: glucose.status,
       statusColor: glucose.statusColor,
       dataTime: formatMeasureDataTime(latestMeasure.bloodGlucose),
       chart: { kind: 'glucose', points: glucoseSeries },
-    },
-    血压: {
+    }),
+    血压: toVitalSlide({
       key: '血压',
       value: bloodPressure.value,
       unit: 'mmHg',
-      status: stripStatusPrefix(bloodPressure.status),
+      status: bloodPressure.status,
       statusColor: bloodPressure.statusColor,
       dataTime: formatMeasureDataTime(latestMeasure.bloodPressure),
       chart: { kind: 'blood_pressure', points: bloodPressureSeries },
-    },
-    步数: {
+    }),
+    步数: toVitalSlide({
       key: '步数',
       value: stepsSummary.value,
       unit: stepsSummary.unit,
-      status: stripStatusPrefix(stepsSummary.status),
+      status: stepsSummary.status,
       statusColor: stepsSummary.statusColor,
       dataTime: getStepsDisplayDataTime(wearableSteps, range),
       chart: { kind: 'bar', points: stepsBarData },
-    },
-    睡眠: {
+    }),
+    睡眠: toVitalSlide({
       key: '睡眠',
       value: sleepSummary.duration,
       unit: '',
@@ -240,57 +270,52 @@ export function buildHealthStatusVitalsSlides(
       statusColor: sleepSummary.quality.color,
       dataTime: getSleepDisplayDataTime(wearableSleep, range),
       chart: { kind: 'sleep', segments: sleepSummary.stageTimeline },
-    },
-    血氧: {
+    }),
+    血氧: toVitalSlide({
       key: '血氧',
       value: bloodOxygen.value,
       unit: '%',
-      status: stripStatusPrefix(bloodOxygen.status),
+      status: bloodOxygen.status,
       statusColor: bloodOxygen.statusColor,
       dataTime: getBloodOxygenDisplayDataTime(wearableOxygen, range),
       chart: { kind: 'blood_oxygen', points: toHourPoints(bloodOxygenSeries) },
-    },
-    体温: {
+    }),
+    体温: toVitalSlide({
       key: '体温',
       value: bodyTemperature.value,
       unit: '℃',
-      status: stripStatusPrefix(bodyTemperature.status),
+      status: bodyTemperature.status,
       statusColor: bodyTemperature.statusColor,
       dataTime: formatMeasureDataTime(latestMeasure.bodyTemperature),
       chart: { kind: 'body_temperature', points: toHourPoints(bodyTemperatureSeries) },
-    },
-    体重: {
+    }),
+    体重: toVitalSlide({
       key: '体重',
       value: weight.value,
       unit: 'kg',
-      status: stripStatusPrefix(weight.status),
+      status: weight.status,
       statusColor: weight.statusColor,
       dataTime: formatMeasureDataTime(latestWeight),
       chart: { kind: 'weight', points: toHourPoints(weightSeries) },
-    },
-    血脂: {
+    }),
+    血脂: toVitalSlide({
       key: '血脂',
       value: bloodLipids.tcValue,
       unit: 'mmol/L',
-      status: stripStatusPrefix(bloodLipids.status),
-      statusColor: bloodLipids.statusColor,
+      status: bloodLipids.status || bloodLipids.tcStatus,
+      statusColor: bloodLipids.statusColor || bloodLipids.tcStatusColor,
       dataTime: formatMeasureDataTime(latestMeasure.bloodLipids),
-      chart: {
-        kind: 'lipid',
-        tg: bloodLipids.tgValue,
-        hdl: bloodLipids.hdlValue,
-        ldl: bloodLipids.ldlValue,
-      },
-    },
-    尿酸: {
+      chart: { kind: 'lipid', points: toHourPoints(bloodLipidsSeries) },
+    }),
+    尿酸: toVitalSlide({
       key: '尿酸',
       value: uricAcid.value,
       unit: 'μmol/L',
-      status: stripStatusPrefix(uricAcid.statusLabel),
+      status: uricAcid.statusLabel,
       statusColor: uricAcid.statusColor,
       dataTime: formatMeasureDataTime(latestMeasure.uricAcid),
       chart: { kind: 'uric_acid', points: toHourPoints(uricAcidSeries) },
-    },
+    }),
   };
 
   return HEALTH_STATUS_VITAL_ORDER.map(key => slideMap[key]);

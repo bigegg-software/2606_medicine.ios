@@ -135,6 +135,10 @@ import MyFamily from '@/src/features/profile/myFamily';
 import MyFamilyAdd from '@/src/features/profile/myFamily/add';
 import FamilyDetail from '@/src/features/profile/myFamily/detail';
 import FamilyBindInvitePage from '@/src/familyPage/profilePage/FamilyBindInvitePage';
+import FamilyMemberProfilePage from '@/src/familyPage/profilePage/FamilyMemberProfilePage';
+import FamilyAssessmentHistoryPage from '@/src/familyPage/FamilyData/FamilyAssessmentHistoryPage';
+import FamilyAssessmentResultPage from '@/src/familyPage/FamilyData/FamilyAssessmentResultPage';
+import FamilyAssessmentDetailPage from '@/src/familyPage/FamilyData/FamilyAssessmentDetailPage';
 
 
 //实名认证
@@ -173,9 +177,16 @@ export type RootStackParamList = {
   CaseDetail: { id: number };
   QuestionnairePage: { type: QuestionnaireType };
   QuestionnaireList: undefined;
-  QuestionnaireDetail: { id: string }
+  QuestionnaireDetail: { id: string; patientUserId?: string };
   QuestionnaireResult: { id: string; type: QuestionnaireType };
   QuestionnaireHistory: undefined;
+  FamilyAssessmentHistory: { patientUserId: string };
+  FamilyAssessmentResult: {
+    id: string;
+    patientUserId: string;
+    type?: QuestionnaireType;
+  };
+  FamilyAssessmentDetail: { id: string; patientUserId: string };
   FontSizeSettingPage: undefined;
   SpeechSpeedSettingPage: undefined;
   NotificationSettingPage: undefined;
@@ -197,24 +208,30 @@ export type RootStackParamList = {
   ChronicDisease: undefined;
   ChronicDiseaseAddPage: { id?: number } | undefined;
   ChronicDiseaseDetailPage: { id: number } | undefined;
-  VitalsPage: undefined;
+  VitalsPage: {
+    /** 家人只读查看 */
+    readOnly?: boolean;
+    patientUserId?: string;
+  } | undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '体重'; item?: MeasureDataItem };
   AllDataPage: {
     type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '血氧' | '心率' | '步数' | '消耗' | '体重' | '睡眠';
     /** YYYY-MM-DD，缺省为当天 */
     date?: string;
+    readOnly?: boolean;
+    patientUserId?: string;
   };
-  BloodPressurePage: undefined;
-  BloodSugarPage: undefined;
-  HeartRatePage: undefined;
-  SleepPage: undefined;
-  BloodOxygenPage: undefined;
-  BodyTemperaturePage: undefined;
-  StepsPage: undefined;
-  ConsumptionPage: undefined;
-  WeightPage: undefined;
-  BloodLipidPage: undefined;
-  UricAcidPage: undefined;
+  BloodPressurePage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  BloodSugarPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  HeartRatePage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  SleepPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  BloodOxygenPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  BodyTemperaturePage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  StepsPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  ConsumptionPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  WeightPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  BloodLipidPage: { readOnly?: boolean; patientUserId?: string } | undefined;
+  UricAcidPage: { readOnly?: boolean; patientUserId?: string } | undefined;
   SortPage: { items: Array<{ key: string; status: string; statusColor: string }> };
   CalendarPage: undefined;
   ScheduleHistoryPage: undefined;
@@ -314,6 +331,7 @@ export type RootStackParamList = {
   MyFamilyAdd: undefined;
   FamilyDetail: { id: string };
   FamilyBindInvitePage: { messageId?: string; id?: string };
+  FamilyMemberProfilePage: undefined;
 };
 
 const Stack: any = createNativeStackNavigator<RootStackParamList>();
@@ -480,6 +498,11 @@ export default function RootStack() {
         component={FamilyBindInvitePage}
         options={{ title: '家人邀请' }}
       />
+      <Stack.Screen
+        name="FamilyMemberProfilePage"
+        component={FamilyMemberProfilePage}
+        options={{ title: '个人信息' }}
+      />
       <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="PolarDeviceTestPage" component={PolarDeviceTestPage} options={{ title: 'Polar H10 测试' }} />
       <Stack.Screen name="FeedbackPage" component={FeedbackPage} options={{ title: "帮助与反馈" }} />
@@ -554,6 +577,21 @@ export default function RootStack() {
       <Stack.Screen name="QuestionnaireDetail" component={QuestionnaireDetail} options={{ title: "评估问卷详情" }} />
       <Stack.Screen name="QuestionnaireResult" component={QuestionnaireResult} options={{ title: "评估问卷结果" }} />
       <Stack.Screen name="QuestionnaireHistory" component={QuestionnaireHistory} options={{ title: "评估问卷历史" }} />
+      <Stack.Screen
+        name="FamilyAssessmentHistory"
+        component={FamilyAssessmentHistoryPage}
+        options={{ title: '评估问卷历史' }}
+      />
+      <Stack.Screen
+        name="FamilyAssessmentResult"
+        component={FamilyAssessmentResultPage}
+        options={{ title: '评估问卷结果' }}
+      />
+      <Stack.Screen
+        name="FamilyAssessmentDetail"
+        component={FamilyAssessmentDetailPage}
+        options={{ title: '评估问卷详情' }}
+      />
       <Stack.Screen name="FontSizeSettingPage" component={FontSizeSettingPage} options={{ title: '字体大小' }} />
       <Stack.Screen name="SpeechSpeedSettingPage" component={SpeechSpeedSettingPage} options={{ title: '语音语速' }} />
       <Stack.Screen name="NotificationSettingPage" component={NotificationSettingPage} options={{ title: '消息通知' }} />

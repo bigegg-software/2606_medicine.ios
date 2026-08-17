@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -42,6 +42,7 @@ import {
     normalizeStatisRangeData,
 } from './helpers/shared';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 import type { BloodPressurePoint } from '@/src/features/profile/components/BloodPressureChart';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -130,13 +131,16 @@ function applyBloodPressureStats(
     setters.setAnalysisData(stats.analysisData);
 }
 
-async function loadBloodPressureDetailItems(range: BloodPressureChartRange) {
+async function loadBloodPressureDetailItems(
+    range: BloodPressureChartRange,
+    options?: { patientUserId?: string | number | null },
+) {
     const { startDate, endDate } = getBloodPressureDetailQueryRange(range);
     const res = (await getMeasureDataDetailByDateRange({
         startDate,
         endDate,
         type: '血压',
-    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+    }, options)) as unknown as { code?: number; data?: MeasureDataItem[] };
 
     if (!isResourceApiOk(res)) return null;
     return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
@@ -144,6 +148,14 @@ async function loadBloodPressureDetailItems(range: BloodPressureChartRange) {
 
 export default function VitalsPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const dispatch = useDispatch<AppDispatch>();
     const insets = useSafeAreaInsets();
     const userGender = useSelector((state: RootState) => state.user.info?.gender);
@@ -162,8 +174,8 @@ export default function VitalsPage() {
     );
 
     const showGoalSummary = useMemo(
-        () => hasBloodPressureHealthGoal(prescription),
-        [prescription],
+        () => !readOnly && hasBloodPressureHealthGoal(prescription),
+        [prescription, readOnly],
     );
 
     const goalCycleDays = useMemo(
@@ -194,6 +206,8 @@ export default function VitalsPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '血压',
+        readOnly,
+        viewNavParams,
     });
 
     const handleChartPointChange = useCallback((point: BloodPressurePoint | undefined) => {
@@ -208,6 +222,10 @@ export default function VitalsPage() {
     }, [selectedType]);
 
     const loadGoalSummary = useCallback(async () => {
+        if (readOnly) {
+            setGoalCompliantDays(null);
+            return;
+        }
         try {
             const rule = await dispatch(fetchInUsePrescription({ force: true }));
             if (!hasBloodPressureHealthGoal(rule)) {
@@ -224,7 +242,7 @@ export default function VitalsPage() {
             const countRes = await getMeasureDataNormalDayCount({
                 exPatientRuleId: summary.exPatientRuleId,
                 type: '血压',
-            });
+            }, readOptions);
             const countPayload = countRes as unknown as { code?: number; data?: number };
             if (isResourceApiOk(countPayload)) {
                 const normalDayCount = apiResourceData<number>(countPayload);
@@ -235,7 +253,7 @@ export default function VitalsPage() {
         } catch {
             setGoalCompliantDays(null);
         }
-    }, [dispatch]);
+    }, [dispatch, readOnly, readOptions]);
 
     const loadMeasureData = useCallback(async (range: BloodPressureChartRange) => {
         const emptySetters = {
@@ -256,7 +274,7 @@ export default function VitalsPage() {
 
         try {
             if (range === 'today') {
-                const detailItems = await loadBloodPressureDetailItems(range);
+                const detailItems = await loadBloodPressureDetailItems(range, readOptions);
                 if (detailItems == null) {
                     applyEmptyBloodPressureState(range, emptySetters);
                     return;
@@ -273,8 +291,8 @@ export default function VitalsPage() {
                     startDate,
                     endDate,
                     type: '血压',
-                }),
-                loadBloodPressureDetailItems(range),
+                }, readOptions),
+                loadBloodPressureDetailItems(range, readOptions),
             ]);
             const statisPayload = statisRes as unknown as { code?: number; data?: MeasureDataStatisDayGroup[] };
 
@@ -289,7 +307,7 @@ export default function VitalsPage() {
         } catch {
             applyEmptyBloodPressureState(range, emptySetters);
         }
-    }, []);
+    }, [readOptions]);
 
     useFocusEffect(
         useCallback(() => {
@@ -394,6 +412,7 @@ export default function VitalsPage() {
                         </Flex>
                     </View>
                 </ScrollView>
+                {!readOnly ? (
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
                         style={styles.bottomBarButtonLeft}
@@ -409,6 +428,7 @@ export default function VitalsPage() {
                         </Flex>
                     </TouchableOpacity>
                 </View>
+                ) : null}
             </View>
             {menuModals}
         </PageLayout>

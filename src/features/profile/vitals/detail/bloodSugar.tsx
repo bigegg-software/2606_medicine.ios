@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image } from 'react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
@@ -35,6 +35,7 @@ import {
     type BloodSugarDetailPoint,
 } from './helpers/bloodSugar';
 import { useVitalsDetailMoreMenu } from './helpers/useVitalsDetailMoreMenu';
+import { resolveVitalsViewMode, type VitalsViewParams } from '@/src/features/profile/vitals/utils/vitalsViewMode';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -118,13 +119,16 @@ function applyBloodSugarStats(
     setters.resetPeriodStats();
 }
 
-async function loadBloodSugarDetailItems(range: BloodSugarChartRange) {
+async function loadBloodSugarDetailItems(
+    range: BloodSugarChartRange,
+    options?: { patientUserId?: string | number | null },
+) {
     const { startDate, endDate } = getBloodSugarDetailQueryRange(range);
     const res = (await getMeasureDataDetailByDateRange({
         startDate,
         endDate,
         type: '血糖',
-    })) as unknown as { code?: number; data?: MeasureDataItem[] };
+    }, options)) as unknown as { code?: number; data?: MeasureDataItem[] };
 
     if (!isResourceApiOk(res)) return null;
     return flattenMeasureItems(apiResourceData<MeasureDataItem[]>(res));
@@ -132,6 +136,14 @@ async function loadBloodSugarDetailItems(range: BloodSugarChartRange) {
 
 export default function VitalsPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute();
+    const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
+        route.params as VitalsViewParams | undefined,
+    );
+    const readOptions = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const dispatch = useDispatch<AppDispatch>();
     const insets = useSafeAreaInsets();
     const prescription = useSelector((state: RootState) => state.prescription.inUse);
@@ -147,8 +159,8 @@ export default function VitalsPage() {
     const [measureCount, setMeasureCount] = useState<number | null>(null);
 
     const showGoalSummary = useMemo(
-        () => hasBloodSugarHealthGoal(prescription),
-        [prescription],
+        () => !readOnly && hasBloodSugarHealthGoal(prescription),
+        [prescription, readOnly],
     );
 
     const goalCycleDays = useMemo(
@@ -179,6 +191,10 @@ export default function VitalsPage() {
     }, [selectedType]);
 
     const loadGoalSummary = useCallback(async () => {
+        if (readOnly) {
+            setGoalCompliantDays(null);
+            return;
+        }
         try {
             const rule = await dispatch(fetchInUsePrescription({ force: true }));
             if (!hasBloodSugarHealthGoal(rule)) {
@@ -195,7 +211,7 @@ export default function VitalsPage() {
             const countRes = await getMeasureDataNormalDayCount({
                 exPatientRuleId: summary.exPatientRuleId,
                 type: '血糖',
-            });
+            }, readOptions);
             const countPayload = countRes as unknown as { code?: number; data?: number };
             if (isResourceApiOk(countPayload)) {
                 const normalDayCount = apiResourceData<number>(countPayload);
@@ -206,7 +222,7 @@ export default function VitalsPage() {
         } catch {
             setGoalCompliantDays(null);
         }
-    }, [dispatch]);
+    }, [dispatch, readOnly, readOptions]);
 
     const resetPeriodStats = useCallback(() => {
         setMaxValue('--');
@@ -231,7 +247,7 @@ export default function VitalsPage() {
         };
 
         try {
-            const detailItems = await loadBloodSugarDetailItems(range);
+            const detailItems = await loadBloodSugarDetailItems(range, readOptions);
             if (detailItems == null) {
                 applyEmptyBloodSugarState(range, emptySetters);
                 return;
@@ -246,7 +262,7 @@ export default function VitalsPage() {
         } catch {
             applyEmptyBloodSugarState(range, emptySetters);
         }
-    }, [resetPeriodStats]);
+    }, [readOptions, resetPeriodStats]);
 
     useFocusEffect(
         useCallback(() => {
@@ -257,6 +273,8 @@ export default function VitalsPage() {
 
     const { menuModals } = useVitalsDetailMoreMenu({
         allRecordsType: '血糖',
+        readOnly,
+        viewNavParams,
     });
 
     return (
@@ -349,6 +367,7 @@ export default function VitalsPage() {
                         </View>
                     </Flex>
                 </ScrollView>
+                {!readOnly ? (
                 <View style={styles.bottomBar}>
                     <TouchableOpacity
                         style={styles.bottomBarButtonLeft}
@@ -364,6 +383,7 @@ export default function VitalsPage() {
                         </Flex>
                     </TouchableOpacity>
                 </View>
+                ) : null}
             </View>
             {menuModals}
         </PageLayout>
