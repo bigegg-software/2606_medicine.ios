@@ -192,24 +192,41 @@ export function formatDietHeaderInfo(
   user?: UserBaseInfo | null,
   systemUser?: SystemUser | null,
   userExtr?: UserExtr | null,
+  options?: {
+    /** 家人只读：优先展示该姓名，不回落登录人 */
+    forceDisplayName?: string | null;
+    /** 家人只读：用家人资料算年龄性别 */
+    forceUser?: UserBaseInfo | null;
+  },
 ) {
   const base = rule?.patientUserBaseInfo;
-  const name = rule?.patientUserName?.trim()
+  const forceName = options?.forceDisplayName?.trim() || '';
+  const profile = options?.forceUser ?? (options ? null : user);
+  const isFamilyView = options != null;
+  const name =
+    rule?.patientUserName?.trim()
     || base?.name?.trim()
-    || getDisplayUserName(user, systemUser)
+    || forceName
+    || options?.forceUser?.name?.trim()
+    || (!isFamilyView ? getDisplayUserName(user, systemUser) : '')
+    || forceName
     || '--';
 
   let age = '';
   if (base?.age != null && Number(base.age) > 0) {
     age = `${base.age}岁`;
   } else {
-    const birthMoment = moment(user?.birthDate ?? base?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+    const birthMoment = moment(
+      profile?.birthDate ?? base?.birthDate,
+      ['YYYY-MM-DD', 'YYYYMMDD'],
+      true,
+    );
     if (birthMoment.isValid()) {
       age = `${moment().diff(birthMoment, 'years')}岁`;
     }
   }
 
-  const gender = base?.gender?.trim() || user?.gender?.trim() || '';
+  const gender = base?.gender?.trim() || profile?.gender?.trim() || '';
   const diagnosis = rule?.diagnosticLabel?.trim()
     || rule?.diagnosis?.trim()
     || base?.diagnosticLabel?.trim()
@@ -226,5 +243,5 @@ export function formatDietHeaderInfo(
 
   const infoText = [age, gender, diagnosis, goalText].filter(Boolean).join(' | ') || '--';
 
-  return { name, version, infoText };
+  return { name: name || '--', version, infoText };
 }

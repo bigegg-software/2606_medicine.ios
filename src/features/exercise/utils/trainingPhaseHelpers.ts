@@ -200,11 +200,17 @@ export function formatTrainingActionButtonText(
   return allDone ? '完成' : '开始';
 }
 
-/** 非今日：仅「全部完成」可点进只读详情；未来与未完成均不可点（显示置灰开始） */
+/** 非今日：仅「全部完成」可点进只读详情；未来与未完成均不可点（显示置灰开始）
+ * 家人只读（今日）：同过去日规则，「开始」置灰不可点
+ */
 export function canPressTrainingAction(
   card: TrainingPhaseExerciseCard,
   dateMode: TrainingActionDateMode = 'today',
+  options?: { readOnly?: boolean },
 ) {
+  if (options?.readOnly && dateMode === 'today') {
+    return isTrainingActionCompleted(card);
+  }
   if (dateMode === 'today') return true;
   if (dateMode === 'future') return false;
   // 过去：有部分进度（如 10/12 + 第二组/第三组）仍视为未完成，按钮为置灰「开始」

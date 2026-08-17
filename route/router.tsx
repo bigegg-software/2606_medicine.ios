@@ -161,8 +161,19 @@ export type RootStackParamList = {
   IdentitySelectPage: undefined;
   MainTabs: NavigatorScreenParams<MainTabParamList> | undefined;
   FamilyTabs: NavigatorScreenParams<FamilyTabParamList> | undefined;
-  ExercisePage: undefined;
-  NutritionPage: { tab?: 'diet' | 'prescription' } | undefined;
+  ExercisePage: {
+    readOnly?: boolean;
+    patientUserId?: string;
+    relationLabel?: string;
+    displayName?: string;
+  } | undefined;
+  NutritionPage: {
+    tab?: 'diet' | 'prescription';
+    readOnly?: boolean;
+    patientUserId?: string;
+    relationLabel?: string;
+    displayName?: string;
+  } | undefined;
   ActivityDetail: { id: number | string };
   CourseDetail: { courseId: string };
   LiveDetail: { liveId: string };
@@ -274,7 +285,14 @@ export type RootStackParamList = {
   TestingRecordPage: { healthTestItemId: string },
   QuestionnaireTestingPage: { id: string },
   QuestionnaireTestingRecordPage: { questionnaireType: QuestionnaireType; title?: string },
-  Medication: { tab?: 'medication' | 'meal'; resetMealInput?: boolean } | undefined;
+  Medication: {
+    tab?: 'medication' | 'meal';
+    resetMealInput?: boolean;
+    readOnly?: boolean;
+    patientUserId?: string;
+    relationLabel?: string;
+    displayName?: string;
+  } | undefined;
   MedicationAddPage: { medicationPlanId?: number } | undefined;
   MedicationAllPage: undefined;
   MedicationHistoryPage: undefined;

@@ -179,7 +179,6 @@ class PolarBleManager {
       return false;
     }
     try {
-      console.log(deviceId)
       return await PolarBle.startHrStreaming(deviceId);
     } catch (error) {
       console.error(`Failed to start HR streaming for device ${deviceId}:`, error);

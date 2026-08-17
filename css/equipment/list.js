@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   bottomBar: {
     width: '100%',
     paddingHorizontal: 15,
-    paddingTop: 12,
+    paddingTop: 18,
     backgroundColor: '#FEFEFE',
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,

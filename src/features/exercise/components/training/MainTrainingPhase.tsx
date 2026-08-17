@@ -60,7 +60,7 @@ function ActionCardRow({
   const actionCompleted = isTrainingActionCompleted(card);
   const actionText = formatTrainingActionButtonText(card, { dateMode });
   const showActionIcon = shouldShowTrainingActionIcon(card, { dateMode });
-  const actionPressable = canPressTrainingAction(card, dateMode);
+  const actionPressable = canPressTrainingAction(card, dateMode, { readOnly });
 
   return (
     <View style={styles.mainTrainingActionRow}>
@@ -203,7 +203,7 @@ export default function MainTrainingPhase({
   );
 
   const openPlayer = (exerciseType: string, card?: TrainingPhaseExerciseCard) => {
-    if (card && !canPressTrainingAction(card, dateMode)) return;
+    if (card && !canPressTrainingAction(card, dateMode, { readOnly })) return;
     const rule = dayRule?.ruleRatioList?.find(item => item.exerciseType?.trim() === exerciseType);
     navigation.navigate('ExercisePlayerPage', {
       exerciseType,

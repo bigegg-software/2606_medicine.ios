@@ -9,12 +9,13 @@ import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 
 export async function fetchExPatientRuleForDate(
   customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
 ): Promise<InUseExPatientRule | null> {
   const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
   try {
     const res = isToday
-      ? await getInUseExPatientRuleInfo()
-      : await getExPatientRuleSnapshotByDate({ customerLocalDate });
+      ? await getInUseExPatientRuleInfo(options)
+      : await getExPatientRuleSnapshotByDate({ customerLocalDate }, options);
     if (!isResourceApiOk(res as unknown as { code?: number })) return null;
     return (
       apiResourceData<ExPatientRuleInfo>(
@@ -33,8 +34,9 @@ export async function fetchExPatientRuleForDate(
 export async function loadExPatientRuleForDate(
   customerLocalDate: string,
   inUseRule: InUseExPatientRule | null,
+  options?: { patientUserId?: string | number | null },
 ): Promise<InUseExPatientRule | null> {
   const today = moment().format('YYYY-MM-DD');
   if (customerLocalDate >= today) return inUseRule;
-  return fetchExPatientRuleForDate(customerLocalDate);
+  return fetchExPatientRuleForDate(customerLocalDate, options);
 }

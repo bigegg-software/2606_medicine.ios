@@ -57,13 +57,14 @@ export function getMealEatYearRange(year: number, today = moment()) {
 export async function loadMealEatMapByDateRange(
   startDate: string,
   endDate: string,
+  options?: { patientUserId?: string | number | null },
 ): Promise<MealEatMap> {
   const map: MealEatMap = {};
   try {
     const [breakfastRes, lunchRes, dinnerRes] = await Promise.all([
-      getMealIsEatByDateRange({ mealCategory: 1, startDate, endDate }),
-      getMealIsEatByDateRange({ mealCategory: 2, startDate, endDate }),
-      getMealIsEatByDateRange({ mealCategory: 3, startDate, endDate }),
+      getMealIsEatByDateRange({ mealCategory: 1, startDate, endDate }, options),
+      getMealIsEatByDateRange({ mealCategory: 2, startDate, endDate }, options),
+      getMealIsEatByDateRange({ mealCategory: 3, startDate, endDate }, options),
     ]);
 
     if (isResourceApiOk(breakfastRes as unknown as { code?: number })) {
@@ -100,10 +101,13 @@ export async function loadMealEatMapByDateRange(
 }
 
 /** 按年懒加载餐次记录（未来年直接跳过） */
-export async function loadMealEatMapByYear(year: number): Promise<MealEatMap | null> {
+export async function loadMealEatMapByYear(
+  year: number,
+  options?: { patientUserId?: string | number | null },
+): Promise<MealEatMap | null> {
   const range = getMealEatYearRange(year);
   if (!range) return null;
-  return loadMealEatMapByDateRange(range.startDate, range.endDate);
+  return loadMealEatMapByDateRange(range.startDate, range.endDate, options);
 }
 
 export function getDayMealEatDots(flags?: DayMealEatFlags | null): string[] {

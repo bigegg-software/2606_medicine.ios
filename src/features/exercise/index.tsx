@@ -1,9 +1,10 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/exercise';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchUserBaseInfo } from '@/store/actions/user';
@@ -13,25 +14,62 @@ import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
 import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
+import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
+import type { RootStackParamList } from '@/route/router';
+import FamilyReadOnlyHeaderTitle from '@/src/familyPage/components/FamilyReadOnlyHeaderTitle';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
+import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
+
+type Route = RouteProp<RootStackParamList, 'ExercisePage'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ExercisePage() {
   const dispatch = useDispatch<AppDispatch>();
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
+  const { readOnly, patientUserId, relationLabel, displayName: routeDisplayName } =
+    resolveFamilyReadOnlyView(route.params);
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
-  const displayName = getDisplayUserName(user, systemUser);
-  const profileComplete = isUserBaseInfoComplete(user);
+  const familyList = useSelector((s: RootState) => s.family.list);
+  const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
+  const familyFromStore = useMemo(() => {
+    if (!patientUserId) return null;
+    return (
+      familyList.find(item => String(item.patientUserId ?? '') === patientUserId) ?? null
+    );
+  }, [familyList, patientUserId]);
+  const profileUser = readOnly ? familyUser : user;
+  /** 只读：优先路由/家人列表姓名，绝不回落登录人 */
+  const displayName = readOnly
+    ? (
+        routeDisplayName
+        || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
+        || familyUser?.name?.trim()
+        || relationLabel
+      )
+    : getDisplayUserName(user, systemUser);
+  const profileComplete = readOnly ? true : isUserBaseInfoComplete(user);
 
   const [activeNav, setActiveNav] = useState(0);
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
   const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
-  const infoText = formatExerciseUserInfoText(user, userExtr, exerciseRule?.diagnosticLabel);
+  const infoText = formatExerciseUserInfoText(
+    profileUser,
+    readOnly ? null : userExtr,
+    exerciseRule?.diagnosticLabel,
+  );
+  const relationBadgeText = useMemo(
+    () => (readOnly ? relationLabel : '本人'),
+    [readOnly, relationLabel],
+  );
 
   const versionText = (() => {
     const raw = exerciseRule?.version != null ? String(exerciseRule.version).trim() : '';
@@ -41,27 +79,61 @@ export default function ExercisePage() {
 
   const loadExerciseRule = useCallback(async () => {
     try {
-      const res = await getInUseExPatientRuleInfo();
-      if (!isResourceApiOk(res as unknown as { code?: number })) {
+      const opts = patientUserId ? { patientUserId } : undefined;
+      const [ruleRes, baseRes] = await Promise.all([
+        getInUseExPatientRuleInfo(opts),
+        readOnly && patientUserId
+          ? getUserBaseInfo({ patientUserId }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setExerciseRule(null);
-        return;
+      } else {
+        setExerciseRule(
+          apiResourceData<InUseExPatientRule>(ruleRes as unknown as never) ?? null,
+        );
       }
-      setExerciseRule(
-        apiResourceData<InUseExPatientRule>(res as unknown as never) ?? null,
-      );
+      if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
+        setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
+      } else if (readOnly) {
+        setFamilyUser(null);
+      }
     } catch {
       setExerciseRule(null);
+      if (readOnly) setFamilyUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [patientUserId, readOnly]);
 
   useFocusEffect(
     useCallback(() => {
-      void dispatch(fetchUserBaseInfo());
+      if (!readOnly) {
+        void dispatch(fetchUserBaseInfo());
+      }
       void loadExerciseRule();
-    }, [dispatch, loadExerciseRule]),
+    }, [dispatch, loadExerciseRule, readOnly]),
   );
+
+  const prevPatientUserIdRef = useRef(patientUserId);
+  /** 右上角切换家人后刷新（跳过首屏与 focus 重复请求） */
+  useEffect(() => {
+    if (!readOnly) return;
+    if (prevPatientUserIdRef.current === patientUserId) return;
+    prevPatientUserIdRef.current = patientUserId;
+    void loadExerciseRule();
+  }, [patientUserId, readOnly, loadExerciseRule]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerTitle: readOnly
+        ? () => (
+            <FamilyReadOnlyHeaderTitle title="运动处方" relationLabel={relationLabel} />
+          )
+        : '运动处方',
+      headerRight: undefined,
+    });
+  }, [navigation, readOnly, relationLabel]);
 
   const onPressNav = useCallback((index: number) => {
     setActiveNav(index);
@@ -98,7 +170,7 @@ export default function ExercisePage() {
           </Flex>
           <Flex style={styles.topInfoBox}>
             <Flex style={styles.brBox}>
-              <Text style={styles.brText}>本人</Text>
+              <Text style={styles.brText}>{relationBadgeText}</Text>
             </Flex>
             <Text style={styles.topInfoText}>{infoText}</Text>
           </Flex>
@@ -132,7 +204,7 @@ export default function ExercisePage() {
           />
           {profileComplete ? (
             <Text style={styles.emptyPrescriptionText}>
-              暂无运动处方，如需开方，请联系工作人员
+              {readOnly ? '暂无运动处方' : '暂无运动处方，如需开方，请联系工作人员'}
             </Text>
           ) : (
             <Flex style={styles.emptyPrescriptionTextRow}>
@@ -145,7 +217,11 @@ export default function ExercisePage() {
         <View style={{ flex: 1 }}>
           {mountedTabs[0] ? (
             <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
-              <TrainingPage exerciseRule={exerciseRule} />
+              <TrainingPage
+                exerciseRule={exerciseRule}
+                forceReadOnly={readOnly}
+                patientUserId={patientUserId}
+              />
             </View>
           ) : null}
           {mountedTabs[1] ? (
@@ -156,7 +232,7 @@ export default function ExercisePage() {
         </View>
       )}
 
-      {activeNav === 0 ? (
+      {!readOnly && activeNav === 0 ? (
         <TouchableOpacity
           style={styles.checkInFab}
           activeOpacity={0.85}

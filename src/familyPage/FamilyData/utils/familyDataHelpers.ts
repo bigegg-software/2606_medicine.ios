@@ -7,6 +7,8 @@ export type FamilyVitalItem = {
   value: string;
   /** 如血糖餐前/餐后，小号字展示 */
   valueSuffix?: string;
+  /** 最新数据日期，如 2026/05/13 */
+  dateText?: string;
   icon: ImageSourcePropType;
 };
 
@@ -15,60 +17,60 @@ export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
   {
     key: 'bp',
     label: '血压',
-    value: '142/92',
+    value: '--',
     icon: require('@/assets/family/data/bp.png'),
   },
   {
     key: 'glucose',
     label: '血糖',
-    value: '5.6',
+    value: '--',
     icon: require('@/assets/family/data/glucose.png'),
   },
   {
     key: 'hr',
     label: '心率',
-    value: '72',
+    value: '--',
     icon: require('@/assets/family/data/hr.png'),
   },
   {
     key: 'sleep',
     label: '睡眠',
-    value: '7.5h',
+    value: '--',
     icon: require('@/assets/family/data/sleep.png'),
   },
   {
     key: 'spo2',
     label: '血氧',
-    value: '98%',
+    value: '--',
     icon: require('@/assets/family/data/spo2.png'),
   },
   {
     key: 'temp',
     label: '体温',
-    value: '36.5',
+    value: '--',
     icon: require('@/assets/family/data/temp.png'),
   },
   {
     key: 'uric',
     label: '尿酸',
-    value: '320',
+    value: '--',
     icon: require('@/assets/family/data/uric.png'),
   },
   {
     key: 'lipid',
     label: '血脂',
-    value: '4.8',
+    value: '--',
     icon: require('@/assets/family/data/lipid.png'),
   },
-  {
-    key: 'weight',
-    label: '体重',
-    value: '65.0',
-    icon: require('@/assets/family/data/weight.png'),
-  },
+  // {
+  //   key: 'weight',
+  //   label: '体重',
+  //   value: '65.0',
+  //   icon: require('@/assets/family/data/weight.png'),
+  // },
 ];
 
-export function chunkFamilyVitalRows<T>(items: T[], size = 3): T[][] {
+export function chunkFamilyVitalRows<T>(items: T[], size = 2): T[][] {
   const rows: T[][] = [];
   for (let i = 0; i < items.length; i += size) {
     rows.push(items.slice(i, i + size));

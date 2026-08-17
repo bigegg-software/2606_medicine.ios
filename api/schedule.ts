@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 import type {
   ExPatientRuleAiAnalysis,
   ExWeekTrainingSchedule,
@@ -135,8 +136,12 @@ export type ExerciseTypeStatisResult = {
   data?: ExerciseTypeStatisItem[];
 };
 
-export const getInUseExPatientRuleInfo = () =>
-  request.get<{ code?: number; data?: InUseExPatientRule }>('/patient/exPatientRule/getInUseInfo');
+export const getInUseExPatientRuleInfo = (
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<{ code?: number; data?: InUseExPatientRule }>('/patient/exPatientRule/getInUseInfo', {
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const getHistoryExPatientRuleList = (params: HistoryListParams) =>
   request.get<HistoryListResult>('/patient/exPatientRule/list', { params });

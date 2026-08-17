@@ -18,17 +18,19 @@ const styles = StyleSheet.create({
     alignItems: 'stretch',
   },
   contentModule: {
+    height:"100%",
     width: '100%',
-    alignItems: 'center',
   },
   searchHero: {
     alignItems: 'center',
   },
   searchLottie: {
+    marginTop:125,
     width: 80,
     height: 80,
   },
   searchIcon: {
+    marginTop:125,
     width: 80,
     height: 80,
   },

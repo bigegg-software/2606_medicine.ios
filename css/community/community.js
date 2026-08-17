@@ -290,8 +290,8 @@ const styles = StyleSheet.create({
     rankNumWrapUnlisted: {
         width: 52,
         height: 42,
-        marginLeft: -20,
-        marginRight: 20,
+        marginLeft: -10,
+        marginRight: 10,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
         fontSize: 12,
         color: "#999999",
         marginTop: 4,
-        paddingHorizontal:4,
+        paddingHorizontal: 4,
         textAlign: "center"
     },
     rankingItemText4: {

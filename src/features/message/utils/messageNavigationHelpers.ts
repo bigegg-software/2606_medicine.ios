@@ -2,6 +2,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
 import { getActivityInfo } from '@/api/activity';
 import { getInUseDietPatientRuleInfo } from '@/api/dietPatientRule';
+import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { getLiveStreamInfo } from '@/api/liveStream';
 import type { PatientMessageItem } from '@/api/message';
 import { getUserQuestionDetail } from '@/api/questionTemplate';
@@ -195,7 +196,19 @@ export async function resolveMessageNavigation(item: {
   }
 
   if (type === 'identity_audit_rejected') {
-    return { action: 'navigate', name: 'AuthenticationPage' };
+    try {
+      const res = (await getIdentityAuditInfo()) as unknown as {
+        code?: number;
+        data?: { authStatus?: number | null };
+      };
+      if (!isResourceApiOk(res)) return { action: 'none' };
+      const authStatus = apiResourceData<{ authStatus?: number | null }>(res)?.authStatus;
+      // 仅未审核通过时可重新提交
+      if (Number(authStatus) !== 2) return { action: 'none' };
+      return { action: 'navigate', name: 'AuthenticationPage' };
+    } catch {
+      return { action: 'none' };
+    }
   }
 
   return { action: 'none' };

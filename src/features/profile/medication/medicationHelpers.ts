@@ -567,17 +567,21 @@ export async function loadMedicationDictMaps(): Promise<MedicationDictMaps> {
   return medicationDictMapsPromise;
 }
 
-export async function loadMedicationPlanGroups(dictMaps?: MedicationDictMaps) {
-  return loadMedicationPlanGroupsForDate(moment().format('YYYY-MM-DD'), dictMaps);
+export async function loadMedicationPlanGroups(
+  dictMaps?: MedicationDictMaps,
+  options?: { patientUserId?: string | number | null },
+) {
+  return loadMedicationPlanGroupsForDate(moment().format('YYYY-MM-DD'), dictMaps, options);
 }
 
 export async function loadMedicationPlanGroupsForDate(
   customerLocalDate: string,
   dictMaps?: MedicationDictMaps,
+  options?: { patientUserId?: string | number | null },
 ) {
   try {
     const maps = dictMaps ?? (await loadMedicationDictMaps());
-    const res = await getIndexMedicationPlanGroupByTime({ customerLocalDate });
+    const res = await getIndexMedicationPlanGroupByTime({ customerLocalDate }, options);
     if (!isResourceApiOk(res)) return [];
     return mapIndexPlanGroups(apiResourceData<IndexMedicationPlanGroupItem[]>(res as any), maps);
   } catch {
@@ -600,17 +604,23 @@ export async function loadMedicationProgress() {
   }
 }
 
-export async function loadMedicationHistory(limitDays = 7) {
+export async function loadMedicationHistory(
+  limitDays = 7,
+  options?: { patientUserId?: string | number | null },
+) {
   const endDate = moment().format('YYYY-MM-DD');
   const startDate = moment().subtract(limitDays - 1, 'day').format('YYYY-MM-DD');
 
   try {
-    const res = await getMedicationRecordAll({
-      startDate,
-      endDate,
-      pageSize: Math.max(limitDays, 7),
-      pageNum: 1,
-    });
+    const res = await getMedicationRecordAll(
+      {
+        startDate,
+        endDate,
+        pageSize: Math.max(limitDays, 7),
+        pageNum: 1,
+      },
+      options,
+    );
     return mapMedicationHistoryRows(getResourceRows(res));
   } catch {
     return [];

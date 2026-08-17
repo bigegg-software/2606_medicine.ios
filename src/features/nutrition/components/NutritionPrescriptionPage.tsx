@@ -55,6 +55,7 @@ type PrescriptionTabValue = (typeof PRESCRIPTION_TABS)[number]['value'];
 
 type Props = {
   dietRule?: DietPatientRuleInfo | null;
+  readOnly?: boolean;
 };
 
 function ExpandableMonitorCard({
@@ -198,7 +199,10 @@ function ExpandableMonitorCard({
   );
 }
 
-export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
+export default function NutritionPrescriptionPage({
+  dietRule = null,
+  readOnly = false,
+}: Props) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useSelector((state: RootState) => state.user.info);
@@ -375,9 +379,9 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
             source={require('@/assets/images/nutrition/icon_yy_empty.png')}
             style={styles.emptyPrescriptionIcon}
           />
-          {profileComplete ? (
+          {readOnly || profileComplete ? (
             <Text style={styles.emptyPrescriptionText}>
-              暂无营养处方，如需开方，请联系工作人员
+              {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
             </Text>
           ) : (
             <Flex style={styles.emptyPrescriptionTextRow}>
@@ -389,7 +393,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
       ) : (
         <ScrollView
           style={[styles.scroll, { paddingHorizontal: 0 }]}
-          contentContainerStyle={{ paddingBottom: 100 }}
+          contentContainerStyle={{ paddingBottom: readOnly ? 24 : 100 }}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.backImageBox}>
@@ -627,6 +631,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
         </ScrollView>
       )}
 
+      {!readOnly ? (
       <Flex
         justify="between"
         align="center"
@@ -669,6 +674,7 @@ export default function NutritionPrescriptionPage({ dietRule = null }: Props) {
           />
         </TouchableOpacity>
       </Flex>
+      ) : null}
     </View>
   );
 }

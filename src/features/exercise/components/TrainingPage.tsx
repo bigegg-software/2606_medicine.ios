@@ -96,9 +96,16 @@ const TRAINING_PHASE_TABS: ReadonlyArray<{
 
 type Props = {
     exerciseRule?: InUseExPatientRule | null;
+    /** 家人只读：不可训练/打卡 */
+    forceReadOnly?: boolean;
+    patientUserId?: string;
 };
 
-export default function TrainingPage({ exerciseRule = null }: Props) {
+export default function TrainingPage({
+    exerciseRule = null,
+    forceReadOnly = false,
+    patientUserId,
+}: Props) {
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
@@ -121,10 +128,13 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     const isPast = moment(selectedDate).isBefore(moment(), 'day');
     const isFuture = moment(selectedDate).isAfter(moment(), 'day');
     const isToday = !isPast && !isFuture;
-    /** 非今日仅只读，不可执行 */
-    const readOnly = !isToday;
+    /** 非今日或家人只读：不可执行 */
+    const readOnly = forceReadOnly || !isToday;
     const dateMode = isPast ? 'past' : isFuture ? 'future' : 'today';
-
+    const patientOpts = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const nextWarmupCard = useMemo(
         () => findNextTrainingPhasePlayCard(warmupCards),
         [warmupCards],
@@ -156,10 +166,10 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     }), []);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
-        const rule = await loadExPatientRuleForDate(date, inUseRule);
+        const rule = await loadExPatientRuleForDate(date, inUseRule, patientOpts);
         setDayRule(rule);
         return rule;
-    }, []);
+    }, [patientOpts]);
 
     const loadWeekCheckIn = useCallback(async (date: string) => {
         const start = moment(date).startOf('isoWeek').format('YYYY-MM-DD');
@@ -491,8 +501,8 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
     ]);
 
     const bottomAction = useMemo(() => {
-        // 非今天不展示底部操作按钮
-        if (!isToday) return null;
+        // 非今天或家人只读不展示底部操作按钮
+        if (forceReadOnly || !isToday) return null;
 
         const signAction = {
             label: getExerciseSignButtonLabel(signInfo),
@@ -570,6 +580,7 @@ export default function TrainingPage({ exerciseRule = null }: Props) {
         activePhase,
         canFinishSign,
         cooldownAllPlayed,
+        forceReadOnly,
         isToday,
         mainAllPlayed,
         signInfo,

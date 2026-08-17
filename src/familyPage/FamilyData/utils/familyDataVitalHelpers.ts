@@ -1,3 +1,4 @@
+import moment from 'moment';
 import {
   getMeasureDataLatestByType,
   type MeasureDataItem,
@@ -52,6 +53,16 @@ function toPositiveMinutes(value: unknown): number | null {
   return Math.round(n);
 }
 
+/** 去掉小数末尾多余的 0：4.80→4.8，5.00→5；血压 142/92 等不处理 */
+function trimTrailingDecimalZeros(text: string): string {
+  const raw = text.trim();
+  if (!raw || raw === '--' || raw.includes('/')) return raw;
+  const match = raw.match(/^(-?\d+\.\d+)([a-zA-Z%]*)$/);
+  if (!match) return raw;
+  const [, num, suffix] = match;
+  return `${num.replace(/\.?0+$/, '')}${suffix}`;
+}
+
 async function fetchLatestMeasure(
   type: MeasureDataType,
   patientUserId: string,
@@ -89,49 +100,82 @@ function formatFamilySleepValue(item?: WearableDataItem): string {
     toPositiveMinutes(item?.inbedSleepTime);
   if (minutes == null) return '--';
   const hours = Math.round((minutes / 60) * 10) / 10;
-  return `${hours}h`;
+  return trimTrailingDecimalZeros(`${hours}h`);
 }
 
 function formatFamilyLipidValue(item?: MeasureDataItem): string {
   if (!item) return '--';
   const tc = typeof item.xuezhiTc === 'number' ? item.xuezhiTc : Number(item.xuezhiTc);
   if (!Number.isFinite(tc)) return '--';
-  return tc.toFixed(2);
+  return trimTrailingDecimalZeros(tc.toFixed(2));
+}
+
+function formatFamilyVitalDate(raw?: string | null): string {
+  const text = raw?.trim();
+  if (!text) return '--';
+  const parsed = moment(
+    text,
+    ['YYYY-MM-DD', 'YYYY/MM/DD', 'YYYYMMDD', 'YYYY-MM-DD HH:mm:ss', moment.ISO_8601],
+    true,
+  );
+  if (parsed.isValid()) return parsed.format('YYYY/MM/DD');
+  const day = text.slice(0, 10).replace(/-/g, '/');
+  return /^\d{4}\/\d{2}\/\d{2}$/.test(day) ? day : '--';
+}
+
+function pickMeasureDate(item?: MeasureDataItem): string {
+  return formatFamilyVitalDate(item?.customerLocalDate);
+}
+
+function pickWearableDate(item?: WearableDataItem): string {
+  return formatFamilyVitalDate(
+    item?.customerLocalDate || item?.dataDate?.slice(0, 10) || item?.dataDate,
+  );
 }
 
 function formatFamilyGlucoseDisplay(item?: MeasureDataItem): FamilyVitalDisplay {
-  const value = formatMeasureDisplay(item, '血糖').value;
-  if (!value || value === '--') return { value: '--' };
+  const value = trimTrailingDecimalZeros(formatMeasureDisplay(item, '血糖').value);
+  if (!value || value === '--') return { value: '--', dateText: pickMeasureDate(item) };
   const suffix = item?.measurementStatus?.trim();
-  return suffix ? { value, suffix } : { value };
+  return {
+    value,
+    suffix: suffix || undefined,
+    dateText: pickMeasureDate(item),
+  };
 }
 
 function formatFamilyMeasureDisplay(
   type: MeasureDataType,
   item?: MeasureDataItem,
 ): FamilyVitalDisplay {
-  if (type === '血脂') return { value: formatFamilyLipidValue(item) };
+  const dateText = pickMeasureDate(item);
+  if (type === '血脂') return { value: formatFamilyLipidValue(item), dateText };
   if (type === '血糖') return formatFamilyGlucoseDisplay(item);
-  return { value: formatMeasureDisplay(item, type).value };
+  return {
+    value: trimTrailingDecimalZeros(formatMeasureDisplay(item, type).value),
+    dateText,
+  };
 }
 
 function formatFamilyWearableDisplay(
   key: FamilyVitalKey,
   item?: WearableDataItem,
 ): FamilyVitalDisplay {
-  if (key === 'hr') return { value: formatHeartRateFromItem(item).value };
+  const dateText = pickWearableDate(item);
+  if (key === 'hr') return { value: formatHeartRateFromItem(item).value, dateText };
   if (key === 'spo2') {
     const value = formatBloodOxygenFromItem(item).value;
-    if (!value || value === '--') return { value: '--' };
-    return { value: value.endsWith('%') ? value : `${value}%` };
+    if (!value || value === '--') return { value: '--', dateText };
+    return { value: value.endsWith('%') ? value : `${value}%`, dateText };
   }
-  if (key === 'sleep') return { value: formatFamilySleepValue(item) };
-  return { value: '--' };
+  if (key === 'sleep') return { value: formatFamilySleepValue(item), dateText };
+  return { value: '--', dateText };
 }
 
 export type FamilyVitalDisplay = {
   value: string;
   suffix?: string;
+  dateText?: string;
 };
 
 /** 拉取指定家人最新体征展示文案（测量 + 穿戴） */
@@ -173,6 +217,7 @@ export function mergeFamilyVitalItems(
       ...item,
       value: display?.value ?? '--',
       valueSuffix: display?.suffix,
+      dateText: display?.dateText ?? '--',
     };
   });
 }

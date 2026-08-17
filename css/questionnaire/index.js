@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
         width: 47,
         height: 47
     },
-    startBtn: { paddingHorizontal: 20, height: 29, backgroundColor: '#FFFFFF', borderRadius: 15 },
+    startBtn: { paddingHorizontal: 20, height: 29, backgroundColor: '#FFFFFF', borderRadius: 8 },
     startBtnDisabled: { backgroundColor: '#EEF0F3' },
     startText: { fontWeight: 500, fontSize: 14, color: '#6D925E' },
     startTextDisabled: { color: '#999999' },
@@ -311,7 +311,6 @@ const styles = StyleSheet.create({
     resultScoreBox: {
         marginTop: 23,
         width: 275,
-        height: 159,
         backgroundColor: "#FFFFFF",
         shadowColor: AppTheme.primaryColor,
         shadowOffset: { width: 0, height: 2 },
@@ -326,7 +325,33 @@ const styles = StyleSheet.create({
     resultScoreTitle: { textAlign: "center", fontWeight: 500, fontSize: 18, color: AppTheme.textPrimary, lineHeight: 36 },
     resultScoreValue: { textAlign: "center", fontWeight: 400, fontSize: 16, color: AppTheme.textSecondary },
     rowLineBox: { marginTop: 12, paddingHorizontal: 12 },
-    resultScoreTip: { marginTop: 16, fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary, margin: "auto" },
+    resultScoreTipBox: {
+        marginTop: 16,
+        paddingHorizontal: 12,
+    },
+    resultScoreTipRow: {
+        flexDirection: 'row',
+        alignItems: 'flex-start',
+    },
+    resultScoreTipDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: AppTheme.primaryColor,
+        marginTop: 7,
+        marginRight: 8,
+    },
+    resultScoreTip: {
+        marginTop: 10,
+        flex: 1,
+        fontWeight: 400,
+        fontSize: 14,
+        color: AppTheme.textSecondary,
+        lineHeight: 21,
+    },
+    resultScoreTipAdvice: {
+        marginTop: 4,
+    },
 })
 
 export default styles;

@@ -17,7 +17,7 @@ const styles = StyleSheet.create({
   scroll: { padding: 12, paddingBottom: 40 },
   avatarBox: { marginTop: 6 },
   avatar: { width: 64, height: 64, borderRadius: 32, backgroundColor: AppTheme.primaryColor, alignItems: 'center', justifyContent: 'center', marginRight: 12 },
-  avatarImg: { width: 64, height: 64, borderRadius: 32, marginRight: 12 },
+  avatarImg: { width: 64, height: 64, borderRadius: 32, marginRight: 12, marginLeft: 8 },
   avatarText: { fontSize: 28, fontWeight: '700', color: '#fff' },
   name: { fontSize: 20, fontWeight: '700', color: AppTheme.textPrimary },
   wrzImg: { width: 68, height: 21, marginLeft: 4 },
@@ -66,7 +66,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 12,
     borderRadius: 12,
-    paddingLeft: 20,
+    paddingLeft: 18,
     paddingRight: 26,
   },
   familyItem: {
@@ -201,8 +201,8 @@ const styles = StyleSheet.create({
   },
   signInTip: {
     marginTop: 10,
-    paddingHorizontal:10,
-    lineHeight:20,
+    paddingHorizontal: 10,
+    lineHeight: 20,
     fontWeight: '500',
     fontSize: 14,
     color: '#333333',

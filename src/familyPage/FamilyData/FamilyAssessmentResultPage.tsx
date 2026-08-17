@@ -30,7 +30,6 @@ import EmptyRecord from '@/src/components/EmptyRecord';
 import { getFamilyRiskGaugeIcon } from './utils/familyDataAssessmentHelpers';
 import styles from '@/css/family/assessmentResult';
 
-const TIP_ICON = require('@/assets/family/data/risk_tip.png');
 const DISCLAIMER_ICON = require('@/assets/family/data/icon_warn.png');
 
 type Route = RouteProp<RootStackParamList, 'FamilyAssessmentResult'>;
@@ -74,7 +73,9 @@ export default function FamilyAssessmentResultPage() {
   }, [detail?.score, questionnaireType]);
 
   const scoreTip =
-    questionnaireType != null && scoreLevel ? getScoreTip(questionnaireType, scoreLevel) : '';
+    questionnaireType != null && scoreLevel
+      ? getScoreTip(questionnaireType, scoreLevel)
+      : null;
   const resultText = scoreLevel?.result?.trim() || '--';
   const gaugeIcon = getFamilyRiskGaugeIcon(scoreLevel?.statusStyle);
   const questionCount = detail?.questionsAnswer?.length ?? 0;
@@ -130,8 +131,14 @@ export default function FamilyAssessmentResultPage() {
             </Flex>
             {scoreTip ? (
               <View style={styles.resultTipBox}>
-                <Image source={TIP_ICON} style={styles.resultTipIcon} resizeMode="contain" />
-                <Text style={styles.resultTipText}>{scoreTip}</Text>
+                <View style={styles.resultTipRow}>
+                  <View style={styles.resultTipDot} />
+                  <Text style={styles.resultTipText}>{scoreTip.summary}</Text>
+                </View>
+                <View style={[styles.resultTipRow, styles.resultTipAdvice]}>
+                  <View style={styles.resultTipDot} />
+                  <Text style={styles.resultTipText}>{scoreTip.advice}</Text>
+                </View>
               </View>
             ) : null}
           </View>

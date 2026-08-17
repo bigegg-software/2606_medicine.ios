@@ -112,14 +112,12 @@ export function mapVitalityRankingItems(list: VitalityRankingItem[]): RankingDis
 export async function loadRankingDisplayList(tab: RankingTab): Promise<RankingDisplayItem[]> {
   if (tab === 'growth') {
     const res = await getGrowthRankingList();
-    console.log('res', res);
     if (!isResourceApiOk(res as { code?: number })) return [];
     const data = apiResourceData<GrowthRankingItem[]>(res as { data?: GrowthRankingItem[] });
     return mapGrowthRankingItems(Array.isArray(data) ? data : []);
   }
 
   const res = await getVitalityRankingList();
-  console.log('res', res);
   if (!isResourceApiOk(res as { code?: number })) return [];
   const data = apiResourceData<VitalityRankingItem[]>(res as { data?: VitalityRankingItem[] });
   return mapVitalityRankingItems(Array.isArray(data) ? data : []);

@@ -148,9 +148,13 @@ export const getInUseDietPatientRuleInfo = (
     });
 
 /** 按指定日期查询用餐处方快照 */
-export const getDietPatientRuleSnapshotByDate = (params: { customerLocalDate: string }) =>
+export const getDietPatientRuleSnapshotByDate = (
+    params: { customerLocalDate: string },
+    options?: { patientUserId?: string | number | null },
+) =>
     request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getSnapshotByDate', {
         params,
+        headers: withPatientUserIdHeaders(options?.patientUserId),
     });
 
 export type DietAiAdviceData = {

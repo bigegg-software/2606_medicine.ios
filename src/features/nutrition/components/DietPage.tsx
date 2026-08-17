@@ -55,6 +55,8 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Props = {
     dietRule?: DietPatientRuleInfo | null;
     onDietRuleChange?: (rule: DietPatientRuleInfo | null) => void;
+    readOnly?: boolean;
+    patientUserId?: string;
 };
 
 const CATEGORY_TO_MEAL_KEY: Record<number, string> = {
@@ -72,11 +74,14 @@ function DietListLine({ progress, color }: { progress: number; color: string }) 
     );
 }
 
-async function loadMealDetailListForDate(customerLocalDate: string): Promise<MealDetailItem[]> {
+async function loadMealDetailListForDate(
+    customerLocalDate: string,
+    options?: { patientUserId?: string | number | null },
+): Promise<MealDetailItem[]> {
     const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
     if (isToday) {
         try {
-            const res = await getTodayMealDetailList();
+            const res = await getTodayMealDetailList(options);
             if (!isResourceApiOk(res as unknown as { code?: number })) return [];
             return apiResourceData<MealDetailItem[]>(res as unknown as { code?: number; data?: MealDetailItem[] }) ?? [];
         } catch {
@@ -85,7 +90,7 @@ async function loadMealDetailListForDate(customerLocalDate: string): Promise<Mea
     }
 
     try {
-        const res = await getMealListByDate({ customerLocalDate });
+        const res = await getMealListByDate({ customerLocalDate }, options);
         if (!isResourceApiOk(res)) return [];
 
         const meals = (apiResourceData<MealRecordItem[]>(
@@ -102,7 +107,7 @@ async function loadMealDetailListForDate(customerLocalDate: string): Promise<Mea
             meals.map(async meal => {
                 if (meal.mealId == null || meal.mealId === '') return null;
                 try {
-                    const detailRes = await getMealDetailByMealId(String(meal.mealId));
+                    const detailRes = await getMealDetailByMealId(String(meal.mealId), options);
                     if (!isResourceApiOk(detailRes)) return null;
                     return apiResourceData<MealRecordDetail>(
                         detailRes as unknown as { code?: number; data?: MealRecordDetail },
@@ -119,12 +124,15 @@ async function loadMealDetailListForDate(customerLocalDate: string): Promise<Mea
     }
 }
 
-async function fetchDietRuleForDate(customerLocalDate: string): Promise<DietPatientRuleInfo | null> {
+async function fetchDietRuleForDate(
+    customerLocalDate: string,
+    options?: { patientUserId?: string | number | null },
+): Promise<DietPatientRuleInfo | null> {
     const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
     try {
         const res = isToday
-            ? await getInUseDietPatientRuleInfo()
-            : await getDietPatientRuleSnapshotByDate({ customerLocalDate });
+            ? await getInUseDietPatientRuleInfo(options)
+            : await getDietPatientRuleSnapshotByDate({ customerLocalDate }, options);
         if (!isResourceApiOk(res as unknown as { code?: number })) return null;
         return apiResourceData<DietPatientRuleInfo>(
             res as unknown as { code?: number; data?: DietPatientRuleInfo },
@@ -137,12 +145,13 @@ async function fetchDietRuleForDate(customerLocalDate: string): Promise<DietPati
 async function loadDietRuleForDate(
     customerLocalDate: string,
     inUseRule: DietPatientRuleInfo | null,
+    options?: { patientUserId?: string | number | null },
 ): Promise<DietPatientRuleInfo | null> {
     const today = moment().format('YYYY-MM-DD');
     // 今天与未来：用当前在用处方（未来按对应星期展示推荐餐）
     const rule = customerLocalDate >= today
         ? inUseRule
-        : await fetchDietRuleForDate(customerLocalDate);
+        : await fetchDietRuleForDate(customerLocalDate, options);
     // 处方开始前（如周四开方，本周一~三）不展示营养处方数据
     if (!isDietRuleActiveOnDate(rule, customerLocalDate)) return null;
     return rule;
@@ -154,12 +163,14 @@ function RecommendedMealCard({
     actualFoods,
     onDeleteFood,
     showPhotoButton,
+    showDeleteButton = true,
 }: {
     section: RecommendedMealSection;
     actualCalories: number;
     actualFoods: MealDetailItem[];
     onDeleteFood: (item: MealDetailItem) => void;
     showPhotoButton: boolean;
+    showDeleteButton?: boolean;
 }) {
     const navigation = useNavigation<Nav>();
     const planCalories = section.planCalories > 0 ? Math.round(section.planCalories) : 0;
@@ -244,16 +255,18 @@ function RecommendedMealCard({
                                 </Text>
                                 <Text style={styles.actualEatFoodMeta}>{formatActualFoodMeta(food)}</Text>
                             </View>
-                            <TouchableOpacity
-                                activeOpacity={0.7}
-                                onPress={() => onDeleteFood(food)}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <Image
-                                    style={styles.actualEatDelIcon}
-                                    source={require('@/assets/images/nutrition/icon_del1.png')}
-                                />
-                            </TouchableOpacity>
+                            {showDeleteButton ? (
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => onDeleteFood(food)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                    <Image
+                                        style={styles.actualEatDelIcon}
+                                        source={require('@/assets/images/nutrition/icon_del1.png')}
+                                    />
+                                </TouchableOpacity>
+                            ) : null}
                         </Flex>
                     ))}
 
@@ -292,11 +305,20 @@ function RecommendedMealCard({
     );
 }
 
-export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
+export default function DietPage({
+    dietRule = null,
+    onDietRuleChange,
+    readOnly = false,
+    patientUserId,
+}: Props) {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<Nav>();
     const user = useSelector((state: RootState) => state.user.info);
-    const profileComplete = isUserBaseInfoComplete(user);
+    const profileComplete = !readOnly && isUserBaseInfoComplete(user);
+    const patientOpts = useMemo(
+        () => (patientUserId ? { patientUserId } : undefined),
+        [patientUserId],
+    );
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
     const [mealDetailList, setMealDetailList] = useState<MealDetailItem[]>([]);
     const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(dietRule);
@@ -375,12 +397,12 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
 
     const loadDayData = useCallback(async (date: string, inUseRule: DietPatientRuleInfo | null) => {
         const [meals, rule] = await Promise.all([
-            loadMealDetailListForDate(date),
-            loadDietRuleForDate(date, inUseRule),
+            loadMealDetailListForDate(date, patientOpts),
+            loadDietRuleForDate(date, inUseRule, patientOpts),
         ]);
         setMealDetailList(meals);
         setDayRule(rule);
-    }, []);
+    }, [patientOpts]);
 
     const ensureEatYearLoaded = useCallback(async (year: number, force = false) => {
         const currentYear = moment().year();
@@ -392,7 +414,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
 
         loadingEatYearsRef.current.add(year);
         try {
-            const nextMap = await loadMealEatMapByYear(year);
+            const nextMap = await loadMealEatMapByYear(year, patientOpts);
             if (nextMap) {
                 loadedEatYearsRef.current.add(year);
                 setEatMap(prev => ({ ...prev, ...nextMap }));
@@ -400,7 +422,7 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
         } finally {
             loadingEatYearsRef.current.delete(year);
         }
-    }, []);
+    }, [patientOpts]);
 
     // 周切换 / 选中日跨年时懒加载餐次标记
     useEffect(() => {
@@ -626,14 +648,14 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                     source={require('@/assets/images/nutrition/icon_yy_empty.png')}
                     style={styles.emptyPrescriptionIcon}
                 />
-                {profileComplete ? (
+                {readOnly || profileComplete ? (
                     <Text style={styles.emptyPrescriptionText}>
-                        暂无营养处方，如需开方，请联系工作人员
+                        {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
                     </Text>
                 ) : (
                     <Flex style={styles.emptyPrescriptionTextRow}>
                         <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
-                        <CompleteProfileLink color= '#6D925E' textStyle={styles.emptyPrescriptionTextInline} />
+                        <CompleteProfileLink color='#6D925E' textStyle={styles.emptyPrescriptionTextInline} />
                     </Flex>
                 )}
             </View>
@@ -779,7 +801,8 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                             actualCalories={actualCaloriesByCategory[section.category] ?? 0}
                             actualFoods={actualFoodsByCategory[section.category] ?? []}
                             onDeleteFood={onDeleteFood}
-                            showPhotoButton={isTodaySelected}
+                            showPhotoButton={!readOnly && isTodaySelected}
+                            showDeleteButton={!readOnly && isTodaySelected}
                         />
                     ))
                 ) : (
@@ -792,56 +815,58 @@ export default function DietPage({ dietRule = null, onDietRuleChange }: Props) {
                 )}
             </ScrollView>
 
-            <Flex
-                justify="between"
-                align="center"
-                style={[
-                    styles.bottomBar,
-                    { paddingBottom: Math.max(insets.bottom, 8) },
-                ]}
-            >
-                <TouchableOpacity
+            {!readOnly ? (
+                <Flex
+                    justify="between"
+                    align="center"
                     style={[
-                        styles.bottomBarButtonLeft,
-                        signButtonDisabled && styles.bottomBarButtonLeftDisabled,
+                        styles.bottomBar,
+                        { paddingBottom: Math.max(insets.bottom, 8) },
                     ]}
-                    activeOpacity={0.7}
-                    disabled={signButtonDisabled}
-                    onPress={onPressCheckIn}
                 >
-                    <Flex justify="center" style={{ flex: 1 }}>
-                        <Image style={styles.btnImgSize} source={signButtonIcon} />
-                        <Text style={styles.bottomBarButtonTextLeft}>{signButtonLabel}</Text>
-                    </Flex>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[
-                        styles.bottomBarButtonRight,
-                        refreshDisabled && styles.bottomBarButtonRightDisabled,
-                    ]}
-                    activeOpacity={0.7}
-                    disabled={refreshDisabled}
-                    onPress={onPressRefresh}
-                >
-                    <Flex justify="center" style={{ flex: 1 }}>
-                        <Image
-                            style={[
-                                styles.btnImgSize,
-                                refreshDisabled && styles.bottomBarButtonRightIconDisabled,
-                            ]}
-                            source={require('@/assets/images/nutrition/hyh.png')}
-                        />
-                        <Text
-                            style={[
-                                styles.bottomBarButtonTextRight,
-                                refreshDisabled && styles.bottomBarButtonTextRightDisabled,
-                            ]}
-                        >
-                            换一换
-                        </Text>
-                    </Flex>
-                </TouchableOpacity>
-            </Flex>
+                    <TouchableOpacity
+                        style={[
+                            styles.bottomBarButtonLeft,
+                            signButtonDisabled && styles.bottomBarButtonLeftDisabled,
+                        ]}
+                        activeOpacity={0.7}
+                        disabled={signButtonDisabled}
+                        onPress={onPressCheckIn}
+                    >
+                        <Flex justify="center" style={{ flex: 1 }}>
+                            <Image style={styles.btnImgSize} source={signButtonIcon} />
+                            <Text style={styles.bottomBarButtonTextLeft}>{signButtonLabel}</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.bottomBarButtonRight,
+                            refreshDisabled && styles.bottomBarButtonRightDisabled,
+                        ]}
+                        activeOpacity={0.7}
+                        disabled={refreshDisabled}
+                        onPress={onPressRefresh}
+                    >
+                        <Flex justify="center" style={{ flex: 1 }}>
+                            <Image
+                                style={[
+                                    styles.btnImgSize,
+                                    refreshDisabled && styles.bottomBarButtonRightIconDisabled,
+                                ]}
+                                source={require('@/assets/images/nutrition/hyh.png')}
+                            />
+                            <Text
+                                style={[
+                                    styles.bottomBarButtonTextRight,
+                                    refreshDisabled && styles.bottomBarButtonTextRightDisabled,
+                                ]}
+                            >
+                                换一换
+                            </Text>
+                        </Flex>
+                    </TouchableOpacity>
+                </Flex>
+            ) : null}
 
             <DietCheckInSuccessModal
                 visible={checkInSuccessVisible}

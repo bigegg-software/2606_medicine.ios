@@ -53,7 +53,6 @@ export default function PolarDeviceTestPage() {
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();
     const logMessage = `[${timestamp}] ${message}`;
-    console.log(logMessage);
     setLogs(prev => [...prev.slice(-20), logMessage]);
   };
 
@@ -321,7 +320,6 @@ export default function PolarDeviceTestPage() {
     }
 
     try {
-      console.log(connectedDevice.deviceId);
       const success = await PolarBle.startHrStreaming(connectedDevice.deviceId);
       if (!success) {
         Alert.alert('错误', '开始心率监测失败');

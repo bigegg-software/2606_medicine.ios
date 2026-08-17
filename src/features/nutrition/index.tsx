@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
@@ -8,12 +8,16 @@ import styles from '@/css/nutrition';
 import DietPage from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
 import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
+import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { formatDietHeaderInfo } from './components/utils/dietMealHelpers';
 import { AppTheme } from '@/common/theme';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import type { RootStackParamList } from '@/route/router';
+import FamilyReadOnlyHeaderTitle from '@/src/familyPage/components/FamilyReadOnlyHeaderTitle';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
+import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
 type Route = RouteProp<RootStackParamList, 'NutritionPage'>;
 
@@ -21,9 +25,17 @@ export default function NutritionPage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation: any = useNavigation();
   const { params } = useRoute<Route>();
+  const {
+    readOnly,
+    patientUserId,
+    relationLabel,
+    displayName: routeDisplayName,
+  } = resolveFamilyReadOnlyView(params);
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
+  const familyList = useSelector((s: RootState) => s.family.list);
+  const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
   const initialTab = params?.tab === 'prescription' ? 1 : 0;
   const [activeNav, setActiveNav] = useState(initialTab);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
@@ -34,6 +46,23 @@ export default function NutritionPage() {
     0: true,
   });
 
+  const familyFromStore = useMemo(() => {
+    if (!patientUserId) return null;
+    return (
+      familyList.find(item => String(item.patientUserId ?? '') === patientUserId) ?? null
+    );
+  }, [familyList, patientUserId]);
+
+  const familyDisplayName = useMemo(() => {
+    if (!readOnly) return undefined;
+    return (
+      routeDisplayName
+      || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
+      || familyUser?.name?.trim()
+      || relationLabel
+    );
+  }, [familyFromStore, familyUser?.name, readOnly, relationLabel, routeDisplayName]);
+
   useEffect(() => {
     if (params?.tab !== 'prescription') return;
     setActiveNav(1);
@@ -42,34 +71,65 @@ export default function NutritionPage() {
 
   const loadDietRule = useCallback(async () => {
     try {
-      const res = await getInUseDietPatientRuleInfo();
-      if (!isResourceApiOk(res as unknown as { code?: number })) {
+      const opts = patientUserId ? { patientUserId } : undefined;
+      const [ruleRes, baseRes] = await Promise.all([
+        getInUseDietPatientRuleInfo(opts),
+        readOnly && patientUserId
+          ? getUserBaseInfo({ patientUserId }).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setDietRule(null);
-        return;
+      } else {
+        setDietRule(
+          apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as never) ?? null,
+        );
       }
-      setDietRule(
-        apiResourceData<DietPatientRuleInfo>(res as unknown as never) ?? null,
-      );
+      if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
+        setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
+      } else if (readOnly) {
+        setFamilyUser(null);
+      }
     } catch {
       setDietRule(null);
+      if (readOnly) setFamilyUser(null);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [patientUserId, readOnly]);
 
   useFocusEffect(
     useCallback(() => {
-      void dispatch(fetchUserBaseInfo());
+      if (!readOnly) {
+        void dispatch(fetchUserBaseInfo());
+      }
       void loadDietRule();
-    }, [dispatch, loadDietRule]),
+    }, [dispatch, loadDietRule, readOnly]),
   );
+
+  const prevPatientUserIdRef = useRef(patientUserId);
+  /** 右上角切换家人后刷新（跳过首屏与 focus 重复请求） */
+  useEffect(() => {
+    if (!readOnly) return;
+    if (prevPatientUserIdRef.current === patientUserId) return;
+    prevPatientUserIdRef.current = patientUserId;
+    void loadDietRule();
+  }, [patientUserId, readOnly, loadDietRule]);
 
   const onPressNav = useCallback((index: number) => {
     setActiveNav(index);
     setMountedTabs(prev => (prev[index] ? prev : { ...prev, [index]: true }));
   }, []);
 
-  const header = formatDietHeaderInfo(dietRule, user, systemUser, userExtr);
+  const header = formatDietHeaderInfo(
+    dietRule,
+    user,
+    systemUser,
+    readOnly ? null : userExtr,
+    readOnly
+      ? { forceDisplayName: familyDisplayName, forceUser: familyUser }
+      : undefined,
+  );
   const pageList = [
     {
       title: '今日食谱',
@@ -83,17 +143,27 @@ export default function NutritionPage() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity
-          style={{ marginRight: 18 }}
-          onPress={() => {
-            navigation.navigate('FoodRecordingPage');
-          }}>
-          <Image style={{ width: 24, height: 24 }} source={require('@/assets/images/nutrition/icon_history.png')} />
-        </TouchableOpacity>
-      ),
+      headerTitle: readOnly
+        ? () => (
+            <FamilyReadOnlyHeaderTitle title="营养处方" relationLabel={relationLabel} />
+          )
+        : undefined,
+      headerRight: readOnly
+        ? undefined
+        : () => (
+            <TouchableOpacity
+              style={{ marginRight: 18 }}
+              onPress={() => {
+                navigation.navigate('FoodRecordingPage');
+              }}>
+              <Image
+                style={{ width: 24, height: 24 }}
+                source={require('@/assets/images/nutrition/icon_history.png')}
+              />
+            </TouchableOpacity>
+          ),
     });
-  }, [])
+  }, [navigation, readOnly, relationLabel]);
 
   return (
     <PageLayout style={styles.container} edges={[]}>
@@ -114,7 +184,7 @@ export default function NutritionPage() {
           </Flex>
           <Flex style={styles.topInfoBox}>
             <Flex style={styles.brBox}>
-              <Text style={styles.brText}>本人</Text>
+              <Text style={styles.brText}>{readOnly ? relationLabel : '本人'}</Text>
             </Flex>
             <Text style={styles.topInfoText}>{header.infoText}</Text>
           </Flex>
@@ -144,12 +214,17 @@ export default function NutritionPage() {
         <View style={{ flex: 1 }}>
           {mountedTabs[0] ? (
             <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
-              <DietPage dietRule={dietRule} onDietRuleChange={setDietRule} />
+              <DietPage
+                dietRule={dietRule}
+                onDietRuleChange={setDietRule}
+                readOnly={readOnly}
+                patientUserId={patientUserId}
+              />
             </View>
           ) : null}
           {mountedTabs[1] ? (
             <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
-              <NutritionPrescriptionPage dietRule={dietRule} />
+              <NutritionPrescriptionPage dietRule={dietRule} readOnly={readOnly} />
             </View>
           ) : null}
         </View>

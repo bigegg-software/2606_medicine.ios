@@ -167,6 +167,15 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: AppTheme.textSecondary,
     },
+    planEmptyWrap: {
+        marginTop: 15,
+        paddingVertical: 28,
+        paddingHorizontal: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#F6F8FB',
+        borderRadius: 12,
+    },
     medicationProgressBox: {
         marginTop: 15,
     },

@@ -88,8 +88,12 @@ export type ExPatientRuleInfo = {
   createTime?: string;
 };
 
-export const getInUseExPatientRuleInfo = () =>
-  request.get<ExPatientRuleInfo>('/patient/exPatientRule/getInUseInfo');
+export const getInUseExPatientRuleInfo = (
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<ExPatientRuleInfo>('/patient/exPatientRule/getInUseInfo', {
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const getExPatientRuleInfo = (exPatientRuleId: string) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleInfo }>(
@@ -97,10 +101,16 @@ export const getExPatientRuleInfo = (exPatientRuleId: string) =>
     { params: { exPatientRuleId } },
   );
 
-export const getExPatientRuleSnapshotByDate = (params: { customerLocalDate: string }) =>
+export const getExPatientRuleSnapshotByDate = (
+  params: { customerLocalDate: string },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleInfo }>(
     '/patient/exPatientRule/getSnapshotByDate',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 export type ExPatientRuleListParams = {

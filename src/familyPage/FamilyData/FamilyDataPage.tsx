@@ -32,6 +32,7 @@ import {
 } from './utils/familyDataHelpers';
 import {
   getApprovedFamilyBindList,
+  getChildFamilyDisplayName,
   getFamilyTabKey,
 } from '../utils/familyProfileHelpers';
 import {
@@ -98,7 +99,7 @@ export default function FamilyDataPage() {
     return id != null ? String(id) : '';
   }, [selectedFamily]);
 
-  const vitalRows = useMemo(() => chunkFamilyVitalRows(vitalItems, 3), [vitalItems]);
+  const vitalRows = useMemo(() => chunkFamilyVitalRows(vitalItems, 2), [vitalItems]);
 
   useEffect(() => {
     void (async () => {
@@ -120,6 +121,25 @@ export default function FamilyDataPage() {
     });
     return map;
   }, [relationOptions]);
+
+  const selectedRelationLabel = useMemo(() => {
+    if (!selectedFamily) return '家人';
+    return (
+      relationLabelMap[String(selectedFamily.relationType ?? '')] ||
+      selectedFamily.relationType?.trim() ||
+      '家人'
+    );
+  }, [relationLabelMap, selectedFamily]);
+
+  const familyViewParams = useMemo(() => {
+    if (!selectedPatientUserId || !selectedFamily) return null;
+    return {
+      patientUserId: selectedPatientUserId,
+      readOnly: true as const,
+      relationLabel: selectedRelationLabel,
+      displayName: getChildFamilyDisplayName(selectedFamily),
+    };
+  }, [selectedFamily, selectedPatientUserId, selectedRelationLabel]);
 
   const loadVitals = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
@@ -278,9 +298,14 @@ export default function FamilyDataPage() {
             >
               {row.map(item => (
                 <View key={item.key} style={styles.vitalItem}>
-                  <Flex align="center">
-                    <Image source={item.icon} style={styles.vitalIcon} resizeMode="contain" />
-                    <Text style={styles.vitalLabel}>{item.label}</Text>
+                  <Flex align="center" justify="between">
+                    <Flex align="center" style={{ flex: 1, minWidth: 0, paddingRight: 6 }}>
+                      <Image source={item.icon} style={styles.vitalIcon} resizeMode="contain" />
+                      <Text style={styles.vitalLabel} numberOfLines={1}>
+                        {item.label}
+                      </Text>
+                    </Flex>
+                    <Text style={styles.vitalDate}>{item.dateText || '--'}</Text>
                   </Flex>
                   <Text style={styles.vitalValue}>
                     {item.value}
@@ -290,8 +315,8 @@ export default function FamilyDataPage() {
                   </Text>
                 </View>
               ))}
+              {row.length === 1 ? <View style={styles.vitalItemPlaceholder} /> : null}
             </Flex>
-
           ))}
           <TouchableOpacity
             activeOpacity={0.85}
@@ -317,17 +342,26 @@ export default function FamilyDataPage() {
         </View>
 
         <View style={styles.vitalCard}>
-          <Flex align="center" justify="between">
-            <Text style={styles.vitalHeaderTitle}>运动处方</Text>
-            <Flex align="center">
-              <Text style={styles.vitalHeaderRight}>查看</Text>
-              <Image
-                source={require('@/assets/images/schedule/right.png')}
-                style={styles.vitalTrendArrow}
-                resizeMode="contain"
-              />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={!familyViewParams}
+            onPress={() => {
+              if (!familyViewParams) return;
+              navigation.navigate('ExercisePage', familyViewParams);
+            }}
+          >
+            <Flex align="center" justify="between">
+              <Text style={styles.vitalHeaderTitle}>运动处方</Text>
+              <Flex align="center">
+                <Text style={styles.vitalHeaderRight}>查看</Text>
+                <Image
+                  source={require('@/assets/images/schedule/right.png')}
+                  style={styles.vitalTrendArrow}
+                  resizeMode="contain"
+                />
+              </Flex>
             </Flex>
-          </Flex>
+          </TouchableOpacity>
           <View style={styles.prescriptionTypeBox}>
             {prescriptionItems.map(item => (
               <View key={item.key} style={styles.prescriptionTypeCol}>
@@ -350,17 +384,29 @@ export default function FamilyDataPage() {
           </View>
         </View>
         <View style={styles.vitalCard}>
-          <Flex align="center" justify="between">
-            <Text style={styles.vitalHeaderTitle}>用餐记录</Text>
-            <Flex align="center">
-              <Text style={styles.vitalHeaderRight}>查看</Text>
-              <Image
-                source={require('@/assets/images/schedule/right.png')}
-                style={styles.vitalTrendArrow}
-                resizeMode="contain"
-              />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={!familyViewParams}
+            onPress={() => {
+              if (!familyViewParams) return;
+              navigation.navigate('NutritionPage', {
+                ...familyViewParams,
+                tab: 'diet',
+              });
+            }}
+          >
+            <Flex align="center" justify="between">
+              <Text style={styles.vitalHeaderTitle}>用餐记录</Text>
+              <Flex align="center">
+                <Text style={styles.vitalHeaderRight}>查看</Text>
+                <Image
+                  source={require('@/assets/images/schedule/right.png')}
+                  style={styles.vitalTrendArrow}
+                  resizeMode="contain"
+                />
+              </Flex>
             </Flex>
-          </Flex>
+          </TouchableOpacity>
           <View style={styles.mealNutritionBox}>
             {mealItems.map(item => {
               const statusStyle = FAMILY_MEAL_STATUS_STYLE[item.status];
@@ -412,21 +458,33 @@ export default function FamilyDataPage() {
           </View>
         </View>
         <View style={styles.vitalCard}>
-          <Flex align="center" justify="between">
-            <Text style={styles.vitalHeaderTitle}>用药记录</Text>
-            <Flex align="center">
-              <Text style={styles.vitalHeaderRight}>查看</Text>
-              <Image
-                source={require('@/assets/images/schedule/right.png')}
-                style={styles.vitalTrendArrow}
-                resizeMode="contain"
-              />
+          <TouchableOpacity
+            activeOpacity={0.85}
+            disabled={!familyViewParams}
+            onPress={() => {
+              if (!familyViewParams) return;
+              navigation.navigate('Medication', {
+                ...familyViewParams,
+                tab: 'medication',
+              });
+            }}
+          >
+            <Flex align="center" justify="between">
+              <Text style={styles.vitalHeaderTitle}>用药记录</Text>
+              <Flex align="center">
+                <Text style={styles.vitalHeaderRight}>查看</Text>
+                <Image
+                  source={require('@/assets/images/schedule/right.png')}
+                  style={styles.vitalTrendArrow}
+                  resizeMode="contain"
+                />
+              </Flex>
             </Flex>
-          </Flex>
+          </TouchableOpacity>
           <View>
             {medicationItems.length === 0 ? (
               <View style={styles.sectionEmpty}>
-                <EmptyRecord text="暂无用药安排" compact />
+                <EmptyRecord text="暂无用药计划" compact />
               </View>
             ) : (
               medicationItems.map((item, index) => (

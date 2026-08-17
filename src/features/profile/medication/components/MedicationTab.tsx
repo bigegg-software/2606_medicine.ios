@@ -29,6 +29,7 @@ import {
     type MedicationPlanItemView,
 } from '../medicationHelpers';
 import moment from 'moment';
+import EmptyRecord from '@/src/components/EmptyRecord';
 
 const TIME_LIST = [
     { label: '5分钟', value: '5' },
@@ -70,13 +71,16 @@ function ActionStatus({ taken }: { taken: boolean }) {
 function PlanRow({
     item,
     checkingIn,
+    readOnly = false,
     onCheckIn,
 }: {
     item: MedicationPlanItemView;
     checkingIn: boolean;
+    readOnly?: boolean;
     onCheckIn: (item: MedicationPlanItemView) => void;
 }) {
     const statusNode = <ActionStatus taken={item.taken} />;
+    const canCheckIn = !readOnly && item.canCheckIn;
 
     return (
         <Flex justify="between" align="center" style={styles.medicationItemCard}>
@@ -88,12 +92,11 @@ function PlanRow({
                 <View style={styles.medicationItemContent}>
                     <Flex>
                         <Text style={styles.medicationLeftTitle}>{item.name}</Text>
-                        {/* <PlanTypeBadge isPrescription={item.planType === 1} /> */}
                     </Flex>
                     <Text style={styles.medicationText}>{item.doseText}</Text>
                 </View>
             </Flex>
-            {item.canCheckIn ? (
+            {canCheckIn ? (
                 <TouchableOpacity activeOpacity={0.7} disabled={checkingIn} onPress={() => onCheckIn(item)}>
                     {checkingIn ? <ActivityIndicator color={AppTheme.primaryColor} /> : statusNode}
                 </TouchableOpacity>
@@ -104,7 +107,13 @@ function PlanRow({
     );
 }
 
-export default function MedicationTab() {
+export default function MedicationTab({
+    readOnly = false,
+    patientUserId,
+}: {
+    readOnly?: boolean;
+    patientUserId?: string;
+} = {}) {
     const dispatch = useDispatch<AppDispatch>();
     const userExtr = useSelector((state: RootState) => state.user.userExtr);
     const navigation: any = useNavigation();
@@ -232,9 +241,10 @@ export default function MedicationTab() {
                 dictMapsRef.current = maps;
             }
 
+            const patientOpts = patientUserId ? { patientUserId } : undefined;
             const [groups, history] = await Promise.all([
-                loadMedicationPlanGroups(maps),
-                loadMedicationHistory(),
+                loadMedicationPlanGroups(maps, patientOpts),
+                loadMedicationHistory(7, patientOpts),
             ]);
 
             setPlanGroups(groups);
@@ -248,7 +258,7 @@ export default function MedicationTab() {
                 setLoading(false);
             }
         }
-    }, []);
+    }, [patientUserId]);
 
     const loadPageDataRef = useRef(loadPageData);
     loadPageDataRef.current = loadPageData;
@@ -259,7 +269,15 @@ export default function MedicationTab() {
         }, []),
     );
 
+    const prevPatientUserIdRef = useRef(patientUserId);
+    useEffect(() => {
+        if (prevPatientUserIdRef.current === patientUserId) return;
+        prevPatientUserIdRef.current = patientUserId;
+        void loadPageData('initial');
+    }, [patientUserId, loadPageData]);
+
     const handleCheckIn = useCallback(async (item: MedicationPlanItemView) => {
+        if (readOnly) return;
         if (!item.canCheckIn || checkingInKey || checkingInGroupTime) return;
 
         setCheckingInKey(item.key);
@@ -278,9 +296,10 @@ export default function MedicationTab() {
         } finally {
             setCheckingInKey(null);
         }
-    }, [checkingInGroupTime, checkingInKey]);
+    }, [checkingInGroupTime, checkingInKey, readOnly]);
 
     const confirmCheckInAll = useCallback(async (items: MedicationPlanItemView[], groupTime: string) => {
+        if (readOnly) return;
         if (items.length === 0 || checkingInKey || checkingInGroupTime) return;
 
         setCheckingInGroupTime(groupTime);
@@ -302,9 +321,10 @@ export default function MedicationTab() {
         } finally {
             setCheckingInGroupTime(null);
         }
-    }, [checkingInGroupTime, checkingInKey]);
+    }, [checkingInGroupTime, checkingInKey, readOnly]);
 
     const handleCheckInAll = useCallback((group: MedicationPlanGroupView) => {
+        if (readOnly) return;
         const pendingItems = group.items.filter(item => item.canCheckIn);
         if (pendingItems.length === 0 || checkingInKey || checkingInGroupTime) return;
 
@@ -315,7 +335,7 @@ export default function MedicationTab() {
                 onPress: () => void confirmCheckInAll(pendingItems, group.time),
             },
         ]);
-    }, [checkingInGroupTime, checkingInKey, confirmCheckInAll]);
+    }, [checkingInGroupTime, checkingInKey, confirmCheckInAll, readOnly]);
 
     function formatDayLabel(yyyyMMdd?: string): string {
         if (!yyyyMMdd) return '--';
@@ -337,13 +357,15 @@ export default function MedicationTab() {
             <View style={styles.medicationBox}>
                 <Flex justify="between">
                     <Text style={styles.sectionTitle}>当前用药</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('MedicationAddPage')}>
-                        <Image style={styles.medicationAddIcon} source={require('@/assets/images/medication/icon_jia.png')} />
-                    </TouchableOpacity>
+                    {!readOnly ? (
+                        <TouchableOpacity onPress={() => navigation.navigate('MedicationAddPage')}>
+                            <Image style={styles.medicationAddIcon} source={require('@/assets/images/medication/icon_jia.png')} />
+                        </TouchableOpacity>
+                    ) : null}
                 </Flex>
 
                 {planGroups.map((group, groupIndex) => {
-                    const hasPendingCheckIn = group.items.some(item => item.canCheckIn);
+                    const hasPendingCheckIn = !readOnly && group.items.some(item => item.canCheckIn);
                     const isGroupCheckingIn = checkingInGroupTime === group.time;
                     const isLastGroup = groupIndex === planGroups.length - 1;
 
@@ -392,6 +414,7 @@ export default function MedicationTab() {
                                         <View key={item.key} style={index > 0 ? { marginTop: 8 } : undefined}>
                                             <PlanRow
                                                 item={item}
+                                                readOnly={readOnly}
                                                 checkingIn={checkingInKey === item.key || isGroupCheckingIn}
                                                 onCheckIn={handleCheckIn}
                                             />
@@ -404,8 +427,8 @@ export default function MedicationTab() {
                 })}
 
                 {!loading && planGroups.length === 0 ? (
-                    <View style={styles.medicationBox}>
-                        <Text style={styles.leftText}>暂无用药计划</Text>
+                    <View style={styles.planEmptyWrap}>
+                        <EmptyRecord text="暂无用药计划" compact />
                     </View>
                 ) : null}
             </View>
@@ -443,6 +466,7 @@ export default function MedicationTab() {
             </View>
 
 
+            {!readOnly ? (
             <View style={styles.medicationBox}>
                 <Text style={styles.sectionTitle}>用药提醒设置</Text>
 
@@ -512,16 +536,19 @@ export default function MedicationTab() {
                     </Flex>
                 </View>
             </View>
+            ) : null}
 
             <View style={styles.medicationBox}>
                 <Flex justify="between" align="center">
                     <Text style={styles.sectionTitle}>服药历史</Text>
-                    <TouchableOpacity onPress={() => navigation.navigate('MedicationHistoryPage')}>
-                        <Flex align="center">
-                            <Text style={styles.more}>全部</Text>
-                            <Image style={styles.moreImg} source={require('@/assets/images/medication/icon_right.png')} />
-                        </Flex>
-                    </TouchableOpacity>
+                    {!readOnly ? (
+                        <TouchableOpacity onPress={() => navigation.navigate('MedicationHistoryPage')}>
+                            <Flex align="center">
+                                <Text style={styles.more}>全部</Text>
+                                <Image style={styles.moreImg} source={require('@/assets/images/medication/icon_right.png')} />
+                            </Flex>
+                        </TouchableOpacity>
+                    ) : null}
                 </Flex>
                 {previewHistoryDays.length > 0 ? (
                     <View style={styles.contentModule}>

@@ -190,14 +190,87 @@ export function isOptionSelected(optionIndex: number, answer: string, questionTy
     return getSelectedIndices(answer, questionType).includes(optionIndex);
 }
 
-export function getScoreTip(type: QuestionnaireType, scoreLevel: ScoreLevel) {
-    if (type === 1) {
-        return `您的得分处于${scoreLevel.result}区间，建议根据日常能力情况合理安排照护支持。`;
-    }
-    if (type === 3) {
-        return `您的 EQ-5D 得分处于${scoreLevel.result}区间，建议关注生活质量相关指标。`;
-    }
-    return `得分越高，风险越大。您的得分处于${scoreLevel.result}区间，建议关注相关健康指标。`;
+export type ScoreTipContent = {
+  /** 第一行：风险/能力概述 */
+  summary: string;
+  /** 第二行：建议 */
+  advice: string;
+};
+
+const FALL_TIPS: Record<string, ScoreTipContent> = {
+  低风险: {
+    summary: '跌倒风险较低，日常生活基本安全。',
+    advice: '保持适度运动，注意地面防滑，定期复测（3–6个月）。',
+  },
+  中风险: {
+    summary: '存在一定跌倒隐患，夜间/行走/环境因素影响明显。',
+    advice: '增加平衡训练（如太极、步行训练），夜间减少起床频率，家中安装防滑措施，建议每月评估一次。',
+  },
+  较高风险: {
+    summary: '明显行动不稳定，多因素叠加风险。',
+    advice: '建议使用辅助行走工具，家庭环境改造（扶手/防滑垫），建议家属陪护，咨询医生或康复师。',
+  },
+  高风险: {
+    summary: '极易跌倒，多项高危因素存在。',
+    advice: '强烈建议医疗评估，避免独立行走，使用轮椅/助行器，建立长期护理计划。',
+  },
+};
+
+const ADL_TIPS: Record<string, ScoreTipContent> = {
+  完全独立: {
+    summary: '可独立完成全部日常生活，基本无需照护。',
+    advice: '保持运动，定期健康评估（3–6个月）。',
+  },
+  轻度依赖: {
+    summary: '个别生活项目需要帮助，整体生活基本自理。',
+    advice: '加强平衡/力量训练，家庭适当辅助，定期复评（1–3个月）。',
+  },
+  中度依赖: {
+    summary: '多项日常生活需要帮助，独立生活能力下降。',
+    advice: '建议家属协助生活，进行康复训练，评估跌倒/护理风险。',
+  },
+  重度依赖: {
+    summary: '基本无法独立生活，需长期照护。',
+    advice: '专业护理支持，防跌倒与安全管理，长期照护计划。',
+  },
+};
+
+const MUST_TIPS: Record<string, ScoreTipContent> = {
+  低风险: {
+    summary: '营养风险较低，暂无明显营养下降趋势。',
+    advice: '保持均衡饮食，定期复测，关注体重变化。',
+  },
+  轻度风险: {
+    summary: '存在轻微营养下降趋势。',
+    advice: '增加蛋白质摄入，关注体重变化，每月复测。',
+  },
+  中度风险: {
+    summary: '已出现明显营养摄入不足。',
+    advice: '调整饮食结构，必要时营养补充剂，建议咨询医生/营养师。',
+  },
+  高风险: {
+    summary: '明显营养不良风险。',
+    advice: '尽快医疗评估，可能需要营养干预或治疗，密切监测体重变化。',
+  },
+};
+
+export function getScoreTip(
+  type: QuestionnaireType,
+  scoreLevel: ScoreLevel,
+): ScoreTipContent | null {
+  const key = scoreLevel.result?.trim();
+  if (!key || key === '--') return null;
+
+  if (type === 0) return FALL_TIPS[key] ?? null;
+  if (type === 1) return ADL_TIPS[key] ?? null;
+  if (type === 2) return MUST_TIPS[key] ?? null;
+  if (type === 3) {
+    return {
+      summary: `您的 EQ-5D 得分处于${key}区间。`,
+      advice: '建议关注生活质量相关指标，必要时咨询专业医生。',
+    };
+  }
+  return null;
 }
 
 export function parseHeightWeightAnswer(answer: string) {

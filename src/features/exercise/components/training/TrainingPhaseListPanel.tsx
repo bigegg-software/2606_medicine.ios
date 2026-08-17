@@ -122,7 +122,7 @@ export default function TrainingPhaseListPanel({
   };
 
   const openPlayer = (card: TrainingPhaseExerciseCard) => {
-    if (!canPressTrainingAction(card, dateMode)) return;
+    if (!canPressTrainingAction(card, dateMode, { readOnly })) return;
     navigation.navigate('ExercisePlayerPage', {
       exVideoId: card.exVideoId,
       title: card.title,
@@ -202,7 +202,7 @@ export default function TrainingPhaseListPanel({
           const actionCompleted = isTrainingActionCompleted(item);
           const actionText = formatTrainingActionButtonText(item, { dateMode });
           const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
-          const actionPressable = canPressTrainingAction(item, dateMode);
+          const actionPressable = canPressTrainingAction(item, dateMode, { readOnly });
           return (
             <View key={item.key} style={styles.trainingExerciseCard}>
               <Flex align="center">

@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 import type { MealDetailItem } from './mealDetail';
 import type { DietPatientRuleInfo } from './dietPatientRule';
 
@@ -63,15 +64,27 @@ export type MealAllRecordsResult = {
   rows?: MealAllRecordMonthGroup[];
 };
 
-export const getMealListByDate = (params: { customerLocalDate: string }) =>
+export const getMealListByDate = (
+  params: { customerLocalDate: string },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: MealRecordItem[] }>(
     '/patient/fitpulse/meal/listByDate',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
-export const getMealDetailByMealId = (mealId: string) =>
+export const getMealDetailByMealId = (
+  mealId: string,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: MealRecordDetail }>(
     `/patient/fitpulse/meal/mealDetail/${mealId}`,
+    {
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 export const getMealExecutionStatistics = (params: {
@@ -103,9 +116,15 @@ export type MealIsEatByDateRangeResult = {
   data?: MealIsEatByDateItem[];
 };
 
-export const getMealIsEatByDateRange = (params: {
-  mealCategory: number;
-  startDate: string;
-  endDate: string;
-}) =>
-  request.get<MealIsEatByDateRangeResult>('/patient/fitpulse/meal/isEatByDateRange', { params });
+export const getMealIsEatByDateRange = (
+  params: {
+    mealCategory: number;
+    startDate: string;
+    endDate: string;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MealIsEatByDateRangeResult>('/patient/fitpulse/meal/isEatByDateRange', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });

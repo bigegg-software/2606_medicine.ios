@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 import type { MedicationPlan } from '@/api/medicationPlan';
 
 export type MedicationRecordAction = 0 | 1;
@@ -54,13 +55,26 @@ export type ApiResult = {
 export const addMedicationRecord = (data: MedicationRecordPayload) =>
   request.post<ApiResult>('/patient/medicationRecord/add', data);
 
-export const getMedicationRecordAll = (params: {
-  action?: MedicationRecordAction;
-  startDate?: string;
-  endDate?: string;
-  pageSize?: number;
-  pageNum?: number;
-}) => request.get<MedicationRecordListResult>('/patient/medicationRecord/allRecords', { params });
+export const getMedicationRecordAll = (
+  params: {
+    action?: MedicationRecordAction;
+    startDate?: string;
+    endDate?: string;
+    pageSize?: number;
+    pageNum?: number;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MedicationRecordListResult>('/patient/medicationRecord/allRecords', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
-export const getMedicationRecordStatis = (params?: { startDate?: string; endDate?: string }) =>
-  request.get<MedicationRecordStatisResult>('/patient/medicationRecord/statis', { params });
+export const getMedicationRecordStatis = (
+  params?: { startDate?: string; endDate?: string },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MedicationRecordStatisResult>('/patient/medicationRecord/statis', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });

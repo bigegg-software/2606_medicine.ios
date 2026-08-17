@@ -93,6 +93,9 @@ const styles = StyleSheet.create({
         paddingVertical: 14,
         paddingHorizontal: 10,
     },
+    vitalItemPlaceholder: {
+        flex: 1,
+    },
     vitalIcon: {
         width: 18,
         height: 18,
@@ -102,6 +105,12 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         fontSize: 14,
         color: '#333333',
+        flexShrink: 1,
+    },
+    vitalDate: {
+        fontWeight: '500',
+        fontSize: 13,
+        color: '#999999',
     },
     vitalValue: {
         marginTop: 12,

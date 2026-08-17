@@ -102,7 +102,7 @@ export default function EquipmentListPage() {
         <ImageBackground
           source={require('@/assets/images/schedule/calendarBack.png')}
           style={styles.backImage1}>
-          <Flex justify="between" style={{ flex: 1, paddingHorizontal: 27 }}>
+          <Flex justify="between" style={{ flex: 1, paddingHorizontal: 20 }}>
             <Text style={styles.backImage1Text}>已绑定设备</Text>
           </Flex>
         </ImageBackground>

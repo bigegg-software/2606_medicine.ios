@@ -94,13 +94,17 @@ const styles = StyleSheet.create({
     padding: 12,
     backgroundColor: '#F6F7FA',
     borderRadius: 6,
+  },
+  resultTipRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
-  resultTipIcon: {
-    width: 15,
-    height: 15,
-    marginTop: 3,
+  resultTipDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6D925E',
+    marginTop: 7,
     marginRight: 8,
   },
   resultTipText: {
@@ -109,6 +113,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333333',
     lineHeight: 21,
+  },
+  resultTipAdvice: {
+    marginTop: 4,
   },
   resultDisclaimer: {
     marginTop: 12,
