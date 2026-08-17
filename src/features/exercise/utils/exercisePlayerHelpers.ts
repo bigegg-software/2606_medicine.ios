@@ -345,11 +345,21 @@ export function calcGroupRestProgressPercent(remainingSeconds: number, totalSeco
   return Math.min(100, ((total - remaining) / total) * 100);
 }
 
-/** 接口 exerciseDuration 单位为分钟，仅统计完整分钟（不足 1 分钟返回 0）。 */
+/** 接口 exerciseDuration 单位为分钟；计时类型仅统计完整分钟（不足 1 分钟返回 0）。 */
 export function sessionSecondsToRecordMinutes(sessionSeconds: number) {
   const seconds = Math.max(0, Math.floor(sessionSeconds));
   if (seconds < 60) return 0;
   return Math.floor(seconds / 60);
+}
+
+/**
+ * 组别类型（如 30次×3组、30秒×3组）：秒折算为分钟，保留两位小数。
+ * 例：50 秒 → 50/60 → 0.83
+ */
+export function sessionSecondsToGroupRecordMinutes(sessionSeconds: number) {
+  const seconds = Math.max(0, Math.floor(Number(sessionSeconds) || 0));
+  if (seconds <= 0) return 0;
+  return Math.round((seconds / 60) * 100) / 100;
 }
 
 /** 消耗 kcal = kcalPerMinute × 本次锻炼分钟；无效入参返回 0。 */
@@ -358,8 +368,8 @@ export function calcExerciseKcal(
   exerciseMinutes: number,
 ) {
   const perMin = Number(kcalPerMinute);
-  const minutes = Math.max(0, Math.floor(Number(exerciseMinutes) || 0));
-  if (!Number.isFinite(perMin) || perMin <= 0 || minutes <= 0) return 0;
+  const minutes = Math.max(0, Number(exerciseMinutes) || 0);
+  if (!Number.isFinite(perMin) || perMin <= 0 || !(minutes > 0)) return 0;
   return Math.round(perMin * minutes * 10) / 10;
 }
 

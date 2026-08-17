@@ -78,8 +78,8 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   progressTitle: { fontWeight: 500, fontSize: 14, color: "#FFFFFF", marginTop: 4 },
-  progressText: { fontWeight: 500, fontSize: 30, color: "#FFFFFF", marginTop: 6 },
-  progressBox: { marginTop: 24, width: '100%', height: 10, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, overflow: 'hidden' },
+  progressText: { fontWeight: 500, fontSize: 30, color: "#FFFFFF" },
+  progressBox: { marginTop: 14, width: '100%', height: 10, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 10, overflow: 'hidden' },
   progressBar: { minWidth: 8, height: 10, paddingRight: 2, backgroundColor: 'rgba(255,255,255,0.5)', borderRadius: 10 },
   progressBarInner: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF' },
   timeBox: { marginTop: 10, paddingHorizontal: 22 },

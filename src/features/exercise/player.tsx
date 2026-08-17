@@ -67,6 +67,7 @@ import {
   resolveRestBetweenGroupSeconds,
   resolveSaveGroupTargetCount,
   resolveUserAgeYears,
+  sessionSecondsToGroupRecordMinutes,
   sessionSecondsToRecordMinutes,
   setGroupCountAtIndex,
   type ExercisePlayerDuration,
@@ -654,7 +655,10 @@ export default function ExercisePlayerPage() {
     }
 
     const sessionSeconds = sessionElapsedRef.current || sessionElapsedSeconds;
-    const exerciseDuration = sessionSecondsToRecordMinutes(sessionSeconds);
+    // 计时类型：整分钟；组别类型（次×组 / 秒×组）：秒折算分钟保留两位小数
+    const exerciseDuration = isDurationTimer
+      ? sessionSecondsToRecordMinutes(sessionSeconds)
+      : sessionSecondsToGroupRecordMinutes(sessionSeconds);
 
     // 计时类型：不足 1 分钟不保存
     if (isDurationTimer && exerciseDuration <= 0) {
@@ -721,7 +725,7 @@ export default function ExercisePlayerPage() {
           }
         }
 
-        // 组类型：满 1 分钟才累加时长，不足则静默跳过
+        // 组别类型：有时长即累加（含不足 1 分钟的小数分钟，如 50 秒 → 0.83）
         if (exerciseDuration > 0) {
           const durationRes = await recordDuration({
             ...basePayload,

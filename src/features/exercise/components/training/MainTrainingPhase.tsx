@@ -134,7 +134,7 @@ function TypeModule({
           />
           <View style={styles.mainTrainingModuleTitleWrap}>
             <LinearGradient
-              colors={['#6D925E', 'rgba(109,146,94,0)']}
+              colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.mainTrainingModuleUnderline}

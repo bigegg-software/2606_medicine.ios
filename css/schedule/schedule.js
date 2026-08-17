@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   weekProgressBarSelected: { backgroundColor: '#6D925E' },
   weekProgressBarDone: { backgroundColor: '#6D925E' },
   weekRateText: { fontWeight: 500, fontSize: 13, color: "#999999" },
-  weekRateTextNum: { fontWeight: "bold", fontSize: 14, color: "#333333" },
+  weekRateTextNum: { fontWeight: "bold",width:40, textAlign:"right", fontSize: 14, color: "#333333" },
   weekRateList: { marginTop: 13 },
   weekRateItem: { gap: 12, height: 19, marginTop: 12 },
   weekRateItemTitle: { fontWeight: 500, fontSize: 14, color: "#333333" },

@@ -239,3 +239,22 @@ export function getAiAnalysisTitle(rule?: InUseExPatientRule | null) {
 export function getAiAnalysisSummary(rule?: InUseExPatientRule | null) {
   return rule?.aiAnalysis?.summary?.trim() || rule?.remark?.trim() || '暂无 AI 洞察说明';
 }
+
+const CHINESE_LOWER_DIGITS = ['零', '一', '二', '三', '四', '五', '六', '七', '八', '九'] as const;
+
+/** 将正整数转为中文数字（1→一，12→十二；超出简单范围回退阿拉伯数字） */
+export function formatChineseNumber(value: number) {
+  const n = Math.round(Number(value) || 0);
+  if (!(n > 0)) return '零';
+  if (n < 10) return CHINESE_LOWER_DIGITS[n];
+  if (n === 10) return '十';
+  if (n < 20) return `十${CHINESE_LOWER_DIGITS[n % 10]}`;
+  if (n < 100) {
+    const tens = Math.floor(n / 10);
+    const ones = n % 10;
+    return ones > 0
+      ? `${CHINESE_LOWER_DIGITS[tens]}十${CHINESE_LOWER_DIGITS[ones]}`
+      : `${CHINESE_LOWER_DIGITS[tens]}十`;
+  }
+  return String(n);
+}

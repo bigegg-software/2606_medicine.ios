@@ -20,6 +20,7 @@ import {
     formatPrescriptionNextAssessText,
     formatWeekDurationStat,
     formatWeekKcalStat,
+    formatChineseNumber,
     getAiAnalysisSummary,
     getAiAnalysisTitle,
 } from '../utils/prescriptionHelpers'
@@ -255,7 +256,7 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
                         <Text style={styles.prescriptionWeightTitle}>FITT-VP 处方明细</Text>
                         <Text style={styles.prescriptionWeightTagText}>
                             {typeSections.length > 0
-                                ? `${typeSections.length}类分层·六要素`
+                                ? `${formatChineseNumber(typeSections.length)}类分层·六要素`
                                 : '六要素'}
                         </Text>
                     </Flex>
@@ -280,7 +281,7 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
                                         />
                                         <View style={styles.prescriptionTypeTitleWrap}>
                                             <LinearGradient
-                                                colors={['#6D925E', 'rgba(109,146,94,0)']}
+                                                colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
                                                 start={{ x: 0, y: 0 }}
                                                 end={{ x: 1, y: 0 }}
                                                 style={styles.prescriptionTypeUnderline}
@@ -326,7 +327,7 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
                         />
                         <View style={styles.prescriptionTypeTitleWrap}>
                             <LinearGradient
-                                colors={['#6D925E', 'rgba(109,146,94,0)']}
+                               colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
                                 start={{ x: 0, y: 0 }}
                                 end={{ x: 1, y: 0 }}
                                 style={styles.prescriptionTypeUnderline}
