@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ActivityIndicator, ScrollView, Alert } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getFamilyMedicalInfo, updateFamilyMedical, type FamilyMedicalItem } from '@/api/familyMedical';
 import { AppTheme } from '@/common/theme';
@@ -10,18 +10,22 @@ import styles from '@/css/profile/familyHistory';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { formatMemberTitle, getStatusStyles } from './utils/familyHistoryHelpers';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'FamilyHistory'>;
 
 export default function FamilyHistoryPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<Route>();
+    const { readOnly, patientUserId } = resolveFamilyReadOnlyView(route.params);
     const [familyList, setFamilyList] = useState<FamilyMedicalItem[]>([]);
     const [userId, setUserId] = useState<number | undefined>();
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
         try {
-            const res = await getFamilyMedicalInfo();
+            const res = await getFamilyMedicalInfo(patientUserId ? { patientUserId } : undefined);
             const data = apiResourceData<{
                 userId?: number;
                 familyMedicalList?: FamilyMedicalItem[];
@@ -33,7 +37,7 @@ export default function FamilyHistoryPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [patientUserId]);
 
     const loadRef = useRef(load);
     loadRef.current = load;
@@ -42,7 +46,7 @@ export default function FamilyHistoryPage() {
 
     useEffect(() => {
         loadRef.current();
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -117,7 +121,8 @@ export default function FamilyHistoryPage() {
                                         style={styles.infoBox}>
                                         <TouchableOpacity
                                             style={{ flex: 1 }}
-                                            activeOpacity={0.7}
+                                            activeOpacity={readOnly ? 1 : 0.7}
+                                            disabled={readOnly}
                                             onPress={() =>
                                                 navigation.navigate('FamilyHistoryAdd', { editIndex: index })
                                             }>
@@ -148,12 +153,14 @@ export default function FamilyHistoryPage() {
                                                 </View>
                                             </Flex>
                                         </TouchableOpacity>
-                                        <TouchableOpacity onPress={() => handleDelete(index)}>
-                                            <Image
-                                                style={styles.delIcon}
-                                                source={require('@/assets/images/case/icon_del.png')}
-                                            />
-                                        </TouchableOpacity>
+                                        {!readOnly ? (
+                                            <TouchableOpacity onPress={() => handleDelete(index)}>
+                                                <Image
+                                                    style={styles.delIcon}
+                                                    source={require('@/assets/images/case/icon_del.png')}
+                                                />
+                                            </TouchableOpacity>
+                                        ) : null}
                                     </Flex>
                                 );
                             })}
@@ -162,20 +169,22 @@ export default function FamilyHistoryPage() {
                 )}
             </ScrollView>
 
-            <View style={styles.bottomBar}>
-                <TouchableOpacity
-                    style={styles.bottomBarButton}
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('FamilyHistoryAdd')}>
-                    <Flex style={{ flex: 1 }} justify="center" align="center">
-                        <Image
-                            style={styles.bottomBarButtonImg}
-                            source={require('@/assets/images/vitals/icon_add.png')}
-                        />
-                        <Text style={styles.bottomBarButtonText}>添加家族成员病史</Text>
-                    </Flex>
-                </TouchableOpacity>
-            </View>
+            {!readOnly ? (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={styles.bottomBarButton}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('FamilyHistoryAdd')}>
+                        <Flex style={{ flex: 1 }} justify="center" align="center">
+                            <Image
+                                style={styles.bottomBarButtonImg}
+                                source={require('@/assets/images/vitals/icon_add.png')}
+                            />
+                            <Text style={styles.bottomBarButtonText}>添加家族成员病史</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                </View>
+            ) : null}
         </PageLayout>
     );
 }

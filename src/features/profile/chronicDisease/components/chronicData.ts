@@ -174,6 +174,7 @@ export function getMonthChartLabels() {
 async function loadMeasureItems(
     type: MeasureDataType,
     range: 'today' | '7days' | 'month' = 'month',
+    options?: { patientUserId?: string | number | null },
 ): Promise<MeasureDataItem[]> {
     try {
         const endDate = moment().format('YYYY-MM-DD');
@@ -183,7 +184,10 @@ async function loadMeasureItems(
                 : range === '7days'
                     ? moment().subtract(6, 'days').format('YYYY-MM-DD')
                     : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
-        const res = await getMeasureDataDetailByDateRange({ startDate, endDate, type });
+        const res = await getMeasureDataDetailByDateRange(
+            { startDate, endDate, type },
+            options,
+        );
         if (!isResourceApiOk(res as { code?: number })) return [];
         const groups = normalizeMeasureRangeData(apiResourceData<unknown>(res as { code?: number; data?: unknown }));
         return flattenMeasureItems(groups);
@@ -195,6 +199,7 @@ async function loadMeasureItems(
 async function loadWearableItems(
     type: WearableDataType,
     range: 'today' | '7days' | 'month' = 'month',
+    options?: { patientUserId?: string | number | null },
 ): Promise<WearableDataItem[]> {
     try {
         const endDate = moment().format('YYYY-MM-DD');
@@ -204,12 +209,15 @@ async function loadWearableItems(
                 : range === '7days'
                     ? moment().subtract(6, 'days').format('YYYY-MM-DD')
                     : moment().subtract(MONTH_DAY_COUNT - 1, 'days').format('YYYY-MM-DD');
-        const res = await getWearableDataDetailByDateRange({
-            startDate,
-            endDate,
-            type,
-            ...getWearableReturnOriginalDataParam(range),
-        });
+        const res = await getWearableDataDetailByDateRange(
+            {
+                startDate,
+                endDate,
+                type,
+                ...getWearableReturnOriginalDataParam(range),
+            },
+            options,
+        );
         if (!isResourceApiOk(res as { code?: number })) return [];
         const data = apiResourceData<WearableDataItem[]>(
             res as unknown as { code?: number; data?: WearableDataItem[] },
@@ -613,6 +621,7 @@ function countPendingMedicationDoses(
 export async function loadChronicIndexIndicators(
     records: ChronicDiseaseRecord[],
     labelMap: Record<string, string>,
+    options?: { patientUserId?: string | number | null },
 ): Promise<Map<number, ChronicDiseaseDailyIndicators>> {
     if (records.length === 0) return new Map();
 
@@ -629,18 +638,18 @@ export async function loadChronicIndexIndicators(
 
     const [planGroups, todayMealList, measureTodayEntries, wearableTodayEntries, measureWeekEntries, wearableWeekEntries] =
         await Promise.all([
-            loadMedicationPlanGroups(dictMaps),
-            getTodayMealDetailList()
+            loadMedicationPlanGroups(dictMaps, options),
+            getTodayMealDetailList(options)
                 .then(res =>
                     apiResourceData<MealDetailItem[]>(
                         res as unknown as { code?: number; data?: MealDetailItem[] },
                     ) ?? [],
                 )
                 .catch(() => [] as MealDetailItem[]),
-            Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, 'today')] as const)),
-            Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, 'today')] as const)),
-            Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, '7days')] as const)),
-            Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, '7days')] as const)),
+            Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, 'today', options)] as const)),
+            Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, 'today', options)] as const)),
+            Promise.all([...measureTypes].map(async type => [type, await loadMeasureItems(type, '7days', options)] as const)),
+            Promise.all([...wearableTypes].map(async type => [type, await loadWearableItems(type, '7days', options)] as const)),
         ]);
 
     const measureTodayCache = new Map<MeasureDataType, MeasureDataItem[]>(measureTodayEntries);
@@ -681,12 +690,15 @@ export function resolveDiseaseTypeLabel(
     return labelMap[diseaseType] ?? diseaseType;
 }
 
-export async function loadChronicDetailData(recordId?: number): Promise<ChronicDetailData> {
+export async function loadChronicDetailData(
+    recordId?: number,
+    options?: { patientUserId?: string | number | null },
+): Promise<ChronicDetailData> {
     const dictMaps = await loadMedicationDictMaps();
     const [labelMap, planGroupsRes, recordRes] = await Promise.all([
         loadDiseaseTypeLabelMap(),
-        getIndexMedicationPlanGroupByTime(),
-        recordId != null ? getChronicDiseaseInfo(recordId) : Promise.resolve(null),
+        getIndexMedicationPlanGroupByTime({}, options),
+        recordId != null ? getChronicDiseaseInfo(recordId, options) : Promise.resolve(null),
     ]);
 
     const record =
@@ -696,11 +708,11 @@ export async function loadChronicDetailData(recordId?: number): Promise<ChronicD
     const config = resolveDiseaseTrendConfig(record?.diseaseType, labelMap);
 
     const [measureItems, secondaryMeasureItems, wearableItems, restingWearableItems] = await Promise.all([
-        config.measureType ? loadMeasureItems(config.measureType) : Promise.resolve([]),
-        config.secondaryMeasureType ? loadMeasureItems(config.secondaryMeasureType) : Promise.resolve([]),
-        config.wearableType ? loadWearableItems(config.wearableType) : Promise.resolve([]),
+        config.measureType ? loadMeasureItems(config.measureType, 'month', options) : Promise.resolve([]),
+        config.secondaryMeasureType ? loadMeasureItems(config.secondaryMeasureType, 'month', options) : Promise.resolve([]),
+        config.wearableType ? loadWearableItems(config.wearableType, 'month', options) : Promise.resolve([]),
         config.chartKind === 'heartRate'
-            ? loadWearableItems(WEARABLE_DATA_TYPES.restingHeartRate)
+            ? loadWearableItems(WEARABLE_DATA_TYPES.restingHeartRate, 'month', options)
             : Promise.resolve([]),
     ]);
 

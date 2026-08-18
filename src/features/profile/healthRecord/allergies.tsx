@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, updateAllergy, type AllergyItem } from '@/api/allergy';
 import { AppTheme } from '@/common/theme';
@@ -10,8 +10,10 @@ import styles from '@/css/profile/allergies';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { getSeverityStyles } from './utils/allergiesHelpers';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'Allergies'>;
 
 const ALLERGY_SECTIONS = [
     { type: '药物过敏', title: '药物过敏', icon: require('@/assets/images/user/icon1.png') },
@@ -21,12 +23,14 @@ const ALLERGY_SECTIONS = [
 
 export default function AllergiesPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<Route>();
+    const { readOnly, patientUserId } = resolveFamilyReadOnlyView(route.params);
     const [allergyList, setAllergyList] = useState<AllergyItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     const load = useCallback(async () => {
         try {
-            const res = await getAllergyInfo();
+            const res = await getAllergyInfo(patientUserId ? { patientUserId } : undefined);
             const data = apiResourceData<{ allergyList?: AllergyItem[] }>(
                 res as { code?: number; data?: { allergyList?: AllergyItem[] } },
             );
@@ -36,7 +40,7 @@ export default function AllergiesPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [patientUserId]);
 
     const loadRef = useRef(load);
     loadRef.current = load;
@@ -45,7 +49,7 @@ export default function AllergiesPage() {
 
     useEffect(() => {
         loadRef.current();
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -106,9 +110,11 @@ export default function AllergiesPage() {
                                     <Image style={styles.allergySectionIcon} source={section.icon} />
                                     <Text style={styles.allergySectionTitle}>{section.title}</Text>
                                 </Flex>
-                                <TouchableOpacity onPress={() => navigation.navigate('AllergiesAdd', { type: section.type })}>
-                                    <Image style={styles.more} source={require('@/assets/images/case/icon_add.png')} />
-                                </TouchableOpacity>
+                                {!readOnly ? (
+                                    <TouchableOpacity onPress={() => navigation.navigate('AllergiesAdd', { type: section.type })}>
+                                        <Image style={styles.more} source={require('@/assets/images/case/icon_add.png')} />
+                                    </TouchableOpacity>
+                                ) : null}
                             </Flex>
                             <View style={styles.allergyListBox}>
                                 {items.length === 0 ? (
@@ -122,7 +128,8 @@ export default function AllergiesPage() {
                                             <Flex key={`${index}-${item.allergenName}`} justify="between" align="center" style={styles.allergyInfoBox}>
                                                 <TouchableOpacity
                                                     style={{ flex: 1 }}
-                                                    activeOpacity={0.7}
+                                                    activeOpacity={readOnly ? 1 : 0.7}
+                                                    disabled={readOnly}
                                                     onPress={() =>
                                                         navigation.navigate('AllergiesAdd', {
                                                             type: section.type,
@@ -143,9 +150,11 @@ export default function AllergiesPage() {
                                                         症状：{item.allergicSymptoms || '—'}
                                                     </Text>
                                                 </TouchableOpacity>
-                                                <TouchableOpacity onPress={() => handleDelete(index)}>
-                                                    <Image style={styles.delIcon} source={require('@/assets/images/case/icon_del.png')} />
-                                                </TouchableOpacity>
+                                                {!readOnly ? (
+                                                    <TouchableOpacity onPress={() => handleDelete(index)}>
+                                                        <Image style={styles.delIcon} source={require('@/assets/images/case/icon_del.png')} />
+                                                    </TouchableOpacity>
+                                                ) : null}
                                             </Flex>
                                         );
                                     })

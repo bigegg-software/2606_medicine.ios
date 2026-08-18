@@ -14,6 +14,7 @@ import { formatChronicMedicationDoseTimeText } from './utils/medicationPlanHelpe
 
 type Props = {
     medications: AssociatedMedicationRow[];
+    readOnly?: boolean;
 };
 
 function toPlanItemView(row: AssociatedMedicationRow): MedicationPlanItemView {
@@ -51,10 +52,12 @@ function ActionStatus({ taken }: { taken: boolean }) {
 function MedicationRow({
     item,
     checkingIn,
+    readOnly,
     onCheckIn,
 }: {
     item: AssociatedMedicationRow;
     checkingIn: boolean;
+    readOnly?: boolean;
     onCheckIn: (item: AssociatedMedicationRow) => void;
 }) {
     const statusNode = <ActionStatus taken={item.taken} />;
@@ -73,7 +76,7 @@ function MedicationRow({
                     </Text>
                 </View>
             </Flex>
-            {item.canCheckIn ? (
+            {!readOnly && item.canCheckIn ? (
                 <TouchableOpacity activeOpacity={0.7} disabled={checkingIn} onPress={() => onCheckIn(item)}>
                     {checkingIn ? <ActivityIndicator color={AppTheme.primaryColor} /> : statusNode}
                 </TouchableOpacity>
@@ -84,7 +87,7 @@ function MedicationRow({
     );
 }
 
-export default function MedicationPlanSection({ medications }: Props) {
+export default function MedicationPlanSection({ medications, readOnly }: Props) {
     const [rows, setRows] = useState(medications);
     const [checkingInKey, setCheckingInKey] = useState<string | null>(null);
 
@@ -130,6 +133,7 @@ export default function MedicationPlanSection({ medications }: Props) {
                             <MedicationRow
                                 item={item}
                                 checkingIn={checkingInKey === item.key}
+                                readOnly={readOnly}
                                 onCheckIn={handleCheckIn}
                             />
                         </View>

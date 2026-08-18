@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
@@ -23,17 +23,33 @@ import SwipeDeleteRow, { closeActiveSwipeRow } from './components/SwipeDeleteRow
 import { buildMedicalRecordNavList } from './caseConstants';
 import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/components/KeyboardDoneAccessory';
 import { formatCaseNoteDate, getCaseTypeTagColors } from './utils/caseNotesHelpers';
+import { resolveFamilyReadOnlyView, type FamilyReadOnlyViewParams } from '@/src/familyPage/utils/familyReadOnlyView';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'CaseNotes'>;
 
 const NAV_LIST = buildMedicalRecordNavList();
 
-function CaseNoteCard({ item }: { item: MedicalRecord }) {
+function CaseNoteCard({
+    item,
+    viewNavParams,
+}: {
+    item: MedicalRecord;
+    viewNavParams?: FamilyReadOnlyViewParams;
+}) {
     const navigation = useNavigation<Nav>();
     const typeLabel = item.medicalRecordType?.trim();
     const tagColors = getCaseTypeTagColors(typeLabel);
     return (
-        <TouchableOpacity style={styles.caseBox} key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
+        <TouchableOpacity
+            style={styles.caseBox}
+            key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
+            onPress={() =>
+                navigation.navigate('CaseDetail', {
+                    id: item.medicalRecordId || 0,
+                    ...(viewNavParams ?? {}),
+                })
+            }>
             <Flex justify="between" align="center">
                 <Flex align="center" style={styles.caseTitleWrap}>
                     <Text style={[styles.caseTitle, { flex: 1 }]}>
@@ -77,6 +93,8 @@ function CaseNoteCard({ item }: { item: MedicalRecord }) {
 
 export default function CaseNotesPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<Route>();
+    const { readOnly, patientUserId, viewNavParams } = resolveFamilyReadOnlyView(route.params);
     const [activeNav, setActiveNav] = useState('all');
     const [keyword, setKeyword] = useState('');
     const [searchKeyword, setSearchKeyword] = useState('');
@@ -94,7 +112,7 @@ export default function CaseNotesPage() {
                 searchWords: searchKeyword.trim() || undefined,
                 pageNum: 1,
                 pageSize: 50,
-            });
+            }, patientUserId ? { patientUserId } : undefined);
             setItems(getResourceRows(res as { code?: number; rows?: MedicalRecord[] }));
         } catch {
             setItems([]);
@@ -102,7 +120,7 @@ export default function CaseNotesPage() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, [activeNav, searchKeyword]);
+    }, [activeNav, patientUserId, searchKeyword]);
 
     const loadRef = useRef(load);
     loadRef.current = load;
@@ -111,7 +129,7 @@ export default function CaseNotesPage() {
 
     useEffect(() => {
         loadRef.current();
-    }, [activeNav, searchKeyword]);
+    }, [activeNav, patientUserId, searchKeyword]);
 
     useFocusEffect(
         useCallback(() => {
@@ -152,12 +170,22 @@ export default function CaseNotesPage() {
     }, []);
 
     const renderItem = useCallback(
-        ({ item }: { item: MedicalRecord }) => (
-            <SwipeDeleteRow onDelete={() => handleDelete(item)}>
-                <CaseNoteCard item={item} />
-            </SwipeDeleteRow>
-        ),
-        [handleDelete],
+        ({ item }: { item: MedicalRecord }) => {
+            const card = <CaseNoteCard item={item} viewNavParams={viewNavParams} />;
+            if (readOnly) {
+                return (
+                    <View style={styles.swipeRow}>
+                        <View style={[styles.swipeForeground, { overflow: 'hidden' }]}>{card}</View>
+                    </View>
+                );
+            }
+            return (
+                <SwipeDeleteRow onDelete={() => handleDelete(item)}>
+                    {card}
+                </SwipeDeleteRow>
+            );
+        },
+        [handleDelete, readOnly, viewNavParams],
     );
 
     return (
@@ -229,20 +257,22 @@ export default function CaseNotesPage() {
                 />
             )}
 
-            <View style={styles.bottomBar}>
-                <TouchableOpacity
-                    style={styles.bottomBarButtonLeft}
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('CaseAdd')}>
-                    <Flex style={{ flex: 1 }}>
-                        <Image
-                            style={styles.bottomBarButtonImg}
-                            source={require('@/assets/images/vitals/icon_add.png')}
-                        />
-                        <Text style={styles.bottomBarButtonTextLeft}>添加病例</Text>
-                    </Flex>
-                </TouchableOpacity>
-            </View>
+            {!readOnly ? (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={styles.bottomBarButtonLeft}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('CaseAdd')}>
+                        <Flex style={{ flex: 1 }}>
+                            <Image
+                                style={styles.bottomBarButtonImg}
+                                source={require('@/assets/images/vitals/icon_add.png')}
+                            />
+                            <Text style={styles.bottomBarButtonTextLeft}>添加病例</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                </View>
+            ) : null}
         </PageLayout>
     );
 }

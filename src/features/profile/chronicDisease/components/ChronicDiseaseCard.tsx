@@ -83,7 +83,7 @@ type ChronicDiseaseCardProps = {
     record: ChronicDiseaseRecord;
     diseaseTypeLabels: Record<string, string>;
     dailyIndicators: ChronicDiseaseDailyIndicators;
-    onPress: () => void;
+    onPress?: () => void;
 };
 
 export default function ChronicDiseaseCard({
@@ -99,7 +99,7 @@ export default function ChronicDiseaseCard({
     const mealIndicator = getMealRecordIndicator(dailyIndicators.mealRecorded);
 
     return (
-        <TouchableOpacity activeOpacity={0.8} onPress={onPress}>
+        <TouchableOpacity activeOpacity={onPress ? 0.8 : 1} disabled={!onPress} onPress={onPress}>
             <View style={styles.rowBox}>
                 <Flex justify="between">
                     <Text style={styles.infoTitle}>{diseaseLabel}</Text>

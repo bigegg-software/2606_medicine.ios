@@ -326,6 +326,7 @@ export type HistoryItem = {
 };
 
 export type AssessmentSummary = {
+    id?: string;
     date?: string;
     result?: string;
     statusStyle: StatusStyleKey;
@@ -368,6 +369,7 @@ export function toAssessmentSummary(record: UserQuestionRecord): AssessmentSumma
     const scoreLevel = formatAssessmentResult(record);
     if (!date && !scoreLevel) return undefined;
     return {
+        id: record.id != null ? String(record.id) : undefined,
         date: date || undefined,
         result: scoreLevel?.result,
         statusStyle: scoreLevel?.statusStyle ?? 'rowStatus',

@@ -1,8 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getAllergyInfo, type AllergyItem } from '@/api/allergy';
 import { getFamilyMedicalInfo, type FamilyMedicalItem } from '@/api/familyMedical';
@@ -15,21 +15,30 @@ import {
     type UserQuestionRecord,
 } from '@/api/questionTemplate';
 import type { EmergencyContact } from '@/api/emergencyContact';
+import type { UserBaseInfo } from '@/api/patient';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
 import questionnaireStyles from '@/css/questionnaire/index';
-import { useSelector } from 'react-redux';
-import type { RootState } from '@/store/store';
+import { useDispatch, useSelector } from 'react-redux';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchFamilyBindMyList } from '@/store/actions/family';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import { getDisplayUserName, getDefaultAvatarByGender, maskPhoneNumber } from '@/src/utils/userHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import {
     formatEmergencyContactName,
     loadEmergencyContacts,
     loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
 import { resolveDailyActivityLevelLabel } from '@/src/features/profile/healthRecord/utils/profileActivityLevelHelpers';
+import {
+    loadHealthRecordFamilyUser,
+    resolveHealthRecordFamilyPhone,
+    resolveHealthRecordPatientOpts,
+} from '@/src/features/profile/healthRecord/utils/healthRecordFamilyHelpers';
 import ChronicDiseaseCard from '@/src/features/profile/chronicDisease/components/ChronicDiseaseCard';
 import {
     DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
@@ -51,6 +60,7 @@ import familyHistoryStyles from '@/css/profile/familyHistory';
 import moment from 'moment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'HealthRecord'>;
 
 const CHRONIC_PREVIEW_SIZE = 2;
 
@@ -91,8 +101,17 @@ function getAllergySectionSummary(list: AllergyItem[], type: string) {
 
 export default function HealthRecordPage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<Route>();
+    const dispatch = useDispatch<AppDispatch>();
+    const { readOnly, patientUserId, relationLabel, displayName, viewNavParams } = resolveFamilyReadOnlyView(route.params);
+    const patientOpts = useMemo(
+        () => resolveHealthRecordPatientOpts(patientUserId),
+        [patientUserId],
+    );
     const user = useSelector((state: RootState) => state.user.info);
     const systemUser = useSelector((state: RootState) => state.user.systemUser);
+    const familyBindList = useSelector((state: RootState) => state.family.list);
+    const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [allergyList, setAllergyList] = useState<AllergyItem[]>([]);
     const [familyList, setFamilyList] = useState<FamilyMedicalItem[]>([]);
@@ -109,16 +128,16 @@ export default function HealthRecordPage() {
 
     const loadRecords = useCallback(async () => {
         try {
-            const res = await getMedicalRecordFrontList({ pageNum: 1, pageSize: 3 });
+            const res = await getMedicalRecordFrontList({ pageNum: 1, pageSize: 3 }, patientOpts);
             setRecords(getResourceRows(res as { code?: number; rows?: MedicalRecord[] }));
         } catch {
             setRecords([]);
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadAllergies = useCallback(async () => {
         try {
-            const res = await getAllergyInfo();
+            const res = await getAllergyInfo(patientOpts);
             const data = apiResourceData<{ allergyList?: AllergyItem[] }>(
                 res as { code?: number; data?: { allergyList?: AllergyItem[] } },
             );
@@ -126,11 +145,11 @@ export default function HealthRecordPage() {
         } catch {
             setAllergyList([]);
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadFamilyMedical = useCallback(async () => {
         try {
-            const res = await getFamilyMedicalInfo();
+            const res = await getFamilyMedicalInfo(patientOpts);
             const data = apiResourceData<{ familyMedicalList?: FamilyMedicalItem[] }>(
                 res as { code?: number; data?: { familyMedicalList?: FamilyMedicalItem[] } },
             );
@@ -138,12 +157,12 @@ export default function HealthRecordPage() {
         } catch {
             setFamilyList([]);
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadEmergency = useCallback(async () => {
         try {
             const [list, labels] = await Promise.all([
-                loadEmergencyContacts({ pageNum: 1, pageSize: 3 }),
+                loadEmergencyContacts({ pageNum: 1, pageSize: 3 }, patientOpts),
                 loadRelationTypeLabelMap(),
             ]);
             setEmergencyContacts(list);
@@ -152,37 +171,46 @@ export default function HealthRecordPage() {
             setEmergencyContacts([]);
             setRelationMap({});
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadChronicDiseases = useCallback(async () => {
         try {
             const [res, labelMap] = await Promise.all([
-                getChronicDiseaseFrontList({ pageNum: 1, pageSize: CHRONIC_PREVIEW_SIZE }),
+                getChronicDiseaseFrontList({ pageNum: 1, pageSize: CHRONIC_PREVIEW_SIZE }, patientOpts),
                 loadDiseaseTypeLabelMap(),
             ]);
             const rows = getResourceRows(res as { code?: number; rows?: ChronicDiseaseRecord[] })
                 .slice(0, CHRONIC_PREVIEW_SIZE);
             setDiseaseTypeLabels(labelMap);
             setChronicRecords(rows);
-            const indicators = await loadChronicIndexIndicators(rows, labelMap);
+            const indicators = await loadChronicIndexIndicators(rows, labelMap, patientOpts);
             setDailyIndicatorsById(indicators);
         } catch {
             setChronicRecords([]);
             setDiseaseTypeLabels({});
             setDailyIndicatorsById(new Map());
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadQuestionnaires = useCallback(async () => {
         try {
-            const latestRes = await getUserQuestionNewList();
+            const latestRes = await getUserQuestionNewList(patientOpts);
             const latestRecords =
                 apiResourceData<UserQuestionRecord[]>(latestRes as unknown as UserQuestionNewListResult) ?? [];
             setLastAssessmentByType(buildLastAssessmentMap(latestRecords));
         } catch {
             setLastAssessmentByType({});
         }
-    }, []);
+    }, [patientOpts]);
+
+    const loadFamilyProfile = useCallback(async () => {
+        if (!readOnly) {
+            setFamilyUser(null);
+            return;
+        }
+        const info = await loadHealthRecordFamilyUser(patientUserId);
+        setFamilyUser(info);
+    }, [patientUserId, readOnly]);
 
     const loadRecordsRef = useRef(loadRecords);
     loadRecordsRef.current = loadRecords;
@@ -196,17 +224,34 @@ export default function HealthRecordPage() {
     loadChronicDiseasesRef.current = loadChronicDiseases;
     const loadQuestionnairesRef = useRef(loadQuestionnaires);
     loadQuestionnairesRef.current = loadQuestionnaires;
+    const loadFamilyProfileRef = useRef(loadFamilyProfile);
+    loadFamilyProfileRef.current = loadFamilyProfile;
 
     const hasMountedRef = useRef(false);
 
     useEffect(() => {
+        if (readOnly) {
+            void dispatch(fetchFamilyBindMyList());
+        }
+    }, [dispatch, readOnly]);
+
+    useEffect(() => {
+        navigation.setOptions({
+            headerRight: readOnly
+                ? () => <FamilyRelationHeaderBadge label={relationLabel} />
+                : undefined,
+        });
+    }, [navigation, readOnly, relationLabel]);
+
+    useEffect(() => {
+        loadFamilyProfileRef.current();
         loadRecordsRef.current();
         loadAllergiesRef.current();
         loadFamilyMedicalRef.current();
         loadEmergencyRef.current();
         loadChronicDiseasesRef.current();
         loadQuestionnairesRef.current();
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -214,6 +259,7 @@ export default function HealthRecordPage() {
                 hasMountedRef.current = true;
                 return;
             }
+            loadFamilyProfileRef.current();
             loadRecordsRef.current();
             loadAllergiesRef.current();
             loadFamilyMedicalRef.current();
@@ -223,12 +269,17 @@ export default function HealthRecordPage() {
         }, []),
     );
 
+    const profileUser = readOnly ? familyUser : user;
+    const avatarOssUrl = String(profileUser?.avatarOssUrl ?? '');
+    const defaultAvatar = getDefaultAvatarByGender(profileUser?.gender);
+    const name = readOnly
+        ? (familyUser?.name?.trim() || displayName || '--')
+        : getDisplayUserName(user);
+    const phoneText = readOnly
+        ? maskPhoneNumber(resolveHealthRecordFamilyPhone(familyBindList, patientUserId))
+        : maskPhoneNumber(systemUser?.phonenumber);
 
-    const avatarOssUrl = String(user?.avatarOssUrl ?? '');
-    const defaultAvatar = getDefaultAvatarByGender(user?.gender);
-    const name = getDisplayUserName(user);
-
-    const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
+    const birthMoment = moment(profileUser?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
     const birthDate = birthMoment.isValid() ? birthMoment.format('YYYY-MM-DD') : '--';
     const age = birthMoment.isValid() ? moment().diff(birthMoment, 'years') : '--';
     return (
@@ -242,9 +293,11 @@ export default function HealthRecordPage() {
                         ) : (
                             <Image source={defaultAvatar} style={styles.avatarImg} />
                         )}
-                        <TouchableOpacity onPress={() => navigation.navigate('ProfileEditPage')}>
-                            <Image style={styles.userEditIcon} source={require('@/assets/images/user/userEdit.png')} />
-                        </TouchableOpacity>
+                        {!readOnly ? (
+                            <TouchableOpacity onPress={() => navigation.navigate('ProfileEditPage')}>
+                                <Image style={styles.userEditIcon} source={require('@/assets/images/user/userEdit.png')} />
+                            </TouchableOpacity>
+                        ) : null}
                     </Flex>
 
                     <Flex justify="between" style={styles.infoItem}>
@@ -254,7 +307,7 @@ export default function HealthRecordPage() {
 
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>性别</Text>
-                        <Text style={styles.infoItemValue}>{user?.gender || '--'}</Text>
+                        <Text style={styles.infoItemValue}>{profileUser?.gender || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>出生日期</Text>
@@ -266,63 +319,77 @@ export default function HealthRecordPage() {
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>身高</Text>
-                        <Text style={styles.infoItemValue}>{user?.height || '--'}</Text>
+                        <Text style={styles.infoItemValue}>{profileUser?.height || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>体重</Text>
-                        <Text style={styles.infoItemValue}>{user?.weight || '--'}</Text>
+                        <Text style={styles.infoItemValue}>{profileUser?.weight || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>血型</Text>
-                        <Text style={styles.infoItemValue}>{user?.bloodType || '--'}</Text>
+                        <Text style={styles.infoItemValue}>{profileUser?.bloodType || '--'}</Text>
                     </Flex>
                     <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>活动水平</Text>
                         <Text style={styles.infoItemValue}>
-                            {resolveDailyActivityLevelLabel(user?.dailyActivityLevel) || '--'}
+                            {resolveDailyActivityLevelLabel(profileUser?.dailyActivityLevel) || '--'}
                         </Text>
                     </Flex>
                     <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
                         <Text style={styles.infoItemLabel}>手机号</Text>
-                        <Text style={styles.infoItemValue}>{maskPhoneNumber(systemUser?.phonenumber)}</Text>
+                        <Text style={styles.infoItemValue}>{phoneText}</Text>
                     </Flex>
                 </View>
 
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>紧急联系人</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Emergency')}>
-                            <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                        </TouchableOpacity>
+                        {readOnly ? (
+                            <TouchableOpacity onPress={() => navigation.navigate('Emergency', viewNavParams)}>
+                                <Flex>
+                                    <Text style={styles.more}>全部</Text>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity onPress={() => navigation.navigate('Emergency')}>
+                                <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
+                            </TouchableOpacity>
+                        )}
                     </Flex>
 
                     <View style={{ marginTop: 10 }}>
                         {emergencyContacts.length === 0 ? (
-                            <TouchableOpacity onPress={() => navigation.navigate('EmergencyAdd')}>
+                            readOnly ? (
                                 <Flex justify="between" style={styles.familyItem}>
                                     <Flex>
                                         <View style={styles.familyItemImgBox}>
                                             <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_phone.png')} />
                                         </View>
                                         <View>
-                                            <Text style={styles.familyItemName}>点击添加联系人</Text>
-                                            <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
+                                            <Text style={styles.familyItemName}>暂未添加联系人</Text>
                                         </View>
                                     </Flex>
-                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                                 </Flex>
-                            </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity onPress={() => navigation.navigate('EmergencyAdd')}>
+                                    <Flex justify="between" style={styles.familyItem}>
+                                        <Flex>
+                                            <View style={styles.familyItemImgBox}>
+                                                <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_phone.png')} />
+                                            </View>
+                                            <View>
+                                                <Text style={styles.familyItemName}>点击添加联系人</Text>
+                                                <Text style={styles.familyItemRelation}>暂未添加联系人</Text>
+                                            </View>
+                                        </Flex>
+                                        <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                    </Flex>
+                                </TouchableOpacity>
+                            )
                         ) : (
-                            emergencyContacts.map((contact, index) => (
-                                <TouchableOpacity
-                                    key={String(contact.id ?? index)}
-                                    onPress={() => {
-                                        if (contact.id != null) {
-                                            navigation.navigate('EmergencyAdd', { id: contact.id });
-                                        } else {
-                                            navigation.navigate('Emergency');
-                                        }
-                                    }}>
+                            emergencyContacts.map((contact, index) => {
+                                const row = (
                                     <Flex
                                         justify="between"
                                         style={styles.familyItem}>
@@ -348,8 +415,26 @@ export default function HealthRecordPage() {
                                         </Flex>
                                         <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                                     </Flex>
-                                </TouchableOpacity>
-                            ))
+                                );
+                                return (
+                                    <TouchableOpacity
+                                        key={String(contact.id ?? index)}
+                                        activeOpacity={readOnly ? 0.85 : 0.7}
+                                        onPress={() => {
+                                            if (readOnly) {
+                                                navigation.navigate('Emergency', viewNavParams);
+                                                return;
+                                            }
+                                            if (contact.id != null) {
+                                                navigation.navigate('EmergencyAdd', { id: contact.id });
+                                            } else {
+                                                navigation.navigate('Emergency');
+                                            }
+                                        }}>
+                                        {row}
+                                    </TouchableOpacity>
+                                );
+                            })
                         )}
                     </View>
                 </View>
@@ -357,7 +442,8 @@ export default function HealthRecordPage() {
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>病例记录</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('CaseNotes')}>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('CaseNotes', viewNavParams)}>
                             <Flex>
                                 <Text style={styles.more}>全部</Text>
                                 <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
@@ -366,10 +452,9 @@ export default function HealthRecordPage() {
                     </Flex>
 
                     <View style={{ marginTop: 10 }}>
-                        {records.map((item, index) => (
-                            <TouchableOpacity key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)} onPress={() => navigation.navigate('CaseDetail', { id: item.medicalRecordId || 0 })}>
+                        {records.map((item, index) => {
+                            const row = (
                                 <Flex
-                                    key={String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`)}
                                     justify="between"
                                     align="center"
                                     style={[styles.familyItem, index == records.length - 1 && { borderBottomWidth: 0 }]}>
@@ -388,20 +473,44 @@ export default function HealthRecordPage() {
                                     </Flex>
                                     <Text style={styles.familyItemTime}>{formatRecordDateLabel(item)}</Text>
                                 </Flex>
-                            </TouchableOpacity>
-                        ))}
+                            );
+                            const key = String(item.medicalRecordId ?? `${item.recordDate}-${item.hospital}`);
+                            return (
+                                <TouchableOpacity
+                                    key={key}
+                                    onPress={() =>
+                                        navigation.navigate('CaseDetail', {
+                                            id: item.medicalRecordId || 0,
+                                            ...(viewNavParams ?? {}),
+                                        })
+                                    }>
+                                    {row}
+                                </TouchableOpacity>
+                            );
+                        })}
                         {records.length === 0 ? (
-                            <TouchableOpacity onPress={() => navigation.navigate('CaseAdd')}>
+                            readOnly ? (
                                 <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
                                     <Flex>
                                         <View style={styles.familyItemImgBox}>
                                             <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_order.png')} />
                                         </View>
-                                        <Text style={styles.familyItemName}>点击添加病例</Text>
+                                        <Text style={styles.familyItemName}>暂无病例记录</Text>
                                     </Flex>
-                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                                 </Flex>
-                            </TouchableOpacity>
+                            ) : (
+                                <TouchableOpacity onPress={() => navigation.navigate('CaseAdd')}>
+                                    <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                        <Flex>
+                                            <View style={styles.familyItemImgBox}>
+                                                <Image style={styles.familyItemImg} source={require('@/assets/images/user/icon_order.png')} />
+                                            </View>
+                                            <Text style={styles.familyItemName}>点击添加病例</Text>
+                                        </Flex>
+                                        <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                    </Flex>
+                                </TouchableOpacity>
+                            )
                         ) : null}
                     </View>
 
@@ -409,9 +518,18 @@ export default function HealthRecordPage() {
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>过敏史</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('Allergies')}>
-                            <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                        </TouchableOpacity>
+                        {readOnly ? (
+                            <TouchableOpacity onPress={() => navigation.navigate('Allergies', viewNavParams)}>
+                                <Flex>
+                                    <Text style={styles.more}>全部</Text>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
+                        ) : (
+                            <TouchableOpacity onPress={() => navigation.navigate('Allergies')}>
+                                <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
+                            </TouchableOpacity>
+                        )}
                     </Flex>
 
                     <View style={{ marginTop: 10 }}>
@@ -448,25 +566,42 @@ export default function HealthRecordPage() {
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>家族病史</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('FamilyHistory')}>
-                            <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
-                        </TouchableOpacity>
-                    </Flex>
-
-                    <View style={{ marginTop: 10 }}>
-                        {familyList.length === 0 ? (
-                            <TouchableOpacity onPress={() => navigation.navigate('FamilyHistoryAdd')}>
-                                <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
-                                    <View>
-                                        <Text style={styles.familyItemName}>点击添加家族病史</Text>
-                                    </View>
+                        {readOnly ? (
+                            <TouchableOpacity onPress={() => navigation.navigate('FamilyHistory', viewNavParams)}>
+                                <Flex>
+                                    <Text style={styles.more}>全部</Text>
                                     <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                                 </Flex>
                             </TouchableOpacity>
                         ) : (
+                            <TouchableOpacity onPress={() => navigation.navigate('FamilyHistory')}>
+                                <Image style={styles.editIcon} source={require('@/assets/images/user/edit.png')} />
+                            </TouchableOpacity>
+                        )}
+                    </Flex>
+
+                    <View style={{ marginTop: 10 }}>
+                        {familyList.length === 0 ? (
+                            readOnly ? (
+                                <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                    <View>
+                                        <Text style={styles.familyItemName}>暂无家族病史</Text>
+                                    </View>
+                                </Flex>
+                            ) : (
+                                <TouchableOpacity onPress={() => navigation.navigate('FamilyHistoryAdd')}>
+                                    <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                        <View>
+                                            <Text style={styles.familyItemName}>点击添加家族病史</Text>
+                                        </View>
+                                        <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                    </Flex>
+                                </TouchableOpacity>
+                            )
+                        ) : (
                             <TouchableOpacity
                                 activeOpacity={0.85}
-                                onPress={() => navigation.navigate('FamilyHistory')}>
+                                onPress={() => navigation.navigate('FamilyHistory', viewNavParams)}>
                                 <View style={familyHistoryStyles.listBox}>
                                     {familyList.map((item, index) => {
                                         const statusStyle = getStatusStyles(item.status);
@@ -510,7 +645,8 @@ export default function HealthRecordPage() {
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>慢病管理</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('ChronicDisease')}>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('ChronicDisease', viewNavParams)}>
                             <Flex>
                                 <Text style={styles.more}>全部</Text>
                                 <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
@@ -531,11 +667,18 @@ export default function HealthRecordPage() {
                                     dailyIndicators={dailyIndicators}
                                     onPress={() =>
                                         item.id != null
-                                        && navigation.navigate('ChronicDiseaseDetailPage', { id: item.id })
+                                        && navigation.navigate('ChronicDiseaseDetailPage', {
+                                            id: item.id,
+                                            ...(viewNavParams ?? {}),
+                                        })
                                     }
                                 />
                             );
                         })
+                    ) : readOnly ? (
+                        <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0, marginTop: 10 }]}>
+                            <Text style={styles.familyItemName}>暂无慢病记录</Text>
+                        </Flex>
                     ) : (
                         <TouchableOpacity onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
                             <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0, marginTop: 10 }]}>
@@ -548,7 +691,8 @@ export default function HealthRecordPage() {
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>评估问卷</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('QuestionnaireList')}>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('QuestionnaireList', viewNavParams)}>
                             <Flex>
                                 <Text style={styles.more}>全部</Text>
                                 <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
@@ -577,7 +721,7 @@ export default function HealthRecordPage() {
                                             style={questionnaireStyles.timeIcon}
                                             source={require('@/assets/images/questionnaire/time.png')}
                                         />
-                                    ) : (
+                                    ) : readOnly ? null : (
                                         <TouchableOpacity
                                             style={questionnaireStyles.startBtn}
                                             onPress={() =>
@@ -593,47 +737,63 @@ export default function HealthRecordPage() {
                                     <>
                                         <View style={[questionnaireStyles.rowLine, { marginTop: 12 }]} />
                                         <Flex justify="between" align="center" style={questionnaireStyles.btmBox}>
-                                            <Flex style={{ flex: 1, marginRight: 8 }}>
-                                                <Image
-                                                    style={questionnaireStyles.iconSize}
-                                                    source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
-                                                />
-                                                <View style={{ marginLeft: 6, flexShrink: 1 }}>
-                                                    {lastAssessment?.result ? (
-                                                        <Text style={questionnaireStyles.rowTitleText}>
-                                                            {lastAssessment.result}
-                                                        </Text>
-                                                    ) : null}
-                                                    {lastAssessment?.date ? (
-                                                        <Text style={questionnaireStyles.rowText}>
-                                                            上次评估：{lastAssessment.date}
-                                                        </Text>
-                                                    ) : null}
-                                                </View>
-                                            </Flex>
                                             <TouchableOpacity
-                                                style={[
-                                                    questionnaireStyles.startBtn,
-                                                    !canStart && questionnaireStyles.startBtnDisabled,
-                                                ]}
-                                                disabled={!canStart}
-                                                onPress={() =>
-                                                    navigation.navigate('QuestionnairePage', { type: item.type })
-                                                }>
-                                                <Flex style={{ flex: 1 }} justify="center">
-                                                    <Text
-                                                        style={[
-                                                            questionnaireStyles.startText,
-                                                            !canStart && questionnaireStyles.startTextDisabled,
-                                                        ]}>
-                                                        {actionLabel}
-                                                    </Text>
+                                                style={{ flex: 1, marginRight: 8 }}
+                                                activeOpacity={lastAssessment?.id ? 0.85 : 1}
+                                                disabled={!lastAssessment?.id}
+                                                onPress={() => {
+                                                    if (!lastAssessment?.id) return;
+                                                    navigation.navigate('QuestionnaireDetail', {
+                                                        id: lastAssessment.id,
+                                                        ...(viewNavParams ?? {}),
+                                                    });
+                                                }}>
+                                                <Flex>
+                                                    <Image
+                                                        style={questionnaireStyles.iconSize}
+                                                        source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
+                                                    />
+                                                    <View style={{ marginLeft: 6, flexShrink: 1 }}>
+                                                        {lastAssessment?.result ? (
+                                                            <Text style={questionnaireStyles.rowTitleText}>
+                                                                {lastAssessment.result}
+                                                            </Text>
+                                                        ) : null}
+                                                        {lastAssessment?.date ? (
+                                                            <Text style={questionnaireStyles.rowText}>
+                                                                上次评估：{lastAssessment.date}
+                                                            </Text>
+                                                        ) : null}
+                                                    </View>
                                                 </Flex>
                                             </TouchableOpacity>
+                                            {!readOnly ? (
+                                                <TouchableOpacity
+                                                    style={[
+                                                        questionnaireStyles.startBtn,
+                                                        !canStart && questionnaireStyles.startBtnDisabled,
+                                                    ]}
+                                                    disabled={!canStart}
+                                                    onPress={() =>
+                                                        navigation.navigate('QuestionnairePage', { type: item.type })
+                                                    }>
+                                                    <Flex style={{ flex: 1 }} justify="center">
+                                                        <Text
+                                                            style={[
+                                                                questionnaireStyles.startText,
+                                                                !canStart && questionnaireStyles.startTextDisabled,
+                                                            ]}>
+                                                            {actionLabel}
+                                                        </Text>
+                                                    </Flex>
+                                                </TouchableOpacity>
+                                            ) : lastAssessment?.id ? (
+                                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                            ) : null}
                                         </Flex>
                                     </>
                                 ) : null}
-                                {!canStart && nextAssessmentDate ? (
+                                {!readOnly && !canStart && nextAssessmentDate ? (
                                     <Flex style={questionnaireStyles.nextAssessBox} align="center">
                                         <Image
                                             style={questionnaireStyles.nextAssessIcon}

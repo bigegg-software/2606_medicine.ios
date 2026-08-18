@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, Image, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   removeEmergencyContact,
@@ -17,19 +17,24 @@ import {
   loadEmergencyContacts,
   loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'Emergency'>;
 
 export default function EmergencyPage() {
   const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
+  const { readOnly, patientUserId } = resolveFamilyReadOnlyView(route.params);
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
   const [relationMap, setRelationMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
+      const patientOpts = patientUserId ? { patientUserId } : undefined;
       const [list, relationLabels] = await Promise.all([
-        loadEmergencyContacts({ pageNum: 1, pageSize: 50 }),
+        loadEmergencyContacts({ pageNum: 1, pageSize: 50 }, patientOpts),
         loadRelationTypeLabelMap(),
       ]);
       setContacts(list);
@@ -39,7 +44,7 @@ export default function EmergencyPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [patientUserId]);
 
   const loadRef = useRef(load);
   loadRef.current = load;
@@ -47,7 +52,7 @@ export default function EmergencyPage() {
 
   useEffect(() => {
     loadRef.current();
-  }, []);
+  }, [patientUserId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,7 +142,8 @@ export default function EmergencyPage() {
                     ]}>
                     <TouchableOpacity
                       style={{ flex: 1, minWidth: 0 }}
-                      activeOpacity={0.7}
+                      activeOpacity={readOnly ? 1 : 0.7}
+                      disabled={readOnly}
                       onPress={() => handleEdit(contact)}>
                       <View style={styles.familyItemRow}>
                         <View style={styles.familyItemImgBox}>
@@ -163,9 +169,11 @@ export default function EmergencyPage() {
                         </View>
                       </View>
                     </TouchableOpacity>
-                    <TouchableOpacity onPress={() => handleDelete(contact)}>
-                      <Image style={styles.editIcon} source={require('@/assets/images/user/del.png')} />
-                    </TouchableOpacity>
+                    {!readOnly ? (
+                      <TouchableOpacity onPress={() => handleDelete(contact)}>
+                        <Image style={styles.editIcon} source={require('@/assets/images/user/del.png')} />
+                      </TouchableOpacity>
+                    ) : null}
                   </Flex>
                 ))}
               </View>
@@ -177,20 +185,22 @@ export default function EmergencyPage() {
         )}
       </ScrollView>
 
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.bottomBarButtonLeft}
-          activeOpacity={0.7}
-          onPress={handleAdd}>
-          <Flex style={{ flex: 1 }}>
-            <Image
-              style={styles.bottomBarButtonImg}
-              source={require('@/assets/images/vitals/icon_add.png')}
-            />
-            <Text style={styles.bottomBarButtonTextLeft}>添加紧急联系人</Text>
-          </Flex>
-        </TouchableOpacity>
-      </View>
+      {!readOnly ? (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={styles.bottomBarButtonLeft}
+            activeOpacity={0.7}
+            onPress={handleAdd}>
+            <Flex style={{ flex: 1 }}>
+              <Image
+                style={styles.bottomBarButtonImg}
+                source={require('@/assets/images/vitals/icon_add.png')}
+              />
+              <Text style={styles.bottomBarButtonTextLeft}>添加紧急联系人</Text>
+            </Flex>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </PageLayout>
   );
 }

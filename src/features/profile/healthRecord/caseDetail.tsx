@@ -28,6 +28,7 @@ import { formatCaseNoteDate, getCaseTypeTagColors } from './utils/caseNotesHelpe
 import RNFS from 'react-native-fs';
 import FileViewer from 'react-native-file-viewer';
 import type { RootStackParamList } from '@/route/router';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'CaseDetail'>;
 
@@ -204,14 +205,18 @@ function AttachmentPreviewItem({ att, index }: { att: MedicalRecordAttachment; i
 }
 
 export default function CaseDetailPage({ route }: Props) {
-    const { id } = route.params;
+    const { patientUserId } = resolveFamilyReadOnlyView(route.params);
+    const recordId = route.params.id;
     const [record, setRecord] = useState<MedicalRecord | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         (async () => {
             try {
-                const res = await getMedicalRecordInfo(id);
+                const res = await getMedicalRecordInfo(
+                    recordId,
+                    patientUserId ? { patientUserId } : undefined,
+                );
                 setRecord(apiResourceData<MedicalRecord>(res as { code?: number; data?: MedicalRecord }) ?? null);
             } catch {
                 setRecord(null);
@@ -219,7 +224,7 @@ export default function CaseDetailPage({ route }: Props) {
                 setLoading(false);
             }
         })();
-    }, [id]);
+    }, [patientUserId, recordId]);
 
     const { images: imageAttachments, files: fileAttachments } = useMemo(
         () => partitionAttachments(record?.attachmentList ?? []),

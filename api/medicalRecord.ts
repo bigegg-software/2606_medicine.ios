@@ -60,8 +60,14 @@ export type MedicalRecordInfoResult = {
   data?: MedicalRecord;
 };
 
-export const getMedicalRecordInfo = (medicalRecordId: number) =>
-  request.get<MedicalRecordInfoResult>('/patient/medicalRecord/getInfo', { params: { medicalRecordId } });
+export const getMedicalRecordInfo = (
+  medicalRecordId: number,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<MedicalRecordInfoResult>('/patient/medicalRecord/getInfo', {
+    params: { medicalRecordId },
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const addMedicalRecord = (data: MedicalRecordPayload) =>
   request.post('/patient/medicalRecord/add', data);

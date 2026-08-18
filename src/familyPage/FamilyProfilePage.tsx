@@ -277,7 +277,20 @@ export default function FamilyProfilePage() {
                 </Flex>
               ))}
 
-              <TouchableOpacity activeOpacity={0.85} style={styles.memberViewAllBtn}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.memberViewAllBtn}
+                disabled={!selectedPatientUserId}
+                onPress={() => {
+                  if (!selectedFamily || !selectedPatientUserId) return;
+                  navigation.navigate('HealthRecord', {
+                    readOnly: true,
+                    patientUserId: selectedPatientUserId,
+                    relationLabel: selectedRelationLabel,
+                    displayName: getChildFamilyDisplayName(selectedFamily),
+                  });
+                }}
+              >
                 <Flex align="center" justify="center">
                   <Text style={styles.memberViewAllText}>查看全部</Text>
                   <Image

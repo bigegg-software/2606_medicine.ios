@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View, Image, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     getUserQuestionFrontList,
     getUserQuestionNewList,
@@ -27,9 +28,13 @@ import {
     type HistoryItem,
 } from './utils/helpers';
 import { MaterialIcons } from '@expo/vector-icons';
+import type { RootStackParamList } from '@/route/router';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 
 export default function QuestionnaireListPage() {
-    const navigation: any = useNavigation();
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    const route = useRoute<RouteProp<RootStackParamList, 'QuestionnaireList'>>();
+    const { readOnly, patientUserId, viewNavParams } = resolveFamilyReadOnlyView(route.params);
     const [lastAssessmentByType, setLastAssessmentByType] = useState<
         Partial<Record<QuestionnaireType, AssessmentSummary>>
     >({});
@@ -45,8 +50,11 @@ export default function QuestionnaireListPage() {
         }
         try {
             const [latestRes, historyRes] = await Promise.all([
-                getUserQuestionNewList(),
-                getUserQuestionFrontList({ pageSize: 20, pageNum: 1 }),
+                getUserQuestionNewList(patientUserId ? { patientUserId } : undefined),
+                getUserQuestionFrontList(
+                    { pageSize: 20, pageNum: 1 },
+                    patientUserId ? { patientUserId } : undefined,
+                ),
             ]);
             const latestRecords =
                 apiResourceData<UserQuestionRecord[]>(latestRes as unknown as UserQuestionNewListResult) ?? [];
@@ -65,7 +73,7 @@ export default function QuestionnaireListPage() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -110,7 +118,7 @@ export default function QuestionnaireListPage() {
                                             style={styles.timeIcon}
                                             source={require('@/assets/images/questionnaire/time.png')}
                                         />
-                                    ) : (
+                                    ) : readOnly ? null : (
                                         <TouchableOpacity
                                             style={styles.startBtn}
                                             onPress={() =>
@@ -127,34 +135,50 @@ export default function QuestionnaireListPage() {
                                     <>
                                         <View style={[styles.rowLine, { marginTop: 12 }]} />
                                         <Flex justify="between" align="center" style={styles.btmBox}>
-                                            <Flex style={{ flex: 1, marginRight: 8 }}>
-                                                <Image
-                                                    style={styles.iconSize}
-                                                    source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
-                                                />
-                                                <View style={{ marginLeft: 6, flexShrink: 1 }}>
-                                                    {lastAssessment?.result ? (
-                                                        <Text style={styles.rowTitleText}>{lastAssessment.result}</Text>
-                                                    ) : null}
-                                                    {lastAssessment?.date ? (
-                                                        <Text style={styles.rowText}>上次评估：{lastAssessment.date}</Text>
-                                                    ) : null}
-                                                </View>
-                                            </Flex>
                                             <TouchableOpacity
-                                                style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
-                                                disabled={!canStart}
-                                                onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
-                                                <Flex style={{ flex: 1 }} justify="center">
-                                                    <Text style={[styles.startText, !canStart && styles.startTextDisabled]}>
-                                                        {actionLabel}
-                                                    </Text>
+                                                style={{ flex: 1, marginRight: 8 }}
+                                                activeOpacity={lastAssessment?.id ? 0.85 : 1}
+                                                disabled={!lastAssessment?.id}
+                                                onPress={() => {
+                                                    if (!lastAssessment?.id) return;
+                                                    navigation.navigate('QuestionnaireDetail', {
+                                                        id: lastAssessment.id,
+                                                        ...(viewNavParams ?? {}),
+                                                    });
+                                                }}>
+                                                <Flex>
+                                                    <Image
+                                                        style={styles.iconSize}
+                                                        source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
+                                                    />
+                                                    <View style={{ marginLeft: 6, flexShrink: 1 }}>
+                                                        {lastAssessment?.result ? (
+                                                            <Text style={styles.rowTitleText}>{lastAssessment.result}</Text>
+                                                        ) : null}
+                                                        {lastAssessment?.date ? (
+                                                            <Text style={styles.rowText}>上次评估：{lastAssessment.date}</Text>
+                                                        ) : null}
+                                                    </View>
                                                 </Flex>
                                             </TouchableOpacity>
+                                            {!readOnly ? (
+                                                <TouchableOpacity
+                                                    style={[styles.startBtn, !canStart && styles.startBtnDisabled]}
+                                                    disabled={!canStart}
+                                                    onPress={() => navigation.navigate('QuestionnairePage', { type: item.type })}>
+                                                    <Flex style={{ flex: 1 }} justify="center">
+                                                        <Text style={[styles.startText, !canStart && styles.startTextDisabled]}>
+                                                            {actionLabel}
+                                                        </Text>
+                                                    </Flex>
+                                                </TouchableOpacity>
+                                            ) : lastAssessment?.id ? (
+                                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                            ) : null}
                                         </Flex>
                                     </>
                                 ) : null}
-                                {!canStart && nextAssessmentDate ? (
+                                {!readOnly && !canStart && nextAssessmentDate ? (
                                     <Flex style={styles.nextAssessBox} align="center">
                                         <Image
                                             style={styles.nextAssessIcon}
@@ -172,7 +196,7 @@ export default function QuestionnaireListPage() {
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>评估历史</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate('QuestionnaireHistory')}>
+                        <TouchableOpacity onPress={() => navigation.navigate('QuestionnaireHistory', viewNavParams)}>
                             <Flex>
                                 <Text style={styles.more}>全部</Text>
                                 <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
@@ -190,7 +214,12 @@ export default function QuestionnaireListPage() {
                             <TouchableOpacity
                                 key={item.id}
                                 style={styles.rowBox}
-                                onPress={() => navigation.navigate('QuestionnaireDetail', { id: item.id })}>
+                                onPress={() =>
+                                    navigation.navigate('QuestionnaireDetail', {
+                                        id: item.id,
+                                        ...(viewNavParams ?? {}),
+                                    })
+                                }>
                                 <Flex justify="between">
                                     <View>
                                         <Text style={styles.rowTitle}>{item.title}</Text>

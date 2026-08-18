@@ -19,16 +19,21 @@ import {
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/chronicDisease/detail';
 
-export default function TodayMealSection() {
+export default function TodayMealSection({
+    patientUserId,
+}: {
+    patientUserId?: string;
+}) {
     const [loading, setLoading] = useState(true);
     const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
     const [todayMealList, setTodayMealList] = useState<MealDetailItem[]>([]);
 
     const loadMealData = useCallback(async () => {
+        const patientOpts = patientUserId ? { patientUserId } : undefined;
         try {
             const [ruleRes, todayRes] = await Promise.all([
-                getInUseDietPatientRuleInfo(),
-                getTodayMealDetailList(),
+                getInUseDietPatientRuleInfo(patientOpts),
+                getTodayMealDetailList(patientOpts),
             ]);
             setDietRule(
                 apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as ApiResult<DietPatientRuleInfo>) ?? null,
@@ -42,7 +47,7 @@ export default function TodayMealSection() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {

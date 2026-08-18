@@ -6,6 +6,7 @@ import type { NativeStackNavigationProp, NativeStackScreenProps } from '@react-n
 import styles from '@/css/chronicDisease/detail';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import ChronicTrendSection from './components/ChronicTrendSection';
 import TodayOverviewSection from './components/TodayOverviewSection';
 import MedicationPlanSection from './components/MedicationPlanSection';
@@ -21,20 +22,24 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ChronicDiseaseDetailPage({ route }: Props) {
     const recordId = route.params?.id;
+    const { readOnly, patientUserId } = resolveFamilyReadOnlyView(route.params);
     const navigation = useNavigation<Nav>();
     const [loading, setLoading] = useState(true);
     const [detail, setDetail] = useState<ChronicDetailData | null>(null);
 
     const loadDetail = useCallback(async () => {
         try {
-            const data = await loadChronicDetailData(recordId);
+            const data = await loadChronicDetailData(
+                recordId,
+                patientUserId ? { patientUserId } : undefined,
+            );
             setDetail(data);
         } catch {
             setDetail(null);
         } finally {
             setLoading(false);
         }
-    }, [recordId]);
+    }, [patientUserId, recordId]);
 
     const loadDetailRef = useRef(loadDetail);
     loadDetailRef.current = loadDetail;
@@ -63,15 +68,17 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
 
     useEffect(() => {
         navigation.setOptions({
-            headerRight: () => (
-                <TouchableOpacity
-                    onPress={() => navigation.navigate('ChronicDiseaseAddPage', { id: recordId })}
-                    style={{ marginRight: 16 }}>
-                    <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>编辑慢病</Text>
-                </TouchableOpacity>
-            ),
+            headerRight: readOnly
+                ? undefined
+                : () => (
+                    <TouchableOpacity
+                        onPress={() => navigation.navigate('ChronicDiseaseAddPage', { id: recordId })}
+                        style={{ marginRight: 16 }}>
+                        <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>编辑慢病</Text>
+                    </TouchableOpacity>
+                ),
         });
-    }, [navigation]);
+    }, [navigation, readOnly, recordId]);
 
     useEffect(() => {
         navigation.setOptions({ title: diseaseLabel });
@@ -92,8 +99,8 @@ export default function ChronicDiseaseDetailPage({ route }: Props) {
             <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
                 <ChronicTrendSection detail={detail} />
                 <TodayOverviewSection overview={detail.todayOverview} />
-                <MedicationPlanSection medications={detail.associatedMedications} />
-                <TodayMealSection />
+                <MedicationPlanSection medications={detail.associatedMedications} readOnly={readOnly} />
+                <TodayMealSection patientUserId={patientUserId} />
             </ScrollView>
         </PageLayout>
     );

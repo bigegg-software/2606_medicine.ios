@@ -15,16 +15,28 @@ export function resolveFamilyReadOnlyView(
   patientUserId?: string;
   relationLabel: string;
   displayName?: string;
+  /** 向二级页透传；本人可写时为 undefined */
+  viewNavParams: FamilyReadOnlyViewParams | undefined;
 } {
   const patientUserId =
     params?.patientUserId != null ? String(params.patientUserId).trim() : '';
   const readOnly = Boolean(params?.readOnly) || Boolean(patientUserId);
   const relationLabel = params?.relationLabel?.trim() || '家人';
   const displayName = params?.displayName?.trim() || undefined;
+  const id = patientUserId || undefined;
+  const viewNavParams: FamilyReadOnlyViewParams | undefined = readOnly
+    ? {
+        readOnly: true,
+        ...(id ? { patientUserId: id } : {}),
+        relationLabel,
+        ...(displayName ? { displayName } : {}),
+      }
+    : undefined;
   return {
     readOnly,
-    patientUserId: patientUserId || undefined,
+    patientUserId: id,
     relationLabel,
     displayName,
+    viewNavParams,
   };
 }

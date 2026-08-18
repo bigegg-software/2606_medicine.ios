@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type ChronicDiseaseRecord = {
   id?: number;
@@ -36,11 +37,23 @@ export type ChronicDiseasePayload = {
   associationMedicationPlanIds?: (string | number)[];
 };
 
-export const getChronicDiseaseFrontList = (params?: ChronicDiseaseListParams) =>
-  request.get<ChronicDiseaseListResult>('/patient/chronicDisease/frontList', { params });
+export const getChronicDiseaseFrontList = (
+  params?: ChronicDiseaseListParams,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<ChronicDiseaseListResult>('/patient/chronicDisease/frontList', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
-export const getChronicDiseaseInfo = (id: number) =>
-  request.get<ChronicDiseaseInfoResult>('/patient/chronicDisease/getInfo', { params: { id } });
+export const getChronicDiseaseInfo = (
+  id: number,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<ChronicDiseaseInfoResult>('/patient/chronicDisease/getInfo', {
+    params: { id },
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export const addChronicDisease = (data: ChronicDiseasePayload) =>
   request.post('/patient/chronicDisease/add', data);

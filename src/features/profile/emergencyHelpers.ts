@@ -37,9 +37,12 @@ export async function loadRelationTypeLabelMap(): Promise<Record<string, string>
   return buildDictLabelMap(options);
 }
 
-export async function loadEmergencyContacts(params?: EmergencyContactListParams): Promise<EmergencyContact[]> {
+export async function loadEmergencyContacts(
+  params?: EmergencyContactListParams,
+  options?: { patientUserId?: string | number | null },
+): Promise<EmergencyContact[]> {
   try {
-    const res = await getEmergencyContactList(params);
+    const res = await getEmergencyContactList(params, options);
     return getResourceRows(res as { code?: number; rows?: EmergencyContact[] });
   } catch {
     return [];

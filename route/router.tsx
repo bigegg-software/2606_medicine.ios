@@ -9,6 +9,7 @@ import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import type { QuestionnaireType } from '@/api/questionTemplate';
 import type { MeasureDataItem } from '@/api/measureData';
+import type { FamilyReadOnlyViewParams } from '@/src/familyPage/utils/familyReadOnlyView';
 
 
 import IndexPage from '@/src/features/auth/indexPage';
@@ -180,19 +181,24 @@ export type RootStackParamList = {
   CourseDetail: { courseId: string };
   LiveDetail: { liveId: string };
   ProfileEditPage: undefined;
-  HealthRecord: undefined;
-  Emergency: undefined;
+  HealthRecord: {
+    readOnly?: boolean;
+    patientUserId?: string;
+    relationLabel?: string;
+    displayName?: string;
+  } | undefined;
+  Emergency: FamilyReadOnlyViewParams | undefined;
   EmergencyAdd: { id?: number } | undefined;
-  CaseNotes: undefined;
+  CaseNotes: FamilyReadOnlyViewParams | undefined;
   CaseAdd: undefined;
   CaseCameraPage: { mode?: 'attach' | 'identify' } | undefined;
   CaseAlbumPage: { mode?: 'attach' | 'identify' } | undefined;
-  CaseDetail: { id: number };
+  CaseDetail: { id: number } & FamilyReadOnlyViewParams;
   QuestionnairePage: { type: QuestionnaireType };
-  QuestionnaireList: undefined;
-  QuestionnaireDetail: { id: string; patientUserId?: string };
+  QuestionnaireList: FamilyReadOnlyViewParams | undefined;
+  QuestionnaireDetail: { id: string } & FamilyReadOnlyViewParams;
   QuestionnaireResult: { id: string; type: QuestionnaireType };
-  QuestionnaireHistory: undefined;
+  QuestionnaireHistory: FamilyReadOnlyViewParams | undefined;
   FamilyAssessmentHistory: { patientUserId: string };
   FamilyAssessmentResult: {
     id: string;
@@ -214,14 +220,14 @@ export type RootStackParamList = {
   EquipmentDetailPage: {
     id: string;
   };
-  Allergies: undefined;
+  Allergies: FamilyReadOnlyViewParams | undefined;
   AllergiesAdd: { type: string; editIndex?: number };
-  FamilyHistory: undefined;
+  FamilyHistory: FamilyReadOnlyViewParams | undefined;
   FamilyHistoryAdd: { editIndex?: number } | undefined;
   FamilyBind: undefined;
-  ChronicDisease: undefined;
+  ChronicDisease: FamilyReadOnlyViewParams | undefined;
   ChronicDiseaseAddPage: { id?: number } | undefined;
-  ChronicDiseaseDetailPage: { id: number } | undefined;
+  ChronicDiseaseDetailPage: ({ id: number } & FamilyReadOnlyViewParams) | undefined;
   VitalsPage: {
     /** 家人只读查看 */
     readOnly?: boolean;

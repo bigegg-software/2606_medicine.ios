@@ -2,11 +2,14 @@ import React, { useCallback, useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getUserQuestionFrontList } from '@/api/questionTemplate';
 import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
 import EmptyRecord from '@/src/components/EmptyRecord';
+import type { RootStackParamList } from '@/route/router';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import {
     getUserQuestionListRecords,
     sortRecordsByTime,
@@ -17,7 +20,9 @@ import {
 const PAGE_SIZE = 20;
 
 export default function QuestionnaireHistoryPage() {
-    const navigation: any = useNavigation();
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    const route = useRoute<RouteProp<RootStackParamList, 'QuestionnaireHistory'>>();
+    const { patientUserId, viewNavParams } = resolveFamilyReadOnlyView(route.params);
     const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
@@ -29,7 +34,10 @@ export default function QuestionnaireHistoryPage() {
             setLoading(true);
         }
         try {
-            const res = await getUserQuestionFrontList({ pageSize: PAGE_SIZE, pageNum: 1 });
+            const res = await getUserQuestionFrontList(
+                { pageSize: PAGE_SIZE, pageNum: 1 },
+                patientUserId ? { patientUserId } : undefined,
+            );
             const records = getUserQuestionListRecords(res);
             setHistoryList(
                 sortRecordsByTime(records)
@@ -42,7 +50,7 @@ export default function QuestionnaireHistoryPage() {
             setLoading(false);
             setRefreshing(false);
         }
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -81,7 +89,12 @@ export default function QuestionnaireHistoryPage() {
                         <TouchableOpacity
                             key={item.id}
                             style={[styles.rowBox, { backgroundColor: "#FFF" }]}
-                            onPress={() => navigation.navigate('QuestionnaireDetail', { id: item.id })}>
+                            onPress={() =>
+                                navigation.navigate('QuestionnaireDetail', {
+                                    id: item.id,
+                                    ...(viewNavParams ?? {}),
+                                })
+                            }>
                             <Flex justify="between">
                                 <View>
                                     <Text style={styles.rowTitle}>{item.title}</Text>

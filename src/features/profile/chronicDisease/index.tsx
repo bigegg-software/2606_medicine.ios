@@ -12,13 +12,14 @@ import {
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { getChronicDiseaseFrontList, type ChronicDiseaseRecord } from '@/api/chronicDisease';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/chronicDisease/index';
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import ChronicDiseaseCard from './components/ChronicDiseaseCard';
 import {
     DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS,
@@ -28,6 +29,7 @@ import {
 } from './components/chronicData';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'ChronicDisease'>;
 
 const PAGE_SIZE = 5;
 
@@ -44,6 +46,8 @@ type FetchMode = 'initial' | 'refresh' | 'loadMore' | 'silent';
 
 export default function ChronicDiseasePage() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<Route>();
+    const { readOnly, patientUserId, viewNavParams } = resolveFamilyReadOnlyView(route.params);
     const [records, setRecords] = useState<ChronicDiseaseRecord[]>([]);
     const [diseaseTypeLabels, setDiseaseTypeLabels] = useState<Record<string, string>>({});
     const [dailyIndicatorsById, setDailyIndicatorsById] = useState<Map<number, ChronicDiseaseDailyIndicators>>(
@@ -99,7 +103,10 @@ export default function ChronicDiseasePage() {
 
         try {
             const [res, labelMap] = await Promise.all([
-                getChronicDiseaseFrontList({ pageNum: page, pageSize: PAGE_SIZE }),
+                getChronicDiseaseFrontList(
+                    { pageNum: page, pageSize: PAGE_SIZE },
+                    patientUserId ? { patientUserId } : undefined,
+                ),
                 Object.keys(diseaseTypeLabelsRef.current).length > 0
                     ? Promise.resolve(diseaseTypeLabelsRef.current)
                     : loadDiseaseTypeLabelMap(),
@@ -118,7 +125,11 @@ export default function ChronicDiseasePage() {
 
             if (mode === 'loadMore') {
                 setRecords(prev => [...prev, ...rows]);
-                const indicators = await loadChronicIndexIndicators(rows, labelMap);
+                const indicators = await loadChronicIndexIndicators(
+                    rows,
+                    labelMap,
+                    patientUserId ? { patientUserId } : undefined,
+                );
                 setDailyIndicatorsById(prev => {
                     const next = new Map(prev);
                     indicators.forEach((value, key) => next.set(key, value));
@@ -126,7 +137,11 @@ export default function ChronicDiseasePage() {
                 });
             } else {
                 setRecords(rows);
-                const indicators = await loadChronicIndexIndicators(rows, labelMap);
+                const indicators = await loadChronicIndexIndicators(
+                    rows,
+                    labelMap,
+                    patientUserId ? { patientUserId } : undefined,
+                );
                 setDailyIndicatorsById(indicators);
             }
 
@@ -157,7 +172,7 @@ export default function ChronicDiseasePage() {
                 setLoadingMore(false);
             }
         }
-    }, [hasMoreData]);
+    }, [hasMoreData, patientUserId]);
 
     const fetchPageRef = useRef(fetchPage);
     fetchPageRef.current = fetchPage;
@@ -166,7 +181,7 @@ export default function ChronicDiseasePage() {
 
     useEffect(() => {
         void fetchPageRef.current(1, 'initial');
-    }, []);
+    }, [patientUserId]);
 
     useFocusEffect(
         useCallback(() => {
@@ -271,7 +286,10 @@ export default function ChronicDiseasePage() {
                                     dailyIndicators={dailyIndicators}
                                     onPress={() =>
                                         item.id != null
-                                        && navigation.navigate('ChronicDiseaseDetailPage', { id: item.id })
+                                        && navigation.navigate('ChronicDiseaseDetailPage', {
+                                            id: item.id,
+                                            ...(viewNavParams ?? {}),
+                                        })
                                     }
                                 />
                             );
@@ -281,20 +299,22 @@ export default function ChronicDiseasePage() {
                 )}
             </ScrollView>
 
-            <View style={styles.bottomBar}>
-                <TouchableOpacity
-                    style={styles.bottomBarButton}
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
-                    <Flex style={{ flex: 1 }} justify="center" align="center">
-                        <Image
-                            style={styles.bottomBarButtonImg}
-                            source={require('@/assets/images/vitals/icon_add.png')}
-                        />
-                        <Text style={styles.bottomBarButtonText}>添加慢病</Text>
-                    </Flex>
-                </TouchableOpacity>
-            </View>
+            {!readOnly ? (
+                <View style={styles.bottomBar}>
+                    <TouchableOpacity
+                        style={styles.bottomBarButton}
+                        activeOpacity={0.7}
+                        onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
+                        <Flex style={{ flex: 1 }} justify="center" align="center">
+                            <Image
+                                style={styles.bottomBarButtonImg}
+                                source={require('@/assets/images/vitals/icon_add.png')}
+                            />
+                            <Text style={styles.bottomBarButtonText}>添加慢病</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                </View>
+            ) : null}
         </PageLayout>
     );
 }
