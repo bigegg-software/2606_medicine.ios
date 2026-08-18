@@ -32,8 +32,8 @@ export default function SyncReminderModal({ visible, syncing, onLater, onSync }:
           >
             <MaterialIcons name="close" size={22} color={AppTheme.textSecondary} />
           </TouchableOpacity>
-          <Text style={styles.autoSyncDialogTitle}>今天还未同步数据</Text>
-          <Text style={styles.autoSyncDialogDesc}>同步完成即可签到成功</Text>
+          <Text style={styles.autoSyncDialogTitle}>今日数据尚未同步</Text>
+          <Text style={styles.autoSyncDialogDesc}>今日健康数据还未同步，建议及时同步最新数据，以便查看今日健康状态和相关分析。</Text>
           <Flex justify="between" style={styles.autoSyncDialogBtnBox}>
             <TouchableOpacity
               onPress={onLater}

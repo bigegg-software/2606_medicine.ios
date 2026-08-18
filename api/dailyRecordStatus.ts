@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type DailyRecordStatusItem = {
   customerLocalDate?: string;
@@ -45,20 +46,38 @@ export type DailyLiveItem = {
   isReserved?: boolean;
 };
 
-export const getDailyRecordStatusListByDateRange = (params: {
-  startDate: string;
-  endDate: string;
-}) =>
-  request.get<DailyRecordStatusListResult>('/patient/dailyRecordStatus/listByDateRange', { params });
+export const getDailyRecordStatusListByDateRange = (
+  params: {
+    startDate: string;
+    endDate: string;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<DailyRecordStatusListResult>('/patient/dailyRecordStatus/listByDateRange', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
-export const getDailyActivityListByDate = (params: { customerLocalDate: string }) =>
+export const getDailyActivityListByDate = (
+  params: { customerLocalDate: string },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: DailyActivityItem[] }>(
     '/patient/dailyRecordStatus/activityListByDate',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
-export const getDailyLiveListByDate = (params: { customerLocalDate: string }) =>
+export const getDailyLiveListByDate = (
+  params: { customerLocalDate: string },
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: DailyLiveItem[] }>(
     '/patient/dailyRecordStatus/liveListByDate',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );

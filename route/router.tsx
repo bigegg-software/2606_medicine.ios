@@ -253,7 +253,7 @@ export type RootStackParamList = {
   BloodLipidPage: { readOnly?: boolean; patientUserId?: string } | undefined;
   UricAcidPage: { readOnly?: boolean; patientUserId?: string } | undefined;
   SortPage: { items: Array<{ key: string; status: string; statusColor: string }> };
-  CalendarPage: undefined;
+  CalendarPage: FamilyReadOnlyViewParams | undefined;
   ScheduleHistoryPage: undefined;
   ScheduleHistoryDetailPage: { exPatientRuleId: string };
   TrainingStatsPage: {

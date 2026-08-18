@@ -42,6 +42,11 @@ import {
   resolveFamilyHomeActivityProgressPercent,
   type FamilyHomeFocusSummary,
 } from './utils/familyHomeHelpers';
+import {
+  getApprovedFamilyBindList,
+  getChildFamilyDisplayName,
+  getFamilyTabKey,
+} from './utils/familyProfileHelpers';
 import styles from '@/css/family/home';
 
 export default function FamilyHomePage() {
@@ -57,6 +62,7 @@ export default function FamilyHomePage() {
   const userInfo = useSelector((state: RootState) => state.user.info);
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const familyList = useSelector((state: RootState) => state.family.list);
+  const selectedFamilyKey = useSelector((state: RootState) => state.family.selectedKey);
 
   const messageScope = useMemo(
     () => buildMessageScopeParams({ identityPerspective, userId }),
@@ -92,6 +98,30 @@ export default function FamilyHomePage() {
     () => buildFamilyHomeMemberCards(familyList, relationLabelMap),
     [familyList, relationLabelMap],
   );
+  const approvedFamilyList = useMemo(
+    () => getApprovedFamilyBindList(familyList),
+    [familyList],
+  );
+  const selectedFamily = useMemo(() => {
+    if (!selectedFamilyKey) return approvedFamilyList[0] ?? null;
+    return (
+      approvedFamilyList.find((item, index) => getFamilyTabKey(item, index) === selectedFamilyKey)
+      ?? approvedFamilyList[0]
+      ?? null
+    );
+  }, [approvedFamilyList, selectedFamilyKey]);
+  const selectedPatientUserId = useMemo(() => {
+    const id = selectedFamily?.patientUserId;
+    return id != null ? String(id) : '';
+  }, [selectedFamily]);
+  const selectedRelationLabel = useMemo(() => {
+    if (!selectedFamily) return '家人';
+    return (
+      relationLabelMap[String(selectedFamily.relationType ?? '')]
+      || selectedFamily.relationType?.trim()
+      || '家人'
+    );
+  }, [relationLabelMap, selectedFamily]);
   const firstMember = memberCards[0];
   const firstExerciseRate = firstMember?.patientUserId
     ? activityProgressMap[firstMember.patientUserId]
@@ -222,10 +252,25 @@ export default function FamilyHomePage() {
                 <View style={styles.todoBar} />
                 <Text style={styles.todoTitle}>重要待办（2项）</Text>
               </Flex>
-              <Image
-                source={require('@/assets/family/home/icon_rl.png')}
-                style={styles.todoRightIcon}
-              />
+              <TouchableOpacity
+                activeOpacity={0.85}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                disabled={!selectedPatientUserId}
+                onPress={() => {
+                  if (!selectedFamily || !selectedPatientUserId) return;
+                  navigation.navigate('CalendarPage', {
+                    readOnly: true,
+                    patientUserId: selectedPatientUserId,
+                    relationLabel: selectedRelationLabel,
+                    displayName: getChildFamilyDisplayName(selectedFamily),
+                  });
+                }}
+              >
+                <Image
+                  source={require('@/assets/family/home/icon_rl.png')}
+                  style={styles.todoRightIcon}
+                />
+              </TouchableOpacity>
             </Flex>
             <Flex style={[styles.todoItem, { marginTop: 12 }]} align="center" justify="between">
               <Flex align="center" style={{ flex: 1 }}>

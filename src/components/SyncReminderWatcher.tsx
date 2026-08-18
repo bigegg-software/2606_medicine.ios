@@ -99,7 +99,7 @@ export default function SyncReminderWatcher() {
         Toast.show(res.msg ?? '同步失败，请稍后重试', 1.5);
         return;
       }
-      Toast.success('同步成功，签到完成', 1.5);
+      Toast.success('今日数据同步成功', 1.5);
     } catch {
       Toast.show('健康数据同步失败，请稍后重试', 1.5);
     } finally {

@@ -403,11 +403,14 @@ function mapRecordedMealTimelineItemWithoutCard(
   };
 }
 
-async function loadMealDetailListForDate(customerLocalDate: string): Promise<MealDetailItem[]> {
+async function loadMealDetailListForDate(
+  customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
+): Promise<MealDetailItem[]> {
   const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
   if (isToday) {
     try {
-      const res = await getTodayMealDetailList();
+      const res = await getTodayMealDetailList(options);
       if (!isResourceApiOk(res as unknown as { code?: number })) return [];
       return apiResourceData<MealDetailItem[]>(res as unknown as { code?: number; data?: MealDetailItem[] }) ?? [];
     } catch {
@@ -416,7 +419,7 @@ async function loadMealDetailListForDate(customerLocalDate: string): Promise<Mea
   }
 
   try {
-    const res = await getMealListByDate({ customerLocalDate });
+    const res = await getMealListByDate({ customerLocalDate }, options);
     if (!isResourceApiOk(res)) return [];
 
     const meals = (apiResourceData<MealRecordItem[]>(
@@ -430,7 +433,7 @@ async function loadMealDetailListForDate(customerLocalDate: string): Promise<Mea
       meals.map(async meal => {
         if (meal.mealId == null || meal.mealId === '') return null;
         try {
-          const detailRes = await getMealDetailByMealId(String(meal.mealId));
+          const detailRes = await getMealDetailByMealId(String(meal.mealId), options);
           if (!isResourceApiOk(detailRes)) return null;
           return apiResourceData<MealRecordDetail>(
             detailRes as unknown as { code?: number; data?: MealRecordDetail },
@@ -611,6 +614,7 @@ export type LoadCalendarDayTimelineOptions = {
   progressMap?: Record<string, number>;
   /** 已缓存的运动字典，传入后不再重复请求 */
   dictMaps?: ScheduleDictMaps;
+  patientUserId?: string | number | null;
 };
 
 function formatMedicationEventLabel(label?: string) {
@@ -697,9 +701,11 @@ function mapMealTimelineItem(
   return null;
 }
 
-async function loadDietRuleInfo(): Promise<DietPatientRuleInfo | null> {
+async function loadDietRuleInfo(
+  options?: { patientUserId?: string | number | null },
+): Promise<DietPatientRuleInfo | null> {
   try {
-    const ruleRes = await getInUseDietPatientRuleInfo();
+    const ruleRes = await getInUseDietPatientRuleInfo(options);
     return apiResourceData<DietPatientRuleInfo>(
       ruleRes as { code?: number; data?: DietPatientRuleInfo },
     ) ?? null;
@@ -729,8 +735,11 @@ function mapRecordedMealsFromDetailList(mealDetailList: MealDetailItem[]): Calen
  * 1. 先取「今日摄入」
  * 2. 早/中/晚未记全时，用「餐食建议」mealCards 补齐未记录餐次
  */
-async function loadTodayDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
-  const mealDetailList = await loadMealDetailListForDate(customerLocalDate);
+async function loadTodayDietTimelineItems(
+  customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
+): Promise<CalendarTimelineItem[]> {
+  const mealDetailList = await loadMealDetailListForDate(customerLocalDate, options);
   const items = mapRecordedMealsFromDetailList(mealDetailList);
   const coveredCategories = new Set(
     items.map(item => item.mealCategory).filter((value): value is number => value != null),
@@ -741,7 +750,7 @@ async function loadTodayDietTimelineItems(customerLocalDate: string): Promise<Ca
     return items.sort((left, right) => left.sortValue - right.sortValue);
   }
 
-  const dietRule = await loadDietRuleInfo();
+  const dietRule = await loadDietRuleInfo(options);
   const suggestionCards = getMealSuggestionCards(dietRule);
 
   suggestionCards.forEach((mealCard, index) => {
@@ -757,10 +766,13 @@ async function loadTodayDietTimelineItems(customerLocalDate: string): Promise<Ca
 }
 
 /** 历史：保持原逻辑，用处方 mealList + 当日记录，不调 AI */
-async function loadHistoryDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
+async function loadHistoryDietTimelineItems(
+  customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
+): Promise<CalendarTimelineItem[]> {
   const [dietRule, mealDetailList] = await Promise.all([
-    loadDietRuleInfo(),
-    loadMealDetailListForDate(customerLocalDate),
+    loadDietRuleInfo(options),
+    loadMealDetailListForDate(customerLocalDate, options),
   ]);
 
   const recommendedCards = buildMealCardsFromRuleForDate(dietRule?.mealList, customerLocalDate);
@@ -793,13 +805,16 @@ async function loadHistoryDietTimelineItems(customerLocalDate: string): Promise<
     .sort((left, right) => left.sortValue - right.sortValue);
 }
 
-async function loadDietTimelineItems(customerLocalDate: string): Promise<CalendarTimelineItem[]> {
+async function loadDietTimelineItems(
+  customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
+): Promise<CalendarTimelineItem[]> {
   try {
     const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
     if (isToday) {
-      return loadTodayDietTimelineItems(customerLocalDate);
+      return loadTodayDietTimelineItems(customerLocalDate, options);
     }
-    return loadHistoryDietTimelineItems(customerLocalDate);
+    return loadHistoryDietTimelineItems(customerLocalDate, options);
   } catch {
     return [];
   }
@@ -866,6 +881,7 @@ async function loadExerciseTimelineItems(
 async function loadMedicationTimelineItems(
   customerLocalDate: string,
   dictMaps?: MedicationDictMaps,
+  options?: { patientUserId?: string | number | null },
 ): Promise<CalendarTimelineItem[]> {
   try {
     const res = await getMedicationRecordAll({
@@ -873,7 +889,7 @@ async function loadMedicationTimelineItems(
       endDate: customerLocalDate,
       pageSize: 100,
       pageNum: 1,
-    });
+    }, options);
     if (!isResourceApiOk(res as { code?: number })) return [];
 
     const rows = getResourceRows<MedicationRecordDayGroup>(res);
@@ -885,11 +901,14 @@ async function loadMedicationTimelineItems(
   }
 }
 
-export async function loadDailyRecordStatusMap(month: Moment) {
+export async function loadDailyRecordStatusMap(
+  month: Moment,
+  options?: { patientUserId?: string | number | null },
+) {
   const { startDate, endDate } = getCalendarGridDateRange(month);
 
   try {
-    const res = await getDailyRecordStatusListByDateRange({ startDate, endDate });
+    const res = await getDailyRecordStatusListByDateRange({ startDate, endDate }, options);
     if (!isResourceApiOk(res)) return new Map<string, DailyRecordStatusItem>();
 
     const list = apiResourceData<DailyRecordStatusItem[]>(res as any) ?? [];
@@ -910,14 +929,17 @@ export async function loadCalendarDayTimelineItems(
   options?: LoadCalendarDayTimelineOptions,
 ) {
   try {
+    const patientOpts = options?.patientUserId != null
+      ? { patientUserId: options.patientUserId }
+      : undefined;
     const detailTasks: Promise<CalendarTimelineItem[]>[] = [
-      getDailyActivityListByDate({ customerLocalDate })
+      getDailyActivityListByDate({ customerLocalDate }, patientOpts)
         .then(res => (isResourceApiOk(res)
           ? (apiResourceData<DailyActivityItem[]>(res as any) ?? []).map(mapActivityTimelineItem)
           : [])),
       (async () => {
         const [liveRes, platformLabelMap] = await Promise.all([
-          getDailyLiveListByDate({ customerLocalDate }),
+          getDailyLiveListByDate({ customerLocalDate }, patientOpts),
           loadLivePlatformLabelMap(),
         ]);
         if (!isResourceApiOk(liveRes)) return [];
@@ -925,7 +947,7 @@ export async function loadCalendarDayTimelineItems(
           mapLiveTimelineItem(item, index, platformLabelMap),
         );
       })(),
-      loadDietTimelineItems(customerLocalDate),
+      loadDietTimelineItems(customerLocalDate, patientOpts),
     ];
 
     const progressMap = options?.progressMap;
@@ -947,7 +969,7 @@ export async function loadCalendarDayTimelineItems(
     if (status?.isDrug && customerLocalDate !== moment().format('YYYY-MM-DD')) {
       detailTasks.push(
         loadMedicationDictMaps()
-          .then(dictMaps => loadMedicationTimelineItems(customerLocalDate, dictMaps)),
+          .then(dictMaps => loadMedicationTimelineItems(customerLocalDate, dictMaps, patientOpts)),
       );
     }
 
