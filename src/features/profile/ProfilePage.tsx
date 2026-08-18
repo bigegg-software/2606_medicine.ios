@@ -42,6 +42,7 @@ import {
   getFamilyBindStatusMeta,
   getFamilyDisplayName,
   getFamilyListSubtitle,
+  resolveFamilyBindAvatarSource,
 } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
 import {
   hydrateEquipment,
@@ -463,8 +464,8 @@ export default function ProfilePage() {
                 >
                   <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
                     <Image
-                      style={styles.imgItem}
-                      source={require('@/assets/images/family/family.png')}
+                      style={styles.familyItemImg}
+                      source={resolveFamilyBindAvatarSource(item)}
                     />
                     <View style={[styles.familyItemContent, { flex: 1, minWidth: 0 }]}>
                       <Flex align="center">

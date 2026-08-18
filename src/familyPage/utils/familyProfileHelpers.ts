@@ -1,5 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 import type { FamilyBindItem } from '@/api/familyBind';
+import type { UserBaseInfo } from '@/api/patient';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import { maskFamilyPhone } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
 
 /** 家人 Tab / 选中 key：优先 bind id，其次患者 userId */
@@ -17,6 +19,26 @@ export function getApprovedFamilyBindList(list: FamilyBindItem[]): FamilyBindIte
 /** 子女端展示绑定的老人姓名 */
 export function getChildFamilyDisplayName(item: FamilyBindItem): string {
   return item.remarkName?.trim() || item.patientName?.trim() || item.childRemarkName?.trim() || '未命名';
+}
+
+/** 子女端家人头像：优先真实头像，否则按性别默认图 */
+export function resolveChildFamilyAvatarSource(
+  item?: Pick<
+    FamilyBindItem,
+    'patientAvatarOssUrl' | 'avatarOssUrl' | 'patientGender' | 'patientUserBaseInfo'
+  > | null,
+  user?: Pick<UserBaseInfo, 'avatarOssUrl' | 'gender'> | null,
+): ImageSourcePropType {
+  const url =
+    user?.avatarOssUrl?.trim() ||
+    item?.patientAvatarOssUrl?.trim() ||
+    item?.avatarOssUrl?.trim() ||
+    item?.patientUserBaseInfo?.avatarOssUrl?.trim() ||
+    '';
+  if (/^https?:\/\//i.test(url)) return { uri: url };
+  return getDefaultAvatarByGender(
+    user?.gender ?? item?.patientGender ?? item?.patientUserBaseInfo?.gender,
+  );
 }
 
 export function getChildFamilySubtitle(item: FamilyBindItem): string {

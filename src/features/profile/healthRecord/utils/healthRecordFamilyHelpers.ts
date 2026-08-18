@@ -22,12 +22,18 @@ export async function loadHealthRecordFamilyUser(
   }
 }
 
+export function findHealthRecordFamilyBind(
+  familyList: FamilyBindItem[],
+  patientUserId?: string,
+): FamilyBindItem | undefined {
+  const id = patientUserId?.trim();
+  if (!id) return undefined;
+  return familyList.find(row => String(row.patientUserId ?? '') === id);
+}
+
 export function resolveHealthRecordFamilyPhone(
   familyList: FamilyBindItem[],
   patientUserId?: string,
 ): string {
-  const id = patientUserId?.trim();
-  if (!id) return '';
-  const item = familyList.find(row => String(row.patientUserId ?? '') === id);
-  return item?.patientPhonenumber?.trim() || '';
+  return findHealthRecordFamilyBind(familyList, patientUserId)?.patientPhonenumber?.trim() || '';
 }

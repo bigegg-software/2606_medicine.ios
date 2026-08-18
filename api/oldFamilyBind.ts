@@ -31,6 +31,15 @@ export type OldFamilyBindItem = {
   patientPhonenumber?: string;
   jsUserName?: string;
   jsPhonenumber?: string;
+  /** 家属头像 */
+  jsAvatarOssUrl?: string;
+  jsAvatarOssId?: string | number;
+  jsGender?: string;
+  avatarOssUrl?: string;
+  jsUserBaseInfo?: {
+    avatarOssUrl?: string;
+    gender?: string;
+  };
   createTime?: string;
 };
 

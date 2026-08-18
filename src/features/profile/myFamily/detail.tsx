@@ -34,6 +34,7 @@ import {
   getFamilyBindStatusMeta,
   getFamilyDisplayName,
   parseFamilyPermissionKeys,
+  resolveFamilyBindAvatarSource,
   toFamilyPermissionApiCodes,
 } from './utils/myFamilyListHelpers';
 
@@ -220,7 +221,7 @@ export default function MyFamilyDetailPage() {
       <ScrollView style={styles.body} contentContainerStyle={styles.scrollContent}>
         <Flex justify="between" align="center" style={styles.rowBox}>
           <Flex align="center">
-            <Image style={styles.rowBoxIcon} source={require('@/assets/images/family/family.png')} />
+            <Image style={styles.rowBoxIcon} source={resolveFamilyBindAvatarSource(detail)} />
             <View style={styles.rowBoxContent}>
               <Text style={styles.rowBoxName}>{getFamilyDisplayName(detail)}</Text>
               <Flex align="center" style={styles.rowBoxTextWrap}>

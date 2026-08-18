@@ -6,6 +6,7 @@ import {
   resolveMessageCategory,
   resolveMessageIsRead,
   resolveMessageSeverity,
+  resolveMessageTitle,
   type MessageListDisplayItem,
 } from '@/src/features/message/utils/messageHelpers';
 import { normalizeIdentityPerspective } from '@/src/features/auth/utils/identityHelpers';
@@ -18,8 +19,8 @@ export function buildWarningListDisplayItem(
   const category = resolveMessageCategory(item.type);
   return {
     id: String(item.messageId),
-    title: category.label,
-    content: item.content?.trim() || item.title?.trim() || '--',
+    title: resolveMessageTitle(item),
+    content: item.content?.trim() || '--',
     timeText: formatMessageListTime(item.createTime),
     icon: category.icon,
     severity: resolveMessageSeverity(item),

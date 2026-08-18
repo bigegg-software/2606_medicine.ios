@@ -30,6 +30,15 @@ export type FamilyBindItem = {
   patientName?: string;
   patientPcode?: string;
   patientPhonenumber?: string;
+  /** 患者头像 */
+  patientAvatarOssUrl?: string;
+  patientAvatarOssId?: string | number;
+  patientGender?: string;
+  avatarOssUrl?: string;
+  patientUserBaseInfo?: {
+    avatarOssUrl?: string;
+    gender?: string;
+  };
   jsUserName?: string;
   jsPhonenumber?: string;
 };

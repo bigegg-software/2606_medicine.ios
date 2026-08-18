@@ -27,7 +27,8 @@ import {
 import type { DictDataItem } from '@/api/dict';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import { AppTheme } from '@/common/theme';
-import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+import type { UserBaseInfo } from '@/api/patient';
+import { loadHealthRecordFamilyUser } from '@/src/features/profile/healthRecord/utils/healthRecordFamilyHelpers';
 import {
   FAMILY_DEVICE_ITEMS,
   formatFamilyDeviceStatusText,
@@ -36,6 +37,7 @@ import {
   getChildFamilyMetaLine,
   getFamilyTabKey,
   isFamilyIdentityCertified,
+  resolveChildFamilyAvatarSource,
   type FamilyMemberInfoRow,
 } from './utils/familyProfileHelpers';
 import {
@@ -58,6 +60,7 @@ export default function FamilyProfilePage() {
   const [memberInfoRows, setMemberInfoRows] = useState<FamilyMemberInfoRow[]>(
     emptyFamilyMemberInfoRows,
   );
+  const [memberUser, setMemberUser] = useState<UserBaseInfo | null>(null);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
 
   const familyList = useMemo(
@@ -112,13 +115,19 @@ export default function FamilyProfilePage() {
   const loadMemberInfo = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
       setMemberInfoRows(emptyFamilyMemberInfoRows());
+      setMemberUser(null);
       return;
     }
     try {
-      const rows = await loadFamilyMemberInfoRows(patientUserId);
+      const [rows, user] = await Promise.all([
+        loadFamilyMemberInfoRows(patientUserId),
+        loadHealthRecordFamilyUser(patientUserId),
+      ]);
       setMemberInfoRows(rows);
+      setMemberUser(user);
     } catch {
       setMemberInfoRows(emptyFamilyMemberInfoRows());
+      setMemberUser(null);
     }
   }, []);
 
@@ -244,7 +253,7 @@ export default function FamilyProfilePage() {
             <View style={styles.memberCard}>
               <Flex align="center">
                 <Image
-                  source={getDefaultAvatarByGender()}
+                  source={resolveChildFamilyAvatarSource(selectedFamily, memberUser)}
                   style={styles.memberAvatar}
                   resizeMode="cover"
                 />
@@ -302,7 +311,7 @@ export default function FamilyProfilePage() {
                 </Flex>
               </TouchableOpacity>
             </View>
-            <View style={styles.memberCard}>
+            {/* <View style={styles.memberCard}>
               <Text style={styles.memberCardTitle}>设备连接状态</Text>
               {FAMILY_DEVICE_ITEMS.map((item, index) => {
                 const online = item.status === 'online';
@@ -348,7 +357,7 @@ export default function FamilyProfilePage() {
                   </Text>
                 </Flex>
               </TouchableOpacity>
-            </View>
+            </View> */}
           </>
         ) : null}
 

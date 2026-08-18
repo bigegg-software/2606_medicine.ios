@@ -34,7 +34,8 @@ export type MessageCategoryKey =
   | 'live'
   | 'system'
   | 'meal'
-  | 'medication';
+  | 'medication'
+  | 'yihuCms';
 
 export type MessageCategoryMeta = {
   key: MessageCategoryKey;
@@ -91,6 +92,11 @@ const CATEGORY_META: Record<MessageCategoryKey, MessageCategoryMeta> = {
     label: '用药通知',
     icon: require('@/assets/images/message/icon_yy.png'),
   },
+  yihuCms: {
+    key: 'yihuCms',
+    label: '医护通知',
+    icon: require('@/assets/images/message/icon_yh.png'),
+  },
 };
 
 const SEVERITY_META: Record<'tip' | 'warning' | 'urgent', MessageSeverityMeta> = {
@@ -124,6 +130,7 @@ function matchType(type: string | undefined, prefixes: string[]) {
 }
 
 export function resolveMessageCategory(type?: string): MessageCategoryMeta {
+  if (matchType(type, ['yihuCms'])) return CATEGORY_META.yihuCms;
   if (matchType(type, ['health_medication'])) return CATEGORY_META.medication;
   if (matchType(type, ['health_exercise'])) return CATEGORY_META.exercise;
   if (matchType(type, ['health_diet'])) return CATEGORY_META.meal;
@@ -228,6 +235,7 @@ const MESSAGE_TYPES_WITHOUT_DETAIL = new Set([
   'identity_audit_approved',
   'family_bind_auth_approved',
   'family_bind_auth_rejected',
+  'yihuCms',
 ]);
 
 /** 结果类通知仅展示文案，不显示「查看详情」 */
@@ -246,6 +254,10 @@ export type MessageListDisplayItem = {
   raw: PatientMessageItem;
 };
 
+export function resolveMessageTitle(item: Pick<PatientMessageItem, 'title' | 'type'>) {
+  return item.title?.trim() || resolveMessageCategory(item.type).label;
+}
+
 export function buildMessageListDisplayItem(
   item: PatientMessageItem,
   identityPerspective?: string | null,
@@ -253,8 +265,8 @@ export function buildMessageListDisplayItem(
   const category = resolveMessageCategory(item.type);
   return {
     id: String(item.messageId),
-    title: category.label,
-    content: item.content?.trim() || item.title?.trim() || '--',
+    title: resolveMessageTitle(item),
+    content: item.content?.trim() || '--',
     timeText: formatMessageListTime(item.createTime),
     icon: category.icon,
     severity: category.key === 'system' ? null : resolveMessageSeverity(item),

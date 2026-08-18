@@ -34,7 +34,9 @@ import {
     loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
 import { resolveDailyActivityLevelLabel } from '@/src/features/profile/healthRecord/utils/profileActivityLevelHelpers';
+import { hasFamilyDataPermission } from '@/src/familyPage/FamilyData/utils/familyDataHelpers';
 import {
+    findHealthRecordFamilyBind,
     loadHealthRecordFamilyUser,
     resolveHealthRecordFamilyPhone,
     resolveHealthRecordPatientOpts,
@@ -111,6 +113,14 @@ export default function HealthRecordPage() {
     const user = useSelector((state: RootState) => state.user.info);
     const systemUser = useSelector((state: RootState) => state.user.systemUser);
     const familyBindList = useSelector((state: RootState) => state.family.list);
+    const selectedFamilyBind = useMemo(
+        () => findHealthRecordFamilyBind(familyBindList, patientUserId),
+        [familyBindList, patientUserId],
+    );
+    const canViewChronicDisease =
+        !readOnly || hasFamilyDataPermission(selectedFamilyBind, 'chronic_disease');
+    const canViewAssessment =
+        !readOnly || hasFamilyDataPermission(selectedFamilyBind, 'assessment');
     const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
     const [records, setRecords] = useState<MedicalRecord[]>([]);
     const [allergyList, setAllergyList] = useState<AllergyItem[]>([]);
@@ -174,6 +184,12 @@ export default function HealthRecordPage() {
     }, [patientOpts]);
 
     const loadChronicDiseases = useCallback(async () => {
+        if (!canViewChronicDisease) {
+            setChronicRecords([]);
+            setDiseaseTypeLabels({});
+            setDailyIndicatorsById(new Map());
+            return;
+        }
         try {
             const [res, labelMap] = await Promise.all([
                 getChronicDiseaseFrontList({ pageNum: 1, pageSize: CHRONIC_PREVIEW_SIZE }, patientOpts),
@@ -190,9 +206,13 @@ export default function HealthRecordPage() {
             setDiseaseTypeLabels({});
             setDailyIndicatorsById(new Map());
         }
-    }, [patientOpts]);
+    }, [canViewChronicDisease, patientOpts]);
 
     const loadQuestionnaires = useCallback(async () => {
+        if (!canViewAssessment) {
+            setLastAssessmentByType({});
+            return;
+        }
         try {
             const latestRes = await getUserQuestionNewList(patientOpts);
             const latestRecords =
@@ -201,7 +221,7 @@ export default function HealthRecordPage() {
         } catch {
             setLastAssessmentByType({});
         }
-    }, [patientOpts]);
+    }, [canViewAssessment, patientOpts]);
 
     const loadFamilyProfile = useCallback(async () => {
         if (!readOnly) {
@@ -251,7 +271,7 @@ export default function HealthRecordPage() {
         loadEmergencyRef.current();
         loadChronicDiseasesRef.current();
         loadQuestionnairesRef.current();
-    }, [patientUserId]);
+    }, [patientUserId, canViewChronicDisease, canViewAssessment]);
 
     useFocusEffect(
         useCallback(() => {
@@ -642,6 +662,7 @@ export default function HealthRecordPage() {
                         )}
                     </View>
                 </View>
+                {canViewChronicDisease ? (
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>慢病管理</Text>
@@ -688,6 +709,8 @@ export default function HealthRecordPage() {
                         </TouchableOpacity>
                     )}
                 </View>
+                ) : null}
+                {canViewAssessment ? (
                 <View style={styles.infoBox}>
                     <Flex justify='between'>
                         <Text style={styles.sectionTitle}>评估问卷</Text>
@@ -807,6 +830,7 @@ export default function HealthRecordPage() {
                         );
                     })}
                 </View>
+                ) : null}
             </ScrollView>
         </PageLayout>
     );

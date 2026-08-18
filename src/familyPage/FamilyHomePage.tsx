@@ -43,6 +43,14 @@ import {
   type FamilyHomeFocusSummary,
 } from './utils/familyHomeHelpers';
 import {
+  emptyFamilyHomeHealthSnapshot,
+  isFamilyHomeMedicationDone,
+  isFamilyHomeMedicationMissed,
+  loadFamilyHomeHealthMap,
+  resolveFamilyHomeGlucoseTrendIcon,
+  type FamilyHomeHealthSnapshot,
+} from './utils/familyHomeHealthHelpers';
+import {
   getApprovedFamilyBindList,
   getChildFamilyDisplayName,
   getFamilyTabKey,
@@ -73,6 +81,7 @@ export default function FamilyHomePage() {
   const [attentionMap, setAttentionMap] = useState<Record<string, boolean>>({});
   const [activityProgressMap, setActivityProgressMap] = useState<Record<string, number | null>>({});
   const [tokensMap, setTokensMap] = useState<Record<string, number | null>>({});
+  const [healthMap, setHealthMap] = useState<Record<string, FamilyHomeHealthSnapshot>>({});
   const [focusSummary, setFocusSummary] = useState<FamilyHomeFocusSummary>(emptyFamilyHomeFocusSummary);
   const badgeText = formatHomeUnreadBadge(unreadCount);
 
@@ -123,6 +132,9 @@ export default function FamilyHomePage() {
     );
   }, [relationLabelMap, selectedFamily]);
   const firstMember = memberCards[0];
+  const goToFamilyData = useCallback(() => {
+    navigation.navigate('FamilyTabs', { screen: 'FamilyData' });
+  }, [navigation]);
   const firstExerciseRate = firstMember?.patientUserId
     ? activityProgressMap[firstMember.patientUserId]
     : null;
@@ -168,15 +180,17 @@ export default function FamilyHomePage() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [attention, progress, tokens] = await Promise.all([
+      const [attention, progress, tokens, health] = await Promise.all([
         loadFamilyHomeAttentionMap(familyList),
         loadFamilyHomeActivityProgressMap(familyList),
         loadFamilyHomeTokensMap(familyList),
+        loadFamilyHomeHealthMap(familyList),
       ]);
       if (!cancelled) {
         setAttentionMap(attention);
         setActivityProgressMap(progress);
         setTokensMap(tokens);
+        setHealthMap(health);
       }
     })();
     return () => {
@@ -302,37 +316,61 @@ export default function FamilyHomePage() {
             style={styles.familyHealthWrap}
             showsHorizontalScrollIndicator={false}
           >
-            {memberCards.map(member => (
-              <View key={member.key} style={styles.familyHealthItem}>
-                <Flex align="center">
-                  <Image
-                    source={require('@/assets/images/default/default1.png')}
-                    style={styles.familyHealthIcon}
-                  />
-                  <Text style={styles.familyHealthName}>{member.name}</Text>
-                </Flex>
-                <Flex
-                  style={[styles.familyHealthRow, styles.familyHealthRowFirst]}
-                  justify="between"
-                  align="center"
-                >
-                  <Text style={styles.familyHealthLabel}>血压</Text>
-                  <Text style={styles.familyHealthValue}>--</Text>
-                </Flex>
-                <Flex style={styles.familyHealthRow} justify="between" align="center">
-                  <Text style={styles.familyHealthLabel}>血糖</Text>
-                  <Text style={styles.familyHealthValue}>--</Text>
-                </Flex>
-                <Flex style={styles.familyHealthRow} justify="between" align="center">
-                  <Text style={styles.familyHealthLabel}>步数</Text>
-                  <Text style={styles.familyHealthValue}>--</Text>
-                </Flex>
-                <Flex style={styles.familyHealthRow} justify="between" align="center">
-                  <Text style={styles.familyHealthLabel}>用药</Text>
-                  <Text style={styles.familyHealthValue}>--</Text>
-                </Flex>
-              </View>
-            ))}
+            {memberCards.map(member => {
+              const snapshot =
+                (member.patientUserId && healthMap[member.patientUserId])
+                || emptyFamilyHomeHealthSnapshot();
+              const glucoseTrendIcon = resolveFamilyHomeGlucoseTrendIcon(snapshot.glucoseTrend);
+              return (
+                <View key={member.key} style={styles.familyHealthItem}>
+                  <Flex align="center">
+                    <Image
+                      source={require('@/assets/images/default/default1.png')}
+                      style={styles.familyHealthIcon}
+                    />
+                    <Text style={styles.familyHealthName}>{member.name}</Text>
+                  </Flex>
+                  <Flex
+                    style={[styles.familyHealthRow, styles.familyHealthRowFirst]}
+                    justify="between"
+                    align="center"
+                  >
+                    <Text style={styles.familyHealthLabel}>血压</Text>
+                    <Text style={styles.familyHealthValue}>{snapshot.bp}</Text>
+                  </Flex>
+                  <Flex style={styles.familyHealthRow} justify="between" align="center">
+                    <Text style={styles.familyHealthLabel}>血糖</Text>
+                    <Flex align="center">
+                      <Text style={styles.familyHealthValue}>{snapshot.glucose}</Text>
+                      {glucoseTrendIcon ? (
+                        <Image
+                          source={glucoseTrendIcon}
+                          style={styles.familyHealthTrendIcon}
+                        />
+                      ) : null}
+                    </Flex>
+                  </Flex>
+                  <Flex style={styles.familyHealthRow} justify="between" align="center">
+                    <Text style={styles.familyHealthLabel}>步数</Text>
+                    <Text style={styles.familyHealthValue}>{snapshot.steps}</Text>
+                  </Flex>
+                  <Flex style={styles.familyHealthRow} justify="between" align="center">
+                    <Text style={styles.familyHealthLabel}>用药</Text>
+                    {isFamilyHomeMedicationDone(snapshot.medication) ? (
+                      <View style={styles.familyHealthTagDone}>
+                        <Text style={styles.familyHealthTagDoneText}>完成</Text>
+                      </View>
+                    ) : isFamilyHomeMedicationMissed(snapshot.medication) ? (
+                      <View style={styles.familyHealthTagMiss}>
+                        <Text style={styles.familyHealthTagMissText}>漏服</Text>
+                      </View>
+                    ) : (
+                      <Text style={styles.familyHealthValue}>--</Text>
+                    )}
+                  </Flex>
+                </View>
+              );
+            })}
             <TouchableOpacity
               key="add-family"
               style={styles.familyHealthItem}
@@ -360,54 +398,60 @@ export default function FamilyHomePage() {
           </Flex>
 
           <Flex style={styles.focusCardWrap}>
-            <LinearGradient
-              colors={['#F5FFF0', '#FFFFFF']}
-              locations={[0, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.focusCard}
-            >
-              <Image
-                source={require('@/assets/family/home/icon_data.png')}
-                style={styles.focusCardIcon}
-              />
-              <Text style={styles.focusCardTitle}>健康数据</Text>
-              <Text style={styles.focusCardSubtitle}>
-                {formatFamilyHomeFocusHealthText(focusSummary.healthAbnormalCount)}
-              </Text>
-            </LinearGradient>
-            <LinearGradient
-              colors={['#E6F1FF', '#FFFFFF']}
-              locations={[0, 1]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.focusCard}
-            >
-              <Image
-                source={require('@/assets/family/home/icon_yd.png')}
-                style={styles.focusCardIcon}
-              />
-              <Text style={styles.focusCardTitle}>运动处方</Text>
-              <Text style={styles.focusCardSubtitle}>
-                {formatFamilyHomeFocusProgressText(firstExerciseRate)}
-              </Text>
-            </LinearGradient>
-            <LinearGradient
-              colors={['#FEF3F3', '#FFFFFF']}
-              locations={[0, 0.3689]}
-              start={{ x: 0.5, y: 0 }}
-              end={{ x: 0.5, y: 1 }}
-              style={styles.focusCard}
-            >
-              <Image
-                source={require('@/assets/family/home/icon_yy.png')}
-                style={styles.focusCardIcon}
-              />
-              <Text style={styles.focusCardTitle}>营养处方</Text>
-              <Text style={styles.focusCardSubtitle}>
-                {formatFamilyHomeFocusProgressText(focusSummary.nutritionRate)}
-              </Text>
-            </LinearGradient>
+            <TouchableOpacity activeOpacity={0.85} style={{ flex: 1 }} onPress={goToFamilyData}>
+              <LinearGradient
+                colors={['#F5FFF0', '#FFFFFF']}
+                locations={[0, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={styles.focusCard}
+              >
+                <Image
+                  source={require('@/assets/family/home/icon_data.png')}
+                  style={styles.focusCardIcon}
+                />
+                <Text style={styles.focusCardTitle}>健康数据</Text>
+                <Text style={styles.focusCardSubtitle}>
+                  {formatFamilyHomeFocusHealthText(focusSummary.healthAbnormalCount)}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} style={{ flex: 1 }} onPress={goToFamilyData}>
+              <LinearGradient
+                colors={['#E6F1FF', '#FFFFFF']}
+                locations={[0, 1]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={styles.focusCard}
+              >
+                <Image
+                  source={require('@/assets/family/home/icon_yd.png')}
+                  style={styles.focusCardIcon}
+                />
+                <Text style={styles.focusCardTitle}>运动处方</Text>
+                <Text style={styles.focusCardSubtitle}>
+                  {formatFamilyHomeFocusProgressText(firstExerciseRate)}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} style={{ flex: 1 }} onPress={goToFamilyData}>
+              <LinearGradient
+                colors={['#FEF3F3', '#FFFFFF']}
+                locations={[0, 0.3689]}
+                start={{ x: 0.5, y: 0 }}
+                end={{ x: 0.5, y: 1 }}
+                style={styles.focusCard}
+              >
+                <Image
+                  source={require('@/assets/family/home/icon_yy.png')}
+                  style={styles.focusCardIcon}
+                />
+                <Text style={styles.focusCardTitle}>营养处方</Text>
+                <Text style={styles.focusCardSubtitle}>
+                  {formatFamilyHomeFocusProgressText(focusSummary.nutritionRate)}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
           </Flex>
 
           <Flex align="center" style={styles.todoTitleWrap}>

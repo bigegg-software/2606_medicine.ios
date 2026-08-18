@@ -1,4 +1,6 @@
+import type { ImageSourcePropType } from 'react-native';
 import type { OldFamilyBindItem } from '@/api/oldFamilyBind';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import type { FamilyPermissionKey } from './myFamilyAddHelpers';
 import { FAMILY_PERMISSION_OPTIONS } from './myFamilyAddHelpers';
 
@@ -50,6 +52,22 @@ export function getFamilyDisplayName(item: OldFamilyBindItem): string {
     item.remarkName?.trim() ||
     '未命名家人'
   );
+}
+
+/** 家人列表头像：优先真实头像，否则按性别默认图 */
+export function resolveFamilyBindAvatarSource(
+  item: Pick<
+    OldFamilyBindItem,
+    'jsAvatarOssUrl' | 'avatarOssUrl' | 'jsGender' | 'jsUserBaseInfo'
+  >,
+): ImageSourcePropType {
+  const url =
+    item.jsAvatarOssUrl?.trim() ||
+    item.avatarOssUrl?.trim() ||
+    item.jsUserBaseInfo?.avatarOssUrl?.trim() ||
+    '';
+  if (/^https?:\/\//i.test(url)) return { uri: url };
+  return getDefaultAvatarByGender(item.jsGender ?? item.jsUserBaseInfo?.gender);
 }
 
 export function getFamilyBindStatusMeta(bindStatus?: number | null): {
