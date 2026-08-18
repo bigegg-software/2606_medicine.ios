@@ -28,8 +28,19 @@ import {
 } from '@/src/features/message/utils/messageHelpers';
 import {
   buildFamilyHomeMemberCards,
+  emptyFamilyHomeFocusSummary,
+  formatFamilyHomeActivityProgressText,
+  formatFamilyHomeFocusHealthText,
+  formatFamilyHomeFocusProgressText,
+  formatFamilyHomeTokensText,
   getFamilyHomeGreetingTitle,
   getFamilyHomeSubtitle,
+  loadFamilyHomeAttentionMap,
+  loadFamilyHomeActivityProgressMap,
+  loadFamilyHomeFocusSummary,
+  loadFamilyHomeTokensMap,
+  resolveFamilyHomeActivityProgressPercent,
+  type FamilyHomeFocusSummary,
 } from './utils/familyHomeHelpers';
 import styles from '@/css/family/home';
 
@@ -53,6 +64,10 @@ export default function FamilyHomePage() {
   );
   const [unreadCount, setUnreadCount] = useState(0);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
+  const [attentionMap, setAttentionMap] = useState<Record<string, boolean>>({});
+  const [activityProgressMap, setActivityProgressMap] = useState<Record<string, number | null>>({});
+  const [tokensMap, setTokensMap] = useState<Record<string, number | null>>({});
+  const [focusSummary, setFocusSummary] = useState<FamilyHomeFocusSummary>(emptyFamilyHomeFocusSummary);
   const badgeText = formatHomeUnreadBadge(unreadCount);
 
   const relationLabelMap = useMemo(() => {
@@ -70,13 +85,17 @@ export default function FamilyHomePage() {
     [systemUser, userInfo],
   );
   const greetingSubtitle = useMemo(
-    () => getFamilyHomeSubtitle(familyList, relationLabelMap),
-    [familyList, relationLabelMap],
+    () => getFamilyHomeSubtitle(familyList, relationLabelMap, attentionMap),
+    [attentionMap, familyList, relationLabelMap],
   );
   const memberCards = useMemo(
     () => buildFamilyHomeMemberCards(familyList, relationLabelMap),
     [familyList, relationLabelMap],
   );
+  const firstMember = memberCards[0];
+  const firstExerciseRate = firstMember?.patientUserId
+    ? activityProgressMap[firstMember.patientUserId]
+    : null;
 
   const loadUnreadCount = useCallback(async () => {
     if (!messageScope.userIds) {
@@ -115,6 +134,41 @@ export default function FamilyHomePage() {
       void loadUnreadCount();
     }, [dispatch, loadUnreadCount]),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      const [attention, progress, tokens] = await Promise.all([
+        loadFamilyHomeAttentionMap(familyList),
+        loadFamilyHomeActivityProgressMap(familyList),
+        loadFamilyHomeTokensMap(familyList),
+      ]);
+      if (!cancelled) {
+        setAttentionMap(attention);
+        setActivityProgressMap(progress);
+        setTokensMap(tokens);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [familyList]);
+
+  useEffect(() => {
+    const patientUserId = firstMember?.patientUserId ?? '';
+    if (!patientUserId) {
+      setFocusSummary(emptyFamilyHomeFocusSummary());
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const summary = await loadFamilyHomeFocusSummary(patientUserId);
+      if (!cancelled) setFocusSummary(summary);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [firstMember?.patientUserId]);
 
   useEffect(() => {
     const sub = DeviceEventEmitter.addListener(MESSAGE_UNREAD_CHANGED, () => {
@@ -234,18 +288,25 @@ export default function FamilyHomePage() {
                 </Flex>
               </View>
             ))}
-            <Flex
+            <TouchableOpacity
+              key="add-family"
               style={styles.familyHealthItem}
-              direction="column"
-              align="center"
-              justify="center"
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate('FamilyAddPage')}
             >
-              <Image
-                source={require('@/assets/family/home/add.png')}
-                style={styles.familyHealthAddIcon}
-              />
-              <Text style={styles.familyHealthAddText}>添加家人</Text>
-            </Flex>
+              <Flex
+                direction="column"
+                align="center"
+                justify="center"
+                style={{ flex: 1 }}
+              >
+                <Image
+                  source={require('@/assets/family/home/add.png')}
+                  style={styles.familyHealthAddIcon}
+                />
+                <Text style={styles.familyHealthAddText}>添加家人</Text>
+              </Flex>
+            </TouchableOpacity>
           </ScrollView>
 
           <Flex align="center" style={styles.todoTitleWrap}>
@@ -266,7 +327,9 @@ export default function FamilyHomePage() {
                 style={styles.focusCardIcon}
               />
               <Text style={styles.focusCardTitle}>健康数据</Text>
-              <Text style={styles.focusCardSubtitle}>2项异常</Text>
+              <Text style={styles.focusCardSubtitle}>
+                {formatFamilyHomeFocusHealthText(focusSummary.healthAbnormalCount)}
+              </Text>
             </LinearGradient>
             <LinearGradient
               colors={['#E6F1FF', '#FFFFFF']}
@@ -280,7 +343,9 @@ export default function FamilyHomePage() {
                 style={styles.focusCardIcon}
               />
               <Text style={styles.focusCardTitle}>运动处方</Text>
-              <Text style={styles.focusCardSubtitle}>进度 30%</Text>
+              <Text style={styles.focusCardSubtitle}>
+                {formatFamilyHomeFocusProgressText(firstExerciseRate)}
+              </Text>
             </LinearGradient>
             <LinearGradient
               colors={['#FEF3F3', '#FFFFFF']}
@@ -294,7 +359,9 @@ export default function FamilyHomePage() {
                 style={styles.focusCardIcon}
               />
               <Text style={styles.focusCardTitle}>营养处方</Text>
-              <Text style={styles.focusCardSubtitle}>进度 40%</Text>
+              <Text style={styles.focusCardSubtitle}>
+                {formatFamilyHomeFocusProgressText(focusSummary.nutritionRate)}
+              </Text>
             </LinearGradient>
           </Flex>
 
@@ -308,27 +375,45 @@ export default function FamilyHomePage() {
             showsHorizontalScrollIndicator={false}
             style={styles.activityScroll}
           >
-            {memberCards.map(member => (
-              <View key={`activity-${member.key}`} style={styles.activityCard}>
-                <Flex align="center" justify="between">
-                  <Text style={styles.activityName}>{member.name}</Text>
-                  <Flex align="center">
-                    <Image
-                      source={require('@/assets/family/home/icon_jf.png')}
-                      style={styles.activityPointsIcon}
-                    />
-                    <Text style={styles.activityPoints}>--</Text>
+            {memberCards.map(member => {
+              const rate = member.patientUserId
+                ? activityProgressMap[member.patientUserId]
+                : null;
+              const tokens = member.patientUserId
+                ? tokensMap[member.patientUserId]
+                : null;
+              const percent = resolveFamilyHomeActivityProgressPercent(rate);
+              return (
+                <View key={`activity-${member.key}`} style={styles.activityCard}>
+                  <Flex align="center" justify="between">
+                    <Text style={styles.activityName}>{member.name}</Text>
+                    <Flex align="center">
+                      <Image
+                        source={require('@/assets/family/home/icon_jf.png')}
+                        style={styles.activityPointsIcon}
+                      />
+                      <Text style={styles.activityPoints}>
+                        {formatFamilyHomeTokensText(tokens)}
+                      </Text>
+                    </Flex>
                   </Flex>
-                </Flex>
-                <Flex style={styles.activityProgressRow} align="center" justify="between">
-                  <Text style={styles.activityProgressLabel}>运动处方进度</Text>
-                  <Text style={styles.activityProgressValue}>--</Text>
-                </Flex>
-                <View style={styles.activityProgressTrack}>
-                  <View style={[styles.activityProgressFill, { width: '0%' }]} />
+                  <Flex style={styles.activityProgressRow} align="center" justify="between">
+                    <Text style={styles.activityProgressLabel}>运动处方进度</Text>
+                    <Text style={styles.activityProgressValue}>
+                      {formatFamilyHomeActivityProgressText(rate)}
+                    </Text>
+                  </Flex>
+                  <View style={styles.activityProgressTrack}>
+                    <View
+                      style={[
+                        styles.activityProgressFill,
+                        { width: `${percent}%` as `${number}%` },
+                      ]}
+                    />
+                  </View>
                 </View>
-              </View>
-            ))}
+              );
+            })}
           </ScrollView>
         </View>
       </ScrollView>

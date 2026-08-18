@@ -28,7 +28,22 @@ export function canPressIdentityAuthBadge(authStatus?: number | null) {
   return authStatus !== 0 && authStatus !== 1;
 }
 
-/** 仅未提交过认证时展示右侧实名认证入口 */
+/** 未提交过认证，或审核未通过时可重新认证 */
 export function shouldShowIdentityAuthEntry(authStatus?: number | null) {
-  return authStatus == null;
+  return authStatus == null || authStatus === 2;
+}
+
+/** 右侧入口图：未提交=实名认证，未通过=重新认证 */
+export function resolveIdentityAuthEntrySource(
+  authStatus?: number | null,
+): ImageSourcePropType {
+  if (authStatus === 2) {
+    return require('@/assets/images/user/cxrz.png');
+  }
+  return require('@/assets/images/user/smrz.png');
+}
+
+/** 重新认证文案略长，入口图稍宽 */
+export function resolveIdentityAuthEntryWidth(authStatus?: number | null) {
+  return authStatus === 2 ? 94 : 91;
 }

@@ -27,7 +27,14 @@ import {
 import SignInModal from './components/SignInModal';
 import { buildSignButtonLabel, isSignedTodayByBjDate } from './utils/signInHelpers';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
-import { resolveIdentityAuthBadgeSource, resolveIdentityAuthBadgeWidth, canPressIdentityAuthBadge, shouldShowIdentityAuthEntry } from './utils/identityAuthBadgeHelpers';
+import {
+  resolveIdentityAuthBadgeSource,
+  resolveIdentityAuthBadgeWidth,
+  resolveIdentityAuthEntrySource,
+  resolveIdentityAuthEntryWidth,
+  canPressIdentityAuthBadge,
+  shouldShowIdentityAuthEntry,
+} from './utils/identityAuthBadgeHelpers';
 import { formatSyncRangeLabel, formatVoiceSpeedLabel } from './settingPage/utils/settingsHelpers';
 import { parseNotificationSettings } from '@/src/utils/notificationSettingsHelpers';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
@@ -70,6 +77,21 @@ const navList = [
     route: 'Medication' as const,
     params: { tab: 'medication' as const },
   },
+  {
+    img: require('@/assets/images/user/img7.png'),
+    label: '我的积分',
+    route: 'RecordPointsPage' as const,
+  },
+  {
+    img: require('@/assets/images/user/img8.png'),
+    label: '我的收藏',
+    route: 'FavoritePage' as const,
+  },
+  {
+    img: require('@/assets/images/user/img9.png'),
+    label: '消息通知',
+    route: 'MessagePage' as const,
+  },
 ];
 
 export default function ProfilePage() {
@@ -106,6 +128,8 @@ export default function ProfilePage() {
   const authBadgeWidth = resolveIdentityAuthBadgeWidth(authStatus);
   const canPressAuthBadge = canPressIdentityAuthBadge(authStatus);
   const showIdentityAuthEntry = shouldShowIdentityAuthEntry(authStatus);
+  const authEntrySource = resolveIdentityAuthEntrySource(authStatus);
+  const authEntryWidth = resolveIdentityAuthEntryWidth(authStatus);
 
   const relationLabelMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -335,8 +359,11 @@ export default function ProfilePage() {
           </Flex>
           {showIdentityAuthEntry ? (
             <TouchableOpacity onPress={() => navigation.navigate('AuthenticationPage')}>
-              <View style={styles.rlBox}>
-                <Image style={styles.rlImg} source={require('@/assets/images/user/smrz.png')} />
+              <View style={[styles.rlBox, { width: authEntryWidth }]}>
+                <Image
+                  style={[styles.rlImg, { width: authEntryWidth }]}
+                  source={authEntrySource}
+                />
               </View>
             </TouchableOpacity>
           ) : null}
@@ -369,10 +396,11 @@ export default function ProfilePage() {
           </Flex>
         </ImageBackground>
 
-        <Flex justify="around" align="center" style={styles.navList}>
+        <Flex wrap="wrap" style={styles.navList}>
           {navList.map((item, index) => (
             <TouchableOpacity
               key={index}
+              style={[styles.navListItem, index >= 4 && styles.navListItemSecondRow]}
               onPress={() => navigation.navigate(item.route, 'params' in item ? item.params : undefined)}
             >
               <Flex direction="column" justify="start" align='center'>
@@ -383,7 +411,7 @@ export default function ProfilePage() {
           ))}
         </Flex>
 
-        <Flex justify="between" align="center" style={styles.modelTitleRow}>
+        <Flex justify="between" align="center" style={[styles.modelTitleRow, { marginTop: 14 }]}>
           <Text style={[styles.modelTitle, styles.modelTitleInRow]}>我的家人</Text>
           {familyList.length > 0 && <TouchableOpacity
             activeOpacity={0.7}
@@ -467,6 +495,10 @@ export default function ProfilePage() {
                     onPress={() => {
                       if (!bindId) {
                         navigation.navigate('MyFamily');
+                        return;
+                      }
+                      if (status.pending) {
+                        navigation.navigate('FamilyBindInvitePage', { id: bindId });
                         return;
                       }
                       navigation.navigate('FamilyDetail', { id: bindId });

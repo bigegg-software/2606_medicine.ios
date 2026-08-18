@@ -69,6 +69,22 @@ export const inviteOldFamilyBind = (payload: OldFamilyInvitePayload) =>
 export const updateOldFamilyBindAuth = (payload: OldFamilyUpdateAuthPayload) =>
   request.put<OldFamilyUpdateAuthResult>('/patient/oldFamilyBind/updateAuth', payload);
 
+/** 同意家属授权申请（按 messageId，消息 params 中存 bindVo） */
+export const approveOldFamilyBindByMessage = (messageId: string | number) =>
+  request.put<ApiResult>(`/patient/oldFamilyBind/approve/${String(messageId)}`);
+
+/** 拒绝家属授权申请（按 messageId，消息 params 中存 bindVo） */
+export const rejectOldFamilyBindByMessage = (messageId: string | number) =>
+  request.put<ApiResult>(`/patient/oldFamilyBind/reject/${String(messageId)}`);
+
+/** 同意家属授权申请（按绑定记录 id） */
+export const approveOldFamilyBindByBind = (id: string | number) =>
+  request.put<ApiResult>(`/patient/oldFamilyBind/approveByBind/${String(id)}`);
+
+/** 拒绝家属授权申请（按绑定记录 id） */
+export const rejectOldFamilyBindByBind = (id: string | number) =>
+  request.put<ApiResult>(`/patient/oldFamilyBind/rejectByBind/${String(id)}`);
+
 /** 删除家人绑定关系（逻辑删除） */
 export const removeOldFamilyBind = (id: string | number) =>
   request.delete<OldFamilyRemoveResult>(`/patient/oldFamilyBind/remove/${String(id)}`);

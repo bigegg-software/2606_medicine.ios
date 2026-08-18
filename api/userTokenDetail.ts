@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type UserTokenDetail = {
   tokenDetailId?: number | string;
@@ -35,5 +36,11 @@ export type UserTokenDetailListResult = {
 };
 
 /** 分页查询当前用户积分明细 */
-export const getUserTokenDetailList = (params?: UserTokenDetailListParams) =>
-  request.get<UserTokenDetailListResult>('/patient/userTokenDetail/list', { params });
+export const getUserTokenDetailList = (
+  params?: UserTokenDetailListParams,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<UserTokenDetailListResult>('/patient/userTokenDetail/list', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });

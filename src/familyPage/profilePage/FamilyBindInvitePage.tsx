@@ -12,26 +12,24 @@ import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import styles from '@/css/family/familyBindInvite';
 import type { RootStackParamList } from '@/route/router';
 import type { DictDataItem } from '@/api/dict';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import {
   FAMILY_PERMISSION_OPTIONS,
+  toggleFamilyPermission,
   type FamilyPermissionKey,
 } from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
+import { normalizeIdentityPerspective } from '@/src/features/auth/utils/identityHelpers';
 import { AppTheme } from '@/common/theme';
-import {
-  acceptFamilyBindInvite,
-  acceptFamilyBindInviteByBind,
-  rejectFamilyBindInvite,
-  rejectFamilyBindInviteByBind,
-} from '@/api/familyBind';
-import { isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
+import type { RootState } from '@/store/store';
 import {
   buildFamilyBindInviteView,
   loadFamilyBindInviteById,
   loadFamilyBindInviteByMessageId,
+  respondToFamilyBindInvite,
   type FamilyBindInviteView,
 } from './utils/familyBindInviteHelpers';
 
@@ -46,10 +44,15 @@ export default function FamilyBindInvitePage() {
   const route = useRoute<Route>();
   const messageId = route.params.messageId;
   const bindId = route.params.id;
+  const identityPerspective = useSelector(
+    (state: RootState) => state.user.systemUser?.identityPerspective,
+  );
+  const isElder = normalizeIdentityPerspective(identityPerspective) !== 'child';
 
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [detail, setDetail] = useState<FamilyBindInviteView | null>(null);
+  const [selectedPermissions, setSelectedPermissions] = useState<FamilyPermissionKey[]>([]);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
 
   useEffect(() => {
@@ -79,15 +82,18 @@ export default function FamilyBindInvitePage() {
       const item = messageId
         ? await loadFamilyBindInviteByMessageId(messageId)
         : bindId
-          ? await loadFamilyBindInviteById(bindId)
+          ? await loadFamilyBindInviteById(bindId, { isElder })
           : null;
-      setDetail(item ? buildFamilyBindInviteView(item) : null);
+      const view = item ? buildFamilyBindInviteView(item, { isElder }) : null;
+      setDetail(view);
+      setSelectedPermissions(view?.permissions ?? []);
     } catch {
       setDetail(null);
+      setSelectedPermissions([]);
     } finally {
       setLoading(false);
     }
-  }, [bindId, messageId]);
+  }, [bindId, isElder, messageId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -98,6 +104,11 @@ export default function FamilyBindInvitePage() {
   const resolveRespondBindId = useCallback(() => {
     return detail?.id || bindId || '';
   }, [bindId, detail?.id]);
+
+  const handleTogglePermission = useCallback((key: FamilyPermissionKey) => {
+    if (!isElder) return;
+    setSelectedPermissions(prev => toggleFamilyPermission(prev, key));
+  }, [isElder]);
 
   const submitRespond = useCallback(
     async (action: 'accept' | 'reject') => {
@@ -110,20 +121,18 @@ export default function FamilyBindInvitePage() {
 
       setSubmitting(true);
       try {
-        const res = messageId
-          ? action === 'accept'
-            ? await acceptFamilyBindInvite(messageId)
-            : await rejectFamilyBindInvite(messageId)
-          : action === 'accept'
-            ? await acceptFamilyBindInviteByBind(respondBindId)
-            : await rejectFamilyBindInviteByBind(respondBindId);
-
-        if (!isResourceApiOk(res as ApiResult)) {
-          const r = res as ApiResult;
-          Alert.alert('失败', r.msg ?? r.message ?? '请稍后重试');
+        const result = await respondToFamilyBindInvite({
+          isElder,
+          action,
+          messageId,
+          bindId: respondBindId,
+          authPermissions: selectedPermissions,
+        });
+        if (!result.ok) {
+          Alert.alert('失败', result.msg ?? '请稍后重试');
           return;
         }
-        Alert.alert('成功', action === 'accept' ? '已接受邀请' : '已拒绝邀请', [
+        Alert.alert('成功', action === 'accept' ? (isElder ? '已授权' : '已接受邀请') : (isElder ? '已拒绝' : '已拒绝邀请'), [
           { text: '确定', onPress: () => navigation.goBack() },
         ]);
       } catch {
@@ -132,11 +141,11 @@ export default function FamilyBindInvitePage() {
         setSubmitting(false);
       }
     },
-    [messageId, navigation, resolveRespondBindId, submitting],
+    [isElder, messageId, navigation, resolveRespondBindId, selectedPermissions, submitting],
   );
 
   const handleReject = useCallback(() => {
-    Alert.alert('拒绝邀请', '确认拒绝该家人邀请吗？', [
+    Alert.alert(isElder ? '拒绝授权' : '拒绝邀请', isElder ? '确认拒绝该家属的授权申请吗？' : '确认拒绝该家人邀请吗？', [
       { text: '取消', style: 'cancel' },
       {
         text: '确认拒绝',
@@ -146,23 +155,22 @@ export default function FamilyBindInvitePage() {
         },
       },
     ]);
-  }, [submitRespond]);
+  }, [isElder, submitRespond]);
 
   const handleAccept = useCallback(() => {
-    Alert.alert('接受邀请', '确认接受该家人邀请吗？', [
+    Alert.alert(isElder ? '确认授权' : '接受邀请', isElder ? '确认授予对方所选查看权限吗？' : '确认接受该家人邀请吗？', [
       { text: '取消', style: 'cancel' },
       {
-        text: '确认接受',
+        text: isElder ? '确认授权' : '确认接受',
         onPress: () => {
           void submitRespond('accept');
         },
       },
     ]);
-  }, [submitRespond]);
+  }, [isElder, submitRespond]);
 
   const relationLabel =
     (detail && (relationLabelMap[detail.relationType] || detail.relationType)) || '--';
-  const selectedPermissions: FamilyPermissionKey[] = detail?.permissions ?? [];
   const canRespond = Boolean(messageId || detail?.id || bindId);
   const showActionButtons = detail?.bindStatus !== 1;
 
@@ -208,17 +216,16 @@ export default function FamilyBindInvitePage() {
 
         <View style={[styles.rowBox, { marginTop: 12 }]}>
           <Text style={styles.rowTitle}>授权权限</Text>
-          <Text style={styles.rowTitleDesc}>以下为对方授予的查看权限（仅查看）</Text>
+          <Text style={styles.rowTitleDesc}>
+            {isElder ? '请选择授予对方的查看权限' : '以下为对方授予的查看权限（仅查看）'}
+          </Text>
 
           <View style={styles.qxBox}>
             {FAMILY_PERMISSION_OPTIONS.map(item => {
               const active = selectedPermissions.includes(item.key);
               const iconColor = active ? ICON_SELECTED : ICON_UNSELECTED;
-              return (
-                <View
-                  key={item.key}
-                  style={[styles.qxItem, active && styles.qxItemActive]}
-                >
+              const content = (
+                <>
                   <Flex style={styles.qxItemLeft} align="center">
                     <Image
                       style={styles.qxItemIcon}
@@ -240,6 +247,26 @@ export default function FamilyBindInvitePage() {
                         : require('@/assets/images/schedule/select.png')
                     }
                   />
+                </>
+              );
+              if (isElder) {
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.8}
+                    onPress={() => handleTogglePermission(item.key)}
+                    style={[styles.qxItem, active && styles.qxItemActive]}
+                  >
+                    {content}
+                  </TouchableOpacity>
+                );
+              }
+              return (
+                <View
+                  key={item.key}
+                  style={[styles.qxItem, active && styles.qxItemActive]}
+                >
+                  {content}
                 </View>
               );
             })}
@@ -271,7 +298,7 @@ export default function FamilyBindInvitePage() {
               {submitting ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.bottomBarButtonTextAccept}>接受</Text>
+                <Text style={styles.bottomBarButtonTextAccept}>{isElder ? '保存' : '接受'}</Text>
               )}
             </TouchableOpacity>
           </View>

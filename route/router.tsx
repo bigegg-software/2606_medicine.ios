@@ -130,11 +130,13 @@ import FeedbackPage from '@/src/features/feedback/index';
 
 // 积分记录
 import RecordPointsPage from '@/src/features/profile/recordPoints';
+import FavoritePage from '@/src/features/profile/favorites';
 // 家人
 import MyFamily from '@/src/features/profile/myFamily';
 import MyFamilyAdd from '@/src/features/profile/myFamily/add';
 import FamilyDetail from '@/src/features/profile/myFamily/detail';
 import FamilyBindInvitePage from '@/src/familyPage/profilePage/FamilyBindInvitePage';
+import FamilyAddPage from '@/src/familyPage/FamilyAddPage';
 import FamilyMemberProfilePage from '@/src/familyPage/profilePage/FamilyMemberProfilePage';
 import FamilyAssessmentHistoryPage from '@/src/familyPage/FamilyData/FamilyAssessmentHistoryPage';
 import FamilyAssessmentResultPage from '@/src/familyPage/FamilyData/FamilyAssessmentResultPage';
@@ -206,6 +208,7 @@ export type RootStackParamList = {
   AuthenticationPage: undefined;
   IdCardCameraPage: { side: 'front' | 'back' };
   MessagePage: undefined;
+  FavoritePage: undefined;
   EquipmentListPage: undefined;
   EquipmentSearchPage: undefined;
   EquipmentDetailPage: {
@@ -349,6 +352,7 @@ export type RootStackParamList = {
   MyFamilyAdd: undefined;
   FamilyDetail: { id: string };
   FamilyBindInvitePage: { messageId?: string; id?: string };
+  FamilyAddPage: undefined;
   FamilyMemberProfilePage: undefined;
 };
 
@@ -516,6 +520,7 @@ export default function RootStack() {
         component={FamilyBindInvitePage}
         options={{ title: '家人邀请' }}
       />
+      <Stack.Screen name="FamilyAddPage" component={FamilyAddPage} options={{ title: '添加家人' }} />
       <Stack.Screen
         name="FamilyMemberProfilePage"
         component={FamilyMemberProfilePage}
@@ -628,6 +633,7 @@ export default function RootStack() {
 
       <Stack.Screen name="NutritionPage" component={NutritionPage} options={{ title: "" }} />
       <Stack.Screen name="MessagePage" component={MessagePage} options={{ title: "消息" }} />
+      <Stack.Screen name="FavoritePage" component={FavoritePage} options={{ title: "我的收藏" }} />
       <Stack.Screen name="RecordPointsPage" component={RecordPointsPage} options={{ title: "积分记录" }} />
       <Stack.Screen name="EquipmentListPage" component={EquipmentListPage} options={{ title: "我的设备" }} />
       <Stack.Screen name="EquipmentSearchPage" component={EquipmentSearchPage} options={{ title: "搜索设备" }} />

@@ -36,9 +36,26 @@ export type FamilyBindItem = {
 
 export type FamilyBindListResult = ApiResult<FamilyBindItem[]>;
 
+export type AddFamilyBindPayload = {
+  /** 家属备注姓名 (家属添加邀请老人的备注) */
+  remarkName: string;
+  /** 与患者关系(数据字典 relation_type) */
+  relationType: string;
+  /** 老人用户手机号（须为已注册 app_user） */
+  phonenumber: string;
+  /** 授权权限英文编码，子女发起绑定时默认全部权限 */
+  authPermissions: string[];
+};
+
+export type AddFamilyBindResult = ApiResult<number | null>;
+
 /** 查询我的家人列表（子女端，含绑定审核状态 bindStatus） */
 export const getFamilyBindMyList = () =>
   request.get<FamilyBindListResult>('/patient/familyBind/myList');
+
+/** 添加家人（发起绑定申请，默认待确认） */
+export const addFamilyBind = (data: AddFamilyBindPayload) =>
+  request.post<AddFamilyBindResult>('/patient/familyBind/add', data);
 
 /** 接受老人邀请（按 messageId，消息 params 中存 bindVo） */
 export const acceptFamilyBindInvite = (messageId: string | number) =>

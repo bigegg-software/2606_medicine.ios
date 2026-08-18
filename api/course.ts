@@ -59,7 +59,7 @@ export type CourseActionResult = {
 export const getCourseList = (params?: CourseListParams) =>
   request.get<CourseListResult>('/patient/course/list', { params });
 
-export const getCourseFavoriteList = (params?: Pick<CourseListParams, 'pageSize' | 'pageNum'>) =>
+export const getCourseFavoriteList = (params?: CourseListParams) =>
   request.get<CourseListResult>('/patient/course/favoriteList', { params });
 
 export const getCourseInfo = (courseId: string) =>

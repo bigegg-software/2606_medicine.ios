@@ -226,3 +226,43 @@ export function mergeFamilyVitalItems(
 export function emptyFamilyVitalItems(): FamilyVitalItem[] {
   return mergeFamilyVitalItems(null);
 }
+
+function isAbnormalVitalStatus(status?: string) {
+  const text = String(status ?? '').trim();
+  if (!text || text === '--' || text === '暂无数据') return false;
+  return !text.startsWith('正常');
+}
+
+/** 统计指定家人最新体征中的异常项数（血压/血糖/体温/尿酸/血脂/心率/血氧） */
+export async function countFamilyLatestVitalAbnormal(
+  patientUserId: string,
+): Promise<number | null> {
+  const id = String(patientUserId).trim();
+  if (!id) return null;
+
+  try {
+    const measureTypes = FAMILY_MEASURE_TYPES.filter(item => item.key !== 'weight');
+    const wearableTypes = FAMILY_WEARABLE_TYPES.filter(item => item.key !== 'sleep');
+    const [measureFlags, wearableFlags] = await Promise.all([
+      Promise.all(
+        measureTypes.map(async ({ type }) => {
+          const item = await fetchLatestMeasure(type, id);
+          if (!item) return false;
+          return isAbnormalVitalStatus(formatMeasureDisplay(item, type).status);
+        }),
+      ),
+      Promise.all(
+        wearableTypes.map(async ({ key, type }) => {
+          const item = await fetchLatestWearable(type, id);
+          if (!item) return false;
+          if (key === 'hr') return isAbnormalVitalStatus(formatHeartRateFromItem(item).status);
+          if (key === 'spo2') return isAbnormalVitalStatus(formatBloodOxygenFromItem(item).status);
+          return false;
+        }),
+      ),
+    ]);
+    return [...measureFlags, ...wearableFlags].filter(Boolean).length;
+  } catch {
+    return null;
+  }
+}

@@ -569,7 +569,7 @@ export default function SchedulePage() {
                   <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={activeCategoryTab.icon} />
                   <View style={styles.sectionTitleWrap}>
                     <LinearGradient
-                      colors={['#6D925E', 'rgba(109,146,94,0)']}
+                      colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.sectionTitleUnderline}
@@ -672,7 +672,7 @@ export default function SchedulePage() {
               <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={require('@/assets/images/schedule/icon_id.png')} />
               <View style={styles.sectionTitleWrap}>
                 <LinearGradient
-                  colors={['#6D925E', 'rgba(109,146,94,0)']}
+                  colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.sectionTitleUnderline}
@@ -779,7 +779,7 @@ export default function SchedulePage() {
               <Image style={styles.pageTopBgIcon} tintColor={"#333"} source={require('@/assets/images/schedule/icon_book.png')} />
               <View style={styles.sectionTitleWrap}>
                 <LinearGradient
-                  colors={['#6D925E', 'rgba(109,146,94,0)']}
+                  colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
                   style={styles.sectionTitleUnderline}

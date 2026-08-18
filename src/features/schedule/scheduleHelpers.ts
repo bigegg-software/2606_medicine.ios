@@ -1210,11 +1210,7 @@ export function toScheduleHistoryArchiveItem(
 
   const maxProgress = resolveMaxHealthGoalProgressField(healthGoalProgress?.maxProcess);
   const isInProgress = info.status === 0;
-  const summary = isInProgress
-    ? (info.adjustReason?.trim() || '')
-    : (info.completeSummary?.trim()
-      || info.aiAnalysis?.summary?.trim()
-      || '');
+  const summary = info.completeSummary?.trim() || info.adjustReason?.trim() || '';
 
   return {
     id,

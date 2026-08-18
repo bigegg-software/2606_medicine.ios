@@ -35,7 +35,9 @@ const styles = StyleSheet.create({
   },
   diamondsSignInText: { fontSize: 12, fontWeight: 500, color: '#804A15' },
   diamondsSignInImg: { width: 18, height: 18 },
-  navList: { marginTop: 21 },
+  navList: { marginTop: 20, flexWrap: 'wrap' },
+  navListItem: { width: '25%', alignItems: 'center' },
+  navListItemSecondRow: { marginTop: 15 },
   navListItemImg: { width: 44, height: 44, },
   navListItemText: {
     marginTop: 8,

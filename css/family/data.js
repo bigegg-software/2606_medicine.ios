@@ -69,6 +69,9 @@ const styles = StyleSheet.create({
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
     },
+    vitalNoData:{
+        paddingTop:160,
+    },
     vitalHeaderTitle: {
         fontWeight: 'bold',
         fontSize: 16,

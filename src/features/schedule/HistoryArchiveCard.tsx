@@ -43,7 +43,7 @@ export default function HistoryArchiveCard({ item, onPress }: Props) {
         <View>
           <Flex>
             <View style={styles.historyLine} />
-            <Text style={styles.historyTitle}>总课(次)</Text>
+            <Text style={styles.historyTitle}>累计课次</Text>
           </Flex>
           <Text style={styles.historyValue}>{item.sessionCountText}</Text>
         </View>

@@ -1,5 +1,5 @@
 import request from '@/utils/axios';
-import type { ApiResult } from '@/src/utils/apiHelpers';
+import { withPatientUserIdHeaders, type ApiResult } from '@/src/utils/apiHelpers';
 
 export type PersonalizedDynamicIndicatorType =
   | '血糖'
@@ -22,7 +22,10 @@ export type PersonalizedDynamicIndicatorMatchResult =
   ApiResult<PersonalizedDynamicIndicatorMatchData>;
 
 /** 匹配当前应展示的个性化动态指标类型 */
-export const matchPersonalizedDynamicIndicator = () =>
+export const matchPersonalizedDynamicIndicator = (options?: {
+  patientUserId?: string | number | null;
+}) =>
   request.get<PersonalizedDynamicIndicatorMatchResult>(
     '/patient/personalizedDynamicIndicator/match',
+    { headers: withPatientUserIdHeaders(options?.patientUserId) },
   );

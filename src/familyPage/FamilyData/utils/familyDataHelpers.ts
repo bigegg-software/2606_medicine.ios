@@ -1,5 +1,8 @@
 import type { ImageSourcePropType } from 'react-native';
+import type { FamilyBindItem } from '@/api/familyBind';
 import type { QuestionnaireType } from '@/api/questionTemplate';
+import type { FamilyPermissionKey } from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
+import { parseFamilyPermissionKeys } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
 
 export type FamilyVitalItem = {
   key: string;
@@ -284,3 +287,26 @@ export const FAMILY_ASSESSMENT_ITEMS: FamilyAssessmentItem[] = [
     subtitle: '低风险（2026-07-20）',
   },
 ];
+
+/** 当前绑定家人是否授予指定查看权限 */
+export function hasFamilyDataPermission(
+  item: Pick<FamilyBindItem, 'authPermissions'> | null | undefined,
+  key: FamilyPermissionKey,
+): boolean {
+  return parseFamilyPermissionKeys(item?.authPermissions).includes(key);
+}
+
+const FAMILY_DATA_PAGE_PERMISSIONS: FamilyPermissionKey[] = [
+  'health_data',
+  'exercise',
+  'diet',
+  'medication',
+  'assessment',
+];
+
+/** 数据页是否有任一可展示模块权限 */
+export function hasAnyFamilyDataPagePermission(
+  item: Pick<FamilyBindItem, 'authPermissions'> | null | undefined,
+): boolean {
+  return FAMILY_DATA_PAGE_PERMISSIONS.some(key => hasFamilyDataPermission(item, key));
+}

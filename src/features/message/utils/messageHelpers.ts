@@ -224,9 +224,15 @@ export function formatHomeUnreadBadge(count: number) {
   return String(count);
 }
 
-/** 实名认证审核通过：仅展示文案，不显示「查看详情」 */
+const MESSAGE_TYPES_WITHOUT_DETAIL = new Set([
+  'identity_audit_approved',
+  'family_bind_auth_approved',
+  'family_bind_auth_rejected',
+]);
+
+/** 结果类通知仅展示文案，不显示「查看详情」 */
 export function shouldShowMessageDetailLink(type?: string | null) {
-  return String(type ?? '').trim() !== 'identity_audit_approved';
+  return !MESSAGE_TYPES_WITHOUT_DETAIL.has(String(type ?? '').trim());
 }
 
 export type MessageListDisplayItem = {

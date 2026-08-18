@@ -158,10 +158,16 @@ export type ExPatientRuleModuleCompleteRate = {
   balanceCompleteRate?: number;
 };
 
-export const getExPatientRuleModuleCompleteRate = (exPatientRuleId: string) =>
+export const getExPatientRuleModuleCompleteRate = (
+  exPatientRuleId: string,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleModuleCompleteRate }>(
     '/patient/exPatientRule/moduleCompleteRate',
-    { params: { exPatientRuleId } },
+    {
+      params: { exPatientRuleId },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 /** 指定日期主训练完成率及四模块完成率（0-100）；当日无该模块安排时对应字段为 null */

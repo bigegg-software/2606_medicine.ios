@@ -121,6 +121,10 @@ export default function MyFamilyPage() {
                   activeOpacity={0.8}
                   onPress={() => {
                     if (!bindId) return;
+                    if (status.pending) {
+                      navigation.navigate('FamilyBindInvitePage', { id: bindId });
+                      return;
+                    }
                     navigation.navigate('FamilyDetail', { id: bindId });
                   }}
                 >
