@@ -7,10 +7,7 @@ import {
   type MeasureDataLatestResult,
   type MeasureDataType,
 } from '@/api/measureData';
-import {
-  getIndexMedicationPlanGroupByTime,
-  type IndexMedicationPlanGroupItem,
-} from '@/api/medicationPlan';
+import { getTodayAbnormalList } from '@/api/todayAbnormal';
 import {
   getWearableDataDetailByCustomerLocalDate,
   getWearableDataLatestByType,
@@ -19,23 +16,65 @@ import {
   type WearableDataItem,
 } from '@/api/wearableData';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { formatMeasureDisplay } from '@/src/features/profile/vitals/vitalsHelpers';
+import {
+  formatBloodOxygenFromItem,
+  formatHeartRateFromItem,
+  formatMeasureDisplay,
+} from '@/src/features/profile/vitals/vitalsHelpers';
 import { buildBloodSugarStatus } from '@/src/features/profile/vitals/detail/helpers/bloodSugar';
-import { parseStepsFromItem } from '@/src/features/profile/vitals/detail/helpers/shared';
+import {
+  parseStepsFromItem,
+  sumEnergyFromItem,
+} from '@/src/features/profile/vitals/detail/helpers/shared';
+import {
+  isVitalIndexKey,
+  VITAL_INDEX_KEYS,
+  type VitalIndexKey,
+} from '@/src/features/profile/vitals/vitalsSortHelpers';
 import { getApprovedFamilyBindList } from './familyProfileHelpers';
 
 export type FamilyHomeGlucoseTrend = 'up' | 'down' | null;
 
-export type FamilyHomeHealthSnapshot = {
-  bp: string;
-  glucose: string;
+export type FamilyHomeHealthRow = {
+  key: VitalIndexKey;
+  value: string;
   glucoseTrend: FamilyHomeGlucoseTrend;
-  steps: string;
-  medication: string;
 };
 
+export type FamilyHomeHealthSnapshot = {
+  rows: FamilyHomeHealthRow[];
+  abnormalCount: number | null;
+};
+
+const FAMILY_HOME_HEALTH_ROW_COUNT = 4;
+const MEASURE_TYPES = new Set<string>(['血糖', '血压', '体温', '体重', '血脂', '尿酸']);
+
+export function buildFamilyHomeHealthRowTypes(
+  abnormalList?: string[] | null,
+): VitalIndexKey[] {
+  const rows: VitalIndexKey[] = [];
+  (abnormalList ?? []).forEach(item => {
+    const key = String(item ?? '').trim();
+    if (!isVitalIndexKey(key) || rows.includes(key)) return;
+    rows.push(key);
+  });
+  VITAL_INDEX_KEYS.forEach(key => {
+    if (rows.length >= FAMILY_HOME_HEALTH_ROW_COUNT) return;
+    if (rows.includes(key)) return;
+    rows.push(key);
+  });
+  return rows.slice(0, FAMILY_HOME_HEALTH_ROW_COUNT);
+}
+
 export function emptyFamilyHomeHealthSnapshot(): FamilyHomeHealthSnapshot {
-  return { bp: '--', glucose: '--', glucoseTrend: null, steps: '--', medication: '--' };
+  return {
+    rows: buildFamilyHomeHealthRowTypes([]).map(key => ({
+      key,
+      value: '--',
+      glucoseTrend: null,
+    })),
+    abnormalCount: null,
+  };
 }
 
 function displayOrDash(value?: string) {
@@ -52,10 +91,33 @@ function trimTrailingDecimalZeros(text: string): string {
   return `${num.replace(/\.?0+$/, '')}${suffix}`;
 }
 
+function toPositiveMinutes(value: unknown): number | null {
+  const n = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  return Math.round(n);
+}
+
 function formatGlucoseValue(item?: MeasureDataItem) {
   return displayOrDash(
     trimTrailingDecimalZeros(formatMeasureDisplay(item, '血糖').value),
   );
+}
+
+function formatLipidValue(item?: MeasureDataItem): string {
+  if (!item) return '--';
+  const tc = typeof item.xuezhiTc === 'number' ? item.xuezhiTc : Number(item.xuezhiTc);
+  if (!Number.isFinite(tc)) return '--';
+  return displayOrDash(trimTrailingDecimalZeros(tc.toFixed(2)));
+}
+
+function formatSleepValue(item?: WearableDataItem): string {
+  const minutes =
+    toPositiveMinutes(item?.asleepTime) ??
+    toPositiveMinutes(item?.sleepTime) ??
+    toPositiveMinutes(item?.inbedSleepTime);
+  if (minutes == null) return '--';
+  const hours = Math.round((minutes / 60) * 10) / 10;
+  return trimTrailingDecimalZeros(`${hours}h`);
 }
 
 function resolveGlucoseTrend(item?: MeasureDataItem): FamilyHomeGlucoseTrend {
@@ -81,29 +143,6 @@ async function fetchLatestMeasure(
   }
 }
 
-async function loadBpText(patientUserId: string): Promise<string> {
-  const item = await fetchLatestMeasure('血压', patientUserId);
-  return displayOrDash(formatMeasureDisplay(item, '血压').value);
-}
-
-async function loadGlucoseSnapshot(
-  patientUserId: string,
-): Promise<Pick<FamilyHomeHealthSnapshot, 'glucose' | 'glucoseTrend'>> {
-  const item = await fetchLatestMeasure('血糖', patientUserId);
-  return {
-    glucose: formatGlucoseValue(item),
-    glucoseTrend: resolveGlucoseTrend(item),
-  };
-}
-
-export function resolveFamilyHomeGlucoseTrendIcon(
-  trend?: FamilyHomeGlucoseTrend,
-): ImageSourcePropType | null {
-  if (trend === 'up') return require('@/assets/images/vitals/shang.png');
-  if (trend === 'down') return require('@/assets/images/vitals/xia.png');
-  return null;
-}
-
 async function fetchWearable(
   loader: () => Promise<unknown>,
 ): Promise<WearableDataItem | undefined> {
@@ -116,64 +155,109 @@ async function fetchWearable(
   }
 }
 
-async function loadStepsText(patientUserId: string): Promise<string> {
+export function resolveFamilyHomeGlucoseTrendIcon(
+  trend?: FamilyHomeGlucoseTrend,
+): ImageSourcePropType | null {
+  if (trend === 'up') return require('@/assets/images/vitals/shang.png');
+  if (trend === 'down') return require('@/assets/images/vitals/xia.png');
+  return null;
+}
+
+async function loadTodayWearable(
+  type: (typeof WEARABLE_DATA_TYPES)[keyof typeof WEARABLE_DATA_TYPES],
+  patientUserId: string,
+): Promise<WearableDataItem | undefined> {
   const today = moment().format('YYYY-MM-DD');
   const todayItem = await fetchWearable(() =>
     getWearableDataDetailByCustomerLocalDate(
-      { customerLocalDate: today, type: WEARABLE_DATA_TYPES.steps },
+      { customerLocalDate: today, type },
       { patientUserId },
     ),
   );
-  const latestItem =
-    todayItem
-    ?? (await fetchWearable(() =>
-      getWearableDataLatestByType(WEARABLE_DATA_TYPES.steps, { patientUserId }),
-    ));
-  const steps = parseStepsFromItem(latestItem);
-  return steps > 0 ? String(steps) : '--';
+  if (todayItem) return todayItem;
+  return fetchWearable(() => getWearableDataLatestByType(type, { patientUserId }));
 }
 
-function formatMedicationStatus(groups?: IndexMedicationPlanGroupItem[] | null): string {
-  const actions = (groups ?? []).flatMap(group =>
-    (group.list ?? []).map(item => item.action),
-  );
-  if (actions.length === 0) return '--';
-  if (actions.some(action => action === 0)) return '漏服';
-  if (actions.every(action => action === 1)) return '完成';
-  return '--';
+async function loadFamilyHomeHealthRow(
+  key: VitalIndexKey,
+  patientUserId: string,
+): Promise<FamilyHomeHealthRow> {
+  if (MEASURE_TYPES.has(key)) {
+    const item = await fetchLatestMeasure(key as MeasureDataType, patientUserId);
+    const value =
+      key === '血脂'
+        ? formatLipidValue(item)
+        : key === '血糖'
+          ? formatGlucoseValue(item)
+          : displayOrDash(trimTrailingDecimalZeros(formatMeasureDisplay(item, key as MeasureDataType).value));
+    return {
+      key,
+      value,
+      glucoseTrend: key === '血糖' ? resolveGlucoseTrend(item) : null,
+    };
+  }
+
+  if (key === '步数') {
+    const item = await loadTodayWearable(WEARABLE_DATA_TYPES.steps, patientUserId);
+    const steps = parseStepsFromItem(item);
+    return { key, value: steps > 0 ? String(steps) : '--', glucoseTrend: null };
+  }
+  if (key === '心率') {
+    const item = await loadTodayWearable(WEARABLE_DATA_TYPES.heartRate, patientUserId);
+    return { key, value: displayOrDash(formatHeartRateFromItem(item).value), glucoseTrend: null };
+  }
+  if (key === '血氧') {
+    const item = await loadTodayWearable(WEARABLE_DATA_TYPES.oxygen, patientUserId);
+    const raw = formatBloodOxygenFromItem(item).value;
+    const value = !raw || raw === '--' ? '--' : raw.endsWith('%') ? raw : `${raw}%`;
+    return { key, value, glucoseTrend: null };
+  }
+  if (key === '睡眠') {
+    const item = await loadTodayWearable(WEARABLE_DATA_TYPES.sleep, patientUserId);
+    return { key, value: formatSleepValue(item), glucoseTrend: null };
+  }
+  if (key === '消耗') {
+    const item = await loadTodayWearable(WEARABLE_DATA_TYPES.activeEnergy, patientUserId);
+    const energy = sumEnergyFromItem(item, 'activeEnergyBurned');
+    return {
+      key,
+      value: energy > 0 ? String(Math.round(energy)) : '--',
+      glucoseTrend: null,
+    };
+  }
+
+  return { key, value: '--', glucoseTrend: null };
 }
 
-async function loadMedicationText(patientUserId: string): Promise<string> {
+export async function loadFamilyTodayAbnormalTypes(
+  patientUserId: string,
+): Promise<string[] | null> {
+  const id = String(patientUserId).trim();
+  if (!id) return null;
   try {
-    const res = await getIndexMedicationPlanGroupByTime(
-      { customerLocalDate: moment().format('YYYY-MM-DD') },
-      { patientUserId },
-    );
-    if (!isResourceApiOk(res as { code?: number })) return '--';
-    return formatMedicationStatus(
-      apiResourceData<IndexMedicationPlanGroupItem[]>(
-        res as { data?: IndexMedicationPlanGroupItem[] },
-      ),
-    );
+    const res = await getTodayAbnormalList({ patientUserId: id });
+    const data = apiResourceData<{ list?: string[] }>(res);
+    if (!data) return null;
+    return Array.isArray(data.list) ? data.list : [];
   } catch {
-    return '--';
+    return null;
   }
 }
 
-/** 拉取指定家人首页健康速览 */
+/** 拉取指定家人首页健康速览（异常项优先，不足补默认前 4 项） */
 export async function loadFamilyMemberHealthSnapshot(
   patientUserId: string,
 ): Promise<FamilyHomeHealthSnapshot> {
   const id = String(patientUserId).trim();
   if (!id) return emptyFamilyHomeHealthSnapshot();
   try {
-    const [bp, glucoseSnap, steps, medication] = await Promise.all([
-      loadBpText(id),
-      loadGlucoseSnapshot(id),
-      loadStepsText(id),
-      loadMedicationText(id),
-    ]);
-    return { bp, ...glucoseSnap, steps, medication };
+    const abnormalList = await loadFamilyTodayAbnormalTypes(id);
+    const types = buildFamilyHomeHealthRowTypes(abnormalList ?? []);
+    const rows = await Promise.all(types.map(key => loadFamilyHomeHealthRow(key, id)));
+    return {
+      rows,
+      abnormalCount: abnormalList == null ? null : abnormalList.length,
+    };
   } catch {
     return emptyFamilyHomeHealthSnapshot();
   }
@@ -197,12 +281,4 @@ export async function loadFamilyHomeHealthMap(
     if (id) map[id] = snapshot;
   });
   return map;
-}
-
-export function isFamilyHomeMedicationMissed(status?: string) {
-  return status === '漏服';
-}
-
-export function isFamilyHomeMedicationDone(status?: string) {
-  return status === '完成';
 }

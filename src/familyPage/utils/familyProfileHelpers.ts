@@ -16,6 +16,16 @@ export function getApprovedFamilyBindList(list: FamilyBindItem[]): FamilyBindIte
   return list.filter(item => Number(item.bindStatus) === 1);
 }
 
+/** 家人 Tab / 切换角标文案：统一 childRemarkName */
+export function getFamilyTabLabel(item: FamilyBindItem): string {
+  return (
+    item.childRemarkName?.trim() ||
+    item.remarkName?.trim() ||
+    item.patientName?.trim() ||
+    '家人'
+  );
+}
+
 /** 子女端展示绑定的老人姓名 */
 export function getChildFamilyDisplayName(item: FamilyBindItem): string {
   return item.remarkName?.trim() || item.patientName?.trim() || item.childRemarkName?.trim() || '未命名';
@@ -56,11 +66,6 @@ export function getChildFamilyMetaLine(
   const phone = maskFamilyPhone(item.patientPhonenumber);
   if (phone && phone !== '--') parts.push(phone);
   return parts.length ? parts.join('·') : '--';
-}
-
-/** 关系是否已认证（identityAuthStatus = 1） */
-export function isFamilyIdentityCertified(item: FamilyBindItem): boolean {
-  return Number(item.identityAuthStatus) === 1;
 }
 
 export type FamilyMemberInfoRow = {

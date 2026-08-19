@@ -24,6 +24,7 @@ import {
   getFamilyDisplayName,
   getFamilyListSubtitle,
   maskFamilyPhone,
+  resolveFamilyBindAvatarSource,
 } from './utils/myFamilyListHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -131,7 +132,7 @@ export default function MyFamilyPage() {
                   <Flex style={styles.familyItem}>
                     <Image
                       style={styles.familyItemIcon}
-                      source={require('@/assets/images/family/family.png')}
+                      source={resolveFamilyBindAvatarSource(item)}
                     />
                     <View style={styles.familyItemWrap}>
                       <Flex justify="between">

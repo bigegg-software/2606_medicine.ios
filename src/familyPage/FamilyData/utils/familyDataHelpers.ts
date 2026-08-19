@@ -15,13 +15,13 @@ export type FamilyVitalItem = {
   icon: ImageSourcePropType;
 };
 
-/** 家人数据页体征监测静态列表 */
+/** 家人数据页体征监测：心率、血糖、血压、睡眠、血氧、体温、血脂、尿酸 */
 export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
   {
-    key: 'bp',
-    label: '血压',
+    key: 'hr',
+    label: '心率',
     value: '--',
-    icon: require('@/assets/family/data/bp.png'),
+    icon: require('@/assets/family/data/hr.png'),
   },
   {
     key: 'glucose',
@@ -30,10 +30,10 @@ export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
     icon: require('@/assets/family/data/glucose.png'),
   },
   {
-    key: 'hr',
-    label: '心率',
+    key: 'bp',
+    label: '血压',
     value: '--',
-    icon: require('@/assets/family/data/hr.png'),
+    icon: require('@/assets/family/data/bp.png'),
   },
   {
     key: 'sleep',
@@ -54,23 +54,17 @@ export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
     icon: require('@/assets/family/data/temp.png'),
   },
   {
-    key: 'uric',
-    label: '尿酸',
-    value: '--',
-    icon: require('@/assets/family/data/uric.png'),
-  },
-  {
     key: 'lipid',
     label: '血脂',
     value: '--',
     icon: require('@/assets/family/data/lipid.png'),
   },
-  // {
-  //   key: 'weight',
-  //   label: '体重',
-  //   value: '65.0',
-  //   icon: require('@/assets/family/data/weight.png'),
-  // },
+  {
+    key: 'uric',
+    label: '尿酸',
+    value: '--',
+    icon: require('@/assets/family/data/uric.png'),
+  },
 ];
 
 export function chunkFamilyVitalRows<T>(items: T[], size = 2): T[][] {
@@ -84,7 +78,8 @@ export function chunkFamilyVitalRows<T>(items: T[], size = 2): T[][] {
 export type FamilyPrescriptionTypeItem = {
   key: string;
   title: string;
-  progress: number;
+  /** null 表示当天没有该训练模块 */
+  progress: number | null;
   progressColor: string;
   icon: ImageSourcePropType;
 };
@@ -94,30 +89,30 @@ export const FAMILY_PRESCRIPTION_TYPES: FamilyPrescriptionTypeItem[] = [
   {
     key: 'cardio',
     title: '有氧心肺',
-    progress: 60,
+    progress: null,
     progressColor: '#6D925E',
     icon: require('@/assets/images/schedule/exercise3.png'),
   },
   {
     key: 'strength',
     title: '抗阻增肌',
-    progress: 40,
+    progress: null,
     progressColor: '#72A1C5',
     icon: require('@/assets/images/schedule/exercise2.png'),
   },
   {
-    key: 'balance',
-    title: '平衡控制',
-    progress: 30,
-    progressColor: '#0951AE',
-    icon: require('@/assets/images/schedule/exercise4.png'),
-  },
-  {
     key: 'flexibility',
     title: '柔韧拉伸',
-    progress: 50,
+    progress: null,
     progressColor: '#EE9C44',
     icon: require('@/assets/images/schedule/exercise1.png'),
+  },
+  {
+    key: 'balance',
+    title: '平衡控制',
+    progress: null,
+    progressColor: '#0951AE',
+    icon: require('@/assets/images/schedule/exercise4.png'),
   },
 ];
 
@@ -183,9 +178,17 @@ export type FamilyMedicationAction = 'taken' | 'remind';
 export type FamilyMedicationItem = {
   key: string;
   title: string;
+  /** 计划服用时间 */
+  time: string;
+  /** 餐次/服用时机 */
+  meal: string;
+  /** 单次服用剂量 */
+  dose: string;
+  /** 每日服用频次 */
+  frequency: string;
   /** 是否漏服 */
   missed: boolean;
-  /** 右侧：今日已服 / 提醒 */
+  /** 是否已服用 */
   action: FamilyMedicationAction;
   icon: ImageSourcePropType;
 };
@@ -195,6 +198,10 @@ export const FAMILY_MEDICATION_ITEMS: FamilyMedicationItem[] = [
   {
     key: 'bp-drug',
     title: '降压药 (氨氯地平）',
+    time: '08:00',
+    meal: '早餐后',
+    dose: '1片',
+    frequency: '每日1次',
     missed: false,
     action: 'taken',
     icon: require('@/assets/family/data/med.png'),
@@ -202,6 +209,10 @@ export const FAMILY_MEDICATION_ITEMS: FamilyMedicationItem[] = [
   {
     key: 'glucose-drug',
     title: '降糖药 (二甲双胍）',
+    time: '12:00',
+    meal: '午餐后',
+    dose: '1片',
+    frequency: '每日1次',
     missed: true,
     action: 'remind',
     icon: require('@/assets/family/data/med.png'),
@@ -209,6 +220,10 @@ export const FAMILY_MEDICATION_ITEMS: FamilyMedicationItem[] = [
   {
     key: 'lipid-drug',
     title: '调脂药 (阿托伐他汀）',
+    time: '20:00',
+    meal: '晚餐后',
+    dose: '1片',
+    frequency: '每日1次',
     missed: true,
     action: 'taken',
     icon: require('@/assets/family/data/med.png'),

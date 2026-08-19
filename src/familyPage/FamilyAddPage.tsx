@@ -22,7 +22,16 @@ import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/compone
 import { addFamilyBind } from '@/api/familyBind';
 import { isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import { getAllFamilyBindAuthPermissions, validateFamilyBindAddInput } from './utils/familyBindAddHelpers';
+import {
+  FAMILY_PERMISSION_OPTIONS,
+  toggleFamilyPermission,
+  type FamilyPermissionKey,
+} from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
+import { toFamilyPermissionApiCodes } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
+import { validateFamilyBindAddInput } from './utils/familyBindAddHelpers';
+
+const ICON_SELECTED = '#6D925E';
+const ICON_UNSELECTED = '#333333';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -32,6 +41,7 @@ export default function FamilyAddPage() {
   const [relation, setRelation] = useState('');
   const [phone, setPhone] = useState('');
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
+  const [selectedPermissions, setSelectedPermissions] = useState<FamilyPermissionKey[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -53,11 +63,16 @@ export default function FamilyAddPage() {
   const relationLabel =
     relationPickerData.find(item => item.value === relation)?.label || relation;
 
+  const handleTogglePermission = (key: FamilyPermissionKey) => {
+    setSelectedPermissions(prev => toggleFamilyPermission(prev, key));
+  };
+
   const handleInvite = async () => {
     const error = validateFamilyBindAddInput({
       name,
       relation,
       phone,
+      permissions: selectedPermissions,
     });
     if (error) {
       Alert.alert('提示', error);
@@ -71,7 +86,7 @@ export default function FamilyAddPage() {
         remarkName: name.trim(),
         relationType: relation,
         phonenumber: phone.trim(),
-        authPermissions: getAllFamilyBindAuthPermissions(),
+        authPermissions: toFamilyPermissionApiCodes(selectedPermissions),
       });
       if (isResourceApiOk(res as ApiResult)) {
         Alert.alert('成功', '邀请已发送，等待对方在消息中接受', [
@@ -153,6 +168,48 @@ export default function FamilyAddPage() {
                 inputAccessoryViewID={KEYBOARD_DONE_ACCESSORY_ID}
               />
             </Flex>
+          </View>
+
+          <View style={[styles.rowBox, { marginTop: 12 }]}>
+            <Text style={styles.rowTitle}>申请权限（可多选）</Text>
+            <Text style={styles.rowTitleDesc}>对方接受后即可查看对应内容。</Text>
+
+            <View style={styles.qxBox}>
+              {FAMILY_PERMISSION_OPTIONS.map(item => {
+                const active = selectedPermissions.includes(item.key);
+                const iconColor = active ? ICON_SELECTED : ICON_UNSELECTED;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    activeOpacity={0.8}
+                    onPress={() => handleTogglePermission(item.key)}
+                    style={[styles.qxItem, active && styles.qxItemActive]}
+                  >
+                    <Flex style={styles.qxItemLeft} align="center">
+                      <Image
+                        style={styles.qxItemIcon}
+                        source={item.icon}
+                        tintColor={iconColor}
+                      />
+                      <Text
+                        style={[styles.qxItemTitle, active && styles.qxItemTitleActive]}
+                        numberOfLines={1}
+                      >
+                        {item.title}
+                      </Text>
+                    </Flex>
+                    <Image
+                      style={styles.qxCheckIcon}
+                      source={
+                        active
+                          ? require('@/assets/images/schedule/wc.png')
+                          : require('@/assets/images/schedule/select.png')
+                      }
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>

@@ -4,6 +4,7 @@ import type { RootStackParamList } from '@/route/router';
 export type VitalsViewParams = {
   readOnly?: boolean;
   patientUserId?: string;
+  relationLabel?: string;
 };
 
 export type VitalsNavExtras = VitalsViewParams;
@@ -14,12 +15,14 @@ export function resolveVitalsViewMode(
 ): {
   readOnly: boolean;
   patientUserId?: string;
+  relationLabel: string;
   /** 向子页面透传的参数（无只读/家人时为 undefined） */
   viewNavParams: VitalsViewParams | undefined;
 } {
   const patientUserId =
     params?.patientUserId != null ? String(params.patientUserId).trim() : '';
   const readOnly = Boolean(params?.readOnly);
+  const relationLabel = params?.relationLabel?.trim() || '家人';
   const id = patientUserId || undefined;
   const viewNavParams =
     readOnly || id
@@ -28,7 +31,7 @@ export function resolveVitalsViewMode(
           ...(id ? { patientUserId: id } : {}),
         }
       : undefined;
-  return { readOnly, patientUserId: id, viewNavParams };
+  return { readOnly, patientUserId: id, relationLabel, viewNavParams };
 }
 
 /** 合并体征详情/全部记录导航参数 */

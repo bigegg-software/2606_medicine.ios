@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { View, Text, Pressable, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -456,61 +456,76 @@ export default function ProfilePage() {
               const bindId = item.id != null ? String(item.id) : undefined;
               const isLast = index === familyList.length - 1;
               return (
-                <Flex
-                  key={bindId ?? `${item.jsUserId}-${item.jsPhonenumber}`}
-                  justify="between"
-                  align="center"
-                  style={[styles.familyItem, isLast && { borderBottomWidth: 0 }]}
+                <Pressable
+                  key={bindId ?? `${item.jsUserId}-${item.jsPhonenumber}-${index}`}
+                  onPress={() => {
+                    if (!bindId) {
+                      navigation.navigate('MyFamily');
+                      return;
+                    }
+                    if (status.pending) {
+                      navigation.navigate('FamilyBindInvitePage', { id: bindId });
+                      return;
+                    }
+                    navigation.navigate('FamilyDetail', { id: bindId });
+                  }}
                 >
-                  <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
-                    <Image
-                      style={styles.familyItemImg}
-                      source={resolveFamilyBindAvatarSource(item)}
-                    />
-                    <View style={[styles.familyItemContent, { flex: 1, minWidth: 0 }]}>
-                      <Flex align="center">
-                        <Text style={styles.familyItemName} numberOfLines={1}>
-                          {getFamilyDisplayName(item)}
-                        </Text>
-                        <Text style={styles.familyListRelation}>{relationLabel}</Text>
-                        <Text
-                          style={[
-                            styles.familyListStatus,
-                            status.authorized && styles.familyListStatusOk,
-                            !status.authorized && !status.pending && styles.familyListStatusFail,
-                            { marginLeft: 6 },
-                          ]}
-                          numberOfLines={1}
-                        >
-                          {status.label}
-                        </Text>
-                      </Flex>
-                      <Text style={styles.familyItemRelation} numberOfLines={1}>
-                        {getFamilyListSubtitle(item)}
-                      </Text>
-                    </View>
-                  </Flex>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    onPress={() => {
-                      if (!bindId) {
-                        navigation.navigate('MyFamily');
-                        return;
-                      }
-                      if (status.pending) {
-                        navigation.navigate('FamilyBindInvitePage', { id: bindId });
-                        return;
-                      }
-                      navigation.navigate('FamilyDetail', { id: bindId });
-                    }}
+                  <Flex
+                    justify="between"
+                    align="center"
+                    style={[styles.familyItem, isLast && { borderBottomWidth: 0 }]}
                   >
-                    <Image
-                      style={{ width: 8, height: 13 }}
-                      source={require('@/assets/images/user/icon_right.png')}
-                    />
-                  </TouchableOpacity>
-                </Flex>
+                    <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
+                      <Image
+                        style={styles.familyItemImg}
+                        source={resolveFamilyBindAvatarSource(item)}
+                      />
+                      <View style={[styles.familyItemContent, { flex: 1, minWidth: 0 }]}>
+                        <Flex align="center">
+                          <Text style={styles.familyItemName} numberOfLines={1}>
+                            {getFamilyDisplayName(item)}
+                          </Text>
+                          <Text style={styles.familyListRelation}>{relationLabel}</Text>
+                          <Text
+                            style={[
+                              styles.familyListStatus,
+                              status.authorized && styles.familyListStatusOk,
+                              !status.authorized && !status.pending && styles.familyListStatusFail,
+                              { marginLeft: 6 },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {status.label}
+                          </Text>
+                        </Flex>
+                        <Text style={styles.familyItemRelation} numberOfLines={1}>
+                          {getFamilyListSubtitle(item)}
+                        </Text>
+                      </View>
+                    </Flex>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      onPress={() => {
+                        if (!bindId) {
+                          navigation.navigate('MyFamily');
+                          return;
+                        }
+                        if (status.pending) {
+                          navigation.navigate('FamilyBindInvitePage', { id: bindId });
+                          return;
+                        }
+                        navigation.navigate('FamilyDetail', { id: bindId });
+                      }}
+                    >
+                      <Image
+                        style={{ width: 8, height: 13 }}
+                        source={require('@/assets/images/user/icon_right.png')}
+                      />
+                    </TouchableOpacity>
+                  </Flex>
+                </Pressable>
+
               );
             })
           )}

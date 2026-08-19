@@ -13,11 +13,11 @@ import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import { formatSignRewardsTokens } from '@/src/features/profile/utils/signInHelpers';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { loadFamilyMealNutritionItems } from '@/src/familyPage/FamilyData/utils/familyDataMealHelpers';
-import { countFamilyLatestVitalAbnormal } from '@/src/familyPage/FamilyData/utils/familyDataVitalHelpers';
+import { loadFamilyTodayAbnormalTypes } from './familyHomeHealthHelpers';
 import {
   getApprovedFamilyBindList,
-  getChildFamilyDisplayName,
   getFamilyTabKey,
+  getFamilyTabLabel,
 } from './familyProfileHelpers';
 
 export type FamilyHomeMemberCard = {
@@ -201,10 +201,11 @@ export async function loadFamilyHomeFocusSummary(
   const id = String(patientUserId).trim();
   if (!id) return emptyFamilyHomeFocusSummary();
   try {
-    const [healthAbnormalCount, mealItems] = await Promise.all([
-      countFamilyLatestVitalAbnormal(id),
+    const [abnormalList, mealItems] = await Promise.all([
+      loadFamilyTodayAbnormalTypes(id),
       loadFamilyMealNutritionItems(id),
     ]);
+    const healthAbnormalCount = abnormalList == null ? null : abnormalList.length;
     const calorie = mealItems.find(item => item.key === 'calorie');
     const hasDietTarget = Boolean(calorie && calorie.targetValue && !calorie.targetValue.startsWith('--'));
     const nutritionRate = hasDietTarget ? calorie!.progress : null;
@@ -224,28 +225,20 @@ export function formatFamilyHomeFocusProgressText(rate: number | null | undefine
   return `进度 ${Math.max(0, Math.min(100, Math.round(Number(rate))))}%`;
 }
 
-function getFamilyHomeMemberRelationLabel(
-  item: FamilyBindItem,
-  relationLabelMap: Record<string, string>,
-): string {
-  return (
-    relationLabelMap[String(item.relationType ?? '')] ||
-    item.relationType?.trim() ||
-    getChildFamilyDisplayName(item)
-  );
+function getFamilyHomeMemberRelationLabel(item: FamilyBindItem): string {
+  return getFamilyTabLabel(item);
 }
 
 /** 首页副标题：父亲良好·母亲需关注 */
 export function getFamilyHomeSubtitle(
   list: FamilyBindItem[],
-  relationLabelMap: Record<string, string>,
   attentionByPatientUserId?: Record<string, boolean>,
 ): string {
   const approved = getApprovedFamilyBindList(list);
   if (approved.length === 0) return '暂无绑定家人';
   return approved
     .map(item => {
-      const relation = getFamilyHomeMemberRelationLabel(item, relationLabelMap);
+      const relation = getFamilyHomeMemberRelationLabel(item);
       const id = item.patientUserId != null ? String(item.patientUserId).trim() : '';
       const needsAttention = id ? attentionByPatientUserId?.[id] : undefined;
       const status = needsAttention ? '需关注' : '良好';
@@ -257,10 +250,9 @@ export function getFamilyHomeSubtitle(
 /** 首页家人卡片基础列表（来自 store 已通过绑定） */
 export function buildFamilyHomeMemberCards(
   list: FamilyBindItem[],
-  relationLabelMap: Record<string, string>,
 ): FamilyHomeMemberCard[] {
   return getApprovedFamilyBindList(list).map((item, index) => {
-    const relationLabel = getFamilyHomeMemberRelationLabel(item, relationLabelMap);
+    const relationLabel = getFamilyHomeMemberRelationLabel(item);
     return {
       key: getFamilyTabKey(item, index),
       name: relationLabel,

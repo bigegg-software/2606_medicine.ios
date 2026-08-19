@@ -62,6 +62,7 @@ export type OldFamilyUpdateAuthPayload = {
 };
 
 export type OldFamilyBindListResult = ApiResult<OldFamilyBindItem[]>;
+export type OldFamilyBindInfoResult = ApiResult<OldFamilyBindItem>;
 export type OldFamilyInviteResult = ApiResult<number | null>;
 export type OldFamilyUpdateAuthResult = ApiResult;
 export type OldFamilyRemoveResult = ApiResult;
@@ -69,6 +70,12 @@ export type OldFamilyRemoveResult = ApiResult;
 /** 查询我的家人列表（patientUserId=当前登录用户） */
 export const getOldFamilyBindMyList = () =>
   request.get<OldFamilyBindListResult>('/patient/oldFamilyBind/myList');
+
+/** 查询我的家人详情 */
+export const getOldFamilyBindInfo = (id: string | number) =>
+  request.get<OldFamilyBindInfoResult>('/patient/oldFamilyBind/getInfo', {
+    params: { id: String(id) },
+  });
 
 /** 邀请家人（指定授权权限，默认待确认，家人接受后 bindStatus=1） */
 export const inviteOldFamilyBind = (payload: OldFamilyInvitePayload) =>

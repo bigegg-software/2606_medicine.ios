@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -15,7 +16,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
-import { fetchUserSession } from '@/store/actions/user';
+import { logout as logoutApi } from '@/api/auth';
+import { clearAll } from '@/services/storage';
+import { SET_LOGIN } from '@/store/type/login';
+import { fetchUserSession, clearUser } from '@/store/actions/user';
+import { SET_UPLOADING, SET_UPLOAD_PROGRESS } from '@/store/type/upload';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   fetchFamilyBindMyList,
   setSelectedFamilyKey,
@@ -36,7 +42,7 @@ import {
   getChildFamilyDisplayName,
   getChildFamilyMetaLine,
   getFamilyTabKey,
-  isFamilyIdentityCertified,
+  getFamilyTabLabel,
   resolveChildFamilyAvatarSource,
   type FamilyMemberInfoRow,
 } from './utils/familyProfileHelpers';
@@ -44,6 +50,8 @@ import {
   emptyFamilyMemberInfoRows,
   loadFamilyMemberInfoRows,
 } from './utils/familyMemberInfoHelpers';
+import { getDisplayUserName } from '@/src/utils/userHelpers';
+import FamilyRelationProofModal from './components/FamilyRelationProofModal';
 import styles from '@/css/family/profile';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -56,12 +64,14 @@ export default function FamilyProfilePage() {
   const loadingFamily = useSelector((s: RootState) => s.family.loading);
   const selectedFamilyKey = useSelector((s: RootState) => s.family.selectedKey);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
+  const [relationProofVisible, setRelationProofVisible] = useState(false);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const [memberInfoRows, setMemberInfoRows] = useState<FamilyMemberInfoRow[]>(
     emptyFamilyMemberInfoRows,
   );
   const [memberUser, setMemberUser] = useState<UserBaseInfo | null>(null);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
+  const submitterName = getDisplayUserName(undefined, systemUser);
 
   const familyList = useMemo(
     () => getApprovedFamilyBindList(familyListRaw),
@@ -186,19 +196,39 @@ export default function FamilyProfilePage() {
     }
   }, [dispatch, navigation, switchingIdentity]);
 
+  const logout = useCallback(() => {
+    Alert.alert('退出登录', '确定要退出登录吗？', [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确定',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const res = await logoutApi() as { code?: number; msg?: string };
+            if (!isResourceApiOk(res)) {
+              Alert.alert('退出失败', res.msg ?? '请稍后重试');
+              return;
+            }
+          } catch {
+            Alert.alert('错误', '网络错误，请稍后重试');
+            return;
+          }
+          await clearAll();
+          dispatch(clearUser());
+          dispatch({ type: SET_UPLOADING, payload: false });
+          dispatch({ type: SET_UPLOAD_PROGRESS, payload: 0 });
+          dispatch({ type: SET_LOGIN, payload: false });
+          navigation.reset({ index: 0, routes: [{ name: 'Login' }] });
+        },
+      },
+    ]);
+  }, [dispatch, navigation]);
+
   return (
     <TabPageLayout style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <View style={styles.familyTabBar}>
-          {loadingFamily && familyList.length === 0 ? (
-            <View style={styles.familyListEmpty}>
-              <ActivityIndicator color={AppTheme.primaryColor} />
-            </View>
-          ) : familyList.length === 0 ? (
-            <View style={styles.familyListEmpty}>
-              <Text style={styles.familyListEmptyText}>暂无绑定家人</Text>
-            </View>
-          ) : (
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.scroll}>
+        {familyList.length > 0 ? (
+          <View style={styles.familyTabBar}>
             <Flex align="center" justify="between" style={styles.familyTabBarInner}>
               <ScrollView
                 horizontal
@@ -208,10 +238,7 @@ export default function FamilyProfilePage() {
               >
                 {familyList.map((item, index) => {
                   const key = getFamilyTabKey(item, index);
-                  const label =
-                    relationLabelMap[String(item.relationType ?? '')] ||
-                    item.relationType ||
-                    '家人';
+                  const label = getFamilyTabLabel(item);
                   const selected = selectedFamilyKey === key;
                   return (
                     <TouchableOpacity
@@ -245,8 +272,12 @@ export default function FamilyProfilePage() {
                 <Text style={styles.familyReadonlyText}>只读</Text>
               </Flex>
             </Flex>
-          )}
-        </View>
+          </View>
+        ) : loadingFamily ? (
+          <View style={styles.familyListEmpty}>
+            <ActivityIndicator color={AppTheme.primaryColor} />
+          </View>
+        ) : null}
 
         {selectedFamily ? (
           <>
@@ -262,13 +293,49 @@ export default function FamilyProfilePage() {
                     <Text style={styles.memberName} numberOfLines={1}>
                       {getChildFamilyDisplayName(selectedFamily)}
                     </Text>
-                    {isFamilyIdentityCertified(selectedFamily) ? (
+                    {selectedFamily.identityAuthStatus == null ? (
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => setRelationProofVisible(true)}
+                      >
+                        <Flex style={styles.memberCertifiedBadgeWrap}>
+                          <Image
+                            source={require('@/assets/family/profile/icon_certified.png')}
+                            style={styles.memberCertifiedBadge}
+                            resizeMode="contain"
+                          />
+                          <Text style={styles.memberCertifiedBadgeText}>上传关系证明</Text>
+                        </Flex>
+                      </TouchableOpacity>
+                    ) : null}
+                    {selectedFamily.identityAuthStatus == 0 ? (
+                      <Flex style={styles.memberCertifiedBadgeWrap}>
+                        <Image
+                          source={require('@/assets/family/profile/icon_certified.png')}
+                          style={styles.memberCertifiedBadge}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.memberCertifiedBadgeText}>等待审核中</Text>
+                      </Flex>
+                    ) : null}
+                    {selectedFamily.identityAuthStatus === 1 ? (
+                      <Flex style={styles.memberCertifiedBadgeWrapUnCertified}>
+                        <Image
+                          source={require('@/assets/family/profile/icon_certified.png')}
+                          style={styles.memberCertifiedBadge}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.memberCertifiedBadgeText}>关系已认证</Text>
+                      </Flex>
+                    ) : null}
+
+                    {/* {isFamilyIdentityCertified(selectedFamily) ? (
                       <Image
                         source={require('@/assets/family/profile/yrz.png')}
                         style={styles.memberCertifiedBadge}
                         resizeMode="contain"
                       />
-                    ) : null}
+                    ) : null} */}
                   </Flex>
                   <Text style={styles.memberMeta} numberOfLines={1}>
                     {getChildFamilyMetaLine(selectedFamily, selectedRelationLabel)}
@@ -383,7 +450,41 @@ export default function FamilyProfilePage() {
             </Flex>
           </TouchableOpacity>
         </View>
+
+        {!loadingFamily && familyList.length === 0 ? (
+          <View style={styles.familyBindEmpty}>
+            <Image
+              source={require('@/assets/family/profile/empty.png')}
+              style={styles.familyBindEmptyIcon}
+              resizeMode="contain"
+            />
+            <Text style={styles.familyBindEmptyText}>暂无绑定家人</Text>
+          </View>
+        ) : null}
       </ScrollView>
+
+      <View style={styles.logoutWrap}>
+        <TouchableOpacity style={styles.logout} onPress={logout} activeOpacity={0.8}>
+          <Flex justify="center" style={{ flex: 1 }}>
+            <Text style={styles.logoutText}>退出登录</Text>
+          </Flex>
+        </TouchableOpacity>
+      </View>
+
+      {selectedFamily ? (
+        <FamilyRelationProofModal
+          visible={relationProofVisible}
+          displayName={getChildFamilyDisplayName(selectedFamily)}
+          patientBindId={selectedFamily.id != null ? String(selectedFamily.id) : ''}
+          relationType={String(selectedFamily.relationType ?? '')}
+          phonenumber={systemUser?.phonenumber}
+          submitterName={submitterName}
+          onClose={() => setRelationProofVisible(false)}
+          onSubmitted={() => {
+            void dispatch(fetchFamilyBindMyList());
+          }}
+        />
+      ) : null}
     </TabPageLayout>
   );
 }

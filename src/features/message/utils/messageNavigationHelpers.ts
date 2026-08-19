@@ -4,11 +4,16 @@ import { getActivityInfo } from '@/api/activity';
 import { getInUseDietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { getLiveStreamInfo } from '@/api/liveStream';
+import { getOldFamilyBindInfo } from '@/api/oldFamilyBind';
 import type { PatientMessageItem } from '@/api/message';
 import { getUserQuestionDetail } from '@/api/questionTemplate';
 import type { RootStackParamList } from '@/route/router';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { isFamilyBindInviteMessageType } from '@/src/familyPage/profilePage/utils/familyBindInviteHelpers';
+import {
+  FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE,
+  isFamilyBindInviteMessageType,
+  resolveFamilyBindAcceptedTarget,
+} from '@/src/familyPage/profilePage/utils/familyBindInviteHelpers';
 import { parseMessageCreateTime } from './messageHelpers';
 
 export const MESSAGE_NOT_FOUND_TOAST = '信息不存在';
@@ -110,6 +115,32 @@ export async function resolveMessageNavigation(item: {
 
   if (ACTIVITY_CANCEL_TYPES.has(type)) {
     return { action: 'none' };
+  }
+
+  if (type === FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE) {
+    const bizId = normalizeBizId(item.bizId);
+    if (!bizId) return { action: 'missing' };
+    try {
+      const res = await getOldFamilyBindInfo(bizId);
+      if (!isResourceApiOk(res as { code?: number })) return { action: 'missing' };
+      const data = apiResourceData(res as { code?: number; data?: { bindStatus?: number | null } });
+      if (!data) return { action: 'missing' };
+      const target = resolveFamilyBindAcceptedTarget(data.bindStatus);
+      if (target === 'invite') {
+        return {
+          action: 'navigate',
+          name: 'FamilyBindInvitePage',
+          params: { id: bizId },
+        };
+      }
+      return {
+        action: 'navigate',
+        name: 'FamilyDetail',
+        params: { id: bizId },
+      };
+    } catch {
+      return { action: 'missing' };
+    }
   }
 
   if (isFamilyBindInviteMessageType(type)) {

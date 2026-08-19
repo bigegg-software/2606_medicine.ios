@@ -19,6 +19,7 @@ import {
   getApprovedFamilyBindList,
   getChildFamilyDisplayName,
   getFamilyTabKey,
+  getFamilyTabLabel,
 } from '@/src/familyPage/utils/familyProfileHelpers';
 import { setSelectedFamilyKey } from '@/store/actions/family';
 import type { AppDispatch, RootState } from '@/store/store';
@@ -91,10 +92,7 @@ export default function FamilyRelationHeaderBadge({ label, style }: Props) {
       if (!patientUserId) return;
 
       const key = getFamilyTabKey(item, index);
-      const relationLabel =
-        relationLabelMap[String(item.relationType ?? '')] ||
-        item.relationType?.trim() ||
-        '家人';
+      const relationLabel = getFamilyTabLabel(item);
       const displayName = getChildFamilyDisplayName(item);
 
       dispatch(setSelectedFamilyKey(key));
@@ -106,7 +104,7 @@ export default function FamilyRelationHeaderBadge({ label, style }: Props) {
       } as never);
       setVisible(false);
     },
-    [dispatch, familyList, navigation, relationLabelMap],
+    [dispatch, familyList, navigation],
   );
 
   return (
@@ -154,10 +152,10 @@ export default function FamilyRelationHeaderBadge({ label, style }: Props) {
                 >
                   <View style={styles.optionTextWrap}>
                     <Text style={[styles.optionRelation, selected ? styles.optionTextSelected : null]}>
-                      {relationLabel}
+                      {name}
                     </Text>
                     <Text style={[styles.optionName, selected ? styles.optionTextSelected : null]}>
-                      {name}
+                      {relationLabel}
                     </Text>
                   </View>
                   {selected ? (

@@ -70,6 +70,22 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: '#FFFFFF',
         padding: 12,
+        overflow: 'visible',
+    },
+    todoHeader: {
+        position: 'relative',
+        minHeight: 18,
+        justifyContent: 'center',
+    },
+    todoRightHit: {
+        position: 'absolute',
+        top: -13,
+        right: -13,
+        width: 44,
+        height: 44,
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 2,
     },
     todoBar: {
         width: 4,
@@ -288,6 +304,22 @@ const styles = StyleSheet.create({
         height: 6,
         backgroundColor: '#6D925E',
         borderRadius: 25,
+    },
+    emptyWrap: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingVertical: 16,
+    },
+    emptyIcon: {
+        width: 80,
+        height: 80,
+    },
+    emptyText: {
+        marginTop: 25,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#999999',
+        textAlign: 'center',
     },
 });
 

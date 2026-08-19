@@ -15,7 +15,7 @@ import { AppTheme } from '@/common/theme';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import type { RootStackParamList } from '@/route/router';
-import FamilyReadOnlyHeaderTitle from '@/src/familyPage/components/FamilyReadOnlyHeaderTitle';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
@@ -143,13 +143,9 @@ export default function NutritionPage() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: readOnly
-        ? () => (
-            <FamilyReadOnlyHeaderTitle title="营养处方" relationLabel={relationLabel} />
-          )
-        : undefined,
+      headerTitle: readOnly ? '营养处方' : undefined,
       headerRight: readOnly
-        ? undefined
+        ? () => <FamilyRelationHeaderBadge label={relationLabel} />
         : () => (
             <TouchableOpacity
               style={{ marginRight: 18 }}

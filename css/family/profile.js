@@ -3,7 +3,7 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
-  scroll: { paddingHorizontal: 12, paddingBottom: 40 },
+  scroll: { flexGrow: 1, paddingHorizontal: 12, paddingBottom: 16 },
   familyTabBar: {
     marginTop: 10,
     minHeight: 36,
@@ -95,9 +95,19 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     alignItems: 'center',
   },
-  familyListEmptyText: {
-    fontWeight: '400',
-    fontSize: 13,
+  familyBindEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 125,
+  },
+  familyBindEmptyIcon: {
+    width: 80,
+    height: 80,
+  },
+  familyBindEmptyText: {
+    marginTop: 25,
+    fontWeight: '500',
+    fontSize: 14,
     color: '#999999',
   },
   headerSettingBtn: {
@@ -146,10 +156,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333333',
   },
+  memberCertifiedBadgeWrap: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: "#6D925E"
+  },
+  memberCertifiedBadgeWrapUnCertified: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 30,
+    borderWidth: 0,
+    backgroundColor: "#F1F5EF"
+  },
   memberCertifiedBadge: {
-    width: 92,
-    height: 25,
+    width: 15,
+    height: 15,
     flexShrink: 0,
+    marginRight: 2
+  },
+  memberCertifiedBadgeText: {
+    fontWeight: "bold",
+    fontSize: 12,
+    color: "#6D925E"
   },
   memberMeta: {
     marginTop: 6,
@@ -264,6 +294,27 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 15,
     color: '#6D925E',
+  },
+  logoutWrap: {
+    paddingHorizontal: 12,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: 'transparent',
+  },
+  logout: {
+    backgroundColor: '#FFFFFF',
+    shadowColor: '#0C3D9A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    height: 51,
+    borderRadius: 30,
+    alignItems: 'center',
+  },
+  logoutText: {
+    color: '#333333',
+    fontSize: 17,
+    fontWeight: '600',
   },
 });
 

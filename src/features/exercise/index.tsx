@@ -20,7 +20,7 @@ import { AppTheme } from '@/common/theme';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 import type { RootStackParamList } from '@/route/router';
-import FamilyReadOnlyHeaderTitle from '@/src/familyPage/components/FamilyReadOnlyHeaderTitle';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
@@ -126,12 +126,10 @@ export default function ExercisePage() {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: readOnly
-        ? () => (
-            <FamilyReadOnlyHeaderTitle title="运动处方" relationLabel={relationLabel} />
-          )
-        : '运动处方',
-      headerRight: undefined,
+      headerTitle: '运动处方',
+      headerRight: readOnly
+        ? () => <FamilyRelationHeaderBadge label={relationLabel} />
+        : undefined,
     });
   }, [navigation, readOnly, relationLabel]);
 

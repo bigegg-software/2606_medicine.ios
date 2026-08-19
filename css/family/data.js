@@ -257,6 +257,37 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333333',
   },
+  medicationMeta: {
+    marginTop: 5,
+    fontSize: 12,
+    color: '#888888',
+  },
+  medicationStatusBadge: {
+    flexShrink: 0,
+    marginLeft: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 6,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  medicationStatusTaken: {
+    backgroundColor: 'rgba(109,146,94,0.06)',
+    borderColor: 'rgba(109,146,94,0.3)',
+  },
+  medicationStatusUntaken: {
+    backgroundColor: 'rgba(251,69,80,0.06)',
+    borderColor: 'rgba(251,69,80,0.3)',
+  },
+  medicationStatusText: {
+    fontWeight: 'bold',
+    fontSize: 11,
+  },
+  medicationStatusTextTaken: {
+    color: '#6D925E',
+  },
+  medicationStatusTextUntaken: {
+    color: '#FB4550',
+  },
   medicationMissedBadge: {
     flexShrink: 0,
     marginLeft: 6,

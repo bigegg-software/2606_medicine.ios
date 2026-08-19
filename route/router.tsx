@@ -232,6 +232,8 @@ export type RootStackParamList = {
     /** 家人只读查看 */
     readOnly?: boolean;
     patientUserId?: string;
+    /** 关系文案，用于右上角家人切换 */
+    relationLabel?: string;
   } | undefined;
   AddDataPage: { type?: '血压' | '血糖' | '体温' | '尿酸' | '血脂' | '体重'; item?: MeasureDataItem };
   AllDataPage: {

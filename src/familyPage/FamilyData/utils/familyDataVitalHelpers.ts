@@ -22,23 +22,21 @@ import type { FamilyVitalItem } from './familyDataHelpers';
 import { FAMILY_VITAL_ITEMS } from './familyDataHelpers';
 
 export type FamilyVitalKey =
-  | 'bp'
-  | 'glucose'
   | 'hr'
+  | 'glucose'
+  | 'bp'
   | 'sleep'
   | 'spo2'
   | 'temp'
-  | 'uric'
   | 'lipid'
-  | 'weight';
+  | 'uric';
 
 const FAMILY_MEASURE_TYPES: { key: FamilyVitalKey; type: MeasureDataType }[] = [
-  { key: 'bp', type: '血压' },
   { key: 'glucose', type: '血糖' },
+  { key: 'bp', type: '血压' },
   { key: 'temp', type: '体温' },
-  { key: 'uric', type: '尿酸' },
   { key: 'lipid', type: '血脂' },
-  { key: 'weight', type: '体重' },
+  { key: 'uric', type: '尿酸' },
 ];
 
 const FAMILY_WEARABLE_TYPES: { key: FamilyVitalKey; type: WearableDataType }[] = [
@@ -241,7 +239,7 @@ export async function countFamilyLatestVitalAbnormal(
   if (!id) return null;
 
   try {
-    const measureTypes = FAMILY_MEASURE_TYPES.filter(item => item.key !== 'weight');
+    const measureTypes = FAMILY_MEASURE_TYPES;
     const wearableTypes = FAMILY_WEARABLE_TYPES.filter(item => item.key !== 'sleep');
     const [measureFlags, wearableFlags] = await Promise.all([
       Promise.all(

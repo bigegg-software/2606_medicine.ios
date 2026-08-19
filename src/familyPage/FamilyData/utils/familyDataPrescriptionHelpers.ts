@@ -7,7 +7,7 @@ import {
 
 /** 无选中家人 / 加载失败时的空进度列表 */
 export function emptyFamilyPrescriptionItems(): FamilyPrescriptionTypeItem[] {
-  return FAMILY_PRESCRIPTION_TYPES.map(item => ({ ...item, progress: 0 }));
+  return FAMILY_PRESCRIPTION_TYPES.map(item => ({ ...item, progress: null }));
 }
 
 /** 拉取指定家人今日四模块运动处方进度（X-Patient-User-Id） */
@@ -24,7 +24,8 @@ export async function loadFamilyPrescriptionItems(
     );
     return FAMILY_PRESCRIPTION_TYPES.map(item => ({
       ...item,
-      progress: progressMap[item.key] ?? 0,
+      // 接口未返回该模块代表当天没有安排；与已安排但完成率为 0 区分开。
+      progress: progressMap[item.key] ?? null,
     }));
   } catch {
     return emptyFamilyPrescriptionItems();

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -14,8 +14,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
-import type { DictDataItem } from '@/api/dict';
-import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import { AppTheme } from '@/common/theme';
 import type { AppDispatch, RootState } from '@/store/store';
 import {
@@ -36,6 +34,7 @@ import {
   getApprovedFamilyBindList,
   getChildFamilyDisplayName,
   getFamilyTabKey,
+  getFamilyTabLabel,
 } from '../utils/familyProfileHelpers';
 import {
   emptyFamilyVitalItems,
@@ -68,7 +67,6 @@ export default function FamilyDataPage() {
   const familyListRaw = useSelector((s: RootState) => s.family.list);
   const loadingFamily = useSelector((s: RootState) => s.family.loading);
   const selectedFamilyKey = useSelector((s: RootState) => s.family.selectedKey);
-  const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const [vitalItems, setVitalItems] = useState(emptyFamilyVitalItems);
   const [loadingVitals, setLoadingVitals] = useState(false);
   const [prescriptionItems, setPrescriptionItems] = useState<FamilyPrescriptionTypeItem[]>(
@@ -110,35 +108,10 @@ export default function FamilyDataPage() {
 
   const vitalRows = useMemo(() => chunkFamilyVitalRows(vitalItems, 2), [vitalItems]);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const options = await loadRelationTypeOptions();
-        setRelationOptions(options);
-      } catch {
-        setRelationOptions([]);
-      }
-    })();
-  }, []);
-
-  const relationLabelMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    relationOptions.forEach(item => {
-      const value = String(item.dictValue ?? '');
-      if (!value) return;
-      map[value] = item.dictLabel || value;
-    });
-    return map;
-  }, [relationOptions]);
-
   const selectedRelationLabel = useMemo(() => {
     if (!selectedFamily) return '家人';
-    return (
-      relationLabelMap[String(selectedFamily.relationType ?? '')] ||
-      selectedFamily.relationType?.trim() ||
-      '家人'
-    );
-  }, [relationLabelMap, selectedFamily]);
+    return getFamilyTabLabel(selectedFamily);
+  }, [selectedFamily]);
 
   const familyViewParams = useMemo(() => {
     if (!selectedPatientUserId || !selectedFamily) return null;
@@ -271,7 +244,7 @@ export default function FamilyDataPage() {
               <ActivityIndicator color={AppTheme.primaryColor} />
             </View>
           ) : familyList.length === 0 ? (
-            <View style={styles.familyListEmpty}>
+            <View style={styles.vitalNoData}>
               <EmptyRecord text="暂无绑定家人" compact />
             </View>
           ) : (
@@ -284,10 +257,7 @@ export default function FamilyDataPage() {
               >
                 {familyList.map((item, index) => {
                   const key = getFamilyTabKey(item, index);
-                  const label =
-                    relationLabelMap[String(item.relationType ?? '')] ||
-                    item.relationType ||
-                    '家人';
+                  const label = getFamilyTabLabel(item);
                   const selected = selectedFamilyKey === key;
                   return (
                     <TouchableOpacity
@@ -368,6 +338,7 @@ export default function FamilyDataPage() {
                 navigation.navigate('VitalsPage', {
                   patientUserId: selectedPatientUserId,
                   readOnly: true,
+                  relationLabel: selectedRelationLabel,
                 });
               }}
             >
@@ -545,27 +516,39 @@ export default function FamilyDataPage() {
                     <Flex align="center" justify="between">
                       <Flex align="center" style={{ flex: 1, minWidth: 0 }}>
                         <Image source={item.icon} style={styles.medicationIcon} resizeMode="contain" />
-                        <Flex align="center" style={styles.medicationTitleWrap}>
-                          <Text style={styles.medicationTitle} numberOfLines={1}>
-                            {item.title}
-                          </Text>
-                          {item.missed ? (
-                            <View style={styles.medicationMissedBadge}>
-                              <Text style={styles.medicationMissedText}>漏服</Text>
+                        <View style={styles.medicationTitleWrap}>
+                          <Flex align="center">
+                            <Text style={styles.medicationTitle} numberOfLines={1}>
+                              {item.title}
+                            </Text>
+                            <View
+                              style={[
+                                styles.medicationStatusBadge,
+                                item.action === 'taken'
+                                  ? styles.medicationStatusTaken
+                                  : styles.medicationStatusUntaken,
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.medicationStatusText,
+                                  item.action === 'taken'
+                                    ? styles.medicationStatusTextTaken
+                                    : styles.medicationStatusTextUntaken,
+                                ]}
+                              >
+                                {item.action === 'taken' ? '已服用' : '未服用'}
+                              </Text>
                             </View>
-                          ) : null}
-                        </Flex>
-                      </Flex>
-                      {item.action === 'taken' ? (
-                        <View style={styles.medicationTakenBadge}>
-                          <Image
-                            source={require('@/assets/family/data/med_taken.png')}
-                            style={styles.medicationTakenIcon}
-                            resizeMode="contain"
-                          />
-                          <Text style={styles.medicationTakenText}>今日已服</Text>
+                          </Flex>
+                          <Text style={styles.medicationMeta} numberOfLines={1}>
+                            {[item.time, item.dose, item.meal, item.frequency]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          </Text>
                         </View>
-                      ) : (
+                      </Flex>
+                      {item.action === 'remind' ? (
                         <TouchableOpacity activeOpacity={0.85} style={styles.medicationRemindBtn}>
                           <Image
                             source={require('@/assets/family/data/icon_tip.png')}
@@ -574,7 +557,7 @@ export default function FamilyDataPage() {
                           />
                           <Text style={styles.medicationRemindText}>提醒</Text>
                         </TouchableOpacity>
-                      )}
+                      ) : null}
                     </Flex>
                   </View>
                 ))

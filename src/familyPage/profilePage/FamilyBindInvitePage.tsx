@@ -173,6 +173,7 @@ export default function FamilyBindInvitePage() {
     (detail && (relationLabelMap[detail.relationType] || detail.relationType)) || '--';
   const canRespond = Boolean(messageId || detail?.id || bindId);
   const showActionButtons = detail?.bindStatus !== 1;
+  const showRejectButton = showActionButtons && !(isElder && detail?.initiatedByElder);
 
   if (loading) {
     return (
@@ -217,7 +218,11 @@ export default function FamilyBindInvitePage() {
         <View style={[styles.rowBox, { marginTop: 12 }]}>
           <Text style={styles.rowTitle}>授权权限</Text>
           <Text style={styles.rowTitleDesc}>
-            {isElder ? '请选择授予对方的查看权限' : '以下为对方授予的查看权限（仅查看）'}
+            {isElder
+              ? detail.initiatedByElder
+                ? '请选择授予对方的查看权限'
+                : '以下为对方申请的查看权限，可修改后再授权'
+              : '以下为对方授予的查看权限（仅查看）'}
           </Text>
 
           <View style={styles.qxBox}>
@@ -277,18 +282,20 @@ export default function FamilyBindInvitePage() {
       {showActionButtons ? (
         <View style={styles.bottomBar}>
           <View style={styles.bottomBarRow}>
-            <TouchableOpacity
-              style={[styles.bottomBarButton, styles.bottomBarButtonReject]}
-              activeOpacity={0.7}
-              disabled={submitting || !canRespond}
-              onPress={handleReject}
-            >
-              {submitting ? (
-                <ActivityIndicator color="#FB4550" />
-              ) : (
-                <Text style={styles.bottomBarButtonTextReject}>拒绝</Text>
-              )}
-            </TouchableOpacity>
+            {showRejectButton ? (
+              <TouchableOpacity
+                style={[styles.bottomBarButton, styles.bottomBarButtonReject]}
+                activeOpacity={0.7}
+                disabled={submitting || !canRespond}
+                onPress={handleReject}
+              >
+                {submitting ? (
+                  <ActivityIndicator color="#FB4550" />
+                ) : (
+                  <Text style={styles.bottomBarButtonTextReject}>拒绝</Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               style={[styles.bottomBarButton, styles.bottomBarButtonAccept]}
               activeOpacity={0.7}

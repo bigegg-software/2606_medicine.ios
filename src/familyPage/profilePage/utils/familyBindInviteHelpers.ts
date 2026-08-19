@@ -29,6 +29,7 @@ import {
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 
 export const FAMILY_BIND_INVITE_MESSAGE_TYPE = 'family_bind_invite_request';
+export const FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE = 'family_bind_invite_accepted';
 
 export type FamilyBindInviteBindVo = FamilyBindItem | OldFamilyBindItem;
 
@@ -39,11 +40,26 @@ export type FamilyBindInviteView = {
   phone: string;
   permissions: FamilyPermissionKey[];
   bindStatus?: number;
+  /** 老人通过 invite 发起（有 childRemarkName）；子女发起则为 false */
+  initiatedByElder: boolean;
 };
+
+/** 老人邀请家人会写入 childRemarkName，子女申请绑定则写入 remarkName */
+export function isElderInitiatedFamilyBind(item: FamilyBindInviteBindVo): boolean {
+  return Boolean(item.childRemarkName?.trim());
+}
+
+/** 家人接受邀请后：待确认进邀请页，其余进家人详情 */
+export function resolveFamilyBindAcceptedTarget(
+  bindStatus?: number | null,
+): 'invite' | 'detail' {
+  return Number(bindStatus) === 0 ? 'invite' : 'detail';
+}
 
 const FAMILY_BIND_RESULT_MESSAGE_TYPES = new Set([
   'family_bind_auth_approved',
   'family_bind_auth_rejected',
+  FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE,
 ]);
 
 export function isFamilyBindInviteMessageType(type?: string | null): boolean {
@@ -93,6 +109,7 @@ export function buildFamilyBindInviteView(
 ): FamilyBindInviteView {
   const isElder = options?.isElder === true;
   const parsedPermissions = parseFamilyPermissionKeys(item.authPermissions);
+  const initiatedByElder = isElderInitiatedFamilyBind(item);
   const defaultPermissions = FAMILY_PERMISSION_OPTIONS.map(option => option.key);
   return {
     id: item.id != null ? String(item.id) : '',
@@ -103,8 +120,14 @@ export function buildFamilyBindInviteView(
     phone: isElder
       ? item.jsPhonenumber?.trim() || '--'
       : (item as FamilyBindItem).patientPhonenumber?.trim() || '--',
-    permissions: parsedPermissions.length > 0 ? parsedPermissions : defaultPermissions,
+    permissions:
+      parsedPermissions.length > 0
+        ? parsedPermissions
+        : initiatedByElder
+          ? defaultPermissions
+          : parsedPermissions,
     bindStatus: item.bindStatus,
+    initiatedByElder,
   };
 }
 

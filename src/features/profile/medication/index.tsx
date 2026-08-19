@@ -5,7 +5,7 @@ import { AppTheme } from '@/common/theme';
 import styles from '@/css/medication/index';
 import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
-import FamilyReadOnlyHeaderTitle from '@/src/familyPage/components/FamilyReadOnlyHeaderTitle';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import MealTab from './components/MealTab';
 import MedicationTab from './components/MedicationTab';
@@ -49,16 +49,9 @@ export default function MedicationPage() {
     useEffect(() => {
         const pageTitle = activeNav === 'meal' ? '营养处方' : '用药记录';
         navigation.setOptions({
-            headerTitle: readOnly
-                ? () => (
-                    <FamilyReadOnlyHeaderTitle
-                        title={pageTitle}
-                        relationLabel={relationLabel}
-                    />
-                )
-                : pageTitle,
+            headerTitle: pageTitle,
             headerRight: readOnly
-                ? undefined
+                ? () => <FamilyRelationHeaderBadge label={relationLabel} />
                 : () =>
                     activeNav === 'medication' ? (
                         <TouchableOpacity

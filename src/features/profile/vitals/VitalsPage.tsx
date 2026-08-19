@@ -113,6 +113,7 @@ import {
   type VitalIndexKey,
   type VitalsSortItem,
 } from './vitalsSortHelpers';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 
 const EMPTY_MEASURE_DATA: Record<VitalKey, MeasureDataItem[]> = {
   bloodPressure: [],
@@ -133,7 +134,7 @@ export default function VitalsPage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation: any = useNavigation();
   const route = useRoute<RouteProp<RootStackParamList, 'VitalsPage'>>();
-  const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(route.params);
+  const { readOnly, patientUserId, relationLabel, viewNavParams } = resolveVitalsViewMode(route.params);
   const insets = useSafeAreaInsets();
   const uploading = useSelector((state: RootState) => state.upload.uploading);
   const userGender = useSelector((state: RootState) => state.user.info?.gender);
@@ -167,6 +168,7 @@ export default function VitalsPage() {
   const promptAutoSyncAfterSyncRef = useRef(false);
   const hasLoadedOnceRef = useRef(false);
   const prevActiveNavRef = useRef(activeNav);
+  const prevPatientUserIdRef = useRef(patientUserId);
 
   useEffect(() => {
     if (userExtr?.sleepGoals != null && userExtr.sleepGoals > 0) {
@@ -400,6 +402,13 @@ export default function VitalsPage() {
     void loadMeasureData('initial');
   }, [activeNav, loadMeasureData]);
 
+  /** 右上角切换家人后刷新当前展示的体征数据。 */
+  useEffect(() => {
+    if (!readOnly || prevPatientUserIdRef.current === patientUserId) return;
+    prevPatientUserIdRef.current = patientUserId;
+    void loadMeasureData('initial');
+  }, [loadMeasureData, patientUserId, readOnly]);
+
   const bloodPressureSeries = useMemo(
     () => buildBloodPressureSeriesFromItems(measureData.bloodPressure, activeNav),
     [measureData.bloodPressure, activeNav],
@@ -604,8 +613,8 @@ export default function VitalsPage() {
   );
 
   const orderedVitalKeys = useMemo(
-    () => resolveVitalsDisplayOrder(userExtr?.healthIndexShowList),
-    [userExtr?.healthIndexShowList],
+    () => resolveVitalsDisplayOrder(readOnly ? undefined : userExtr?.healthIndexShowList),
+    [readOnly, userExtr?.healthIndexShowList],
   );
 
   const vitalsSortItems = useMemo<VitalsSortItem[]>(() => {
@@ -1080,14 +1089,14 @@ export default function VitalsPage() {
   useEffect(() => {
     navigation.setOptions({
       headerRight: readOnly
-        ? undefined
+        ? () => <FamilyRelationHeaderBadge label={relationLabel} />
         : () => (
             <TouchableOpacity onPress={() => navigation.navigate('SortPage', { items: vitalsSortItems })}>
               <Image source={require('@/assets/images/vitals/sort.png')} style={{ width: 24, height: 24, marginRight: 8 }} />
             </TouchableOpacity>
           ),
     });
-  }, [navigation, vitalsSortItems, readOnly]);
+  }, [navigation, vitalsSortItems, readOnly, relationLabel]);
   return (
     <PageLayout style={styles.container} edges={[]}>
       {/* <Flex style={styles.navBox}>

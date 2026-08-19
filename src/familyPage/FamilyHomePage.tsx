@@ -5,7 +5,6 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
-  DeviceEventEmitter,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -17,15 +16,6 @@ import { Flex } from '@ant-design/react-native';
 import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
-import type { DictDataItem } from '@/api/dict';
-import { getMessageUnreadCount } from '@/api/message';
-import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import {
-  buildMessageScopeParams,
-  formatHomeUnreadBadge,
-  MESSAGE_UNREAD_CHANGED,
-} from '@/src/features/message/utils/messageHelpers';
 import {
   buildFamilyHomeMemberCards,
   emptyFamilyHomeFocusSummary,
@@ -44,8 +34,6 @@ import {
 } from './utils/familyHomeHelpers';
 import {
   emptyFamilyHomeHealthSnapshot,
-  isFamilyHomeMedicationDone,
-  isFamilyHomeMedicationMissed,
   loadFamilyHomeHealthMap,
   resolveFamilyHomeGlucoseTrendIcon,
   type FamilyHomeHealthSnapshot,
@@ -54,6 +42,7 @@ import {
   getApprovedFamilyBindList,
   getChildFamilyDisplayName,
   getFamilyTabKey,
+  getFamilyTabLabel,
 } from './utils/familyProfileHelpers';
 import styles from '@/css/family/home';
 
@@ -61,51 +50,28 @@ export default function FamilyHomePage() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const dispatch = useDispatch<AppDispatch>();
-  const identityPerspective = useSelector(
-    (state: RootState) => state.user.systemUser?.identityPerspective,
-  );
-  const userId = useSelector(
-    (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
-  );
   const userInfo = useSelector((state: RootState) => state.user.info);
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const familyList = useSelector((state: RootState) => state.family.list);
   const selectedFamilyKey = useSelector((state: RootState) => state.family.selectedKey);
 
-  const messageScope = useMemo(
-    () => buildMessageScopeParams({ identityPerspective, userId }),
-    [identityPerspective, userId],
-  );
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const [attentionMap, setAttentionMap] = useState<Record<string, boolean>>({});
   const [activityProgressMap, setActivityProgressMap] = useState<Record<string, number | null>>({});
   const [tokensMap, setTokensMap] = useState<Record<string, number | null>>({});
   const [healthMap, setHealthMap] = useState<Record<string, FamilyHomeHealthSnapshot>>({});
   const [focusSummary, setFocusSummary] = useState<FamilyHomeFocusSummary>(emptyFamilyHomeFocusSummary);
-  const badgeText = formatHomeUnreadBadge(unreadCount);
-
-  const relationLabelMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    relationOptions.forEach(item => {
-      const value = String(item.dictValue ?? '');
-      if (!value) return;
-      map[value] = item.dictLabel || value;
-    });
-    return map;
-  }, [relationOptions]);
 
   const greetingTitle = useMemo(
     () => getFamilyHomeGreetingTitle(userInfo, systemUser),
     [systemUser, userInfo],
   );
   const greetingSubtitle = useMemo(
-    () => getFamilyHomeSubtitle(familyList, relationLabelMap, attentionMap),
-    [attentionMap, familyList, relationLabelMap],
+    () => getFamilyHomeSubtitle(familyList, attentionMap),
+    [attentionMap, familyList],
   );
   const memberCards = useMemo(
-    () => buildFamilyHomeMemberCards(familyList, relationLabelMap),
-    [familyList, relationLabelMap],
+    () => buildFamilyHomeMemberCards(familyList),
+    [familyList],
   );
   const approvedFamilyList = useMemo(
     () => getApprovedFamilyBindList(familyList),
@@ -125,12 +91,8 @@ export default function FamilyHomePage() {
   }, [selectedFamily]);
   const selectedRelationLabel = useMemo(() => {
     if (!selectedFamily) return '家人';
-    return (
-      relationLabelMap[String(selectedFamily.relationType ?? '')]
-      || selectedFamily.relationType?.trim()
-      || '家人'
-    );
-  }, [relationLabelMap, selectedFamily]);
+    return getFamilyTabLabel(selectedFamily);
+  }, [selectedFamily]);
   const firstMember = memberCards[0];
   const goToFamilyData = useCallback(() => {
     navigation.navigate('FamilyTabs', { screen: 'FamilyData' });
@@ -139,42 +101,10 @@ export default function FamilyHomePage() {
     ? activityProgressMap[firstMember.patientUserId]
     : null;
 
-  const loadUnreadCount = useCallback(async () => {
-    if (!messageScope.userIds) {
-      setUnreadCount(0);
-      return;
-    }
-    try {
-      const res = (await getMessageUnreadCount(messageScope)) as unknown as {
-        code?: number;
-        data?: number;
-      };
-      if (!isResourceApiOk(res)) {
-        setUnreadCount(0);
-        return;
-      }
-      setUnreadCount(Number(apiResourceData<number>(res) ?? 0));
-    } catch {
-      setUnreadCount(0);
-    }
-  }, [messageScope]);
-
-  useEffect(() => {
-    void (async () => {
-      try {
-        const options = await loadRelationTypeOptions();
-        setRelationOptions(options);
-      } catch {
-        setRelationOptions([]);
-      }
-    })();
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       void dispatch(fetchFamilyBindMyList());
-      void loadUnreadCount();
-    }, [dispatch, loadUnreadCount]),
+    }, [dispatch]),
   );
 
   useEffect(() => {
@@ -214,32 +144,12 @@ export default function FamilyHomePage() {
     };
   }, [firstMember?.patientUserId]);
 
-  useEffect(() => {
-    const sub = DeviceEventEmitter.addListener(MESSAGE_UNREAD_CHANGED, () => {
-      void loadUnreadCount();
-    });
-    return () => sub.remove();
-  }, [loadUnreadCount]);
-
   return (
     <View style={styles.container}>
       <HeaderBack />
       <View style={[styles.floatingHeader, { paddingTop: insets.top }]} pointerEvents="box-none">
         <View style={styles.floatingHeaderInner} pointerEvents="box-none">
           <Image source={require('@/assets/family/home/logo.png')} style={styles.miniLogo} />
-          <TouchableOpacity
-            style={styles.topRight}
-            activeOpacity={0.8}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-            onPress={() => navigation.navigate('MessagePage')}
-          >
-            <Image source={require('@/assets/family/home/tip.png')} style={styles.rightImg} />
-            {badgeText ? (
-              <View style={styles.redDot} pointerEvents="none">
-                <Text style={styles.redDotText}>{badgeText}</Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
         </View>
       </View>
       <View style={{ paddingTop: insets.top + 44 }} />
@@ -261,14 +171,14 @@ export default function FamilyHomePage() {
             end={{ x: 0.5, y: 1 }}
             style={styles.todoCard}
           >
-            <Flex align="center" justify="between">
+            <View style={styles.todoHeader}>
               <Flex align="center">
                 <View style={styles.todoBar} />
-                <Text style={styles.todoTitle}>重要待办（2项）</Text>
+                <Text style={styles.todoTitle}>重要待办（0项）</Text>
               </Flex>
               <TouchableOpacity
+                style={styles.todoRightHit}
                 activeOpacity={0.85}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 disabled={!selectedPatientUserId}
                 onPress={() => {
                   if (!selectedFamily || !selectedPatientUserId) return;
@@ -285,25 +195,8 @@ export default function FamilyHomePage() {
                   style={styles.todoRightIcon}
                 />
               </TouchableOpacity>
-            </Flex>
-            <Flex style={[styles.todoItem, { marginTop: 12 }]} align="center" justify="between">
-              <Flex align="center" style={{ flex: 1 }}>
-                <View style={styles.todoDot} />
-                <Text style={styles.todoItemText}>母亲血糖偏高 (7.2)</Text>
-              </Flex>
-              <View style={styles.todoTag}>
-                <Text style={styles.todoTagText}>建议今日复查</Text>
-              </View>
-            </Flex>
-            <Flex style={styles.todoItem} align="center" justify="between">
-              <Flex align="center" style={{ flex: 1 }}>
-                <View style={styles.todoDot} />
-                <Text style={styles.todoItemText}>母亲血糖偏高 (7.2)</Text>
-              </Flex>
-              <View style={styles.todoTag}>
-                <Text style={styles.todoTagText}>建议今日复查</Text>
-              </View>
-            </Flex>
+            </View>
+            <FamilyHomeEmpty />
           </LinearGradient>
 
           <Flex align="center" style={styles.todoTitleWrap}>
@@ -320,7 +213,6 @@ export default function FamilyHomePage() {
               const snapshot =
                 (member.patientUserId && healthMap[member.patientUserId])
                 || emptyFamilyHomeHealthSnapshot();
-              const glucoseTrendIcon = resolveFamilyHomeGlucoseTrendIcon(snapshot.glucoseTrend);
               return (
                 <View key={member.key} style={styles.familyHealthItem}>
                   <Flex align="center">
@@ -330,44 +222,34 @@ export default function FamilyHomePage() {
                     />
                     <Text style={styles.familyHealthName}>{member.name}</Text>
                   </Flex>
-                  <Flex
-                    style={[styles.familyHealthRow, styles.familyHealthRowFirst]}
-                    justify="between"
-                    align="center"
-                  >
-                    <Text style={styles.familyHealthLabel}>血压</Text>
-                    <Text style={styles.familyHealthValue}>{snapshot.bp}</Text>
-                  </Flex>
-                  <Flex style={styles.familyHealthRow} justify="between" align="center">
-                    <Text style={styles.familyHealthLabel}>血糖</Text>
-                    <Flex align="center">
-                      <Text style={styles.familyHealthValue}>{snapshot.glucose}</Text>
-                      {glucoseTrendIcon ? (
-                        <Image
-                          source={glucoseTrendIcon}
-                          style={styles.familyHealthTrendIcon}
-                        />
-                      ) : null}
-                    </Flex>
-                  </Flex>
-                  <Flex style={styles.familyHealthRow} justify="between" align="center">
-                    <Text style={styles.familyHealthLabel}>步数</Text>
-                    <Text style={styles.familyHealthValue}>{snapshot.steps}</Text>
-                  </Flex>
-                  <Flex style={styles.familyHealthRow} justify="between" align="center">
-                    <Text style={styles.familyHealthLabel}>用药</Text>
-                    {isFamilyHomeMedicationDone(snapshot.medication) ? (
-                      <View style={styles.familyHealthTagDone}>
-                        <Text style={styles.familyHealthTagDoneText}>完成</Text>
-                      </View>
-                    ) : isFamilyHomeMedicationMissed(snapshot.medication) ? (
-                      <View style={styles.familyHealthTagMiss}>
-                        <Text style={styles.familyHealthTagMissText}>漏服</Text>
-                      </View>
-                    ) : (
-                      <Text style={styles.familyHealthValue}>--</Text>
-                    )}
-                  </Flex>
+                  {snapshot.rows.map((row, index) => {
+                    const glucoseTrendIcon =
+                      row.key === '血糖'
+                        ? resolveFamilyHomeGlucoseTrendIcon(row.glucoseTrend)
+                        : null;
+                    return (
+                      <Flex
+                        key={row.key}
+                        style={[
+                          styles.familyHealthRow,
+                          index === 0 && styles.familyHealthRowFirst,
+                        ]}
+                        justify="between"
+                        align="center"
+                      >
+                        <Text style={styles.familyHealthLabel}>{row.key}</Text>
+                        <Flex align="center">
+                          <Text style={styles.familyHealthValue}>{row.value}</Text>
+                          {glucoseTrendIcon ? (
+                            <Image
+                              source={glucoseTrendIcon}
+                              style={styles.familyHealthTrendIcon}
+                            />
+                          ) : null}
+                        </Flex>
+                      </Flex>
+                    );
+                  })}
                 </View>
               );
             })}
@@ -459,53 +341,72 @@ export default function FamilyHomePage() {
             <Text style={styles.todoTitle}>家人本周活跃度</Text>
           </Flex>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.activityScroll}
-          >
-            {memberCards.map(member => {
-              const rate = member.patientUserId
-                ? activityProgressMap[member.patientUserId]
-                : null;
-              const tokens = member.patientUserId
-                ? tokensMap[member.patientUserId]
-                : null;
-              const percent = resolveFamilyHomeActivityProgressPercent(rate);
-              return (
-                <View key={`activity-${member.key}`} style={styles.activityCard}>
-                  <Flex align="center" justify="between">
-                    <Text style={styles.activityName}>{member.name}</Text>
-                    <Flex align="center">
-                      <Image
-                        source={require('@/assets/family/home/icon_jf.png')}
-                        style={styles.activityPointsIcon}
-                      />
-                      <Text style={styles.activityPoints}>
-                        {formatFamilyHomeTokensText(tokens)}
+          {memberCards.length === 0 ? (
+            <View style={styles.activityScroll}>
+              <FamilyHomeEmpty />
+            </View>
+          ) : (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.activityScroll}
+            >
+              {memberCards.map(member => {
+                const rate = member.patientUserId
+                  ? activityProgressMap[member.patientUserId]
+                  : null;
+                const tokens = member.patientUserId
+                  ? tokensMap[member.patientUserId]
+                  : null;
+                const percent = resolveFamilyHomeActivityProgressPercent(rate);
+                return (
+                  <View key={`activity-${member.key}`} style={styles.activityCard}>
+                    <Flex align="center" justify="between">
+                      <Text style={styles.activityName}>{member.name}</Text>
+                      <Flex align="center">
+                        <Image
+                          source={require('@/assets/family/home/icon_jf.png')}
+                          style={styles.activityPointsIcon}
+                        />
+                        <Text style={styles.activityPoints}>
+                          {formatFamilyHomeTokensText(tokens)}
+                        </Text>
+                      </Flex>
+                    </Flex>
+                    <Flex style={styles.activityProgressRow} align="center" justify="between">
+                      <Text style={styles.activityProgressLabel}>运动处方进度</Text>
+                      <Text style={styles.activityProgressValue}>
+                        {formatFamilyHomeActivityProgressText(rate)}
                       </Text>
                     </Flex>
-                  </Flex>
-                  <Flex style={styles.activityProgressRow} align="center" justify="between">
-                    <Text style={styles.activityProgressLabel}>运动处方进度</Text>
-                    <Text style={styles.activityProgressValue}>
-                      {formatFamilyHomeActivityProgressText(rate)}
-                    </Text>
-                  </Flex>
-                  <View style={styles.activityProgressTrack}>
-                    <View
-                      style={[
-                        styles.activityProgressFill,
-                        { width: `${percent}%` as `${number}%` },
-                      ]}
-                    />
+                    <View style={styles.activityProgressTrack}>
+                      <View
+                        style={[
+                          styles.activityProgressFill,
+                          { width: `${percent}%` as `${number}%` },
+                        ]}
+                      />
+                    </View>
                   </View>
-                </View>
-              );
-            })}
-          </ScrollView>
+                );
+              })}
+            </ScrollView>
+          )}
         </View>
       </ScrollView>
+    </View>
+  );
+}
+
+function FamilyHomeEmpty() {
+  return (
+    <View style={styles.emptyWrap}>
+      <Image
+        source={require('@/assets/family/home/empty.png')}
+        style={styles.emptyIcon}
+        resizeMode="contain"
+      />
+      <Text style={styles.emptyText}>暂无数据</Text>
     </View>
   );
 }

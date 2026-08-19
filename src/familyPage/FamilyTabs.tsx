@@ -1,14 +1,18 @@
-import React, { useCallback, useEffect, useMemo } from 'react';
-import { Image, type ImageSourcePropType } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Image, Text, TouchableOpacity, View, DeviceEventEmitter, type ImageSourcePropType } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { AppTheme } from '@/common/theme';
 import { useFontSize } from '@/common/FontSizeContext';
 import type { RootStackParamList } from '@/route/router';
-import type { AppDispatch } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
+import { getMessageUnreadCount } from '@/api/message';
+import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { buildMessageScopeParams, formatHomeUnreadBadge, MESSAGE_UNREAD_CHANGED, } from '@/src/features/message/utils/messageHelpers';
+import homeStyles from '@/css/family/home';
 import FamilyHomePage from './FamilyHomePage';
 import FamilyDataPage from './FamilyData/FamilyDataPage';
 import FamilyAlertPage from './FamilyAlertPage';
@@ -44,6 +48,71 @@ function TabIcon({
       source={focused ? activeSource : source}
       style={{ width: 28, height: 28 }}
     />
+  );
+}
+
+function FamilyAlertHeaderButton() {
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const identityPerspective = useSelector(
+    (state: RootState) => state.user.systemUser?.identityPerspective,
+  );
+  const userId = useSelector(
+    (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
+  );
+  const messageScope = useMemo(
+    () => buildMessageScopeParams({ identityPerspective, userId }),
+    [identityPerspective, userId],
+  );
+  const [unreadCount, setUnreadCount] = useState(0);
+  const badgeText = formatHomeUnreadBadge(unreadCount);
+
+  const loadUnreadCount = useCallback(async () => {
+    if (!messageScope.userIds) {
+      setUnreadCount(0);
+      return;
+    }
+    try {
+      const res = (await getMessageUnreadCount(messageScope)) as unknown as {
+        code?: number;
+        data?: number;
+      };
+      if (!isResourceApiOk(res)) {
+        setUnreadCount(0);
+        return;
+      }
+      setUnreadCount(Number(apiResourceData<number>(res) ?? 0));
+    } catch {
+      setUnreadCount(0);
+    }
+  }, [messageScope]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadUnreadCount();
+    }, [loadUnreadCount]),
+  );
+
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(MESSAGE_UNREAD_CHANGED, () => {
+      void loadUnreadCount();
+    });
+    return () => sub.remove();
+  }, [loadUnreadCount]);
+
+  return (
+    <TouchableOpacity
+      style={[homeStyles.topRight, { marginRight: 18 }]}
+      activeOpacity={0.8}
+      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      onPress={() => navigation.navigate('FamilyTabs', { screen: 'FamilyAlert' })}
+    >
+      <Image source={require('@/assets/family/home/tip.png')} style={homeStyles.rightImg} />
+      {badgeText ? (
+        <View style={homeStyles.redDot} pointerEvents="none">
+          <Text style={homeStyles.redDotText}>{badgeText}</Text>
+        </View>
+      ) : null}
+    </TouchableOpacity>
   );
 }
 
@@ -84,7 +153,7 @@ export default function FamilyTabs() {
           headerStyle: { backgroundColor: 'transparent' },
           headerTitle: () => null,
           headerLeft: () => null,
-          headerRight: () => null,
+          headerRight: () => <FamilyAlertHeaderButton />,
         });
         return;
       }
@@ -103,6 +172,7 @@ export default function FamilyTabs() {
           title: '我的档案',
           headerTitle: undefined,
           headerLeft: undefined,
+          headerRight: () => null,
         });
         return;
       }
@@ -162,8 +232,8 @@ export default function FamilyTabs() {
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
-              source={require('@/assets/tabbar/community.png')}
-              activeSource={require('@/assets/tabbar/communityActive.png')}
+              source={require('@/assets/tabbar/data.png')}
+              activeSource={require('@/assets/tabbar/dataActive.png')}
             />
           ),
         }}
@@ -176,8 +246,8 @@ export default function FamilyTabs() {
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
-              source={require('@/assets/tabbar/time.png')}
-              activeSource={require('@/assets/tabbar/timeActive.png')}
+              source={require('@/assets/tabbar/warn.png')}
+              activeSource={require('@/assets/tabbar/warnActive.png')}
             />
           ),
         }}

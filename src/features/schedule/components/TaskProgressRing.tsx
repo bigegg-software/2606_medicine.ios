@@ -26,7 +26,8 @@ function getProgressDotPosition(progressPercent: number) {
 }
 
 interface TaskProgressRingProps {
-  progress: number;
+  /** null 表示当前没有可展示的训练进度 */
+  progress: number | null;
   progressColor?: string;
 }
 
@@ -34,7 +35,8 @@ export default function TaskProgressRing({
   progress,
   progressColor = DEFAULT_PROGRESS_COLOR,
 }: TaskProgressRingProps) {
-  const value = Math.min(100, Math.max(0, Math.round(progress)));
+  const hasProgress = progress != null;
+  const value = hasProgress ? Math.min(100, Math.max(0, Math.round(progress))) : 0;
   const isComplete = value >= 100;
   const activeColor = isComplete ? COMPLETE_COLOR : progressColor;
 
@@ -70,7 +72,7 @@ export default function TaskProgressRing({
             style="stroke"
             strokeWidth={STROKE_WIDTH}
           />
-          {value > 0 ? (
+          {hasProgress && value > 0 ? (
             <Path
               path={progressPath}
               color={activeColor}
@@ -78,17 +80,19 @@ export default function TaskProgressRing({
               strokeWidth={STROKE_WIDTH}
               strokeCap="round"
             />
-          ) : (
+          ) : hasProgress ? (
             <Circle
               cx={dotPosition.x}
               cy={dotPosition.y}
               r={STROKE_WIDTH / 2}
               color={activeColor}
             />
-          )}
+          ) : null}
           <Circle cx={dotPosition.x} cy={dotPosition.y} r={DOT_SIZE / 2} color="#FFFFFF" />
         </Canvas>
-        <Text style={[styles.percentText, { color: activeColor }]}>{value}%</Text>
+        <Text style={[styles.percentText, { color: activeColor }]}>
+          {hasProgress ? `${value}%` : '--'}
+        </Text>
       </View>
     </View>
   );
