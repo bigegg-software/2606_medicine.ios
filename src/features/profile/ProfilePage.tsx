@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
@@ -48,7 +48,15 @@ import {
   hydrateEquipment,
   prepareEquipmentSdk,
 } from '@/store/actions/equipment';
-import { buildEquipmentSummaryText } from '@/src/features/equipment/utils/equipmentHelpers';
+import {
+  buildEquipmentSummaryText,
+} from '@/src/features/equipment/utils/equipmentHelpers';
+import {
+  buildOldFamilyBindNoticeMessage,
+  confirmOldFamilyBindNoticeRemove,
+  filterVisibleOldFamilyBindList,
+  listOldFamilyBindNotices,
+} from './utils/profileFamilyUnbindHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -124,6 +132,7 @@ export default function ProfilePage() {
   const [authStatus, setAuthStatus] = useState<number | null>(null);
   const [familyList, setFamilyList] = useState<OldFamilyBindItem[]>([]);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
+  const unbindNoticeRunningRef = useRef(false);
   const identityLabel = getIdentityLabel(systemUser?.identityPerspective);
   const authBadgeSource = resolveIdentityAuthBadgeSource(authStatus);
   const authBadgeWidth = resolveIdentityAuthBadgeWidth(authStatus);
@@ -188,11 +197,48 @@ export default function ProfilePage() {
       const res = await getOldFamilyBindMyList();
       const data =
         apiResourceData(res as unknown as ApiResult<OldFamilyBindItem[]>) ?? [];
-      setFamilyList(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      setFamilyList(filterVisibleOldFamilyBindList(list));
+      return list;
     } catch {
       setFamilyList([]);
+      return [] as OldFamilyBindItem[];
     }
   }, []);
+
+  const processFamilyUnbindNotices = useCallback(
+    async (list: OldFamilyBindItem[]) => {
+      const notices = listOldFamilyBindNotices(list);
+      if (notices.length === 0 || unbindNoticeRunningRef.current) return;
+      unbindNoticeRunningRef.current = true;
+      try {
+        for (const notice of notices) {
+          const bindId = notice.item.id != null ? String(notice.item.id) : '';
+          if (!bindId) continue;
+          await new Promise<void>(resolve => {
+            Alert.alert('提示', buildOldFamilyBindNoticeMessage(notice), [
+              {
+                text: '确认',
+                onPress: () => {
+                  void (async () => {
+                    const result = await confirmOldFamilyBindNoticeRemove(bindId);
+                    if (!result.ok) {
+                      Alert.alert('提示', result.msg ?? '操作失败，请稍后重试');
+                    }
+                    resolve();
+                  })();
+                },
+              },
+            ], { cancelable: false });
+          });
+        }
+        await loadFamilyList();
+      } finally {
+        unbindNoticeRunningRef.current = false;
+      }
+    },
+    [loadFamilyList],
+  );
 
   useEffect(() => {
     void (async () => {
@@ -213,8 +259,18 @@ export default function ProfilePage() {
       void loadSignTip();
       void loadSignStatus();
       void loadIdentityAuthStatus();
-      void loadFamilyList();
-    }, [dispatch, loadFamilyList, loadIdentityAuthStatus, loadSignStatus, loadSignTip]),
+      void (async () => {
+        const list = await loadFamilyList();
+        await processFamilyUnbindNotices(list);
+      })();
+    }, [
+      dispatch,
+      loadFamilyList,
+      loadIdentityAuthStatus,
+      loadSignStatus,
+      loadSignTip,
+      processFamilyUnbindNotices,
+    ]),
   );
 
   const handleSignIn = useCallback(async () => {
@@ -383,7 +439,7 @@ export default function ProfilePage() {
                 <TouchableOpacity
                   disabled={signing || signedToday}
                   onPress={handleSignIn}
-                  style={signedToday || signing ? { opacity: 0.6 } : undefined}>
+               >
                   <Flex style={styles.diamondsSignIn}>
                     <Text style={styles.diamondsSignInText}>
                       {buildSignButtonLabel(10, signedToday)}

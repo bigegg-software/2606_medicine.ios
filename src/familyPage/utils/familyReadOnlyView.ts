@@ -1,3 +1,5 @@
+import { maskFamilyDisplayName } from './familyProfileHelpers';
+
 /** 家人只读查看处方/营养等页的通用路由参数 */
 export type FamilyReadOnlyViewParams = {
   readOnly?: boolean;
@@ -22,7 +24,10 @@ export function resolveFamilyReadOnlyView(
     params?.patientUserId != null ? String(params.patientUserId).trim() : '';
   const readOnly = Boolean(params?.readOnly) || Boolean(patientUserId);
   const relationLabel = params?.relationLabel?.trim() || '家人';
-  const displayName = params?.displayName?.trim() || undefined;
+  const rawDisplayName = params?.displayName?.trim() || undefined;
+  const displayName = readOnly
+    ? (maskFamilyDisplayName(rawDisplayName) || undefined)
+    : rawDisplayName;
   const id = patientUserId || undefined;
   const viewNavParams: FamilyReadOnlyViewParams | undefined = readOnly
     ? {

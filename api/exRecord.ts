@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type AddExRecordPayload = {
   exPatientRuleId: number | string;
@@ -144,7 +145,10 @@ export type ExRecordVideoCompleteInfo = {
 };
 
 /** 查询指定处方、训练阶段、模块、视频的当日完成情况 */
-export const getExRecordVideoCompleteInfo = (params: GetExRecordVideoCompleteInfoParams) =>
+export const getExRecordVideoCompleteInfo = (
+  params: GetExRecordVideoCompleteInfoParams,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExRecordVideoCompleteInfo }>(
     '/patient/exRecordVideo/getCompleteInfo',
     {
@@ -153,6 +157,7 @@ export const getExRecordVideoCompleteInfo = (params: GetExRecordVideoCompleteInf
         exPatientRuleId: String(params.exPatientRuleId),
         exVideoId: String(params.exVideoId),
       },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
     },
   );
 
@@ -170,10 +175,14 @@ export type ExRecordVideoIsExerciseByDateRangeParams = {
 
 export const getExRecordVideoIsExerciseByDateRange = (
   params: ExRecordVideoIsExerciseByDateRangeParams,
+  options?: { patientUserId?: string | number | null },
 ) =>
   request.get<{ code?: number; msg?: string; data?: ExRecordVideoIsExerciseByDateItem[] }>(
     '/patient/exRecordVideo/isExerciseByDateRange',
-    { params },
+    {
+      params,
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 /** 指定处方、指定日期的总锻炼时长、总消耗 kcal 与主训练完成率 */
@@ -198,7 +207,10 @@ export type ExRecordVideoDayStat = {
   mainCompleteRate?: number;
 };
 
-export const getExRecordVideoDayStat = (params: GetExRecordVideoDayStatParams) =>
+export const getExRecordVideoDayStat = (
+  params: GetExRecordVideoDayStatParams,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExRecordVideoDayStat }>(
     '/patient/exRecordVideo/getDayStat',
     {
@@ -206,5 +218,6 @@ export const getExRecordVideoDayStat = (params: GetExRecordVideoDayStatParams) =
         exPatientRuleId: String(params.exPatientRuleId),
         customerLocalDate: params.customerLocalDate,
       },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
     },
   );

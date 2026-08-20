@@ -162,8 +162,8 @@ export default function TrainingPage({
 
     const exerciseDayRecordMarker = useMemo(() => ({
         color: EXERCISE_CHECK_IN_DOT_COLOR,
-        loadByYear: loadExerciseCheckInMapByYear,
-    }), []);
+        loadByYear: (year: number) => loadExerciseCheckInMapByYear(year, patientUserId),
+    }), [patientUserId]);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
         const rule = await loadExPatientRuleForDate(date, inUseRule, patientOpts);
@@ -174,9 +174,9 @@ export default function TrainingPage({
     const loadWeekCheckIn = useCallback(async (date: string) => {
         const start = moment(date).startOf('isoWeek').format('YYYY-MM-DD');
         const end = moment(date).endOf('isoWeek').format('YYYY-MM-DD');
-        const map = await loadExerciseCheckInMapByDateRange(start, end);
+        const map = await loadExerciseCheckInMapByDateRange(start, end, patientUserId);
         setCheckInMap(prev => ({ ...prev, ...map }));
-    }, []);
+    }, [patientUserId]);
 
     const loadDayStat = useCallback(async (
         date: string,
@@ -186,16 +186,17 @@ export default function TrainingPage({
         const next = await loadExerciseDayStat({
             exPatientRuleId,
             customerLocalDate: date,
+            patientUserId,
         });
         setDayStat(next);
-    }, [exerciseRule?.exPatientRuleId]);
+    }, [exerciseRule?.exPatientRuleId, patientUserId]);
 
     const loadMainProgress = useCallback(async (
         date: string,
         rule?: InUseExPatientRule | null,
     ) => {
         try {
-            const result = await buildMainTrainingModules(rule, date);
+            const result = await buildMainTrainingModules(rule, date, patientUserId);
             if (result.isRest) {
                 setMainAllProgressed(false);
                 setMainPlayCards([]);
@@ -207,7 +208,7 @@ export default function TrainingPage({
             setMainAllProgressed(false);
             setMainPlayCards([]);
         }
-    }, []);
+    }, [patientUserId]);
 
     const loadWarmupProgress = useCallback(async (
         date: string,
@@ -224,12 +225,13 @@ export default function TrainingPage({
                 exPatientRuleId: rule?.exPatientRuleId,
                 customerLocalDate: date,
                 trainingPhase: 'hot',
+                patientUserId,
             });
             setWarmupCards(withInfo);
         } catch {
             setWarmupCards([]);
         }
-    }, []);
+    }, [patientUserId]);
 
     const loadCooldownProgress = useCallback(async (
         date: string,
@@ -246,12 +248,13 @@ export default function TrainingPage({
                 exPatientRuleId: rule?.exPatientRuleId,
                 customerLocalDate: date,
                 trainingPhase: 'cold',
+                patientUserId,
             });
             setCooldownCards(withInfo);
         } catch {
             setCooldownCards([]);
         }
-    }, []);
+    }, [patientUserId]);
 
     const loadSignInfo = useCallback(async () => {
         try {
@@ -302,6 +305,7 @@ export default function TrainingPage({
             loadCooldownProgress,
             loadSignInfo,
             loadWeekCheckIn,
+            patientUserId,
             selectedDate,
         ]),
     );
@@ -702,29 +706,32 @@ export default function TrainingPage({
 
                 {activePhase === 'warmup' ? (
                     <WarmupPhase
-                        key={`warmup-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}`}
+                        key={`warmup-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}-${patientUserId ?? 'self'}`}
                         dayRule={dayRule}
                         selectedDate={selectedDate}
                         readOnly={readOnly}
                         dateMode={dateMode}
+                        patientUserId={patientUserId}
                     />
                 ) : null}
                 {activePhase === 'main' ? (
                     <MainTrainingPhase
-                        key={`main-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}`}
+                        key={`main-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}-${patientUserId ?? 'self'}`}
                         dayRule={dayRule}
                         selectedDate={selectedDate}
                         readOnly={readOnly}
                         dateMode={dateMode}
+                        patientUserId={patientUserId}
                     />
                 ) : null}
                 {activePhase === 'cooldown' ? (
                     <CooldownPhase
-                        key={`cooldown-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}`}
+                        key={`cooldown-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}-${patientUserId ?? 'self'}`}
                         dayRule={dayRule}
                         selectedDate={selectedDate}
                         readOnly={readOnly}
                         dateMode={dateMode}
+                        patientUserId={patientUserId}
                     />
                 ) : null}
             </ScrollView>

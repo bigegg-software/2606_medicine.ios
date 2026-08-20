@@ -331,9 +331,15 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
+  medicationRemindBtnDisabled: {
+    backgroundColor: '#CBCBCB',
+  },
   medicationRemindText: {
     fontWeight: 'bold',
     fontSize: 13,
+    color: '#FFFFFF',
+  },
+  medicationRemindTextDisabled: {
     color: '#FFFFFF',
   },
   assessmentItem: {

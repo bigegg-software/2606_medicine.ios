@@ -93,11 +93,12 @@ export function buildPrescriptionTimelineItemsFromAdjustList(
 export async function loadPrescriptionTimelineItems(
   exPatientRuleId?: string | number | null,
   activeVersion?: number | string | null,
+  patientUserId?: string | number | null,
 ): Promise<PrescriptionTimelineItem[]> {
   const id = exPatientRuleId != null ? String(exPatientRuleId).trim() : '';
   if (!id) return [];
 
-  const res = await getExPatientRuleAdjustList(id);
+  const res = await getExPatientRuleAdjustList(id, { patientUserId });
   if (!isResourceApiOk(res as unknown as { code?: number })) return [];
   const list = apiResourceData<ExPatientRuleAdjustItem[]>(
     res as unknown as { code?: number; data?: ExPatientRuleAdjustItem[] },

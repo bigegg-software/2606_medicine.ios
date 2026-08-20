@@ -13,11 +13,7 @@ export function formatActivityStartTime(time?: string | null) {
   if (!time?.trim()) return '--';
   const target = moment(time);
   if (!target.isValid()) return time;
-  const today = moment().startOf('day');
-  const dayDiff = target.clone().startOf('day').diff(today, 'day');
-  if (dayDiff === 0) return `今天 ${target.format('HH:mm')}`;
-  if (dayDiff === 1) return `明天 ${target.format('HH:mm')}`;
-  return target.format('M月D日 HH:mm');
+  return target.format('M月D日');
 }
 
 export function formatActivityDetailDateTime(time?: string | null) {

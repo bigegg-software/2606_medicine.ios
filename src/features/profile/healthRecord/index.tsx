@@ -24,6 +24,7 @@ import type { AppDispatch, RootState } from '@/store/store';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
 import { apiResourceData, getResourceRows } from '@/src/utils/apiHelpers';
 import { getDisplayUserName, getDefaultAvatarByGender, maskPhoneNumber } from '@/src/utils/userHelpers';
+import { maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 import { MaterialIcons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/route/router';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
@@ -293,7 +294,7 @@ export default function HealthRecordPage() {
     const avatarOssUrl = String(profileUser?.avatarOssUrl ?? '');
     const defaultAvatar = getDefaultAvatarByGender(profileUser?.gender);
     const name = readOnly
-        ? (familyUser?.name?.trim() || displayName || '--')
+        ? (maskFamilyDisplayName(familyUser?.name) || displayName || '--')
         : getDisplayUserName(user);
     const phoneText = readOnly
         ? maskPhoneNumber(resolveHealthRecordFamilyPhone(familyBindList, patientUserId))
@@ -811,7 +812,21 @@ export default function HealthRecordPage() {
                                                     </Flex>
                                                 </TouchableOpacity>
                                             ) : lastAssessment?.id ? (
-                                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                                <TouchableOpacity
+                                                    activeOpacity={0.85}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                    onPress={() =>
+                                                        navigation.navigate('QuestionnaireDetail', {
+                                                            id: lastAssessment.id ?? '',
+                                                            ...(viewNavParams ?? {}),
+                                                        })
+                                                    }>
+                                                    <MaterialIcons
+                                                        name="chevron-right"
+                                                        size={24}
+                                                        color={AppTheme.textSecondary}
+                                                    />
+                                                </TouchableOpacity>
                                             ) : null}
                                         </Flex>
                                     </>

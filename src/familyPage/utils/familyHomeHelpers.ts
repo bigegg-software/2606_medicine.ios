@@ -16,8 +16,10 @@ import { loadFamilyMealNutritionItems } from '@/src/familyPage/FamilyData/utils/
 import { loadFamilyTodayAbnormalTypes } from './familyHomeHealthHelpers';
 import {
   getApprovedFamilyBindList,
+  getDisplayFamilyBindList,
   getFamilyTabKey,
   getFamilyTabLabel,
+  isFamilyBindPending,
 } from './familyProfileHelpers';
 
 export type FamilyHomeMemberCard = {
@@ -25,6 +27,7 @@ export type FamilyHomeMemberCard = {
   name: string;
   relationLabel: string;
   patientUserId: string;
+  pending: boolean;
 };
 
 /** 首页问候时段文案 */
@@ -247,17 +250,18 @@ export function getFamilyHomeSubtitle(
     .join('·');
 }
 
-/** 首页家人卡片基础列表（来自 store 已通过绑定） */
+/** 首页家人卡片：已通过 + 待确认 */
 export function buildFamilyHomeMemberCards(
   list: FamilyBindItem[],
 ): FamilyHomeMemberCard[] {
-  return getApprovedFamilyBindList(list).map((item, index) => {
+  return getDisplayFamilyBindList(list).map((item, index) => {
     const relationLabel = getFamilyHomeMemberRelationLabel(item);
     return {
       key: getFamilyTabKey(item, index),
       name: relationLabel,
       relationLabel,
       patientUserId: item.patientUserId != null ? String(item.patientUserId).trim() : '',
+      pending: isFamilyBindPending(item),
     };
   });
 }

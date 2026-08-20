@@ -26,6 +26,14 @@ export type OldFamilyBindItem = {
   identityAuthStatus?: OldFamilyIdentityAuthStatus | number | null;
   identityRejectReason?: string;
   delFlag?: string;
+  /** 老人视角删除解绑标志（0代表存在 1代表删除） */
+  delFlagByOld?: string | number;
+  /** 家属视角删除解绑标志（0代表存在 1代表删除） */
+  delFlagByJs?: string | number;
+  /** 患者账号状态 0.正常 1.禁用 2.已注销 */
+  patientAccountStatus?: number;
+  /** 家属账号状态 0.正常 1.禁用 2.已注销 */
+  jsAccountStatus?: number;
   patientName?: string;
   patientPcode?: string;
   patientPhonenumber?: string;

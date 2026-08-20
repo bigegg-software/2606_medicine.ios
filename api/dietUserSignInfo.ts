@@ -1,5 +1,6 @@
 import request from '@/utils/axios';
 import type { ApiResult } from '@/src/utils/apiHelpers';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 /** 饮食打卡信息 */
 export type DietUserSignInfo = {
@@ -24,8 +25,10 @@ export type DietUserSignInfo = {
 export type DietUserSignInfoResult = ApiResult<DietUserSignInfo>;
 
 /** 获取饮食打卡信息 */
-export const getDietUserSignInfo = () =>
-  request.get<DietUserSignInfoResult>('/patient/diet/userSignInfo/getInfo');
+export const getDietUserSignInfo = (options?: { patientUserId?: string | number | null }) =>
+  request.get<DietUserSignInfoResult>('/patient/diet/userSignInfo/getInfo', {
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 /** 完成今日饮食打卡（需当日三餐均已记录） */
 export const postDietUserSign = () =>

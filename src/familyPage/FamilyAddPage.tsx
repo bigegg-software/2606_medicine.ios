@@ -15,6 +15,7 @@ import PageLayout from '@/src/components/PageLayout';
 import { Flex, Picker } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useDispatch } from 'react-redux';
 import styles from '@/css/profile/myFamilyAdd';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import type { DictDataItem } from '@/api/dict';
@@ -22,8 +23,12 @@ import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/compone
 import { addFamilyBind } from '@/api/familyBind';
 import { isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
+import type { AppDispatch } from '@/store/store';
+import { fetchFamilyBindMyList } from '@/store/actions/family';
 import {
   FAMILY_PERMISSION_OPTIONS,
+  areAllFamilyPermissionsSelected,
+  toggleAllFamilyPermissions,
   toggleFamilyPermission,
   type FamilyPermissionKey,
 } from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
@@ -37,6 +42,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FamilyAddPage() {
   const navigation = useNavigation<Nav>();
+  const dispatch = useDispatch<AppDispatch>();
   const [name, setName] = useState('');
   const [relation, setRelation] = useState('');
   const [phone, setPhone] = useState('');
@@ -67,6 +73,12 @@ export default function FamilyAddPage() {
     setSelectedPermissions(prev => toggleFamilyPermission(prev, key));
   };
 
+  const allPermissionsSelected = areAllFamilyPermissionsSelected(selectedPermissions);
+
+  const handleSelectAllPermissions = () => {
+    setSelectedPermissions(prev => toggleAllFamilyPermissions(prev));
+  };
+
   const handleInvite = async () => {
     const error = validateFamilyBindAddInput({
       name,
@@ -89,6 +101,7 @@ export default function FamilyAddPage() {
         authPermissions: toFamilyPermissionApiCodes(selectedPermissions),
       });
       if (isResourceApiOk(res as ApiResult)) {
+        await dispatch(fetchFamilyBindMyList({ force: true }));
         Alert.alert('成功', '邀请已发送，等待对方在消息中接受', [
           {
             text: '确定',
@@ -171,8 +184,17 @@ export default function FamilyAddPage() {
           </View>
 
           <View style={[styles.rowBox, { marginTop: 12 }]}>
-            <Text style={styles.rowTitle}>申请权限（可多选）</Text>
-            <Text style={styles.rowTitleDesc}>对方接受后即可查看对应内容。</Text>
+            <Flex align="center" justify="between" style={styles.rowTitleRow}>
+              <View>
+                <Text style={styles.rowTitle}>申请权限（可多选）</Text>
+                <Text style={styles.rowTitleDesc}>对方接受后即可查看对应内容。</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.7} onPress={handleSelectAllPermissions}>
+                <Text style={styles.rowTitleSelectAll}>
+                  {allPermissionsSelected ? '取消全选' : '全选'}
+                </Text>
+              </TouchableOpacity>
+            </Flex>
 
             <View style={styles.qxBox}>
               {FAMILY_PERMISSION_OPTIONS.map(item => {

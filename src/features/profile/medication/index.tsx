@@ -48,8 +48,10 @@ export default function MedicationPage() {
 
     useEffect(() => {
         const pageTitle = activeNav === 'meal' ? '营养处方' : '用药记录';
+        // StackHeader：有 headerTitle 时会清空 title；字符串 headerTitle 不会渲染，需用 title
         navigation.setOptions({
-            headerTitle: pageTitle,
+            title: pageTitle,
+            headerTitle: undefined,
             headerRight: readOnly
                 ? () => <FamilyRelationHeaderBadge label={relationLabel} />
                 : () =>

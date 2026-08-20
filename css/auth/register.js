@@ -4,7 +4,7 @@ import { AppTheme } from '@/common/theme';
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
   body: { flex: 1 },
-  content: { flex: 1, paddingHorizontal: 44, paddingBottom: 32 },
+  content: { flex: 1, paddingHorizontal: 30, paddingBottom: 32 },
   title: { fontWeight: 'bold', fontSize: 24, color: '#333333', textAlign: 'center', marginTop: 60 },
   titleSubTitle: {
     fontWeight: '500',
@@ -78,7 +78,7 @@ const styles = StyleSheet.create({
   agreementText: { fontWeight: '500', fontSize: 12, color: '#999999' },
   agreementLink: { color: AppTheme.textPrimary },
   button: { marginTop: 50, height: 48, backgroundColor: AppTheme.primaryColor, borderRadius: 12 },
-  buttonText: { fontWeight: '500', fontSize: 18, color: '#FFFFFF' },
+  buttonText: { fontWeight: '500', fontSize: 16, color: '#FFFFFF' },
   registerTextBox: { marginTop: 18 },
   registerText: { textAlign: 'center', fontWeight: '500', fontSize: 13, color: AppTheme.textSecondary },
   registerTextLink: { color: '#0951AE' },

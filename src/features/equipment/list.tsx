@@ -115,6 +115,10 @@ export default function EquipmentListPage() {
           <View style={styles.deviceList}>
             {boundDevices.length === 0 ? (
               <View style={styles.emptyCard}>
+                <Image
+                  source={require('@/assets/images/equipment/icon_search.png')}
+                  style={styles.emptyIcon}
+                />
                 <Text style={styles.emptyText}>暂无已绑定设备，请点击下方添加</Text>
               </View>
             ) : (

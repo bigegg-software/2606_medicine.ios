@@ -223,6 +223,12 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: '#333333',
     },
+    familyHealthPendingText: {
+        marginTop: 8,
+        fontWeight: '400',
+        fontSize: 14,
+        color: '#999999',
+    },
     focusCardWrap: {
         marginTop: 12,
         gap: 12,

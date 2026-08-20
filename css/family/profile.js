@@ -59,6 +59,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#333333',
   },
+  familyDeleteBtn: {
+    flexShrink: 0,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  familyDeleteIcon: {
+    width: 15,
+    height: 15,
+  },
+  familyDeleteText: {
+    marginLeft: 3,
+    fontWeight: '400',
+    fontSize: 14,
+    color: '#333333',
+  },
   familyBox: {
     marginTop: 10,
     backgroundColor: '#FEFFFF',
@@ -163,12 +178,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#6D925E"
   },
+  memberPendingBadgeWrap: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 30,
+    borderWidth: 1,
+    borderColor: "#FF9500"
+  },
   memberCertifiedBadgeWrapUnCertified: {
     paddingHorizontal: 8,
     paddingVertical: 5,
     borderRadius: 30,
     borderWidth: 0,
     backgroundColor: "#F1F5EF"
+  },
+  memberCertifiedWarn:{
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 30,
+    borderWidth: 0,
+    backgroundColor: "rgba(251,69,80,0.1)",
+  },
+  memberCertifiedWarnText: {
+    fontWeight: "bold",
+    fontSize: 12,
+    color: "#FB4550"
   },
   memberCertifiedBadge: {
     width: 15,
@@ -180,6 +214,11 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontSize: 12,
     color: "#6D925E"
+  },
+  memberPendingBadgeText: {
+    fontWeight: "bold",
+    fontSize: 12,
+    color: "#FF9500"
   },
   memberMeta: {
     marginTop: 6,

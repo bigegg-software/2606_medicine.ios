@@ -64,10 +64,17 @@ const styles = StyleSheet.create({
         marginLeft: 12,
     },
     rowTitle: {
-        marginTop: 17,
         fontWeight: "bold",
         fontSize: 16,
         color: "#333333"
+    },
+    rowTitleRow: {
+        marginTop: 17,
+    },
+    rowTitleSelectAll: {
+        fontWeight: '600',
+        fontSize: 14,
+        color: '#6D925E',
     },
     rowTitleDesc: {
         marginTop: 10,

@@ -73,6 +73,7 @@ function normalizeDayStat(data?: ExRecordVideoDayStat | null): ExerciseDayStatVi
 export async function loadExerciseDayStat(params: {
   exPatientRuleId?: string | number | null;
   customerLocalDate: string;
+  patientUserId?: string | number | null;
 }): Promise<ExerciseDayStatView> {
   const exPatientRuleId = params.exPatientRuleId != null
     ? String(params.exPatientRuleId).trim()
@@ -81,10 +82,10 @@ export async function loadExerciseDayStat(params: {
   if (!exPatientRuleId || !customerLocalDate) return emptyExerciseDayStatView();
 
   try {
-    const res = await getExRecordVideoDayStat({
-      exPatientRuleId,
-      customerLocalDate,
-    });
+    const res = await getExRecordVideoDayStat(
+      { exPatientRuleId, customerLocalDate },
+      { patientUserId: params.patientUserId },
+    );
     if (!isResourceApiOk(res as unknown as { code?: number })) {
       return emptyExerciseDayStatView();
     }

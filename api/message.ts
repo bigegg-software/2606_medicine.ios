@@ -118,3 +118,27 @@ export const markAllMessagesRead = (params: MarkAllMessagesReadParams) =>
       userIds: params.userIds,
     },
   });
+
+/** 家属向指定用户发送消息（完整 DnaMessageBo，type/params 由前端自定义） */
+export type AddPatientMessagePayload = {
+  userId: string;
+  title: string;
+  content: string;
+  type: string;
+  isRead?: number;
+  isReadByChild?: number;
+  isReadByYihu?: number;
+  isReadByAdmin?: number;
+  visibleToOld?: number;
+  visibleToChild?: number;
+  visibleToYihu?: number;
+  visibleToAdmin?: number;
+  isWarning?: number;
+  warningSeverity?: string;
+  bizId?: string;
+  appType?: number;
+  params?: Record<string, unknown>;
+};
+
+export const addPatientMessage = (data: AddPatientMessagePayload) =>
+  request.post<ApiResult>('/patient/message/add', data);

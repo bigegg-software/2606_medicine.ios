@@ -12,6 +12,7 @@ type Props = {
   selectedDate: string;
   readOnly?: boolean;
   dateMode?: TrainingActionDateMode;
+  patientUserId?: string;
 };
 
 export default function WarmupPhase({
@@ -19,6 +20,7 @@ export default function WarmupPhase({
   selectedDate,
   readOnly = false,
   dateMode = 'today',
+  patientUserId,
 }: Props) {
   const config = useMemo<TrainingPhaseListConfig>(() => ({
     trainingPhase: 'hot',
@@ -40,6 +42,7 @@ export default function WarmupPhase({
       config={config}
       readOnly={readOnly}
       dateMode={dateMode}
+      patientUserId={patientUserId}
     />
   );
 }

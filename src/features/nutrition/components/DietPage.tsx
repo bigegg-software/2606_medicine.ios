@@ -360,7 +360,7 @@ export default function DietPage({
 
     const loadSignInfo = useCallback(async () => {
         try {
-            const res = await getDietUserSignInfo();
+            const res = await getDietUserSignInfo(patientOpts);
             if (!isResourceApiOk(res as unknown as { code?: number })) {
                 setSignInfo(null);
                 return;
@@ -373,14 +373,17 @@ export default function DietPage({
         } catch {
             setSignInfo(null);
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadHistorySignStatus = useCallback(async (date: string) => {
         try {
-            const res = await getDailyRecordStatusListByDateRange({
-                startDate: date,
-                endDate: date,
-            });
+            const res = await getDailyRecordStatusListByDateRange(
+                {
+                    startDate: date,
+                    endDate: date,
+                },
+                patientOpts,
+            );
             if (!isResourceApiOk(res as unknown as { code?: number })) {
                 setHistorySigned(false);
                 return;
@@ -393,7 +396,7 @@ export default function DietPage({
         } catch {
             setHistorySigned(false);
         }
-    }, []);
+    }, [patientOpts]);
 
     const loadDayData = useCallback(async (date: string, inUseRule: DietPatientRuleInfo | null) => {
         const [meals, rule] = await Promise.all([
@@ -437,7 +440,9 @@ export default function DietPage({
     useFocusEffect(
         useCallback(() => {
             void loadDayData(selectedDate, dietRule);
-            void loadSignInfo();
+            if (!readOnly) {
+                void loadSignInfo();
+            }
             if (selectedDate < moment().format('YYYY-MM-DD')) {
                 void loadHistorySignStatus(selectedDate);
             } else {
@@ -453,7 +458,15 @@ export default function DietPage({
                 loadedEatYearsRef.current.delete(year);
                 void ensureEatYearLoaded(year, true);
             });
-        }, [dietRule, ensureEatYearLoaded, loadDayData, loadHistorySignStatus, loadSignInfo, selectedDate]),
+        }, [
+            dietRule,
+            ensureEatYearLoaded,
+            loadDayData,
+            loadHistorySignStatus,
+            loadSignInfo,
+            readOnly,
+            selectedDate,
+        ]),
     );
 
     const targetCalories = Number(dayRule?.targetCalories) || 0;
@@ -618,7 +631,7 @@ export default function DietPage({
                 return;
             }
 
-            const nextRule = await fetchDietRuleForDate(selectedDate);
+            const nextRule = await fetchDietRuleForDate(selectedDate, patientOpts);
             if (!nextRule) {
                 Toast.show('获取处方失败');
                 return;
@@ -639,6 +652,7 @@ export default function DietPage({
         refreshing,
         selectedDate,
         signInfo?.signedToday,
+        patientOpts,
     ]);
 
     if (!dietRule) {
@@ -669,6 +683,7 @@ export default function DietPage({
                 selectedDate={selectedDate}
                 onClose={() => setDatePickerVisible(false)}
                 onSelect={setSelectedDate}
+                patientUserId={patientUserId}
             />
             <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
                 <Flex justify="between" style={styles.calendarBox}>

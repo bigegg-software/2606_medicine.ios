@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         paddingHorizontal: 18,
     },
-    pd18: { paddingHorizontal: 18, paddingTop: 260, paddingBottom: 20 },
+    pd18: { paddingHorizontal: 12, paddingTop: 260, paddingBottom: 20 },
     miniLogo: { width: 99, height: 20 },
     topRight: {
         flexDirection: 'row',

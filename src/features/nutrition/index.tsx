@@ -17,7 +17,7 @@ import { fetchUserBaseInfo } from '@/store/actions/user';
 import type { RootStackParamList } from '@/route/router';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
-import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
+import { getChildFamilyDisplayName, maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
 type Route = RouteProp<RootStackParamList, 'NutritionPage'>;
 
@@ -58,7 +58,7 @@ export default function NutritionPage() {
     return (
       routeDisplayName
       || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
-      || familyUser?.name?.trim()
+      || maskFamilyDisplayName(familyUser?.name)
       || relationLabel
     );
   }, [familyFromStore, familyUser?.name, readOnly, relationLabel, routeDisplayName]);
@@ -141,9 +141,12 @@ export default function NutritionPage() {
     },
   ];
 
+  const pageTitle = dietRule?.prescriptionName?.trim() || '营养处方';
+
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: readOnly ? '营养处方' : undefined,
+      title: pageTitle,
+      headerTitle: undefined,
       headerRight: readOnly
         ? () => <FamilyRelationHeaderBadge label={relationLabel} />
         : () => (
@@ -159,7 +162,7 @@ export default function NutritionPage() {
             </TouchableOpacity>
           ),
     });
-  }, [navigation, readOnly, relationLabel]);
+  }, [navigation, pageTitle, readOnly, relationLabel]);
 
   return (
     <PageLayout style={styles.container} edges={[]}>
@@ -211,6 +214,7 @@ export default function NutritionPage() {
           {mountedTabs[0] ? (
             <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
               <DietPage
+                key={patientUserId ?? 'self'}
                 dietRule={dietRule}
                 onDietRuleChange={setDietRule}
                 readOnly={readOnly}
@@ -220,7 +224,11 @@ export default function NutritionPage() {
           ) : null}
           {mountedTabs[1] ? (
             <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
-              <NutritionPrescriptionPage dietRule={dietRule} readOnly={readOnly} />
+              <NutritionPrescriptionPage
+                key={patientUserId ?? 'self'}
+                dietRule={dietRule}
+                readOnly={readOnly}
+              />
             </View>
           ) : null}
         </View>

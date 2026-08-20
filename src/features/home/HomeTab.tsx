@@ -314,7 +314,7 @@ export default function HomeTab() {
     ],
   );
 
-  const blurCardWidth = useMemo(() => windowWidth - 36, [windowWidth]);
+  const blurCardWidth = useMemo(() => windowWidth - 24, [windowWidth]);
   const blurViewProps = useMemo(
     () =>
       Platform.OS === 'android'

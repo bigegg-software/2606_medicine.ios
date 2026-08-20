@@ -12,6 +12,7 @@ type Props = {
   selectedDate: string;
   readOnly?: boolean;
   dateMode?: TrainingActionDateMode;
+  patientUserId?: string;
 };
 
 export default function CooldownPhase({
@@ -19,6 +20,7 @@ export default function CooldownPhase({
   selectedDate,
   readOnly = false,
   dateMode = 'today',
+  patientUserId,
 }: Props) {
   const config = useMemo<TrainingPhaseListConfig>(() => ({
     trainingPhase: 'cold',
@@ -40,6 +42,7 @@ export default function CooldownPhase({
       config={config}
       readOnly={readOnly}
       dateMode={dateMode}
+      patientUserId={patientUserId}
     />
   );
 }

@@ -1,7 +1,7 @@
 import { getFamilyBindMyList, type FamilyBindItem } from '@/api/familyBind';
 import { apiResourceData, type ApiResult } from '@/src/utils/apiHelpers';
 import {
-  getApprovedFamilyBindList,
+  getDisplayFamilyBindList,
   getFamilyTabKey,
 } from '@/src/familyPage/utils/familyProfileHelpers';
 import type { AppDispatch, RootState } from '../store';
@@ -23,22 +23,24 @@ function resolveSelectedKey(
   list: FamilyBindItem[],
   prevKey: string | null,
 ): string | null {
-  const approved = getApprovedFamilyBindList(list);
-  if (approved.length === 0) return null;
+  const display = getDisplayFamilyBindList(list);
+  if (display.length === 0) return null;
   if (
     prevKey &&
-    approved.some((item, index) => getFamilyTabKey(item, index) === prevKey)
+    display.some((item, index) => getFamilyTabKey(item, index) === prevKey)
   ) {
     return prevKey;
   }
-  return getFamilyTabKey(approved[0], 0);
+  return getFamilyTabKey(display[0], 0);
 }
 
 /** 拉取子女端「我的家人」列表并写入 store */
 export const fetchFamilyBindMyList =
   (options?: { force?: boolean }) =>
-  async (dispatch: AppDispatch, getState: () => RootState) => {
-    if (!options?.force && getState().family.loading) return;
+  async (dispatch: AppDispatch, getState: () => RootState): Promise<FamilyBindItem[]> => {
+    if (!options?.force && getState().family.loading) {
+      return getState().family.list;
+    }
 
     dispatch({ type: SET_FAMILY_LOADING, payload: true });
     try {
@@ -49,9 +51,11 @@ export const fetchFamilyBindMyList =
       dispatch({ type: SET_FAMILY_LIST, payload: list });
       const nextKey = resolveSelectedKey(list, getState().family.selectedKey);
       dispatch({ type: SET_SELECTED_FAMILY_KEY, payload: nextKey });
+      return list;
     } catch {
       dispatch({ type: SET_FAMILY_LIST, payload: [] });
       dispatch({ type: SET_SELECTED_FAMILY_KEY, payload: null });
+      return [];
     } finally {
       dispatch({ type: SET_FAMILY_LOADING, payload: false });
     }

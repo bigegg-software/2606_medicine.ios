@@ -1,8 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, ScrollView, ActivityIndicator } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   getUserQuestionDetail,
   type UserQuestionDetailResult,
@@ -21,16 +22,40 @@ import {
   QUESTIONNAIRE_TITLES,
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { getFamilyRiskGaugeIcon } from './utils/familyDataAssessmentHelpers';
 import { renderFamilyAssessmentQuestionBlock } from './utils/familyAssessmentDetailHelpers';
 
 type Route = RouteProp<RootStackParamList, 'FamilyAssessmentDetail'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FamilyAssessmentDetailPage() {
+  const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { id, patientUserId } = route.params;
+  const { id } = route.params;
+  const { patientUserId = '', relationLabel, viewNavParams } = resolveFamilyReadOnlyView(
+    route.params,
+  );
   const [detail, setDetail] = useState<UserQuestionRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const boundPatientUserIdRef = useRef(patientUserId);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <FamilyRelationHeaderBadge label={relationLabel} />,
+    });
+  }, [navigation, relationLabel]);
+
+  // 切换家人后回到该家人的评估历史
+  useEffect(() => {
+    if (!patientUserId || patientUserId === boundPatientUserIdRef.current) return;
+    boundPatientUserIdRef.current = patientUserId;
+    navigation.replace('FamilyAssessmentHistory', {
+      patientUserId,
+      ...(viewNavParams ?? {}),
+    });
+  }, [navigation, patientUserId, viewNavParams]);
 
   const loadDetail = useCallback(async () => {
     setLoading(true);

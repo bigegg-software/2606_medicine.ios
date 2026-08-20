@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
@@ -31,10 +31,11 @@ import {
   type FamilyPrescriptionTypeItem,
 } from './utils/familyDataHelpers';
 import {
-  getApprovedFamilyBindList,
   getChildFamilyDisplayName,
+  getDisplayFamilyBindList,
   getFamilyTabKey,
   getFamilyTabLabel,
+  isFamilyBindPending,
 } from '../utils/familyProfileHelpers';
 import {
   emptyFamilyVitalItems,
@@ -57,6 +58,11 @@ import {
   emptyFamilyAssessmentItems,
   loadFamilyAssessmentItems,
 } from './utils/familyDataAssessmentHelpers';
+import {
+  loadFamilyMedicationRemindedKeys,
+  resolveFamilyMedicationRemindSenderName,
+  sendFamilyMedicationRemindMessage,
+} from './utils/familyDataMedicationRemindHelpers';
 import TaskProgressRing from '@/src/features/schedule/components/TaskProgressRing';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import styles from '@/css/family/data';
@@ -67,6 +73,8 @@ export default function FamilyDataPage() {
   const familyListRaw = useSelector((s: RootState) => s.family.list);
   const loadingFamily = useSelector((s: RootState) => s.family.loading);
   const selectedFamilyKey = useSelector((s: RootState) => s.family.selectedKey);
+  const userInfo = useSelector((s: RootState) => s.user.info);
+  const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const [vitalItems, setVitalItems] = useState(emptyFamilyVitalItems);
   const [loadingVitals, setLoadingVitals] = useState(false);
   const [prescriptionItems, setPrescriptionItems] = useState<FamilyPrescriptionTypeItem[]>(
@@ -79,9 +87,11 @@ export default function FamilyDataPage() {
   const [assessmentItems, setAssessmentItems] = useState<FamilyAssessmentItem[]>(
     emptyFamilyAssessmentItems,
   );
+  const [remindedMedicationKeys, setRemindedMedicationKeys] = useState<Record<string, true>>({});
+  const [remindingMedicationKey, setRemindingMedicationKey] = useState('');
 
   const familyList = useMemo(
-    () => getApprovedFamilyBindList(familyListRaw),
+    () => getDisplayFamilyBindList(familyListRaw),
     [familyListRaw],
   );
 
@@ -98,13 +108,14 @@ export default function FamilyDataPage() {
     const id = selectedFamily?.patientUserId;
     return id != null ? String(id) : '';
   }, [selectedFamily]);
+  const bindPending = isFamilyBindPending(selectedFamily);
 
-  const canViewHealthData = hasFamilyDataPermission(selectedFamily, 'health_data');
-  const canViewExercise = hasFamilyDataPermission(selectedFamily, 'exercise');
-  const canViewDiet = hasFamilyDataPermission(selectedFamily, 'diet');
-  const canViewMedication = hasFamilyDataPermission(selectedFamily, 'medication');
-  const canViewAssessment = hasFamilyDataPermission(selectedFamily, 'assessment');
-  const hasAnyDataSection = hasAnyFamilyDataPagePermission(selectedFamily);
+  const canViewHealthData = !bindPending && hasFamilyDataPermission(selectedFamily, 'health_data');
+  const canViewExercise = !bindPending && hasFamilyDataPermission(selectedFamily, 'exercise');
+  const canViewDiet = !bindPending && hasFamilyDataPermission(selectedFamily, 'diet');
+  const canViewMedication = !bindPending && hasFamilyDataPermission(selectedFamily, 'medication');
+  const canViewAssessment = !bindPending && hasFamilyDataPermission(selectedFamily, 'assessment');
+  const hasAnyDataSection = !bindPending && hasAnyFamilyDataPagePermission(selectedFamily);
 
   const vitalRows = useMemo(() => chunkFamilyVitalRows(vitalItems, 2), [vitalItems]);
 
@@ -122,6 +133,45 @@ export default function FamilyDataPage() {
       displayName: getChildFamilyDisplayName(selectedFamily),
     };
   }, [selectedFamily, selectedPatientUserId, selectedRelationLabel]);
+
+  const medicationRemindSenderName = useMemo(
+    () => resolveFamilyMedicationRemindSenderName(userInfo, systemUser),
+    [systemUser, userInfo],
+  );
+
+  useEffect(() => {
+    setRemindedMedicationKeys({});
+    setRemindingMedicationKey('');
+  }, [selectedPatientUserId]);
+
+  const handleMedicationRemind = useCallback(
+    async (item: FamilyMedicationItem) => {
+      if (!selectedPatientUserId || !item.key) return;
+      if (remindedMedicationKeys[item.key] || remindingMedicationKey) return;
+      setRemindingMedicationKey(item.key);
+      const result = await sendFamilyMedicationRemindMessage({
+        patientUserId: selectedPatientUserId,
+        senderName: medicationRemindSenderName,
+        medicationName: item.title,
+        bizId: item.key,
+        medicationPlanId: item.medicationPlanId,
+        time: item.time,
+      });
+      setRemindingMedicationKey('');
+      if (!result.ok) {
+        Toast.show(result.message ?? '提醒发送失败');
+        return;
+      }
+      setRemindedMedicationKeys(prev => ({ ...prev, [item.key]: true }));
+      Toast.show('已发送用药提醒');
+    },
+    [
+      medicationRemindSenderName,
+      remindedMedicationKeys,
+      remindingMedicationKey,
+      selectedPatientUserId,
+    ],
+  );
 
   const loadVitals = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
@@ -168,13 +218,19 @@ export default function FamilyDataPage() {
   const loadMedications = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
       setMedicationItems(emptyFamilyMedicationItems());
+      setRemindedMedicationKeys({});
       return;
     }
     try {
-      const items = await loadFamilyMedicationItems(patientUserId);
+      const [items, remindedKeys] = await Promise.all([
+        loadFamilyMedicationItems(patientUserId),
+        loadFamilyMedicationRemindedKeys(patientUserId),
+      ]);
       setMedicationItems(items);
+      setRemindedMedicationKeys(remindedKeys);
     } catch {
       setMedicationItems(emptyFamilyMedicationItems());
+      setRemindedMedicationKeys({});
     }
   }, []);
 
@@ -213,6 +269,7 @@ export default function FamilyDataPage() {
         void loadMedications(selectedPatientUserId);
       } else {
         setMedicationItems(emptyFamilyMedicationItems());
+        setRemindedMedicationKeys({});
       }
       if (canViewAssessment) {
         void loadAssessments(selectedPatientUserId);
@@ -245,7 +302,7 @@ export default function FamilyDataPage() {
             </View>
           ) : familyList.length === 0 ? (
             <View style={styles.vitalNoData}>
-              <EmptyRecord text="暂无绑定家人" compact />
+              <EmptyRecord text="暂无绑定家人" />
             </View>
           ) : (
             <Flex align="center" style={styles.familyTabBarInner}>
@@ -287,7 +344,13 @@ export default function FamilyDataPage() {
           )}
         </View>
 
-        {selectedFamily && !hasAnyDataSection ? (
+        {selectedFamily && bindPending ? (
+          <View style={styles.vitalNoData}>
+            <EmptyRecord text="等待确认中" />
+          </View>
+        ) : null}
+
+        {selectedFamily && !bindPending && !hasAnyDataSection ? (
           <View style={styles.vitalNoData}>
             <EmptyRecord text="对方暂未授权查看内容" />
           </View>
@@ -549,13 +612,39 @@ export default function FamilyDataPage() {
                         </View>
                       </Flex>
                       {item.action === 'remind' ? (
-                        <TouchableOpacity activeOpacity={0.85} style={styles.medicationRemindBtn}>
-                          <Image
-                            source={require('@/assets/family/data/icon_tip.png')}
-                            style={styles.medicationTakenIcon}
-                            resizeMode="contain"
-                          />
-                          <Text style={styles.medicationRemindText}>提醒</Text>
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          style={[
+                            styles.medicationRemindBtn,
+                            (remindedMedicationKeys[item.key] || remindingMedicationKey === item.key)
+                              ? styles.medicationRemindBtnDisabled
+                              : null,
+                          ]}
+                          disabled={
+                            Boolean(remindedMedicationKeys[item.key])
+                            || Boolean(remindingMedicationKey)
+                          }
+                          onPress={() => {
+                            void handleMedicationRemind(item);
+                          }}
+                        >
+                          {remindedMedicationKeys[item.key] ? null : (
+                            <Image
+                              source={require('@/assets/family/data/icon_tip.png')}
+                              style={styles.medicationTakenIcon}
+                              resizeMode="contain"
+                            />
+                          )}
+                          <Text
+                            style={[
+                              styles.medicationRemindText,
+                              remindedMedicationKeys[item.key]
+                                ? styles.medicationRemindTextDisabled
+                                : null,
+                            ]}
+                          >
+                            {remindedMedicationKeys[item.key] ? '已提醒' : '提醒'}
+                          </Text>
                         </TouchableOpacity>
                       ) : null}
                     </Flex>
@@ -574,9 +663,8 @@ export default function FamilyDataPage() {
                 disabled={!selectedPatientUserId}
                 onPress={() => {
                   if (!selectedPatientUserId) return;
-                  navigation.navigate('FamilyAssessmentHistory', {
-                    patientUserId: selectedPatientUserId,
-                  });
+                  if (!familyViewParams) return;
+                  navigation.navigate('FamilyAssessmentHistory', familyViewParams);
                 }}
               >
                 <Flex align="center">
@@ -618,9 +706,10 @@ export default function FamilyDataPage() {
                         disabled={!item.recordId || !selectedPatientUserId}
                         onPress={() => {
                           if (!item.recordId || !selectedPatientUserId) return;
+                          if (!familyViewParams) return;
                           navigation.navigate('FamilyAssessmentResult', {
                             id: item.recordId,
-                            patientUserId: selectedPatientUserId,
+                            ...familyViewParams,
                             ...(item.type != null ? { type: item.type } : {}),
                           });
                         }}

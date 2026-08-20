@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -21,6 +21,8 @@ import styles from '@/css/questionnaire/index';
 import { AppTheme } from '@/common/theme';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import type { HistoryItem } from '@/src/features/profile/questionnaire/utils/helpers';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { loadFamilyAssessmentHistory } from './utils/familyDataAssessmentHelpers';
 
 type Route = RouteProp<RootStackParamList, 'FamilyAssessmentHistory'>;
@@ -29,11 +31,19 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function FamilyAssessmentHistoryPage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const patientUserId = String(route.params?.patientUserId ?? '').trim();
+  const { patientUserId = '', relationLabel, viewNavParams } = resolveFamilyReadOnlyView(
+    route.params,
+  );
 
   const [historyList, setHistoryList] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <FamilyRelationHeaderBadge label={relationLabel} />,
+    });
+  }, [navigation, relationLabel]);
 
   const loadHistory = useCallback(
     async (isRefresh = false) => {
@@ -100,6 +110,7 @@ export default function FamilyAssessmentHistoryPage() {
                 navigation.navigate('FamilyAssessmentResult', {
                   id: item.id,
                   patientUserId,
+                  ...(viewNavParams ?? {}),
                 })
               }
             >

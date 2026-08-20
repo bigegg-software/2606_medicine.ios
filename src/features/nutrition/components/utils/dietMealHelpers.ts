@@ -10,6 +10,7 @@ import {
   toNumber,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
+import { maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
 export type RecommendedFoodItem = {
   key: string;
@@ -203,14 +204,17 @@ export function formatDietHeaderInfo(
   const forceName = options?.forceDisplayName?.trim() || '';
   const profile = options?.forceUser ?? (options ? null : user);
   const isFamilyView = options != null;
-  const name =
+  const rawName =
     rule?.patientUserName?.trim()
     || base?.name?.trim()
     || forceName
     || options?.forceUser?.name?.trim()
     || (!isFamilyView ? getDisplayUserName(user, systemUser) : '')
     || forceName
-    || '--';
+    || '';
+  const name = isFamilyView
+    ? (maskFamilyDisplayName(rawName) || forceName || '--')
+    : (rawName || '--');
 
   let age = '';
   if (base?.age != null && Number(base.age) > 0) {

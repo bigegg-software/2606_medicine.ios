@@ -490,6 +490,7 @@ export async function loadExRecordVideoCompleteInfo(params: {
   trainingPhase?: ExRecordTrainingPhase;
   exerciseType?: string;
   exVideoId?: string;
+  patientUserId?: string | number | null;
 }): Promise<ExRecordVideoCompleteInfo | null> {
   const exPatientRuleId = params.exPatientRuleId?.trim();
   const exVideoId = params.exVideoId?.trim();
@@ -503,7 +504,7 @@ export async function loadExRecordVideoCompleteInfo(params: {
       trainingPhase,
       exerciseType: trainingPhase === 'main' ? params.exerciseType?.trim() || undefined : undefined,
       exVideoId: String(exVideoId),
-    });
+    }, { patientUserId: params.patientUserId });
     if (!isResourceApiOk(res as unknown as { code?: number })) return null;
     return (
       apiResourceData<ExRecordVideoCompleteInfo>(

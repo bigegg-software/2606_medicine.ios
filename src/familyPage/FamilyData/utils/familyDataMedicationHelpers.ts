@@ -52,6 +52,7 @@ function toFamilyMedicationItem(
   const meal = item.eventBasedLabel.trim();
   return {
     key: item.key,
+    medicationPlanId: item.medicationPlanId,
     title: item.name,
     time: item.medicationPlanTime,
     meal: meal && meal !== '无' ? meal : '',

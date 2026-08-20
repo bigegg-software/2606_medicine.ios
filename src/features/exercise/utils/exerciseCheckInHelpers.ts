@@ -35,10 +35,14 @@ export function getExerciseCheckInYearRange(year: number, today = moment()) {
 export async function loadExerciseCheckInMapByDateRange(
   startDate: string,
   endDate: string,
+  patientUserId?: string | number | null,
 ): Promise<ExerciseCheckInMap> {
   const map: ExerciseCheckInMap = {};
   try {
-    const res = await getExRecordVideoIsExerciseByDateRange({ startDate, endDate });
+    const res = await getExRecordVideoIsExerciseByDateRange(
+      { startDate, endDate },
+      { patientUserId },
+    );
     if (isResourceApiOk(res as unknown as { code?: number })) {
       applyExerciseExists(
         map,
@@ -56,8 +60,9 @@ export async function loadExerciseCheckInMapByDateRange(
 /** 按年懒加载运动打卡标记（未来年直接跳过） */
 export async function loadExerciseCheckInMapByYear(
   year: number,
+  patientUserId?: string | number | null,
 ): Promise<ExerciseCheckInMap | null> {
   const range = getExerciseCheckInYearRange(year);
   if (!range) return null;
-  return loadExerciseCheckInMapByDateRange(range.startDate, range.endDate);
+  return loadExerciseCheckInMapByDateRange(range.startDate, range.endDate, patientUserId);
 }

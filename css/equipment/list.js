@@ -81,11 +81,16 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     marginTop: 0,
-    paddingVertical: 28,
+    paddingVertical: 100,
     paddingHorizontal: 15,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     alignItems: 'center',
+  },
+  emptyIcon: {
+    width: 80,
+    height: 80,
+    marginBottom: 16,
   },
   emptyText: {
     fontWeight: '400',

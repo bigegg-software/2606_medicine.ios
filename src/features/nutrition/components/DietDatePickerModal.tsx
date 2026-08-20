@@ -43,6 +43,8 @@ type Props = {
   selectedDate: string;
   onClose: () => void;
   onSelect: (date: string) => void;
+  /** 家人只读：代查指定患者的餐次打点 */
+  patientUserId?: string;
   /** 传入则按上传状态展示主题色点；默认餐食打卡三色点 */
   uploadMarker?: DatePickerUploadMarker;
   /**
@@ -183,6 +185,7 @@ export default function DietDatePickerModal({
   selectedDate,
   onClose,
   onSelect,
+  patientUserId,
   uploadMarker,
   dayRecordMarker,
 }: Props) {
@@ -256,7 +259,10 @@ export default function DietDatePickerModal({
           setUploadMap(prev => ({ ...prev, ...nextMap }));
         }
       } else {
-        const nextMap = await loadMealEatMapByYear(year);
+        const nextMap = await loadMealEatMapByYear(
+          year,
+          patientUserId ? { patientUserId } : undefined,
+        );
         if (nextMap) {
           loadedEatYearsRef.current.add(year);
           setEatMap(prev => ({ ...prev, ...nextMap }));
@@ -265,7 +271,7 @@ export default function DietDatePickerModal({
     } finally {
       loadingEatYearsRef.current.delete(year);
     }
-  }, [dayRecordMarker, uploadMarker]);
+  }, [dayRecordMarker, patientUserId, uploadMarker]);
 
   const dayDotColors = useCallback((dateKey: string) => {
     if (dayRecordMarker || uploadMarker) {
@@ -370,7 +376,7 @@ export default function DietDatePickerModal({
     if (selectedYear < currentYear) {
       void ensureMarkerYearLoaded(selectedYear);
     }
-  }, [dayRecordMarker, ensureMarkerYearLoaded, modalMounted, selectedDate, visible, uploadMarker?.source, uploadMarker?.type]);
+  }, [dayRecordMarker, ensureMarkerYearLoaded, modalMounted, patientUserId, selectedDate, visible, uploadMarker?.source, uploadMarker?.type]);
 
   // 滚动切换月份：往年懒加载；未来年不请求
   useEffect(() => {

@@ -139,10 +139,16 @@ export type ExPatientRuleAdjustItem = {
   adjustTime?: string;
 };
 
-export const getExPatientRuleAdjustList = (exPatientRuleId: string) =>
+export const getExPatientRuleAdjustList = (
+  exPatientRuleId: string,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleAdjustItem[] }>(
     '/patient/exPatientRule/adjustList',
-    { params: { exPatientRuleId: String(exPatientRuleId) } },
+    {
+      params: { exPatientRuleId: String(exPatientRuleId) },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 /** 主训练四模块整体完成率（按处方起止日期），完成率 0-100 */

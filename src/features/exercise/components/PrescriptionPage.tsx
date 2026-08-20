@@ -37,10 +37,11 @@ const ICON_COLLAPSE = require('@/assets/images/nutrition/sq.png')
 const ICON_EXPAND = require('@/assets/images/nutrition/dk.png')
 
 type Props = {
-    exerciseRule?: InUseExPatientRule | null
+    exerciseRule?: InUseExPatientRule | null;
+    patientUserId?: string;
 }
 
-export default function PrescriptionPage({ exerciseRule }: Props) {
+export default function PrescriptionPage({ exerciseRule, patientUserId }: Props) {
     const typeSections = buildPrescriptionTypeSections(exerciseRule)
     const weightItems = buildPrescriptionWeightItems(exerciseRule)
     const weightLegendRows = useMemo(() => {
@@ -79,14 +80,18 @@ export default function PrescriptionPage({ exerciseRule }: Props) {
 
         setTimelineLoading(true)
         try {
-            const items = await loadPrescriptionTimelineItems(ruleId, exerciseRule?.version)
+            const items = await loadPrescriptionTimelineItems(
+                ruleId,
+                exerciseRule?.version,
+                patientUserId,
+            )
             setTimelineItems(items)
         } catch {
             setTimelineItems([])
         } finally {
             setTimelineLoading(false)
         }
-    }, [exerciseRule?.exPatientRuleId, exerciseRule?.version])
+    }, [exerciseRule?.exPatientRuleId, exerciseRule?.version, patientUserId])
 
     useEffect(() => {
         void loadTimeline()

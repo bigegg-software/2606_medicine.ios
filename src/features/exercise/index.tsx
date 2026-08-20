@@ -22,7 +22,7 @@ import CompleteProfileLink from '@/src/features/profile/healthRecord/components/
 import type { RootStackParamList } from '@/route/router';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
-import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
+import { getChildFamilyDisplayName, maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
 type Route = RouteProp<RootStackParamList, 'ExercisePage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -45,13 +45,14 @@ export default function ExercisePage() {
     );
   }, [familyList, patientUserId]);
   const profileUser = readOnly ? familyUser : user;
-  /** 只读：优先路由/家人列表姓名，绝不回落登录人 */
+  /** 只读：优先路由/家人列表姓名，绝不回落登录人；姓名匿名展示 */
   const displayName = readOnly
     ? (
         routeDisplayName
         || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
-        || familyUser?.name?.trim()
+        || maskFamilyDisplayName(familyUser?.name)
         || relationLabel
+        || '未命名'
       )
     : getDisplayUserName(user, systemUser);
   const profileComplete = readOnly ? true : isUserBaseInfoComplete(user);
@@ -124,14 +125,17 @@ export default function ExercisePage() {
     void loadExerciseRule();
   }, [patientUserId, readOnly, loadExerciseRule]);
 
+  const pageTitle = exerciseRule?.prescriptionName?.trim() || '运动处方';
+
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: '运动处方',
+      title: pageTitle,
+      headerTitle: undefined,
       headerRight: readOnly
         ? () => <FamilyRelationHeaderBadge label={relationLabel} />
         : undefined,
     });
-  }, [navigation, readOnly, relationLabel]);
+  }, [navigation, pageTitle, readOnly, relationLabel]);
 
   const onPressNav = useCallback((index: number) => {
     setActiveNav(index);
@@ -224,7 +228,7 @@ export default function ExercisePage() {
           ) : null}
           {mountedTabs[1] ? (
             <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
-              <PrescriptionPage exerciseRule={exerciseRule} />
+              <PrescriptionPage exerciseRule={exerciseRule} patientUserId={patientUserId} />
             </View>
           ) : null}
         </View>

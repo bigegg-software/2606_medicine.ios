@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   View,
+  Pressable,
   Image,
   ScrollView,
   Text,
@@ -107,42 +108,46 @@ export default function FamilyHomePage() {
     }, [dispatch]),
   );
 
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      const [attention, progress, tokens, health] = await Promise.all([
-        loadFamilyHomeAttentionMap(familyList),
-        loadFamilyHomeActivityProgressMap(familyList),
-        loadFamilyHomeTokensMap(familyList),
-        loadFamilyHomeHealthMap(familyList),
-      ]);
-      if (!cancelled) {
-        setAttentionMap(attention);
-        setActivityProgressMap(progress);
-        setTokensMap(tokens);
-        setHealthMap(health);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [familyList]);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        const [attention, progress, tokens, health] = await Promise.all([
+          loadFamilyHomeAttentionMap(familyList),
+          loadFamilyHomeActivityProgressMap(familyList),
+          loadFamilyHomeTokensMap(familyList),
+          loadFamilyHomeHealthMap(familyList),
+        ]);
+        if (!cancelled) {
+          setAttentionMap(attention);
+          setActivityProgressMap(progress);
+          setTokensMap(tokens);
+          setHealthMap(health);
+        }
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [familyList]),
+  );
 
-  useEffect(() => {
-    const patientUserId = firstMember?.patientUserId ?? '';
-    if (!patientUserId) {
-      setFocusSummary(emptyFamilyHomeFocusSummary());
-      return;
-    }
-    let cancelled = false;
-    void (async () => {
-      const summary = await loadFamilyHomeFocusSummary(patientUserId);
-      if (!cancelled) setFocusSummary(summary);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [firstMember?.patientUserId]);
+  useFocusEffect(
+    useCallback(() => {
+      const patientUserId = firstMember?.patientUserId ?? '';
+      if (!patientUserId) {
+        setFocusSummary(emptyFamilyHomeFocusSummary());
+        return undefined;
+      }
+      let cancelled = false;
+      void (async () => {
+        const summary = await loadFamilyHomeFocusSummary(patientUserId);
+        if (!cancelled) setFocusSummary(summary);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [firstMember?.patientUserId]),
+  );
 
   return (
     <View style={styles.container}>
@@ -214,43 +219,67 @@ export default function FamilyHomePage() {
                 (member.patientUserId && healthMap[member.patientUserId])
                 || emptyFamilyHomeHealthSnapshot();
               return (
-                <View key={member.key} style={styles.familyHealthItem}>
-                  <Flex align="center">
-                    <Image
-                      source={require('@/assets/images/default/default1.png')}
-                      style={styles.familyHealthIcon}
-                    />
-                    <Text style={styles.familyHealthName}>{member.name}</Text>
-                  </Flex>
-                  {snapshot.rows.map((row, index) => {
-                    const glucoseTrendIcon =
-                      row.key === '血糖'
-                        ? resolveFamilyHomeGlucoseTrendIcon(row.glucoseTrend)
-                        : null;
-                    return (
+                <Pressable key={member.key} onPress={() => {
+                  navigation.navigate('FamilyTabs', { screen: 'FamilyData' });
+                }}>
+                  <View style={styles.familyHealthItem}>
+                    {member.pending ? (
                       <Flex
-                        key={row.key}
-                        style={[
-                          styles.familyHealthRow,
-                          index === 0 && styles.familyHealthRowFirst,
-                        ]}
-                        justify="between"
+                        direction="column"
                         align="center"
+                        justify="center"
+                        style={{ paddingVertical: 30 }}
                       >
-                        <Text style={styles.familyHealthLabel}>{row.key}</Text>
-                        <Flex align="center">
-                          <Text style={styles.familyHealthValue}>{row.value}</Text>
-                          {glucoseTrendIcon ? (
-                            <Image
-                              source={glucoseTrendIcon}
-                              style={styles.familyHealthTrendIcon}
-                            />
-                          ) : null}
-                        </Flex>
+                        <Image
+                          source={require('@/assets/images/default/default1.png')}
+                          style={styles.familyHealthAddIcon}
+                        />
+                        <Text style={[styles.familyHealthName, { marginLeft: 0, marginTop: 8 }]}>
+                          {member.name}
+                        </Text>
+                        <Text style={styles.familyHealthPendingText}>等待确认中</Text>
                       </Flex>
-                    );
-                  })}
-                </View>
+                    ) : (
+                      <>
+                        <Flex align="center">
+                          <Image
+                            source={require('@/assets/images/default/default1.png')}
+                            style={styles.familyHealthIcon}
+                          />
+                          <Text style={styles.familyHealthName}>{member.name}</Text>
+                        </Flex>
+                        {snapshot.rows.map((row, index) => {
+                          const glucoseTrendIcon =
+                            row.key === '血糖'
+                              ? resolveFamilyHomeGlucoseTrendIcon(row.glucoseTrend)
+                              : null;
+                          return (
+                            <Flex
+                              key={row.key}
+                              style={[
+                                styles.familyHealthRow,
+                                index === 0 && styles.familyHealthRowFirst,
+                              ]}
+                              justify="between"
+                              align="center"
+                            >
+                              <Text style={styles.familyHealthLabel}>{row.key}</Text>
+                              <Flex align="center">
+                                <Text style={styles.familyHealthValue}>{row.value}</Text>
+                                {glucoseTrendIcon ? (
+                                  <Image
+                                    source={glucoseTrendIcon}
+                                    style={styles.familyHealthTrendIcon}
+                                  />
+                                ) : null}
+                              </Flex>
+                            </Flex>
+                          );
+                        })}
+                      </>
+                    )}
+                  </View>
+                </Pressable>
               );
             })}
             <TouchableOpacity
@@ -263,7 +292,7 @@ export default function FamilyHomePage() {
                 direction="column"
                 align="center"
                 justify="center"
-                style={{ flex: 1 }}
+                style={{ paddingVertical: 30 }}
               >
                 <Image
                   source={require('@/assets/family/home/add.png')}

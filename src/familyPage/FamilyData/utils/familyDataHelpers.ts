@@ -177,6 +177,8 @@ export type FamilyMedicationAction = 'taken' | 'remind';
 
 export type FamilyMedicationItem = {
   key: string;
+  /** 用药计划 id，提交提醒日志用 */
+  medicationPlanId?: string;
   title: string;
   /** 计划服用时间 */
   time: string;

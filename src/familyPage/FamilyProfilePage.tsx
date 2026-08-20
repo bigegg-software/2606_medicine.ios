@@ -38,11 +38,12 @@ import { loadHealthRecordFamilyUser } from '@/src/features/profile/healthRecord/
 import {
   FAMILY_DEVICE_ITEMS,
   formatFamilyDeviceStatusText,
-  getApprovedFamilyBindList,
   getChildFamilyDisplayName,
   getChildFamilyMetaLine,
+  getDisplayFamilyBindList,
   getFamilyTabKey,
   getFamilyTabLabel,
+  isFamilyBindPending,
   resolveChildFamilyAvatarSource,
   type FamilyMemberInfoRow,
 } from './utils/familyProfileHelpers';
@@ -50,6 +51,10 @@ import {
   emptyFamilyMemberInfoRows,
   loadFamilyMemberInfoRows,
 } from './utils/familyMemberInfoHelpers';
+import {
+  buildFamilyBindRemoveConfirmMessage,
+  removeFamilyBindById,
+} from './utils/familyProfileRemoveHelpers';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import FamilyRelationProofModal from './components/FamilyRelationProofModal';
 import styles from '@/css/family/profile';
@@ -64,6 +69,7 @@ export default function FamilyProfilePage() {
   const loadingFamily = useSelector((s: RootState) => s.family.loading);
   const selectedFamilyKey = useSelector((s: RootState) => s.family.selectedKey);
   const [switchingIdentity, setSwitchingIdentity] = useState(false);
+  const [removingFamily, setRemovingFamily] = useState(false);
   const [relationProofVisible, setRelationProofVisible] = useState(false);
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const [memberInfoRows, setMemberInfoRows] = useState<FamilyMemberInfoRow[]>(
@@ -74,7 +80,7 @@ export default function FamilyProfilePage() {
   const submitterName = getDisplayUserName(undefined, systemUser);
 
   const familyList = useMemo(
-    () => getApprovedFamilyBindList(familyListRaw),
+    () => getDisplayFamilyBindList(familyListRaw),
     [familyListRaw],
   );
 
@@ -121,6 +127,7 @@ export default function FamilyProfilePage() {
     const id = selectedFamily?.patientUserId;
     return id != null ? String(id) : '';
   }, [selectedFamily]);
+  const bindPending = isFamilyBindPending(selectedFamily);
 
   const loadMemberInfo = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
@@ -149,8 +156,13 @@ export default function FamilyProfilePage() {
 
   useFocusEffect(
     useCallback(() => {
+      if (bindPending) {
+        setMemberInfoRows(emptyFamilyMemberInfoRows());
+        setMemberUser(null);
+        return;
+      }
       void loadMemberInfo(selectedPatientUserId);
-    }, [loadMemberInfo, selectedPatientUserId]),
+    }, [bindPending, loadMemberInfo, selectedPatientUserId]),
   );
 
   useFocusEffect(
@@ -195,6 +207,37 @@ export default function FamilyProfilePage() {
       setSwitchingIdentity(false);
     }
   }, [dispatch, navigation, switchingIdentity]);
+
+  const handleRemoveSelectedFamily = useCallback(() => {
+    if (!selectedFamily || removingFamily) return;
+    const bindId = selectedFamily.id != null ? String(selectedFamily.id) : '';
+    if (!bindId) {
+      Toast.show('家人信息无效');
+      return;
+    }
+    const displayName = getChildFamilyDisplayName(selectedFamily);
+    Alert.alert('提示', buildFamilyBindRemoveConfirmMessage(displayName), [
+      { text: '取消', style: 'cancel' },
+      {
+        text: '确定',
+        style: 'destructive',
+        onPress: () => {
+          void (async () => {
+            if (removingFamily) return;
+            setRemovingFamily(true);
+            const result = await removeFamilyBindById(bindId);
+            setRemovingFamily(false);
+            if (!result.ok) {
+              Alert.alert('删除失败', result.msg ?? '请稍后重试');
+              return;
+            }
+            Toast.show('已删除');
+            await dispatch(fetchFamilyBindMyList({ force: true }));
+          })();
+        },
+      },
+    ]);
+  }, [dispatch, removingFamily, selectedFamily]);
 
   const logout = useCallback(() => {
     Alert.alert('退出登录', '确定要退出登录吗？', [
@@ -264,13 +307,23 @@ export default function FamilyProfilePage() {
                   );
                 })}
               </ScrollView>
-              <Flex align="center" style={styles.familyReadonly}>
-                <Image
-                  source={require('@/assets/family/profile/icon_sz.png')}
-                  style={styles.familyReadonlyIcon}
-                />
-                <Text style={styles.familyReadonlyText}>只读</Text>
-              </Flex>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.familyDeleteBtn}
+                disabled={!selectedFamily || removingFamily}
+                onPress={handleRemoveSelectedFamily}
+              >
+                <Flex align="center">
+                  <Image
+                    source={require('@/assets/family/profile/icon_delete.png')}
+                    style={styles.familyDeleteIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={styles.familyDeleteText}>
+                    {removingFamily ? '删除中' : '删除'}
+                  </Text>
+                </Flex>
+              </TouchableOpacity>
             </Flex>
           </View>
         ) : loadingFamily ? (
@@ -293,7 +346,12 @@ export default function FamilyProfilePage() {
                     <Text style={styles.memberName} numberOfLines={1}>
                       {getChildFamilyDisplayName(selectedFamily)}
                     </Text>
-                    {selectedFamily.identityAuthStatus == null ? (
+                    {bindPending ? (
+                      <Flex style={styles.memberPendingBadgeWrap}>
+                        <Text style={styles.memberPendingBadgeText}>等待确认中</Text>
+                      </Flex>
+                    ) : null}
+                    {!bindPending && selectedFamily.identityAuthStatus == null ? (
                       <TouchableOpacity
                         activeOpacity={0.85}
                         onPress={() => setRelationProofVisible(true)}
@@ -308,17 +366,12 @@ export default function FamilyProfilePage() {
                         </Flex>
                       </TouchableOpacity>
                     ) : null}
-                    {selectedFamily.identityAuthStatus == 0 ? (
-                      <Flex style={styles.memberCertifiedBadgeWrap}>
-                        <Image
-                          source={require('@/assets/family/profile/icon_certified.png')}
-                          style={styles.memberCertifiedBadge}
-                          resizeMode="contain"
-                        />
-                        <Text style={styles.memberCertifiedBadgeText}>等待审核中</Text>
+                    {!bindPending && selectedFamily.identityAuthStatus == 0 ? (
+                      <Flex style={styles.memberPendingBadgeWrap}>
+                        <Text style={styles.memberPendingBadgeText}>等待确认中</Text>
                       </Flex>
                     ) : null}
-                    {selectedFamily.identityAuthStatus === 1 ? (
+                    {!bindPending && selectedFamily.identityAuthStatus === 1 ? (
                       <Flex style={styles.memberCertifiedBadgeWrapUnCertified}>
                         <Image
                           source={require('@/assets/family/profile/icon_certified.png')}
@@ -326,6 +379,16 @@ export default function FamilyProfilePage() {
                           resizeMode="contain"
                         />
                         <Text style={styles.memberCertifiedBadgeText}>关系已认证</Text>
+                      </Flex>
+                    ) : null}
+                    {!bindPending && selectedFamily.identityAuthStatus === 2 ? (
+                      <Flex style={styles.memberCertifiedWarn}>
+                        <Image
+                          source={require('@/assets/family/profile/icon_wtg.png')}
+                          style={styles.memberCertifiedBadge}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.memberCertifiedWarnText}>认证未通过</Text>
                       </Flex>
                     ) : null}
 
@@ -353,30 +416,32 @@ export default function FamilyProfilePage() {
                 </Flex>
               ))}
 
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.memberViewAllBtn}
-                disabled={!selectedPatientUserId}
-                onPress={() => {
-                  if (!selectedFamily || !selectedPatientUserId) return;
-                  navigation.navigate('HealthRecord', {
-                    readOnly: true,
-                    patientUserId: selectedPatientUserId,
-                    relationLabel: selectedRelationLabel,
-                    displayName: getChildFamilyDisplayName(selectedFamily),
-                  });
-                }}
-              >
-                <Flex align="center" justify="center">
-                  <Text style={styles.memberViewAllText}>查看全部</Text>
-                  <Image
-                    source={require('@/assets/images/user/icon_right.png')}
-                    style={styles.memberViewAllIcon}
-                    tintColor="#6D925E"
-                    resizeMode="contain"
-                  />
-                </Flex>
-              </TouchableOpacity>
+              {!bindPending ? (
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  style={styles.memberViewAllBtn}
+                  disabled={!selectedPatientUserId}
+                  onPress={() => {
+                    if (!selectedFamily || !selectedPatientUserId) return;
+                    navigation.navigate('HealthRecord', {
+                      readOnly: true,
+                      patientUserId: selectedPatientUserId,
+                      relationLabel: selectedRelationLabel,
+                      displayName: getChildFamilyDisplayName(selectedFamily),
+                    });
+                  }}
+                >
+                  <Flex align="center" justify="center">
+                    <Text style={styles.memberViewAllText}>查看全部</Text>
+                    <Image
+                      source={require('@/assets/images/user/icon_right.png')}
+                      style={styles.memberViewAllIcon}
+                      tintColor="#6D925E"
+                      resizeMode="contain"
+                    />
+                  </Flex>
+                </TouchableOpacity>
+              ) : null}
             </View>
             {/* <View style={styles.memberCard}>
               <Text style={styles.memberCardTitle}>设备连接状态</Text>
@@ -471,7 +536,7 @@ export default function FamilyProfilePage() {
         </TouchableOpacity>
       </View>
 
-      {selectedFamily ? (
+      {selectedFamily && !bindPending ? (
         <FamilyRelationProofModal
           visible={relationProofVisible}
           displayName={getChildFamilyDisplayName(selectedFamily)}

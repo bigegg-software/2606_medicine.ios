@@ -3,6 +3,7 @@ import type { FamilyBindItem } from '@/api/familyBind';
 import type { UserBaseInfo } from '@/api/patient';
 import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import { maskFamilyPhone } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
+import { isChildFamilyBindVisible } from './familyBindNoticeHelpers';
 
 /** 家人 Tab / 选中 key：优先 bind id，其次患者 userId */
 export function getFamilyTabKey(item: FamilyBindItem, index: number): string {
@@ -11,24 +12,58 @@ export function getFamilyTabKey(item: FamilyBindItem, index: number): string {
   return `family-${index}`;
 }
 
-/** 已通过绑定的家人（数据/档案 Tab 展示） */
+/** 已通过绑定的家人（数据/首页展示，排除待确认解绑与账号异常） */
 export function getApprovedFamilyBindList(list: FamilyBindItem[]): FamilyBindItem[] {
-  return list.filter(item => Number(item.bindStatus) === 1);
-}
-
-/** 家人 Tab / 切换角标文案：统一 childRemarkName */
-export function getFamilyTabLabel(item: FamilyBindItem): string {
-  return (
-    item.childRemarkName?.trim() ||
-    item.remarkName?.trim() ||
-    item.patientName?.trim() ||
-    '家人'
+  return list.filter(
+    item => Number(item.bindStatus) === 1 && isChildFamilyBindVisible(item),
   );
 }
 
-/** 子女端展示绑定的老人姓名 */
+/** 绑定待对方确认 */
+export function isFamilyBindPending(item?: Pick<FamilyBindItem, 'bindStatus'> | null) {
+  return Number(item?.bindStatus) === 0;
+}
+
+/** 家人端档案页可见：已通过 + 待确认 */
+export function getDisplayFamilyBindList(list: FamilyBindItem[]): FamilyBindItem[] {
+  return list.filter(item => {
+    const status = Number(item.bindStatus);
+    if (status !== 0 && status !== 1) return false;
+    return isChildFamilyBindVisible(item);
+  });
+}
+
+/** 家人姓名匿名：王强→王*，王某某→王**（保留首字，其余为 *） */
+export function maskFamilyDisplayName(name?: string | null): string {
+  const value = name?.trim() || '';
+  if (!value) return '';
+  if (value.length === 1) return value;
+  return `${value[0]}${'*'.repeat(value.length - 1)}`;
+}
+
+/** 绑定记录展示名：优先 childRemarkName，其次 remarkName；一律匿名 */
+function resolveMaskedFamilyBindName(item: FamilyBindItem, fallback: string): string {
+  return (
+    maskFamilyDisplayName(item.childRemarkName) ||
+    maskFamilyDisplayName(item.remarkName) ||
+    maskFamilyDisplayName(item.patientName) ||
+    fallback
+  );
+}
+
+/** 家人 Tab / 切换角标文案（匿名） */
+export function getFamilyTabLabel(item: FamilyBindItem): string {
+  return resolveMaskedFamilyBindName(item, '家人');
+}
+
+/** 子女端绑定老人姓名原文（提交/特殊逻辑用，页面展示请用 getChildFamilyDisplayName） */
+export function getChildFamilyRawDisplayName(item: FamilyBindItem): string {
+  return item.childRemarkName?.trim() || item.remarkName?.trim() || item.patientName?.trim() || '未命名';
+}
+
+/** 子女端展示绑定的老人姓名（匿名） */
 export function getChildFamilyDisplayName(item: FamilyBindItem): string {
-  return item.remarkName?.trim() || item.patientName?.trim() || item.childRemarkName?.trim() || '未命名';
+  return resolveMaskedFamilyBindName(item, '未命名');
 }
 
 /** 子女端家人头像：优先真实头像，否则按性别默认图 */

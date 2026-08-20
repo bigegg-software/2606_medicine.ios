@@ -43,6 +43,22 @@ const styles = StyleSheet.create({
     familyList: {
         marginHorizontal: 12,
     },
+    emptyList: {
+        paddingVertical: 100,
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+    },
+    emptyIcon: {
+        width: 80,
+        height: 80,
+    },
+    emptyText: {
+        marginTop: 16,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#999999',
+    },
     familyItem: {
         marginBottom: 12,
         width: "100%",

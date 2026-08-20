@@ -112,3 +112,15 @@ export function toggleFamilyPermission(
 ): FamilyPermissionKey[] {
   return selected.includes(key) ? selected.filter(item => item !== key) : [...selected, key];
 }
+
+export function areAllFamilyPermissionsSelected(selected: FamilyPermissionKey[]): boolean {
+  return FAMILY_PERMISSION_OPTIONS.every(item => selected.includes(item.key));
+}
+
+export function toggleAllFamilyPermissions(
+  selected: FamilyPermissionKey[],
+): FamilyPermissionKey[] {
+  return areAllFamilyPermissionsSelected(selected)
+    ? []
+    : FAMILY_PERMISSION_OPTIONS.map(item => item.key);
+}

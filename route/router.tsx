@@ -199,13 +199,13 @@ export type RootStackParamList = {
   QuestionnaireDetail: { id: string } & FamilyReadOnlyViewParams;
   QuestionnaireResult: { id: string; type: QuestionnaireType };
   QuestionnaireHistory: FamilyReadOnlyViewParams | undefined;
-  FamilyAssessmentHistory: { patientUserId: string };
+  FamilyAssessmentHistory: { patientUserId: string } & FamilyReadOnlyViewParams;
   FamilyAssessmentResult: {
     id: string;
     patientUserId: string;
     type?: QuestionnaireType;
-  };
-  FamilyAssessmentDetail: { id: string; patientUserId: string };
+  } & FamilyReadOnlyViewParams;
+  FamilyAssessmentDetail: { id: string; patientUserId: string } & FamilyReadOnlyViewParams;
   FontSizeSettingPage: undefined;
   SpeechSpeedSettingPage: undefined;
   NotificationSettingPage: undefined;

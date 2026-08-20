@@ -15,9 +15,13 @@ import {
   getOldFamilyBindMyList,
   rejectOldFamilyBindByBind,
   rejectOldFamilyBindByMessage,
+  removeOldFamilyBind,
   updateOldFamilyBindAuth,
 } from '@/api/oldFamilyBind';
-import { getChildFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
+import {
+  getChildFamilyDisplayName,
+  maskFamilyDisplayName,
+} from '@/src/familyPage/utils/familyProfileHelpers';
 import {
   FAMILY_PERMISSION_OPTIONS,
   type FamilyPermissionKey,
@@ -40,13 +44,59 @@ export type FamilyBindInviteView = {
   phone: string;
   permissions: FamilyPermissionKey[];
   bindStatus?: number;
-  /** 老人通过 invite 发起（有 childRemarkName）；子女发起则为 false */
+  /** 老人通过 invite 发起（仅有 childRemarkName）；子女发起则会写入 remarkName */
   initiatedByElder: boolean;
 };
 
-/** 老人邀请家人会写入 childRemarkName，子女申请绑定则写入 remarkName */
+/** 子女申请绑定写入 remarkName；老人邀请写入 childRemarkName。remarkName 优先视为子女发起 */
 export function isElderInitiatedFamilyBind(item: FamilyBindInviteBindVo): boolean {
+  if (item.remarkName?.trim()) return false;
   return Boolean(item.childRemarkName?.trim());
+}
+
+function isDeletedFlag(value?: string | number | null) {
+  return String(value ?? '').trim() === '1';
+}
+
+/** 邀请链接是否仍有效（撤销/删除/拒绝后失效） */
+export function isFamilyBindInviteLinkValid(
+  item?: FamilyBindInviteBindVo | null,
+): boolean {
+  if (!item || item.id == null || String(item.id).trim() === '') return false;
+  if (isDeletedFlag(item.delFlag)) return false;
+  if (isDeletedFlag(item.delFlagByOld)) return false;
+  if (isDeletedFlag(item.delFlagByJs)) return false;
+  if (Number(item.bindStatus) === 2) return false;
+  return true;
+}
+
+export const FAMILY_BIND_INVITE_INVALID_TOAST = '邀请已失效';
+
+/** 已邀请未绑定：仅老人自己发出的邀请可取消 */
+export function canCancelElderFamilyInvite(
+  view: Pick<FamilyBindInviteView, 'bindStatus' | 'initiatedByElder'> | null | undefined,
+) {
+  if (!view) return false;
+  return view.initiatedByElder && Number(view.bindStatus) === 0;
+}
+
+/** 邀请页底部操作：子女申请给老人看「拒绝/接受」；老人自己发出的待确认邀请看「取消邀请」 */
+export function resolveFamilyBindInviteActionState(
+  view: Pick<FamilyBindInviteView, 'bindStatus' | 'initiatedByElder'> | null | undefined,
+  isElder: boolean,
+  options?: { fromIncomingMessage?: boolean },
+) {
+  const showActionButtons = view != null && Number(view.bindStatus) !== 1;
+  const initiatedByElder = Boolean(view?.initiatedByElder) && !options?.fromIncomingMessage;
+  const showCancelInvite = isElder && initiatedByElder && Number(view?.bindStatus) === 0;
+  const showRejectButton = showActionButtons && !showCancelInvite && !(isElder && initiatedByElder);
+  const showAcceptButton = showActionButtons && !showCancelInvite;
+  return {
+    showActionButtons,
+    showCancelInvite,
+    showRejectButton,
+    showAcceptButton,
+  };
 }
 
 /** 家人接受邀请后：待确认进邀请页，其余进家人详情 */
@@ -103,6 +153,30 @@ export async function loadFamilyBindInviteByMessageId(
   return extractBindVoFromMessageParams(data.params ?? null);
 }
 
+/** 以当前绑定记录为准校验邀请是否仍有效；消息里的 bindVo 只用于取 id */
+export async function loadLiveFamilyBindInvite(options: {
+  messageId?: string;
+  bindId?: string;
+  isElder?: boolean;
+}): Promise<FamilyBindInviteBindVo | null> {
+  let bindId = String(options.bindId ?? '').trim();
+  const messageId = String(options.messageId ?? '').trim();
+  if (!bindId && messageId) {
+    const snapshot = await loadFamilyBindInviteByMessageId(messageId);
+    bindId = snapshot?.id != null ? String(snapshot.id).trim() : '';
+  }
+  if (!bindId) return null;
+
+  const loadByRole = async (isElder: boolean) => {
+    const live = await loadFamilyBindInviteById(bindId, { isElder });
+    return isFamilyBindInviteLinkValid(live) ? live : null;
+  };
+
+  if (options.isElder === true) return loadByRole(true);
+  if (options.isElder === false) return loadByRole(false);
+  return (await loadByRole(true)) ?? (await loadByRole(false));
+}
+
 export function buildFamilyBindInviteView(
   item: FamilyBindInviteBindVo,
   options?: { isElder?: boolean },
@@ -114,7 +188,10 @@ export function buildFamilyBindInviteView(
   return {
     id: item.id != null ? String(item.id) : '',
     name: isElder
-      ? item.jsUserName?.trim() || item.childRemarkName?.trim() || '未命名'
+      ? maskFamilyDisplayName(item.jsUserName) ||
+        maskFamilyDisplayName(item.childRemarkName) ||
+        maskFamilyDisplayName(item.remarkName) ||
+        '未命名'
       : getChildFamilyDisplayName(item as FamilyBindItem),
     relationType: String(item.relationType ?? ''),
     phone: isElder
@@ -180,4 +257,22 @@ export async function respondToFamilyBindInvite(options: {
     return { ok: false, msg: r.msg ?? r.message };
   }
   return { ok: true };
+}
+
+/** 老人取消未绑定的家人邀请 */
+export async function cancelElderFamilyBindInvite(
+  bindId: string,
+): Promise<{ ok: boolean; msg?: string }> {
+  const id = String(bindId ?? '').trim();
+  if (!id) return { ok: false, msg: '邀请信息无效' };
+  try {
+    const res = await removeOldFamilyBind(id);
+    if (!isResourceApiOk(res as ApiResult)) {
+      const r = res as ApiResult;
+      return { ok: false, msg: r.msg ?? r.message ?? '取消失败，请稍后重试' };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, msg: '网络错误，请稍后重试' };
+  }
 }

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -27,6 +27,8 @@ import {
   getScoreTip,
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
+import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
+import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { getFamilyRiskGaugeIcon } from './utils/familyDataAssessmentHelpers';
 import styles from '@/css/family/assessmentResult';
 
@@ -38,10 +40,30 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function FamilyAssessmentResultPage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { id, type, patientUserId } = route.params;
+  const { id, type } = route.params;
+  const { patientUserId = '', relationLabel, viewNavParams } = resolveFamilyReadOnlyView(
+    route.params,
+  );
   const insets = useSafeAreaInsets();
   const [detail, setDetail] = useState<UserQuestionRecord | null>(null);
   const [loading, setLoading] = useState(true);
+  const boundPatientUserIdRef = useRef(patientUserId);
+
+  useEffect(() => {
+    navigation.setOptions({
+      headerRight: () => <FamilyRelationHeaderBadge label={relationLabel} />,
+    });
+  }, [navigation, relationLabel]);
+
+  // 切换家人后回到该家人的评估历史（结果页绑定具体记录 id）
+  useEffect(() => {
+    if (!patientUserId || patientUserId === boundPatientUserIdRef.current) return;
+    boundPatientUserIdRef.current = patientUserId;
+    navigation.replace('FamilyAssessmentHistory', {
+      patientUserId,
+      ...(viewNavParams ?? {}),
+    });
+  }, [navigation, patientUserId, viewNavParams]);
 
   const loadDetail = useCallback(async () => {
     if (!id) {
@@ -164,6 +186,7 @@ export default function FamilyAssessmentResultPage() {
               navigation.navigate('FamilyAssessmentDetail', {
                 id,
                 patientUserId,
+                ...(viewNavParams ?? {}),
               })
             }
           >

@@ -27,6 +27,14 @@ export type FamilyBindItem = {
   identityAuthStatus?: FamilyIdentityAuthStatus | number | null;
   identityRejectReason?: string;
   delFlag?: string;
+  /** 老人视角删除解绑标志（0代表存在 1代表删除） */
+  delFlagByOld?: string | number;
+  /** 家属视角删除解绑标志（0代表存在 1代表删除） */
+  delFlagByJs?: string | number;
+  /** 患者账号状态 0.正常 1.禁用 2.已注销 */
+  patientAccountStatus?: number;
+  /** 家属账号状态 0.正常 1.禁用 2.已注销 */
+  jsAccountStatus?: number;
   patientName?: string;
   patientPcode?: string;
   patientPhonenumber?: string;
@@ -81,3 +89,7 @@ export const acceptFamilyBindInviteByBind = (id: string | number) =>
 /** 拒绝老人邀请（按绑定记录 id） */
 export const rejectFamilyBindInviteByBind = (id: string | number) =>
   request.put<ApiResult>(`/patient/familyBind/rejectInviteByBind/${String(id)}`);
+
+/** 删除家人绑定关系（家属端解绑，设置 delFlagByJs=1） */
+export const removeFamilyBind = (id: string | number) =>
+  request.delete<ApiResult>(`/patient/familyBind/remove/${String(id)}`);

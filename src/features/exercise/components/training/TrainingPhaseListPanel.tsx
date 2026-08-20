@@ -58,6 +58,7 @@ type Props = {
   /** 非今日只读，不可执行 */
   readOnly?: boolean;
   dateMode?: TrainingActionDateMode;
+  patientUserId?: string;
 };
 
 export default function TrainingPhaseListPanel({
@@ -66,6 +67,7 @@ export default function TrainingPhaseListPanel({
   config,
   readOnly = false,
   dateMode = 'today',
+  patientUserId,
 }: Props) {
   const navigation = useNavigation<Nav>();
   const [bannerWidth, setBannerWidth] = useState(0);
@@ -95,6 +97,7 @@ export default function TrainingPhaseListPanel({
             exPatientRuleId: dayRule?.exPatientRuleId,
             customerLocalDate: selectedDate,
             trainingPhase: config.trainingPhase,
+            patientUserId,
           }),
         )
         .then(nextCards => {
@@ -111,7 +114,7 @@ export default function TrainingPhaseListPanel({
       return () => {
         cancelled = true;
       };
-    }, [config, dayRule, selectedDate]),
+    }, [config, dayRule, patientUserId, selectedDate]),
   );
 
   const handleLayout = (event: LayoutChangeEvent) => {

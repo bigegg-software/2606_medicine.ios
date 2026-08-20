@@ -478,7 +478,7 @@ const styles = StyleSheet.create({
     },
     acceptAiCancelBtn: {
         flex: 1,
-        height: 44,
+        height: 48,
         borderRadius: 25,
         backgroundColor: '#F6F8FB',
         alignItems: 'center',
@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
     },
     acceptAiConfirmBtn: {
         width: '100%',
-        height: 44,
+        height: 48,
         borderRadius: 25,
         alignItems: 'center',
         justifyContent: 'center',

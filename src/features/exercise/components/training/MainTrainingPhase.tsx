@@ -30,6 +30,7 @@ type Props = {
   selectedDate: string;
   readOnly?: boolean;
   dateMode?: TrainingActionDateMode;
+  patientUserId?: string;
 };
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -172,6 +173,7 @@ export default function MainTrainingPhase({
   selectedDate,
   readOnly = false,
   dateMode = 'today',
+  patientUserId,
 }: Props) {
   const navigation = useNavigation<Nav>();
   const [loading, setLoading] = useState(true);
@@ -183,7 +185,7 @@ export default function MainTrainingPhase({
     useCallback(() => {
       let cancelled = false;
       setLoading(true);
-      void buildMainTrainingModules(dayRule, selectedDate)
+      void buildMainTrainingModules(dayRule, selectedDate, patientUserId)
         .then(result => {
           if (cancelled) return;
           setIsRest(result.isRest);
@@ -199,7 +201,7 @@ export default function MainTrainingPhase({
       return () => {
         cancelled = true;
       };
-    }, [dayRule, selectedDate]),
+    }, [dayRule, patientUserId, selectedDate]),
   );
 
   const openPlayer = (exerciseType: string, card?: TrainingPhaseExerciseCard) => {

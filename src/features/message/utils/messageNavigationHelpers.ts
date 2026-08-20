@@ -4,14 +4,15 @@ import { getActivityInfo } from '@/api/activity';
 import { getInUseDietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { getLiveStreamInfo } from '@/api/liveStream';
-import { getOldFamilyBindInfo } from '@/api/oldFamilyBind';
 import type { PatientMessageItem } from '@/api/message';
 import { getUserQuestionDetail } from '@/api/questionTemplate';
 import type { RootStackParamList } from '@/route/router';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
   FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE,
+  FAMILY_BIND_INVITE_INVALID_TOAST,
   isFamilyBindInviteMessageType,
+  loadLiveFamilyBindInvite,
   resolveFamilyBindAcceptedTarget,
 } from '@/src/familyPage/profilePage/utils/familyBindInviteHelpers';
 import { parseMessageCreateTime } from './messageHelpers';
@@ -100,14 +101,17 @@ function resolveMessageSendDate(createTime?: string | null) {
 }
 
 /** 解析消息点击后的跳转目标；缺失业务数据时返回 missing */
-export async function resolveMessageNavigation(item: {
-  type?: string | null;
-  bizId?: string | null;
-  messageId?: string | number | null;
-  createTime?: string | null;
-}): Promise<
+export async function resolveMessageNavigation(
+  item: {
+    type?: string | null;
+    bizId?: string | null;
+    messageId?: string | number | null;
+    createTime?: string | null;
+  },
+  options?: { isElder?: boolean },
+): Promise<
   | { action: 'none' }
-  | { action: 'missing' }
+  | { action: 'missing'; toast?: string }
   | { action: 'navigate'; name: keyof RootStackParamList; params?: object }
 > {
   const type = String(item.type ?? '').trim();
@@ -119,13 +123,11 @@ export async function resolveMessageNavigation(item: {
 
   if (type === FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE) {
     const bizId = normalizeBizId(item.bizId);
-    if (!bizId) return { action: 'missing' };
+    if (!bizId) return { action: 'missing', toast: FAMILY_BIND_INVITE_INVALID_TOAST };
     try {
-      const res = await getOldFamilyBindInfo(bizId);
-      if (!isResourceApiOk(res as { code?: number })) return { action: 'missing' };
-      const data = apiResourceData(res as { code?: number; data?: { bindStatus?: number | null } });
-      if (!data) return { action: 'missing' };
-      const target = resolveFamilyBindAcceptedTarget(data.bindStatus);
+      const live = await loadLiveFamilyBindInvite({ bindId: bizId, isElder: options?.isElder });
+      if (!live) return { action: 'missing', toast: FAMILY_BIND_INVITE_INVALID_TOAST };
+      const target = resolveFamilyBindAcceptedTarget(live.bindStatus);
       if (target === 'invite') {
         return {
           action: 'navigate',
@@ -139,18 +141,27 @@ export async function resolveMessageNavigation(item: {
         params: { id: bizId },
       };
     } catch {
-      return { action: 'missing' };
+      return { action: 'missing', toast: FAMILY_BIND_INVITE_INVALID_TOAST };
     }
   }
 
   if (isFamilyBindInviteMessageType(type)) {
     const messageId = item.messageId != null ? String(item.messageId) : '';
     if (!messageId) return { action: 'none' };
-    return {
-      action: 'navigate',
-      name: 'FamilyBindInvitePage',
-      params: { messageId },
-    };
+    try {
+      const live = await loadLiveFamilyBindInvite({
+        messageId,
+        isElder: options?.isElder,
+      });
+      if (!live) return { action: 'missing', toast: FAMILY_BIND_INVITE_INVALID_TOAST };
+      return {
+        action: 'navigate',
+        name: 'FamilyBindInvitePage',
+        params: { messageId },
+      };
+    } catch {
+      return { action: 'missing', toast: FAMILY_BIND_INVITE_INVALID_TOAST };
+    }
   }
 
   const bizId = normalizeBizId(item.bizId);
@@ -248,15 +259,21 @@ export async function resolveMessageNavigation(item: {
 export async function navigateFromMessage(
   navigation: Nav,
   item: Pick<PatientMessageItem, 'type' | 'bizId' | 'messageId' | 'createTime'>,
-): Promise<'navigated' | 'missing' | 'none'> {
-  const result = await resolveMessageNavigation({
-    type: item.type,
-    bizId: item.bizId,
-    messageId: item.messageId,
-    createTime: item.createTime,
-  });
-  if (result.action === 'missing') return 'missing';
-  if (result.action === 'none') return 'none';
+  options?: { isElder?: boolean },
+): Promise<{ action: 'navigated' | 'missing' | 'none'; toast?: string }> {
+  const result = await resolveMessageNavigation(
+    {
+      type: item.type,
+      bizId: item.bizId,
+      messageId: item.messageId,
+      createTime: item.createTime,
+    },
+    options,
+  );
+  if (result.action === 'missing') {
+    return { action: 'missing', toast: result.toast ?? MESSAGE_NOT_FOUND_TOAST };
+  }
+  if (result.action === 'none') return { action: 'none' };
   navigation.navigate(result.name as never, result.params as never);
-  return 'navigated';
+  return { action: 'navigated' };
 }

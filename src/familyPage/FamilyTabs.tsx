@@ -1,5 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Image, Text, TouchableOpacity, View, DeviceEventEmitter, type ImageSourcePropType } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Image,
+  Text,
+  TouchableOpacity,
+  View,
+  DeviceEventEmitter,
+  type ImageSourcePropType,
+} from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -9,7 +17,13 @@ import { useFontSize } from '@/common/FontSizeContext';
 import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
+import type { FamilyBindItem } from '@/api/familyBind';
 import { getMessageUnreadCount } from '@/api/message';
+import {
+  buildChildFamilyBindNoticeMessage,
+  confirmChildFamilyBindNoticeRemove,
+  listChildFamilyBindNotices,
+} from './utils/familyBindNoticeHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { buildMessageScopeParams, formatHomeUnreadBadge, MESSAGE_UNREAD_CHANGED, } from '@/src/features/message/utils/messageHelpers';
 import homeStyles from '@/css/family/home';
@@ -120,6 +134,7 @@ export default function FamilyTabs() {
   const { scaleSize } = useFontSize();
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const noticeRunningRef = useRef(false);
   const tabBarLabelStyle = useMemo(
     () => ({ fontSize: scaleSize(14), fontWeight: '600' as const }),
     [scaleSize],
@@ -137,9 +152,53 @@ export default function FamilyTabs() {
     [],
   );
 
-  useEffect(() => {
-    void dispatch(fetchFamilyBindMyList());
-  }, [dispatch]);
+  const processFamilyBindNotices = useCallback(
+    async (list: FamilyBindItem[]) => {
+      const notices = listChildFamilyBindNotices(list);
+      if (notices.length === 0 || noticeRunningRef.current) return;
+      noticeRunningRef.current = true;
+      try {
+        for (const notice of notices) {
+          const bindId = notice.item.id != null ? String(notice.item.id) : '';
+          if (!bindId) continue;
+          await new Promise<void>(resolve => {
+            Alert.alert(
+              '提示',
+              buildChildFamilyBindNoticeMessage(notice),
+              [
+                {
+                  text: '确认',
+                  onPress: () => {
+                    void (async () => {
+                      const result = await confirmChildFamilyBindNoticeRemove(bindId);
+                      if (!result.ok) {
+                        Alert.alert('提示', result.msg ?? '操作失败，请稍后重试');
+                      }
+                      resolve();
+                    })();
+                  },
+                },
+              ],
+              { cancelable: false },
+            );
+          });
+        }
+        await dispatch(fetchFamilyBindMyList({ force: true }));
+      } finally {
+        noticeRunningRef.current = false;
+      }
+    },
+    [dispatch],
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      void (async () => {
+        const list = await dispatch(fetchFamilyBindMyList({ force: true }));
+        await processFamilyBindNotices(Array.isArray(list) ? list : []);
+      })();
+    }, [dispatch, processFamilyBindNotices]),
+  );
 
   // 只更新 title，并清除非预警页可能残留的 headerRight
   const syncFamilyTabTitle = useCallback(

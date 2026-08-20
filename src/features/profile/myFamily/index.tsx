@@ -26,6 +26,7 @@ import {
   maskFamilyPhone,
   resolveFamilyBindAvatarSource,
 } from './utils/myFamilyListHelpers';
+import { filterVisibleOldFamilyBindList } from '@/src/features/profile/utils/profileFamilyUnbindHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -62,7 +63,8 @@ export default function MyFamilyPage() {
       const res = await getOldFamilyBindMyList();
       const data =
         apiResourceData(res as unknown as ApiResult<OldFamilyBindItem[]>) ?? [];
-      setList(Array.isArray(data) ? data : []);
+      const raw = Array.isArray(data) ? data : [];
+      setList(filterVisibleOldFamilyBindList(raw));
     } catch {
       setList([]);
     } finally {
@@ -104,8 +106,13 @@ export default function MyFamilyPage() {
               <ActivityIndicator color={AppTheme.primaryColor} />
             </View>
           ) : list.length === 0 ? (
-            <View style={{ paddingVertical: 32, alignItems: 'center' }}>
-              <Text style={styles.familyItemStatusText}>暂无绑定家人，快去邀请吧</Text>
+            <View style={styles.emptyList}>
+              <Image
+                source={require('@/assets/family/profile/empty.png')}
+                style={styles.emptyIcon}
+                resizeMode="contain"
+              />
+              <Text style={styles.emptyText}>暂无绑定家人，快去邀请吧</Text>
             </View>
           ) : (
             list.map(item => {

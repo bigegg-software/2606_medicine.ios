@@ -454,6 +454,7 @@ export async function attachTrainingPhaseCompleteInfo(
     customerLocalDate: string;
     trainingPhase: ExRecordTrainingPhase;
     exerciseType?: string;
+    patientUserId?: string | number | null;
   },
 ): Promise<TrainingPhaseExerciseCard[]> {
   const exPatientRuleId = options.exPatientRuleId != null
@@ -484,6 +485,7 @@ export async function attachTrainingPhaseCompleteInfo(
         trainingPhase: options.trainingPhase,
         exerciseType: options.exerciseType,
         exVideoId: String(card.exVideoId),
+        patientUserId: options.patientUserId,
       }),
     ),
   );
@@ -593,6 +595,7 @@ function mergeMainBlocks(blocks: ExWeekTrainingMainBlock[] | undefined) {
 export async function buildMainTrainingModules(
   rule: InUseExPatientRule | null | undefined,
   customerLocalDate: string,
+  patientUserId?: string | number | null,
 ): Promise<{ isRest: boolean; modules: MainTrainingTypeModule[] }> {
   const { isRest, schedule } = getDaySchedulePhase(rule, customerLocalDate);
   if (isRest) return { isRest: true, modules: [] };
@@ -629,6 +632,7 @@ export async function buildMainTrainingModules(
       customerLocalDate,
       trainingPhase: 'main',
       exerciseType: typeKey,
+      patientUserId,
     });
     modules.push({
       key: typeKey,

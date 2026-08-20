@@ -190,14 +190,18 @@ export default function FamilyAlertPage() {
         }
       }
 
-      const navResult = await navigateFromMessage(navigation, {
-        type: item.raw.type,
-        bizId: item.raw.bizId,
-        messageId: item.raw.messageId,
-        createTime: item.raw.createTime,
-      });
-      if (navResult === 'missing') {
-        Toast.show(MESSAGE_NOT_FOUND_TOAST);
+      const navResult = await navigateFromMessage(
+        navigation,
+        {
+          type: item.raw.type,
+          bizId: item.raw.bizId,
+          messageId: item.raw.messageId,
+          createTime: item.raw.createTime,
+        },
+        { isElder: false },
+      );
+      if (navResult.action === 'missing') {
+        Toast.show(navResult.toast ?? MESSAGE_NOT_FOUND_TOAST);
       }
     },
     [messageScope.identityPerspective, navigation],

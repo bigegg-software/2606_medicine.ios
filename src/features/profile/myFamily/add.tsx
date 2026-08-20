@@ -24,6 +24,8 @@ import { isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import {
   FAMILY_PERMISSION_OPTIONS,
+  areAllFamilyPermissionsSelected,
+  toggleAllFamilyPermissions,
   toggleFamilyPermission,
   type FamilyPermissionKey,
 } from './utils/myFamilyAddHelpers';
@@ -67,6 +69,12 @@ export default function MyFamilyAddPage() {
 
   const handleTogglePermission = (key: FamilyPermissionKey) => {
     setSelectedPermissions(prev => toggleFamilyPermission(prev, key));
+  };
+
+  const allPermissionsSelected = areAllFamilyPermissionsSelected(selectedPermissions);
+
+  const handleSelectAllPermissions = () => {
+    setSelectedPermissions(prev => toggleAllFamilyPermissions(prev));
   };
 
   const handleInvite = async () => {
@@ -173,8 +181,17 @@ export default function MyFamilyAddPage() {
           </View>
 
           <View style={[styles.rowBox, { marginTop: 12 }]}>
-            <Text style={styles.rowTitle}>授权权限（可多选）</Text>
-            <Text style={styles.rowTitleDesc}>家人接受邀请后即可查看对应内容</Text>
+            <Flex align="center" justify="between" style={styles.rowTitleRow}>
+              <View>
+                <Text style={styles.rowTitle}>授权权限（可多选）</Text>
+                <Text style={styles.rowTitleDesc}>家人接受邀请后即可查看对应内容</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.7} onPress={handleSelectAllPermissions}>
+                <Text style={styles.rowTitleSelectAll}>
+                  {allPermissionsSelected ? '取消全选' : '全选'}
+                </Text>
+              </TouchableOpacity>
+            </Flex>
 
             <View style={styles.qxBox}>
               {FAMILY_PERMISSION_OPTIONS.map(item => {
