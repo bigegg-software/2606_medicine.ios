@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   typeColor: { width: 6, height: 6, borderRadius: 3, backgroundColor: AppTheme.primaryColor },
   typeText: { fontWeight: 500, fontSize: 14, color: AppTheme.textSecondary, marginLeft: 6 },
   loadingBox: { marginTop: 24, alignItems: 'center' },
-  emptyTimelineBox: { marginTop: 20, paddingVertical: 24, alignItems: 'center' },
+  emptyTimelineBox: { paddingVertical: 40, alignItems: 'center' },
   emptyTimelineText: { fontWeight: 400, fontSize: 14, color: AppTheme.textSecondary },
   timelineWrap: {
     position: 'relative',

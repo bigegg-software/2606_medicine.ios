@@ -392,8 +392,12 @@ export default function NutritionPrescriptionPage({
         </View>
       ) : (
         <ScrollView
-          style={[styles.scroll, { paddingHorizontal: 0 }]}
-          contentContainerStyle={{ paddingBottom: readOnly ? 24 : 100 }}
+          style={styles.scroll}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingHorizontal: 0, paddingBottom: readOnly ? 24 : 100 },
+          ]}
+          showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.backImageBox}>

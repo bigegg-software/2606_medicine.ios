@@ -57,6 +57,8 @@ type Props = {
   config: TrainingPhaseListConfig;
   /** 非今日只读，不可执行 */
   readOnly?: boolean;
+  /** 历史计划：不可进播放页 */
+  disablePlayer?: boolean;
   dateMode?: TrainingActionDateMode;
   patientUserId?: string;
 };
@@ -66,6 +68,7 @@ export default function TrainingPhaseListPanel({
   selectedDate,
   config,
   readOnly = false,
+  disablePlayer = false,
   dateMode = 'today',
   patientUserId,
 }: Props) {
@@ -125,7 +128,7 @@ export default function TrainingPhaseListPanel({
   };
 
   const openPlayer = (card: TrainingPhaseExerciseCard) => {
-    if (!canPressTrainingAction(card, dateMode, { readOnly })) return;
+    if (!canPressTrainingAction(card, dateMode, { readOnly, disablePlayer })) return;
     navigation.navigate('ExercisePlayerPage', {
       exVideoId: card.exVideoId,
       title: card.title,
@@ -205,7 +208,7 @@ export default function TrainingPhaseListPanel({
           const actionCompleted = isTrainingActionCompleted(item);
           const actionText = formatTrainingActionButtonText(item, { dateMode });
           const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
-          const actionPressable = canPressTrainingAction(item, dateMode, { readOnly });
+          const actionPressable = canPressTrainingAction(item, dateMode, { readOnly, disablePlayer });
           return (
             <View key={item.key} style={styles.trainingExerciseCard}>
               <Flex align="center">

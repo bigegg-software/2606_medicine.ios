@@ -12,16 +12,25 @@ export type FamilyVitalItem = {
   valueSuffix?: string;
   /** 最新数据日期，如 2026/05/13 */
   dateText?: string;
+  /** 如 正常 / 异常偏高 / 达标 */
+  statusText?: string;
+  statusColor?: string;
   icon: ImageSourcePropType;
 };
 
-/** 家人数据页体征监测：心率、血糖、血压、睡眠、血氧、体温、血脂、尿酸 */
+/** 家人数据页体征监测：心率、消耗、血糖、血压、步数、睡眠、血氧、体温 */
 export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
   {
     key: 'hr',
     label: '心率',
     value: '--',
     icon: require('@/assets/family/data/hr.png'),
+  },
+  {
+    key: 'energy',
+    label: '消耗',
+    value: '--',
+    icon: require('@/assets/images/vitals/icon_xh.png'),
   },
   {
     key: 'glucose',
@@ -34,6 +43,12 @@ export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
     label: '血压',
     value: '--',
     icon: require('@/assets/family/data/bp.png'),
+  },
+  {
+    key: 'steps',
+    label: '步数',
+    value: '--',
+    icon: require('@/assets/images/vitals/icon_bs.png'),
   },
   {
     key: 'sleep',
@@ -52,18 +67,6 @@ export const FAMILY_VITAL_ITEMS: FamilyVitalItem[] = [
     label: '体温',
     value: '--',
     icon: require('@/assets/family/data/temp.png'),
-  },
-  {
-    key: 'lipid',
-    label: '血脂',
-    value: '--',
-    icon: require('@/assets/family/data/lipid.png'),
-  },
-  {
-    key: 'uric',
-    label: '尿酸',
-    value: '--',
-    icon: require('@/assets/family/data/uric.png'),
   },
 ];
 

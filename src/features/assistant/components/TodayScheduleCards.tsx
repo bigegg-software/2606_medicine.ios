@@ -9,6 +9,7 @@ import { MEAL_CATEGORY_BY_KEY } from '@/src/features/profile/medication/meal/uti
 import moment from 'moment';
 import {
   getTodayScheduleIcon,
+  TODAY_SCHEDULE_PREVIEW_LIMIT,
   type TodayScheduleItem,
   type TodaySchedulePayload,
 } from '../utils/todayScheduleAction';
@@ -178,9 +179,12 @@ export default function TodayScheduleCards({ payload }: Props) {
     return null;
   }
 
+  const previewItems = payload.items.slice(0, TODAY_SCHEDULE_PREVIEW_LIMIT);
+  const showViewAll = payload.items.length > TODAY_SCHEDULE_PREVIEW_LIMIT;
+
   return (
     <View style={assistantStyles.todayScheduleBox}>
-      {payload.items.map((item, index) => {
+      {previewItems.map((item, index) => {
         const canNavigate =
           item.kind === 'diet'
           || item.kind === 'drug'
@@ -197,6 +201,15 @@ export default function TodayScheduleCards({ payload }: Props) {
           />
         );
       })}
+      {showViewAll ? (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => navigation.navigate('CalendarPage')}
+          style={assistantStyles.todayScheduleViewAll}
+        >
+          <Text style={assistantStyles.todayScheduleViewAllText}>查看全部</Text>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

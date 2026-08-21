@@ -127,6 +127,11 @@ export type DietPatientRuleInfo = {
     nutritionPersonReportResult?: NutritionPersonReportResult;
     status?: number;
     stopReason?: string;
+    stopUserId?: number;
+    stopUserName?: string;
+    stopTime?: string;
+    adjustReason?: string;
+    completeSummary?: string;
     targetCalories?: number;
     targetProtein?: number;
     targetWater?: number;
@@ -140,6 +145,20 @@ export type DietPatientRuleInfo = {
 
 export type DietPatientRuleInfoResult = ApiResult<DietPatientRuleInfo>;
 
+export type DietPatientRuleListParams = {
+    /** 状态 0.进行中 1.已暂停 2.已结束 */
+    status?: number | '';
+    pageSize?: number;
+    pageNum?: number;
+};
+
+export type DietPatientRuleListResult = {
+    code?: number;
+    msg?: string;
+    total?: number;
+    rows?: DietPatientRuleInfo[];
+};
+
 export const getInUseDietPatientRuleInfo = (
     options?: { patientUserId?: string | number | null },
 ) =>
@@ -147,13 +166,30 @@ export const getInUseDietPatientRuleInfo = (
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });
 
-/** 按指定日期查询用餐处方快照 */
+/** 查询历史营养处方列表 */
+export const getDietPatientRuleList = (params: DietPatientRuleListParams) =>
+    request.get<DietPatientRuleListResult>('/patient/dietPatientRule/list', { params });
+
+/** 历史处方详情（指定 dietPatientRuleId） */
+export const getDietPatientRuleInfo = (
+    dietPatientRuleId: string,
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getInfo', {
+        params: { dietPatientRuleId: String(dietPatientRuleId) },
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
+
+/** 按指定日期查询用餐处方快照（dietPatientRuleId 数据隔离） */
 export const getDietPatientRuleSnapshotByDate = (
-    params: { customerLocalDate: string },
+    params: { customerLocalDate: string; dietPatientRuleId: string },
     options?: { patientUserId?: string | number | null },
 ) =>
     request.get<DietPatientRuleInfoResult>('/patient/dietPatientRule/getSnapshotByDate', {
-        params,
+        params: {
+            customerLocalDate: params.customerLocalDate,
+            dietPatientRuleId: String(params.dietPatientRuleId),
+        },
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });
 

@@ -11,6 +11,7 @@ type Props = {
   dayRule?: InUseExPatientRule | null;
   selectedDate: string;
   readOnly?: boolean;
+  disablePlayer?: boolean;
   dateMode?: TrainingActionDateMode;
   patientUserId?: string;
 };
@@ -19,6 +20,7 @@ export default function WarmupPhase({
   dayRule = null,
   selectedDate,
   readOnly = false,
+  disablePlayer = false,
   dateMode = 'today',
   patientUserId,
 }: Props) {
@@ -41,6 +43,7 @@ export default function WarmupPhase({
       selectedDate={selectedDate}
       config={config}
       readOnly={readOnly}
+      disablePlayer={disablePlayer}
       dateMode={dateMode}
       patientUserId={patientUserId}
     />

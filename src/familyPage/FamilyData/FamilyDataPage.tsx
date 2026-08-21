@@ -379,7 +379,22 @@ export default function FamilyDataPage() {
                           {item.label}
                         </Text>
                       </Flex>
-                      <Text style={styles.vitalDate}>{item.dateText || '--'}</Text>
+                      <View
+                        style={[
+                          styles.vitalStatus,
+                          { borderColor: item.statusColor || '#999999' },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.vitalStatusText,
+                            { color: item.statusColor || '#999999' },
+                          ]}
+                          numberOfLines={1}
+                        >
+                          {item.statusText || '--'}
+                        </Text>
+                      </View>
                     </Flex>
                     <Text style={styles.vitalValue}>
                       {item.value}
@@ -387,6 +402,7 @@ export default function FamilyDataPage() {
                         <Text style={styles.vitalValueSuffix}>{` ${item.valueSuffix}`}</Text>
                       ) : null}
                     </Text>
+                    <Text style={styles.vitalDate}>{item.dateText || '--'}</Text>
                   </View>
                 ))}
                 {row.length === 1 ? <View style={styles.vitalItemPlaceholder} /> : null}

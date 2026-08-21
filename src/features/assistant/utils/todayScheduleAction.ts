@@ -80,12 +80,22 @@ export type TodaySchedulePayload = {
   isEmpty: boolean;
 };
 
-/** 03:00-11:00 早餐；11:00-16:00 午餐；16:00-02:00 晚餐（跨日用 26h 表示） */
+/** 与饮食卡片展示时段一致：早餐 6:00-9:00；午餐 11:00-13:00；晚餐 17:00-19:00 */
 const MEAL_WINDOW_BY_KEY: Record<string, { start: number; end: number }> = {
-  breakfast: { start: 3 * 60, end: 11 * 60 },
-  lunch: { start: 11 * 60, end: 16 * 60 },
-  dinner: { start: 16 * 60, end: 26 * 60 },
+  breakfast: { start: 6 * 60, end: 9 * 60 },
+  lunch: { start: 11 * 60, end: 13 * 60 },
+  dinner: { start: 17 * 60, end: 19 * 60 },
 };
+
+/** 解析「6:00-9:00」类时段；跨日（如 22:00-02:00）结束分钟 +24h */
+function parseMealTimeRange(time: string): { start: number; end: number } | null {
+  const match = time.trim().match(/^(\d{1,2}):(\d{2})\s*[-–—~～]\s*(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  const start = Number(match[1]) * 60 + Number(match[2]);
+  let end = Number(match[3]) * 60 + Number(match[4]);
+  if (end <= start) end += 24 * 60;
+  return { start, end };
+}
 
 const TIMELINE_ICONS: Record<TodayScheduleItem['kind'], number> = {
   diet: require('@/assets/images/schedule/yw.png'),
@@ -119,14 +129,23 @@ function getMealMetaKey(mealCard: MealCardData) {
 }
 
 function getMealWindow(mealCard: MealCardData) {
+  const parsed = parseMealTimeRange(mealCard.time);
+  if (parsed) return parsed;
   const key = getMealMetaKey(mealCard);
+  if (key === 'snack' || mealCard.time === '随时') {
+    return { start: 0, end: 24 * 60 };
+  }
   return MEAL_WINDOW_BY_KEY[key] ?? MEAL_WINDOW_BY_KEY.dinner;
 }
 
 function getCurrentMealKey() {
-  const hour = moment().hours();
-  if (hour >= 3 && hour < 11) return 'breakfast';
-  if (hour >= 11 && hour < 16) return 'lunch';
+  const minutes = getCurrentMinutes();
+  if (minutes >= 6 * 60 && minutes < 9 * 60) return 'breakfast';
+  if (minutes >= 11 * 60 && minutes < 13 * 60) return 'lunch';
+  if (minutes >= 17 * 60 && minutes < 19 * 60) return 'dinner';
+  // 时段外：落在下一餐前，用于 swiper 定位
+  if (minutes < 6 * 60 || (minutes >= 9 * 60 && minutes < 11 * 60)) return 'breakfast';
+  if (minutes >= 13 * 60 && minutes < 17 * 60) return 'lunch';
   return 'dinner';
 }
 
@@ -177,7 +196,7 @@ function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleIte
   };
 }
 
-const TODAY_SCHEDULE_RECOMMEND_LIMIT = 3;
+export const TODAY_SCHEDULE_PREVIEW_LIMIT = 3;
 
 function buildMealDesc(mealCard: MealCardData) {
   return mealCard.foods.length ? mealCard.foods.join(' ') : '';
@@ -414,13 +433,12 @@ export async function loadTodaySchedulePayload(): Promise<TodaySchedulePayload> 
   ];
 
   const visible = sortScheduleItems(merged.filter(item => isScheduleItemVisible(item, currentMinutes)));
-  const recommended = visible.slice(0, TODAY_SCHEDULE_RECOMMEND_LIMIT);
 
   return {
-    items: recommended,
+    items: visible,
     mealCards: mealData.mealCards,
     mealSwiperIndex: mealData.mealSwiperIndex,
-    isEmpty: recommended.length === 0,
+    isEmpty: visible.length === 0,
   };
 }
 

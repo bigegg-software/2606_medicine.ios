@@ -16,7 +16,7 @@ import moment from 'moment';
 
 export const MEDICATION_REMINDER_QUESTION = '帮我看看今天要吃什么药';
 export const MEDICATION_REMINDER_ANSWER = '您今天需要服用的药物如下:';
-export const MEDICATION_REMINDER_EMPTY_ANSWER = '今日无服用药物';
+export const MEDICATION_REMINDER_EMPTY_ANSWER = '您还没有加任何用药计划。';
 export const MEDICATION_REMINDER_ACTION = 'reminder';
 const INDEX_PLAN_GROUP_PATH = '/patient/medicationPlan/indexPlanGroupByTime';
 const AI_ADVICE_PATH = '/patient/medicationPlan/aiAdvice';

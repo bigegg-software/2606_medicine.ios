@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   View,
   DeviceEventEmitter,
+  InteractionManager,
   type ImageSourcePropType,
 } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -158,6 +159,10 @@ export default function FamilyTabs() {
       if (notices.length === 0 || noticeRunningRef.current) return;
       noticeRunningRef.current = true;
       try {
+        // 等页面交互稳定后再弹窗，避免 focus 刷新把弹窗冲掉
+        await new Promise<void>(resolve => {
+          InteractionManager.runAfterInteractions(() => resolve());
+        });
         for (const notice of notices) {
           const bindId = notice.item.id != null ? String(notice.item.id) : '';
           if (!bindId) continue;
@@ -170,6 +175,7 @@ export default function FamilyTabs() {
                   text: '确认',
                   onPress: () => {
                     void (async () => {
+                      // 仅确认后调用解绑接口
                       const result = await confirmChildFamilyBindNoticeRemove(bindId);
                       if (!result.ok) {
                         Alert.alert('提示', result.msg ?? '操作失败，请稍后重试');

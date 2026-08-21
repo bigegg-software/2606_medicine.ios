@@ -202,12 +202,14 @@ export function formatTrainingActionButtonText(
 
 /** 非今日：仅「全部完成」可点进只读详情；未来与未完成均不可点（显示置灰开始）
  * 家人只读（今日）：同过去日规则，「开始」置灰不可点
+ * 历史计划：disablePlayer 时全部不可进播放页
  */
 export function canPressTrainingAction(
   card: TrainingPhaseExerciseCard,
   dateMode: TrainingActionDateMode = 'today',
-  options?: { readOnly?: boolean },
+  options?: { readOnly?: boolean; disablePlayer?: boolean },
 ) {
+  if (options?.disablePlayer) return false;
   if (options?.readOnly && dateMode === 'today') {
     return isTrainingActionCompleted(card);
   }

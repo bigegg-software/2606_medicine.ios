@@ -807,6 +807,7 @@ export default function ExercisePlayerPage() {
           exerciseType,
           customerLocalDate: route.params?.customerLocalDate?.trim()
             || moment().format('YYYY-MM-DD'),
+          exPatientRuleId,
           readOnly,
         });
         if (nextParams) {

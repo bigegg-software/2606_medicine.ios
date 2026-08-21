@@ -1,5 +1,6 @@
 import request from '@/utils/axios';
 import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
+import type { UserBaseInfo } from './patient';
 
 export type ExPatientRuleRatio = {
   exerciseType?: string;
@@ -49,6 +50,17 @@ export type ExPatientRuleInfo = {
   exPatientRuleId?: string | number;
   patientUserId?: string | number;
   patientUserName?: string;
+  realName?: string;
+  coachUserId?: string | number;
+  coachUserRealName?: string;
+  /** 患者基本信息（getInfo 回填） */
+  patientUserBaseInfo?: UserBaseInfo & {
+    age?: number;
+    idCard?: string;
+    primaryDiagnosis?: string;
+    diagnosticLabel?: string;
+    riskLevel?: number;
+  };
   prescriptionName?: string;
   recoveryUserId?: string | number;
   recoveryUserName?: string;
@@ -56,6 +68,9 @@ export type ExPatientRuleInfo = {
   diagnosis?: string;
   /** 诊断标签展示文案 */
   diagnosticLabel?: string;
+  fitnessLevel?: string;
+  trainingGoals?: string[];
+  targetWeight?: number;
   startDate?: string;
   endDate?: string;
   exTemplateId?: string;
@@ -70,12 +85,15 @@ export type ExPatientRuleInfo = {
   extraRemark?: string;
   /** 调整处方的原因（编辑时填写） */
   adjustReason?: string;
+  adjustTime?: string;
   /** 完成处方的总结（完成时填写） */
   completeSummary?: string;
   aiAnalysis?: ExPatientRuleAiAnalysis;
   weekTrainingScheduleList?: ExWeekTrainingSchedule[];
   status?: number;
   progress?: number;
+  /** 处方主训练整体完成率 0-100 */
+  mainCompleteRate?: number;
   progressInfo?: {
     complateNum?: number;
     needSumExNum?: number;
@@ -83,9 +101,15 @@ export type ExPatientRuleInfo = {
     sumExerciseDuration?: number;
   };
   stopReason?: string;
+  stopUserId?: string | number;
+  stopUserName?: string;
   stopTime?: string;
+  /** 处方版本号 */
+  version?: number | string;
   updateTime?: string;
   createTime?: string;
+  createBy?: string | number;
+  createByName?: string;
 };
 
 export const getInUseExPatientRuleInfo = (
@@ -95,20 +119,31 @@ export const getInUseExPatientRuleInfo = (
     headers: withPatientUserIdHeaders(options?.patientUserId),
   });
 
-export const getExPatientRuleInfo = (exPatientRuleId: string) =>
+export const getExPatientRuleInfo = (
+  exPatientRuleId: string,
+  options?: { patientUserId?: string | number | null },
+) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleInfo }>(
     '/patient/exPatientRule/getInfo',
-    { params: { exPatientRuleId } },
+    {
+      params: { exPatientRuleId: String(exPatientRuleId) },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );
 
 export const getExPatientRuleSnapshotByDate = (
-  params: { customerLocalDate: string },
+  params: { customerLocalDate: string; exPatientRuleId?: string | number | null },
   options?: { patientUserId?: string | number | null },
 ) =>
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleInfo }>(
     '/patient/exPatientRule/getSnapshotByDate',
     {
-      params,
+      params: {
+        customerLocalDate: params.customerLocalDate,
+        ...(params.exPatientRuleId != null && String(params.exPatientRuleId).trim() !== ''
+          ? { exPatientRuleId: String(params.exPatientRuleId) }
+          : {}),
+      },
       headers: withPatientUserIdHeaders(options?.patientUserId),
     },
   );

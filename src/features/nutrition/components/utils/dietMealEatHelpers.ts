@@ -53,18 +53,37 @@ export function getMealEatYearRange(year: number, today = moment()) {
   };
 }
 
-/** 拉取早/午/晚在日期范围内的用餐记录标记 */
+function toRuleId(value?: string | number | null) {
+  if (value == null) return undefined;
+  const id = String(value).trim();
+  return id || undefined;
+}
+
+/** 拉取早/午/晚在日期范围内的用餐记录标记（需 dietPatientRuleId 做数据隔离） */
 export async function loadMealEatMapByDateRange(
   startDate: string,
   endDate: string,
+  dietPatientRuleId?: string | number | null,
   options?: { patientUserId?: string | number | null },
 ): Promise<MealEatMap> {
   const map: MealEatMap = {};
+  const ruleId = toRuleId(dietPatientRuleId);
+  if (!ruleId) return map;
+
   try {
     const [breakfastRes, lunchRes, dinnerRes] = await Promise.all([
-      getMealIsEatByDateRange({ mealCategory: 1, startDate, endDate }, options),
-      getMealIsEatByDateRange({ mealCategory: 2, startDate, endDate }, options),
-      getMealIsEatByDateRange({ mealCategory: 3, startDate, endDate }, options),
+      getMealIsEatByDateRange(
+        { mealCategory: 1, dietPatientRuleId: ruleId, startDate, endDate },
+        options,
+      ),
+      getMealIsEatByDateRange(
+        { mealCategory: 2, dietPatientRuleId: ruleId, startDate, endDate },
+        options,
+      ),
+      getMealIsEatByDateRange(
+        { mealCategory: 3, dietPatientRuleId: ruleId, startDate, endDate },
+        options,
+      ),
     ]);
 
     if (isResourceApiOk(breakfastRes as unknown as { code?: number })) {
@@ -103,11 +122,17 @@ export async function loadMealEatMapByDateRange(
 /** 按年懒加载餐次记录（未来年直接跳过） */
 export async function loadMealEatMapByYear(
   year: number,
+  dietPatientRuleId?: string | number | null,
   options?: { patientUserId?: string | number | null },
 ): Promise<MealEatMap | null> {
   const range = getMealEatYearRange(year);
   if (!range) return null;
-  return loadMealEatMapByDateRange(range.startDate, range.endDate, options);
+  return loadMealEatMapByDateRange(
+    range.startDate,
+    range.endDate,
+    dietPatientRuleId,
+    options,
+  );
 }
 
 export function getDayMealEatDots(flags?: DayMealEatFlags | null): string[] {

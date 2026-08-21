@@ -3,7 +3,8 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
-  scroll: { paddingTop: 8, paddingBottom: 40, flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { paddingTop: 8, paddingBottom: 40 },
   topBox: {
     paddingHorizontal: 12,
     paddingVertical: 15,
@@ -50,6 +51,8 @@ const styles = StyleSheet.create({
   },
   backImage1: { width: "100%", height: 50 },
   backImage1Text: { fontWeight: "bold", fontSize: 16, color: "#333333" },
+  rightIconBox: { width: 17, height: 17, alignItems: 'center', justifyContent: 'center' },
+  rightIcon: { width: 7, height: 13 },
   tabBox: { width: 106, height: 26, gap: 6, padding: 3, borderRadius: 13, backgroundColor: "#EDEEEF" },
   tabItem: { flex: 1, height: "100%" },
   tabItemActive: { flex: 1, height: "100%", backgroundColor: "#FFFFFF", borderRadius: 25 },

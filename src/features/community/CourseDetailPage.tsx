@@ -26,7 +26,7 @@ import {
 } from '@/api/course';
 import { buildDictLabelMap, DICT_TYPES, getDictDataByType, type DictDataItem } from '@/api/dict';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { formatCourseWatchingCount, stripHtmlText, toCourseId } from './courseHelpers';
+import { formatCourseWatchingCount, stripHtmlText, toCourseId, applyCourseFavoriteToggle, applyCourseLikeToggle } from './courseHelpers';
 import RichHtmlView from './components/RichHtmlView';
 
 type Route = RouteProp<RootStackParamList, 'CourseDetail'>;
@@ -125,11 +125,7 @@ export default function CourseDetailPage() {
     try {
       const res = await toggleCourseFavorite({ courseId, status: nextStatus });
       if (isResourceApiOk(res)) {
-        setCourse(prev => prev ? {
-          ...prev,
-          isFavorited: nextStatus,
-          favoriteCount: Math.max(0, Number(prev.favoriteCount ?? 0) + (nextStatus ? 1 : -1)),
-        } : prev);
+        setCourse(prev => (prev ? applyCourseFavoriteToggle(prev, nextStatus) : prev));
       } else {
         Alert.alert('提示', (res as { msg?: string }).msg ?? '操作失败，请稍后重试');
       }
@@ -147,11 +143,7 @@ export default function CourseDetailPage() {
     try {
       const res = await toggleCourseLike({ courseId, status: nextStatus });
       if (isResourceApiOk(res)) {
-        setCourse(prev => prev ? {
-          ...prev,
-          isLiked: nextStatus,
-          likeCount: Math.max(0, Number(prev.likeCount ?? 0) + (nextStatus ? 1 : -1)),
-        } : prev);
+        setCourse(prev => (prev ? applyCourseLikeToggle(prev, nextStatus) : prev));
       } else {
         Alert.alert('提示', (res as { msg?: string }).msg ?? '操作失败，请稍后重试');
       }
@@ -224,9 +216,8 @@ export default function CourseDetailPage() {
               onPress={handleToggleLike}
             >
               <Image
-                style={styles.actionIcon}
+                style={[styles.actionIcon, { tintColor: course.isLiked ? '#6D925E' : '#61666D' }]}
                 source={require('@/assets/images/community/icon_dz.png')}
-                tintColor={course.isLiked ? '#6C925E' : '#61666D'}
               />
               <Text style={[styles.actionText, course.isLiked && styles.actionTextActive]}>
                 {course.likeCount ?? 0}
@@ -238,9 +229,8 @@ export default function CourseDetailPage() {
               onPress={handleToggleFavorite}
             >
               <Image
-                style={styles.actionIcon}
+                style={[styles.actionIcon, { tintColor: course.isFavorited ? '#6D925E' : '#61666D' }]}
                 source={require('@/assets/images/community/icon_sc.png')}
-                tintColor={course.isFavorited ? '#6C925E' : '#61666D'}
               />
               <Text style={[styles.actionText, course.isFavorited && styles.actionTextActive]}>
                 {course.favoriteCount ?? 0}

@@ -12,7 +12,7 @@ export function getFamilyTabKey(item: FamilyBindItem, index: number): string {
   return `family-${index}`;
 }
 
-/** 已通过绑定的家人（数据/首页展示，排除待确认解绑与账号异常） */
+/** 已通过绑定的家人（数据/首页展示；待确认解绑仍保留至家属点确认） */
 export function getApprovedFamilyBindList(list: FamilyBindItem[]): FamilyBindItem[] {
   return list.filter(
     item => Number(item.bindStatus) === 1 && isChildFamilyBindVisible(item),
@@ -41,29 +41,36 @@ export function maskFamilyDisplayName(name?: string | null): string {
   return `${value[0]}${'*'.repeat(value.length - 1)}`;
 }
 
-/** 绑定记录展示名：优先 childRemarkName，其次 remarkName；一律匿名 */
-function resolveMaskedFamilyBindName(item: FamilyBindItem, fallback: string): string {
-  return (
-    maskFamilyDisplayName(item.childRemarkName) ||
-    maskFamilyDisplayName(item.remarkName) ||
-    maskFamilyDisplayName(item.patientName) ||
-    fallback
-  );
+/**
+ * 子女申请绑定写入 remarkName；老人邀请写入 childRemarkName。
+ * 有 remarkName 视为家人端发起，否则有 childRemarkName 视为老人端发起。
+ */
+export function isElderInitiatedFamilyBind(
+  item: Pick<FamilyBindItem, 'remarkName' | 'childRemarkName'>,
+): boolean {
+  if (item.remarkName?.trim()) return false;
+  return Boolean(item.childRemarkName?.trim());
 }
 
-/** 家人 Tab / 切换角标文案（匿名） */
-export function getFamilyTabLabel(item: FamilyBindItem): string {
-  return resolveMaskedFamilyBindName(item, '家人');
-}
-
-/** 子女端绑定老人姓名原文（提交/特殊逻辑用，页面展示请用 getChildFamilyDisplayName） */
+/**
+ * 家人端展示老人名称原文：
+ * 有家人备注 remarkName 优先，否则老人真实姓名 patientName
+ */
 export function getChildFamilyRawDisplayName(item: FamilyBindItem): string {
-  return item.childRemarkName?.trim() || item.remarkName?.trim() || item.patientName?.trim() || '未命名';
+  return item.remarkName?.trim() || item.patientName?.trim() || '未命名';
 }
 
-/** 子女端展示绑定的老人姓名（匿名） */
+/**
+ * 家人端展示老人名称（匿名）：
+ * 有备注显示备注（备*），否则显示老人真实姓名（王*）
+ */
 export function getChildFamilyDisplayName(item: FamilyBindItem): string {
-  return resolveMaskedFamilyBindName(item, '未命名');
+  return maskFamilyDisplayName(getChildFamilyRawDisplayName(item)) || '未命名';
+}
+
+/** 家人 Tab / 切换角标文案（匿名，规则同 getChildFamilyDisplayName） */
+export function getFamilyTabLabel(item: FamilyBindItem): string {
+  return maskFamilyDisplayName(getChildFamilyRawDisplayName(item)) || '家人';
 }
 
 /** 子女端家人头像：优先真实头像，否则按性别默认图 */

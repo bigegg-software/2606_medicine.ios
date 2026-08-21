@@ -3,7 +3,8 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: AppTheme.backgroundColor },
-  scroll: { padding: 12, paddingTop: 8, paddingBottom: 40, flex: 1 },
+  scroll: { flex: 1 },
+  scrollContent: { padding: 12, paddingTop: 8, paddingBottom: 24 },
   topBox: { marginTop: 10, paddingHorizontal: 22 },
   topBoxImage: { width: 15, height: 15, marginRight: 3 },
   topBoxText: { fontSize: 13, fontWeight: 500, color: AppTheme.primaryColor },

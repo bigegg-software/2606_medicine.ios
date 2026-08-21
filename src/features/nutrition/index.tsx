@@ -7,7 +7,7 @@ import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-
 import styles from '@/css/nutrition';
 import DietPage from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
-import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
+import { getDietPatientRuleInfo, getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { formatDietHeaderInfo } from './components/utils/dietMealHelpers';
@@ -26,11 +26,16 @@ export default function NutritionPage() {
   const navigation: any = useNavigation();
   const { params } = useRoute<Route>();
   const {
-    readOnly,
+    readOnly: familyReadOnly,
     patientUserId,
     relationLabel,
     displayName: routeDisplayName,
   } = resolveFamilyReadOnlyView(params);
+  const dietPatientRuleId = params?.dietPatientRuleId != null
+    ? String(params.dietPatientRuleId).trim()
+    : '';
+  const isFamilyView = Boolean(patientUserId);
+  const readOnly = familyReadOnly || Boolean(dietPatientRuleId);
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
@@ -73,7 +78,9 @@ export default function NutritionPage() {
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
       const [ruleRes, baseRes] = await Promise.all([
-        getInUseDietPatientRuleInfo(opts),
+        dietPatientRuleId
+          ? getDietPatientRuleInfo(String(dietPatientRuleId), opts)
+          : getInUseDietPatientRuleInfo(opts),
         readOnly && patientUserId
           ? getUserBaseInfo({ patientUserId }).catch(() => null)
           : Promise.resolve(null),
@@ -96,7 +103,7 @@ export default function NutritionPage() {
     } finally {
       setLoading(false);
     }
-  }, [patientUserId, readOnly]);
+  }, [dietPatientRuleId, patientUserId, readOnly]);
 
   useFocusEffect(
     useCallback(() => {
@@ -147,22 +154,25 @@ export default function NutritionPage() {
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
-      headerRight: readOnly
-        ? () => <FamilyRelationHeaderBadge label={relationLabel} />
-        : () => (
-            <TouchableOpacity
-              style={{ marginRight: 18 }}
-              onPress={() => {
-                navigation.navigate('FoodRecordingPage');
-              }}>
-              <Image
-                style={{ width: 24, height: 24 }}
-                source={require('@/assets/images/nutrition/icon_history.png')}
-              />
-            </TouchableOpacity>
-          ),
+      // 历史处方只读：不显示右上角家人切换 / 饮食记录入口
+      headerRight: dietPatientRuleId
+        ? () => null
+        : isFamilyView
+          ? () => <FamilyRelationHeaderBadge label={relationLabel} />
+          : () => (
+              <TouchableOpacity
+                style={{ marginRight: 18 }}
+                onPress={() => {
+                  navigation.navigate('FoodRecordingPage');
+                }}>
+                <Image
+                  style={{ width: 24, height: 24 }}
+                  source={require('@/assets/images/nutrition/icon_history.png')}
+                />
+              </TouchableOpacity>
+            ),
     });
-  }, [navigation, pageTitle, readOnly, relationLabel]);
+  }, [dietPatientRuleId, isFamilyView, navigation, pageTitle, relationLabel]);
 
   return (
     <PageLayout style={styles.container} edges={[]}>
@@ -183,7 +193,7 @@ export default function NutritionPage() {
           </Flex>
           <Flex style={styles.topInfoBox}>
             <Flex style={styles.brBox}>
-              <Text style={styles.brText}>{readOnly ? relationLabel : '本人'}</Text>
+              <Text style={styles.brText}>{isFamilyView ? relationLabel : '本人'}</Text>
             </Flex>
             <Text style={styles.topInfoText}>{header.infoText}</Text>
           </Flex>

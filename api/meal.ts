@@ -119,12 +119,19 @@ export type MealIsEatByDateRangeResult = {
 export const getMealIsEatByDateRange = (
   params: {
     mealCategory: number;
+    /** 营养处方 id（数据隔离） */
+    dietPatientRuleId: string;
     startDate: string;
     endDate: string;
   },
   options?: { patientUserId?: string | number | null },
 ) =>
   request.get<MealIsEatByDateRangeResult>('/patient/fitpulse/meal/isEatByDateRange', {
-    params,
+    params: {
+      mealCategory: params.mealCategory,
+      dietPatientRuleId: String(params.dietPatientRuleId),
+      startDate: params.startDate,
+      endDate: params.endDate,
+    },
     headers: withPatientUserIdHeaders(options?.patientUserId),
   });

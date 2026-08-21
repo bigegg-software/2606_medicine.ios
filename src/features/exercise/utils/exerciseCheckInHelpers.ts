@@ -22,6 +22,12 @@ function applyExerciseExists(
   });
 }
 
+function toRuleId(value?: string | number | null) {
+  if (value == null) return undefined;
+  const id = String(value).trim();
+  return id || undefined;
+}
+
 /** 按年计算请求区间：当年/往年 → 1.1–12.31；未来年不请求 */
 export function getExerciseCheckInYearRange(year: number, today = moment()) {
   if (!Number.isFinite(year)) return null;
@@ -36,11 +42,15 @@ export async function loadExerciseCheckInMapByDateRange(
   startDate: string,
   endDate: string,
   patientUserId?: string | number | null,
+  exPatientRuleId?: string | number | null,
 ): Promise<ExerciseCheckInMap> {
   const map: ExerciseCheckInMap = {};
+  const ruleId = toRuleId(exPatientRuleId);
+  if (!ruleId) return map;
+
   try {
     const res = await getExRecordVideoIsExerciseByDateRange(
-      { startDate, endDate },
+      { exPatientRuleId: ruleId, startDate, endDate },
       { patientUserId },
     );
     if (isResourceApiOk(res as unknown as { code?: number })) {
@@ -61,8 +71,14 @@ export async function loadExerciseCheckInMapByDateRange(
 export async function loadExerciseCheckInMapByYear(
   year: number,
   patientUserId?: string | number | null,
+  exPatientRuleId?: string | number | null,
 ): Promise<ExerciseCheckInMap | null> {
   const range = getExerciseCheckInYearRange(year);
   if (!range) return null;
-  return loadExerciseCheckInMapByDateRange(range.startDate, range.endDate, patientUserId);
+  return loadExerciseCheckInMapByDateRange(
+    range.startDate,
+    range.endDate,
+    patientUserId,
+    exPatientRuleId,
+  );
 }

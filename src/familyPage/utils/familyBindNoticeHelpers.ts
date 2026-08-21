@@ -1,14 +1,15 @@
 import type { FamilyBindItem } from '@/api/familyBind';
 import { isFamilyAccountStatusAbnormal } from '@/src/features/profile/utils/profileFamilyUnbindHelpers';
+import { getChildFamilyRawDisplayName } from './familyProfileHelpers';
 import { removeFamilyBindById } from './familyProfileRemoveHelpers';
 
 function isDeletedFlag(value?: string | number | null) {
   return String(value ?? '').trim() === '1';
 }
 
-/** 绑定时填写的姓名：家属备注优先，其次患者名 */
+/** 弹窗用姓名：与家人端展示规则一致（老人真实名 / 家人备注） */
 export function getChildFamilyBindTimeName(item: FamilyBindItem): string {
-  return item.remarkName?.trim() || item.patientName?.trim() || '家人';
+  return getChildFamilyRawDisplayName(item) || '家人';
 }
 
 /** 老人端已解绑、家属端尚未确认移除 */
@@ -47,11 +48,9 @@ export function listChildFamilyBindNotices(
   return notices;
 }
 
-/** 家人端列表可见（排除待确认解绑 / 账号异常待确认 / 家属已删） */
+/** 家人端列表可见（仅家属已确认删除后隐藏；待确认解绑仍展示，避免未点确认就消失） */
 export function isChildFamilyBindVisible(item: FamilyBindItem): boolean {
   if (isDeletedFlag(item.delFlagByJs)) return false;
-  if (isFamilyUnbindPendingByOld(item)) return false;
-  if (isPatientAccountAbnormalPending(item)) return false;
   return true;
 }
 

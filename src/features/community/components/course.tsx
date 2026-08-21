@@ -20,12 +20,19 @@ import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
 import {
   getCourseList,
+  toggleCourseFavorite,
+  toggleCourseLike,
   type CourseItem,
 } from '@/api/course';
 import { buildDictLabelMap, DICT_TYPES, getDictDataByType } from '@/api/dict';
 import type { DictDataItem } from '@/api/dict';
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { formatCourseViewCount, toCourseId } from '../courseHelpers';
+import {
+  applyCourseFavoriteToggle,
+  applyCourseLikeToggle,
+  formatCourseViewCount,
+  toCourseId,
+} from '../courseHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -54,6 +61,7 @@ export default function CoursePage() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [typeLabelMap, setTypeLabelMap] = useState<Record<string, string>>({});
+  const [actingCourseId, setActingCourseId] = useState('');
 
   const pageNumRef = useRef(pageNum);
   const totalRef = useRef(total);
@@ -206,72 +214,161 @@ export default function CoursePage() {
     return typeLabelMap[courseType] ?? courseType;
   }, [typeLabelMap]);
 
+  const updateCourseItem = useCallback((courseId: string, updater: (item: CourseItem) => CourseItem) => {
+    setCourses(prev => prev.map(item => (
+      toCourseId(item.courseId) === courseId ? updater(item) : item
+    )));
+  }, []);
+
+  const handleToggleLike = useCallback(async (item: CourseItem) => {
+    const courseId = toCourseId(item.courseId);
+    if (!courseId || actingCourseId) return;
+    const nextLiked = !item.isLiked;
+    setActingCourseId(courseId);
+    try {
+      const res = await toggleCourseLike({ courseId, status: nextLiked });
+      if (isResourceApiOk(res)) {
+        updateCourseItem(courseId, current => applyCourseLikeToggle(current, nextLiked));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setActingCourseId('');
+    }
+  }, [actingCourseId, updateCourseItem]);
+
+  const handleToggleFavorite = useCallback(async (item: CourseItem) => {
+    const courseId = toCourseId(item.courseId);
+    if (!courseId || actingCourseId) return;
+    const nextFavorited = !item.isFavorited;
+    setActingCourseId(courseId);
+    try {
+      const res = await toggleCourseFavorite({ courseId, status: nextFavorited });
+      if (isResourceApiOk(res)) {
+        updateCourseItem(courseId, current => applyCourseFavoriteToggle(current, nextFavorited));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setActingCourseId('');
+    }
+  }, [actingCourseId, updateCourseItem]);
+
   const renderCourseItem = useCallback(({ item }: { item: CourseItem }) => {
     const courseId = toCourseId(item.courseId);
     const coverUri = item.coverOssUrl?.trim();
+    const actionDisabled = Boolean(actingCourseId);
+    const openDetail = () => {
+      if (!courseId) return;
+      navigation.navigate('CourseDetail', { courseId });
+    };
 
     return (
-      <TouchableOpacity
-        style={styles.courseBox}
-        activeOpacity={0.9}
-        onPress={() => {
-          if (!courseId) return;
-          navigation.navigate('CourseDetail', { courseId });
-        }}
-      >
-        <View style={styles.courseImgWrap}>
-          <Image
-            source={coverUri ? { uri: coverUri } : DEFAULT_COVER}
-            style={styles.courseImg}
-          />
-          <LinearGradient
-            colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)']}
-            start={{ x: 0.5, y: 0 }}
-            end={{ x: 0.5, y: 1 }}
-            style={styles.courseImgGradient}
-            pointerEvents="none"
-          >
-            <Flex align="center">
-              <Image style={styles.gkrsIcon} source={require('@/assets/images/community/gkrc.png')} />
-              <Text style={styles.gkrsText}>{formatCourseViewCount(item.viewCount)}</Text>
-            </Flex>
-          </LinearGradient>
-          <View style={styles.courseCategoryTag}>
-            <Text style={styles.liveTopCategoryText}>{getCourseTypeLabel(item.courseType)}</Text>
-          </View>
-          <View style={styles.coursePlayWrap} pointerEvents="none">
-            {Platform.OS === 'ios' ? (
-              <BlurView intensity={28} tint="light" style={styles.coursePlayBlur} />
-            ) : (
-              <View style={[styles.coursePlayBlur, styles.coursePlayBlurFallback]} />
-            )}
+      <View style={styles.courseBox}>
+        <TouchableOpacity activeOpacity={0.9} onPress={openDetail}>
+          <View style={styles.courseImgWrap}>
             <Image
-              source={require('@/assets/images/community/icon_play.png')}
-              style={styles.coursePlayIcon}
+              source={coverUri ? { uri: coverUri } : DEFAULT_COVER}
+              style={styles.courseImg}
             />
+            <LinearGradient
+              colors={['rgba(0,0,0,0)', 'rgba(0,0,0,0.6)']}
+              start={{ x: 0.5, y: 0 }}
+              end={{ x: 0.5, y: 1 }}
+              style={styles.courseImgGradient}
+              pointerEvents="none"
+            >
+              <Flex align="center">
+                <Image style={styles.gkrsIcon} source={require('@/assets/images/community/gkrc.png')} />
+                <Text style={styles.gkrsText}>{formatCourseViewCount(item.viewCount)}</Text>
+              </Flex>
+            </LinearGradient>
+            <View style={styles.courseCategoryTag}>
+              <Text style={styles.liveTopCategoryText}>{getCourseTypeLabel(item.courseType)}</Text>
+            </View>
+            <View style={styles.coursePlayWrap} pointerEvents="none">
+              {Platform.OS === 'ios' ? (
+                <BlurView intensity={28} tint="light" style={styles.coursePlayBlur} />
+              ) : (
+                <View style={[styles.coursePlayBlur, styles.coursePlayBlurFallback]} />
+              )}
+              <Image
+                source={require('@/assets/images/community/icon_play.png')}
+                style={styles.coursePlayIcon}
+              />
+            </View>
           </View>
-        </View>
-        <View style={styles.courseBoxInfo}>
-          <Text style={styles.courseTitle} numberOfLines={1}>{item.title || '未命名课程'}</Text>
-          <Text style={styles.courseText} numberOfLines={2}>
-            {item.courseIntro || '暂无课程简介'}
-          </Text>
-          <Flex justify="between" style={{ marginTop: 12 }}>
-            <Flex>
-              <Image style={styles.courseIcon} source={require('@/assets/images/community/user.png')} />
-              <Text style={styles.courseBtmText}>{item.instructor || '讲师待定'}</Text>
-            </Flex>
-            <Flex>
-              <Image style={styles.courseIcon} source={require('@/assets/images/community/dz.png')} />
-              <Text style={styles.courseBtmText}>{item.likeCount ?? 0}</Text>
-              <Image style={[styles.courseIcon, { marginLeft: 20 }]} source={require('@/assets/images/community/sc.png')} />
-              <Text style={styles.courseBtmText}>{item.favoriteCount ?? 0}</Text>
-            </Flex>
+          <View style={styles.courseBoxInfo}>
+            <Text style={styles.courseTitle} numberOfLines={1}>{item.title || '未命名课程'}</Text>
+            <Text style={styles.courseText} numberOfLines={2}>
+              {item.courseIntro || '暂无课程简介'}
+            </Text>
+          </View>
+        </TouchableOpacity>
+
+        <Flex justify="between" align="center" style={styles.courseActionRow}>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={openDetail}
+            style={{ flex: 1, flexDirection: 'row', alignItems: 'center', marginRight: 12 }}
+          >
+            <Image style={styles.courseIcon} source={require('@/assets/images/community/user.png')} />
+            <Text style={styles.courseBtmText} numberOfLines={1}>{item.instructor || '讲师待定'}</Text>
+          </TouchableOpacity>
+          <Flex>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              disabled={actionDisabled || !courseId}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 8 }}
+              onPress={() => {
+                void handleToggleLike(item);
+              }}
+              style={styles.courseActionBtn}
+            >
+              <Image
+                style={[styles.courseIcon, { tintColor: item.isLiked ? '#6D925E' : '#999999' }]}
+                source={
+                  item.isLiked
+                    ? require('@/assets/images/community/icon_dz.png')
+                    : require('@/assets/images/community/dz.png')
+                }
+              />
+              <Text style={[
+                styles.courseBtmText,
+                { color: item.isLiked ? '#6D925E' : '#999999' },
+              ]}>
+                {item.likeCount ?? 0}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.75}
+              disabled={actionDisabled || !courseId}
+              hitSlop={{ top: 12, bottom: 12, left: 8, right: 12 }}
+              onPress={() => {
+                void handleToggleFavorite(item);
+              }}
+              style={[styles.courseActionBtn, { marginLeft: 20 }]}
+            >
+              <Image
+                style={[styles.courseIcon, { tintColor: item.isFavorited ? '#6D925E' : '#999999' }]}
+                source={
+                  item.isFavorited
+                    ? require('@/assets/images/community/icon_sc.png')
+                    : require('@/assets/images/community/sc.png')
+                }
+              />
+              <Text style={[
+                styles.courseBtmText,
+                { color: item.isFavorited ? '#6D925E' : '#999999' },
+              ]}>
+                {item.favoriteCount ?? 0}
+              </Text>
+            </TouchableOpacity>
           </Flex>
-        </View>
-      </TouchableOpacity>
+        </Flex>
+      </View>
     );
-  }, [getCourseTypeLabel, navigation]);
+  }, [actingCourseId, getCourseTypeLabel, handleToggleFavorite, handleToggleLike, navigation]);
 
   const listHeader = (
     <ScrollView

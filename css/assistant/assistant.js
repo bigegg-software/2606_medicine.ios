@@ -233,6 +233,27 @@ const styles = StyleSheet.create({
   todayScheduleCardGap: {
     marginTop: 10,
   },
+  /** 查看全部：容器同午餐卡片，文案同「待服用」 */
+  todayScheduleViewAll: {
+    marginTop: 10,
+    width: '100%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 15,
+    shadowColor: AppTheme.primaryColor,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayScheduleViewAllText: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+    textAlign: 'center',
+  },
   todayScheduleCardIcon: {
     width: 28,
     height: 28,

@@ -9,11 +9,12 @@ import styles from '@/css/exercise';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchUserBaseInfo } from '@/store/actions/user';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
-import { formatExerciseUserInfoText } from './utils/exerciseHelpers';
+import { formatExerciseUserInfoText, normalizeExPatientRuleInfo } from './utils/exerciseHelpers';
 import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
 import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
 import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
+import { getExPatientRuleInfo, type ExPatientRuleInfo } from '@/api/exPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
@@ -31,8 +32,13 @@ export default function ExercisePage() {
   const dispatch = useDispatch<AppDispatch>();
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
-  const { readOnly, patientUserId, relationLabel, displayName: routeDisplayName } =
+  const { readOnly: familyReadOnly, patientUserId, relationLabel, displayName: routeDisplayName } =
     resolveFamilyReadOnlyView(route.params);
+  const exPatientRuleId = route.params?.exPatientRuleId != null
+    ? String(route.params.exPatientRuleId).trim()
+    : '';
+  const isFamilyView = Boolean(patientUserId);
+  const readOnly = familyReadOnly || Boolean(exPatientRuleId);
   const user = useSelector((s: RootState) => s.user.info);
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
@@ -44,9 +50,9 @@ export default function ExercisePage() {
       familyList.find(item => String(item.patientUserId ?? '') === patientUserId) ?? null
     );
   }, [familyList, patientUserId]);
-  const profileUser = readOnly ? familyUser : user;
-  /** 只读：优先路由/家人列表姓名，绝不回落登录人；姓名匿名展示 */
-  const displayName = readOnly
+  const profileUser = isFamilyView ? familyUser : user;
+  /** 家人只读：优先路由/家人列表姓名，绝不回落登录人；姓名匿名展示 */
+  const displayName = isFamilyView
     ? (
         routeDisplayName
         || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
@@ -55,7 +61,7 @@ export default function ExercisePage() {
         || '未命名'
       )
     : getDisplayUserName(user, systemUser);
-  const profileComplete = readOnly ? true : isUserBaseInfoComplete(user);
+  const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
   const [activeNav, setActiveNav] = useState(0);
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
@@ -64,12 +70,12 @@ export default function ExercisePage() {
   const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
   const infoText = formatExerciseUserInfoText(
     profileUser,
-    readOnly ? null : userExtr,
+    readOnly && isFamilyView ? null : userExtr,
     exerciseRule?.diagnosticLabel,
   );
   const relationBadgeText = useMemo(
-    () => (readOnly ? relationLabel : '本人'),
-    [readOnly, relationLabel],
+    () => (isFamilyView ? relationLabel : '本人'),
+    [isFamilyView, relationLabel],
   );
 
   const versionText = (() => {
@@ -81,61 +87,80 @@ export default function ExercisePage() {
   const loadExerciseRule = useCallback(async () => {
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
+      // 历史计划详情：/patient/exPatientRule/getInfo?exPatientRuleId=
+      // 进行中/家人查看：getInUseInfo
       const [ruleRes, baseRes] = await Promise.all([
-        getInUseExPatientRuleInfo(opts),
-        readOnly && patientUserId
+        exPatientRuleId
+          ? getExPatientRuleInfo(String(exPatientRuleId), opts)
+          : getInUseExPatientRuleInfo(opts),
+        isFamilyView && patientUserId
           ? getUserBaseInfo({ patientUserId }).catch(() => null)
           : Promise.resolve(null),
       ]);
       if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setExerciseRule(null);
       } else {
-        setExerciseRule(
-          apiResourceData<InUseExPatientRule>(ruleRes as unknown as never) ?? null,
-        );
+        const raw = apiResourceData<ExPatientRuleInfo>(ruleRes as unknown as never);
+        setExerciseRule(raw ? (normalizeExPatientRuleInfo(raw) as InUseExPatientRule) : null);
       }
       if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
         setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
-      } else if (readOnly) {
+      } else if (isFamilyView) {
         setFamilyUser(null);
       }
     } catch {
       setExerciseRule(null);
-      if (readOnly) setFamilyUser(null);
+      if (isFamilyView) setFamilyUser(null);
     } finally {
       setLoading(false);
     }
-  }, [patientUserId, readOnly]);
+  }, [exPatientRuleId, isFamilyView, patientUserId]);
 
   useFocusEffect(
     useCallback(() => {
-      if (!readOnly) {
+      if (!isFamilyView) {
         void dispatch(fetchUserBaseInfo());
       }
       void loadExerciseRule();
-    }, [dispatch, loadExerciseRule, readOnly]),
+    }, [dispatch, loadExerciseRule, isFamilyView]),
   );
 
   const prevPatientUserIdRef = useRef(patientUserId);
   /** 右上角切换家人后刷新（跳过首屏与 focus 重复请求） */
   useEffect(() => {
-    if (!readOnly) return;
+    if (!isFamilyView) return;
     if (prevPatientUserIdRef.current === patientUserId) return;
     prevPatientUserIdRef.current = patientUserId;
     void loadExerciseRule();
-  }, [patientUserId, readOnly, loadExerciseRule]);
+  }, [patientUserId, isFamilyView, loadExerciseRule]);
 
   const pageTitle = exerciseRule?.prescriptionName?.trim() || '运动处方';
 
   useEffect(() => {
+    const showHistoryEntry = !isFamilyView && !exPatientRuleId;
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
-      headerRight: readOnly
+      headerRight: isFamilyView
         ? () => <FamilyRelationHeaderBadge label={relationLabel} />
-        : undefined,
+        : showHistoryEntry
+          ? () => (
+              <TouchableOpacity
+                style={styles.headerHistoryBtn}
+                activeOpacity={0.8}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                onPress={() => navigation.navigate('ScheduleHistoryPage')}
+              >
+                <Image
+                  source={require('@/assets/images/exercise/icon_history.png')}
+                  style={styles.headerHistoryIcon}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
+            )
+          : () => null,
     });
-  }, [navigation, pageTitle, readOnly, relationLabel]);
+  }, [exPatientRuleId, navigation, pageTitle, isFamilyView, relationLabel]);
 
   const onPressNav = useCallback((index: number) => {
     setActiveNav(index);
@@ -222,6 +247,7 @@ export default function ExercisePage() {
               <TrainingPage
                 exerciseRule={exerciseRule}
                 forceReadOnly={readOnly}
+                lockToRule={Boolean(exPatientRuleId)}
                 patientUserId={patientUserId}
               />
             </View>

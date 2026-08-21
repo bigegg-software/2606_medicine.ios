@@ -14,16 +14,14 @@ import DietDatePickerModal from './DietDatePickerModal';
 import DietCheckInSuccessModal from './DietCheckInSuccessModal';
 import {
     getDietPatientRuleAiMakeOneDayMeal,
-    getDietPatientRuleSnapshotByDate,
-    getInUseDietPatientRuleInfo,
     type DietPatientRuleInfo,
 } from '@/api/dietPatientRule';
 import {
     buildRecommendedMealSections,
     formatActualFoodMeta,
-    isDietRuleActiveOnDate,
     type RecommendedMealSection,
 } from './utils/dietMealHelpers';
+import { fetchDietRuleForDate, loadDietRuleForDate } from './utils/dietRuleDateHelpers';
 import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import { deleteMealDetail, getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
@@ -122,39 +120,6 @@ async function loadMealDetailListForDate(
     } catch {
         return [];
     }
-}
-
-async function fetchDietRuleForDate(
-    customerLocalDate: string,
-    options?: { patientUserId?: string | number | null },
-): Promise<DietPatientRuleInfo | null> {
-    const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
-    try {
-        const res = isToday
-            ? await getInUseDietPatientRuleInfo(options)
-            : await getDietPatientRuleSnapshotByDate({ customerLocalDate }, options);
-        if (!isResourceApiOk(res as unknown as { code?: number })) return null;
-        return apiResourceData<DietPatientRuleInfo>(
-            res as unknown as { code?: number; data?: DietPatientRuleInfo },
-        ) ?? null;
-    } catch {
-        return null;
-    }
-}
-
-async function loadDietRuleForDate(
-    customerLocalDate: string,
-    inUseRule: DietPatientRuleInfo | null,
-    options?: { patientUserId?: string | number | null },
-): Promise<DietPatientRuleInfo | null> {
-    const today = moment().format('YYYY-MM-DD');
-    // 今天与未来：用当前在用处方（未来按对应星期展示推荐餐）
-    const rule = customerLocalDate >= today
-        ? inUseRule
-        : await fetchDietRuleForDate(customerLocalDate, options);
-    // 处方开始前（如周四开方，本周一~三）不展示营养处方数据
-    if (!isDietRuleActiveOnDate(rule, customerLocalDate)) return null;
-    return rule;
 }
 
 function RecommendedMealCard({
@@ -319,6 +284,7 @@ export default function DietPage({
         () => (patientUserId ? { patientUserId } : undefined),
         [patientUserId],
     );
+    const dietPatientRuleId = dietRule?.dietPatientRuleId;
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
     const [mealDetailList, setMealDetailList] = useState<MealDetailItem[]>([]);
     const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(dietRule);
@@ -401,11 +367,14 @@ export default function DietPage({
     const loadDayData = useCallback(async (date: string, inUseRule: DietPatientRuleInfo | null) => {
         const [meals, rule] = await Promise.all([
             loadMealDetailListForDate(date, patientOpts),
-            loadDietRuleForDate(date, inUseRule, patientOpts),
+            loadDietRuleForDate(date, inUseRule, {
+                ...patientOpts,
+                dietPatientRuleId: inUseRule?.dietPatientRuleId ?? dietPatientRuleId,
+            }),
         ]);
         setMealDetailList(meals);
         setDayRule(rule);
-    }, [patientOpts]);
+    }, [dietPatientRuleId, patientOpts]);
 
     const ensureEatYearLoaded = useCallback(async (year: number, force = false) => {
         const currentYear = moment().year();
@@ -417,7 +386,7 @@ export default function DietPage({
 
         loadingEatYearsRef.current.add(year);
         try {
-            const nextMap = await loadMealEatMapByYear(year, patientOpts);
+            const nextMap = await loadMealEatMapByYear(year, dietPatientRuleId, patientOpts);
             if (nextMap) {
                 loadedEatYearsRef.current.add(year);
                 setEatMap(prev => ({ ...prev, ...nextMap }));
@@ -425,7 +394,14 @@ export default function DietPage({
         } finally {
             loadingEatYearsRef.current.delete(year);
         }
-    }, [patientOpts]);
+    }, [dietPatientRuleId, patientOpts]);
+
+    // 处方切换时清空餐次打点缓存
+    useEffect(() => {
+        loadedEatYearsRef.current.clear();
+        loadingEatYearsRef.current.clear();
+        setEatMap({});
+    }, [dietPatientRuleId, patientUserId]);
 
     // 周切换 / 选中日跨年时懒加载餐次标记
     useEffect(() => {
@@ -631,7 +607,10 @@ export default function DietPage({
                 return;
             }
 
-            const nextRule = await fetchDietRuleForDate(selectedDate, patientOpts);
+            const nextRule = await fetchDietRuleForDate(selectedDate, {
+                ...patientOpts,
+                dietPatientRuleId: ruleId,
+            });
             if (!nextRule) {
                 Toast.show('获取处方失败');
                 return;
@@ -684,8 +663,21 @@ export default function DietPage({
                 onClose={() => setDatePickerVisible(false)}
                 onSelect={setSelectedDate}
                 patientUserId={patientUserId}
+                dietPatientRuleId={dietPatientRuleId}
             />
-            <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={[
+                    styles.scrollContent,
+                    {
+                        paddingBottom: readOnly
+                            ? 24
+                            : 24 + 17 + 46 + Math.max(insets.bottom, 8),
+                    },
+                ]}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+            >
                 <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;

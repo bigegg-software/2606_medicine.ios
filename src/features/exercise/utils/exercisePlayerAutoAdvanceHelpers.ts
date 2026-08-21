@@ -291,12 +291,15 @@ export async function resolveNextExercisePlayerParams(params: {
   trainingPhase: ExRecordTrainingPhase;
   exerciseType?: string;
   customerLocalDate: string;
+  exPatientRuleId?: string | number | null;
   readOnly?: boolean;
 }): Promise<ExercisePlayerRouteParams | null> {
   const customerLocalDate = params.customerLocalDate?.trim() || '';
   if (!customerLocalDate) return null;
 
-  const dayRule = await fetchExPatientRuleForDate(customerLocalDate);
+  const dayRule = await fetchExPatientRuleForDate(customerLocalDate, {
+    exPatientRuleId: params.exPatientRuleId,
+  });
   if (!dayRule) return null;
 
   const currentId = params.currentExVideoId?.trim() || '';

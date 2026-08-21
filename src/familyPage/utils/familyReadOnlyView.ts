@@ -4,9 +4,9 @@ import { maskFamilyDisplayName } from './familyProfileHelpers';
 export type FamilyReadOnlyViewParams = {
   readOnly?: boolean;
   patientUserId?: string;
-  /** 关系文案，如「父亲」，用于右上角标签 */
+  /** 关系文案，如「父亲」 */
   relationLabel?: string;
-  /** 家人显示名（备注/患者名），无处方时也要用 */
+  /** 家人显示名（备注/患者名，已匿名）；健康档案等页右上角优先用此字段 */
   displayName?: string;
 };
 

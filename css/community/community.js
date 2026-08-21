@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
         borderTopRightRadius: 8, overflow: 'hidden',
         alignItems: 'center', justifyContent: 'center',
     },
-    courseBoxInfo: { padding: 18 },
+    courseBoxInfo: { paddingHorizontal: 18, paddingTop: 18, paddingBottom: 8 },
     courseTitle: { fontWeight: 'bold', fontSize: 16, color: "#333333" },
     courseText: { fontWeight: 500, marginTop: 8, fontSize: 14, color: "#999999" },
     gkrsIcon: {
@@ -201,6 +201,16 @@ const styles = StyleSheet.create({
     coursePlayIcon: { width: 23, height: 23 },
     courseIcon: { width: 15, height: 15, marginRight: 4 },
     courseBtmText: { fontWeight: 500, fontSize: 14, color: "#999999" },
+    courseActionRow: {
+        paddingHorizontal: 18,
+        paddingBottom: 14,
+    },
+    courseActionBtn: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        minHeight: 32,
+        paddingVertical: 4,
+    },
     courseTabBox: {
         marginBottom: 16,
         paddingHorizontal: 14,

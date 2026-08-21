@@ -49,6 +49,13 @@ import {
 import EmptyRecord from '@/src/components/EmptyRecord';
 import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
+import scheduleStyles from '@/css/schedule/schedule';
+import DietHistoryArchiveCard from './components/DietHistoryArchiveCard';
+import {
+  getHistoryDietNutritionParams,
+  loadDietHistoryArchivePreview,
+  type DietHistoryArchiveItem,
+} from './components/utils/dietHistoryArchiveHelpers';
 
 const PAGE_SIZE = 20;
 
@@ -72,6 +79,7 @@ export default function FoodRecordingPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
+  const [historyArchiveItems, setHistoryArchiveItems] = useState<DietHistoryArchiveItem[]>([]);
 
   const hasMoreRef = useRef(true);
   const hasLoadedDetailRef = useRef(false);
@@ -233,13 +241,25 @@ export default function FoodRecordingPage() {
     );
   }, [dietRule, loadDietRule, loadRecords]);
 
+  const loadHistoryArchive = useCallback(async () => {
+    try {
+      const items = await loadDietHistoryArchivePreview();
+      setHistoryArchiveItems(items);
+    } catch {
+      setHistoryArchiveItems([]);
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       const run = async () => {
         const rule = await loadDietRule();
         if (cancelled) return;
-        await loadOverallStatistics(rule);
+        await Promise.all([
+          loadOverallStatistics(rule),
+          loadHistoryArchive(),
+        ]);
         if (!hasLoadedDetailRef.current) {
           await loadRecords(
             'initial',
@@ -256,7 +276,7 @@ export default function FoodRecordingPage() {
       return () => {
         cancelled = true;
       };
-    }, [loadDietRule, loadOverallStatistics, loadRecords]),
+    }, [loadDietRule, loadHistoryArchive, loadOverallStatistics, loadRecords]),
   );
 
   useEffect(() => {
@@ -282,9 +302,12 @@ export default function FoodRecordingPage() {
   return (
     <PageLayout style={styles.container} showHeaderBackground={false} edges={[]}>
       <ScrollView
-        contentContainerStyle={styles.scroll}
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
         onScroll={handleScroll}
         scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         <LinearGradient
           colors={['#FFFFFF', 'rgba(255,255,255,0)']}
@@ -397,6 +420,47 @@ export default function FoodRecordingPage() {
                 </Flex>
               ))}
             </Flex>
+
+            <ImageBackground
+              source={require('@/assets/images/schedule/calendarBack.png')}
+              style={[styles.backImage1, { marginTop: 15 }]}
+            >
+              <Flex justify="between"  style={{ flex: 1, paddingHorizontal: 20 }}>
+                <Text style={styles.backImage1Text}>历史处方</Text>
+
+                {historyArchiveItems.length > 0 ? (
+                  <TouchableOpacity
+                    style={styles.rightIconBox}
+                    activeOpacity={0.7}
+                    onPress={() => navigation.navigate('DietHistoryPage')}
+                  >
+                    <Image source={require('@/assets/images/schedule/right.png')} style={styles.rightIcon} />
+                  </TouchableOpacity>
+                ) : null}
+              </Flex>
+            </ImageBackground>
+
+            <View style={[scheduleStyles.historyBox, { paddingHorizontal: 12,marginTop:-12 }]}>
+              {historyArchiveItems.length > 0 ? historyArchiveItems.map(item => (
+                <DietHistoryArchiveCard
+                  key={item.id}
+                  item={item}
+                  onPress={() => {
+                    navigation.navigate('NutritionPage', getHistoryDietNutritionParams(item.id));
+                  }}
+                />
+              )) : (
+                <View style={scheduleStyles.historyEmptyInline}>
+                  <Image
+                    source={require('@/assets/images/common/zwjl.png')}
+                    style={scheduleStyles.historyEmptyIcon}
+                    resizeMode="contain"
+                  />
+                  <Text style={scheduleStyles.historyEmptyText}>暂无历史营养处方</Text>
+                </View>
+              )}
+            </View>
+
           </>
         ) : loadingDetail && flatDays.length === 0 ? (
           <View style={styles.trendEmpty}>

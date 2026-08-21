@@ -20,7 +20,7 @@ import {
 } from '@/api/oldFamilyBind';
 import {
   getChildFamilyDisplayName,
-  maskFamilyDisplayName,
+  isElderInitiatedFamilyBind,
 } from '@/src/familyPage/utils/familyProfileHelpers';
 import {
   FAMILY_PERMISSION_OPTIONS,
@@ -47,12 +47,6 @@ export type FamilyBindInviteView = {
   /** 老人通过 invite 发起（仅有 childRemarkName）；子女发起则会写入 remarkName */
   initiatedByElder: boolean;
 };
-
-/** 子女申请绑定写入 remarkName；老人邀请写入 childRemarkName。remarkName 优先视为子女发起 */
-export function isElderInitiatedFamilyBind(item: FamilyBindInviteBindVo): boolean {
-  if (item.remarkName?.trim()) return false;
-  return Boolean(item.childRemarkName?.trim());
-}
 
 function isDeletedFlag(value?: string | number | null) {
   return String(value ?? '').trim() === '1';
@@ -188,9 +182,9 @@ export function buildFamilyBindInviteView(
   return {
     id: item.id != null ? String(item.id) : '',
     name: isElder
-      ? maskFamilyDisplayName(item.jsUserName) ||
-        maskFamilyDisplayName(item.childRemarkName) ||
-        maskFamilyDisplayName(item.remarkName) ||
+      ? item.childRemarkName?.trim() ||
+        item.jsUserName?.trim() ||
+        item.remarkName?.trim() ||
         '未命名'
       : getChildFamilyDisplayName(item as FamilyBindItem),
     relationType: String(item.relationType ?? ''),

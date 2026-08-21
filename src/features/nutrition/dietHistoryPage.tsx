@@ -16,32 +16,32 @@ import type { RootStackParamList } from '@/route/router';
 import PageLayout from '@/src/components/PageLayout';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import styles from '@/css/schedule/schedule';
-import HistoryArchiveCard from './HistoryArchiveCard';
+import DietHistoryArchiveCard from './components/DietHistoryArchiveCard';
 import {
-  fetchHistoryArchivePage,
-  HISTORY_PLAN_FILTER_OPTIONS,
-  type HistoryPlanFilter,
-  type ScheduleHistoryArchiveItem,
-} from './scheduleHelpers';
-import { getHistoryPlanExerciseParams } from './utils/scheduleHistoryNavHelpers';
+  DIET_HISTORY_FILTER_OPTIONS,
+  fetchDietHistoryArchivePage,
+  getHistoryDietNutritionParams,
+  type DietHistoryArchiveItem,
+  type DietHistoryPlanFilter,
+} from './components/utils/dietHistoryArchiveHelpers';
 
 const PAGE_SIZE = 20;
 
 function mergeArchiveItems(
-  existing: ScheduleHistoryArchiveItem[],
-  incoming: ScheduleHistoryArchiveItem[],
+  existing: DietHistoryArchiveItem[],
+  incoming: DietHistoryArchiveItem[],
 ) {
-  const map = new Map<string, ScheduleHistoryArchiveItem>();
+  const map = new Map<string, DietHistoryArchiveItem>();
   [...existing, ...incoming].forEach(item => {
     map.set(item.id, item);
   });
   return [...map.values()];
 }
 
-export default function ScheduleHistoryPage() {
+export default function DietHistoryPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [filter, setFilter] = useState<HistoryPlanFilter>('all');
-  const [items, setItems] = useState<ScheduleHistoryArchiveItem[]>([]);
+  const [filter, setFilter] = useState<DietHistoryPlanFilter>('all');
+  const [items, setItems] = useState<DietHistoryArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -68,7 +68,7 @@ export default function ScheduleHistoryPage() {
     }
 
     try {
-      const { rows, hasMore: nextHasMore } = await fetchHistoryArchivePage(
+      const { rows, hasMore: nextHasMore } = await fetchDietHistoryArchivePage(
         currentFilter,
         nextPageNum,
         PAGE_SIZE,
@@ -92,7 +92,7 @@ export default function ScheduleHistoryPage() {
     }
   }, []);
 
-  const handleFilterChange = useCallback((nextFilter: HistoryPlanFilter) => {
+  const handleFilterChange = useCallback((nextFilter: DietHistoryPlanFilter) => {
     if (nextFilter === filterRef.current) return;
     filterRef.current = nextFilter;
     setFilter(nextFilter);
@@ -135,7 +135,7 @@ export default function ScheduleHistoryPage() {
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.filterRow}
         >
-          {HISTORY_PLAN_FILTER_OPTIONS.map(option => {
+          {DIET_HISTORY_FILTER_OPTIONS.map(option => {
             const active = filter === option.value;
             return (
               <TouchableOpacity
@@ -172,17 +172,17 @@ export default function ScheduleHistoryPage() {
       >
         {items.length > 0 ? (
           items.map(item => (
-            <HistoryArchiveCard
+            <DietHistoryArchiveCard
               key={item.id}
               item={item}
               onPress={() => {
-                navigation.navigate('ExercisePage', getHistoryPlanExerciseParams(item.id));
+                navigation.navigate('NutritionPage', getHistoryDietNutritionParams(item.id));
               }}
             />
           ))
         ) : (
           <View style={styles.historyEmptyWrap}>
-            <EmptyRecord text="暂无历史干预计划" />
+            <EmptyRecord text="暂无历史营养处方" />
           </View>
         )}
 

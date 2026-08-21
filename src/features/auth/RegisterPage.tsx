@@ -282,7 +282,7 @@ export default function RegisterPage() {
                   onPressIn={() => refreshAccessory('invite')}
                   inputAccessoryViewID={REGISTER_ACCESSORY.invite}
                 />
-                <Text style={styles.yinviteCodeTip}>请向您所属的养老机构或社区获取邀请码</Text>
+                {/* <Text style={styles.yinviteCodeTip}>请向您所属的养老机构或社区获取邀请码</Text> */}
 
                 <Text style={styles.inputTitle}>手机号</Text>
                 <TextInput

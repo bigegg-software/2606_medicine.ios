@@ -169,6 +169,8 @@ export type ExRecordVideoIsExerciseByDateItem = {
 };
 
 export type ExRecordVideoIsExerciseByDateRangeParams = {
+  /** 运动处方 id（数据隔离） */
+  exPatientRuleId: string;
   startDate: string;
   endDate: string;
 };
@@ -180,7 +182,11 @@ export const getExRecordVideoIsExerciseByDateRange = (
   request.get<{ code?: number; msg?: string; data?: ExRecordVideoIsExerciseByDateItem[] }>(
     '/patient/exRecordVideo/isExerciseByDateRange',
     {
-      params,
+      params: {
+        exPatientRuleId: String(params.exPatientRuleId),
+        startDate: params.startDate,
+        endDate: params.endDate,
+      },
       headers: withPatientUserIdHeaders(options?.patientUserId),
     },
   );

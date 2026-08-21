@@ -29,6 +29,7 @@ type Props = {
   dayRule?: InUseExPatientRule | null;
   selectedDate: string;
   readOnly?: boolean;
+  disablePlayer?: boolean;
   dateMode?: TrainingActionDateMode;
   patientUserId?: string;
 };
@@ -45,11 +46,13 @@ function ActionCardRow({
   card,
   onPressTimer,
   readOnly = false,
+  disablePlayer = false,
   dateMode = 'today',
 }: {
   card: TrainingPhaseExerciseCard;
   onPressTimer: (card: TrainingPhaseExerciseCard) => void;
   readOnly?: boolean;
+  disablePlayer?: boolean;
   dateMode?: TrainingActionDateMode;
 }) {
   const scheduleGroupVal = resolveScheduleGroupVal(card);
@@ -61,7 +64,7 @@ function ActionCardRow({
   const actionCompleted = isTrainingActionCompleted(card);
   const actionText = formatTrainingActionButtonText(card, { dateMode });
   const showActionIcon = shouldShowTrainingActionIcon(card, { dateMode });
-  const actionPressable = canPressTrainingAction(card, dateMode, { readOnly });
+  const actionPressable = canPressTrainingAction(card, dateMode, { readOnly, disablePlayer });
 
   return (
     <View style={styles.mainTrainingActionRow}>
@@ -117,11 +120,13 @@ function TypeModule({
   module,
   onOpenPlayer,
   readOnly = false,
+  disablePlayer = false,
   dateMode = 'today',
 }: {
   module: MainTrainingTypeModule;
   onOpenPlayer: (card?: TrainingPhaseExerciseCard) => void;
   readOnly?: boolean;
+  disablePlayer?: boolean;
   dateMode?: TrainingActionDateMode;
 }) {
   return (
@@ -160,6 +165,7 @@ function TypeModule({
             card={card}
             onPressTimer={onOpenPlayer}
             readOnly={readOnly}
+            disablePlayer={disablePlayer}
             dateMode={dateMode}
           />
         </View>
@@ -172,6 +178,7 @@ export default function MainTrainingPhase({
   dayRule = null,
   selectedDate,
   readOnly = false,
+  disablePlayer = false,
   dateMode = 'today',
   patientUserId,
 }: Props) {
@@ -205,7 +212,7 @@ export default function MainTrainingPhase({
   );
 
   const openPlayer = (exerciseType: string, card?: TrainingPhaseExerciseCard) => {
-    if (card && !canPressTrainingAction(card, dateMode, { readOnly })) return;
+    if (card && !canPressTrainingAction(card, dateMode, { readOnly, disablePlayer })) return;
     const rule = dayRule?.ruleRatioList?.find(item => item.exerciseType?.trim() === exerciseType);
     navigation.navigate('ExercisePlayerPage', {
       exerciseType,
@@ -268,6 +275,7 @@ export default function MainTrainingPhase({
           module={module}
           onOpenPlayer={card => openPlayer(module.key, card)}
           readOnly={readOnly}
+          disablePlayer={disablePlayer}
           dateMode={dateMode}
         />
       ))}

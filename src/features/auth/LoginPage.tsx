@@ -273,7 +273,7 @@ export default function LoginPage() {
                   </Text>
                 </Flex>
 
-                <View style={styles.tipBox}>
+                {/* <View style={styles.tipBox}>
                   <Flex justify="center" align="center" style={styles.tipRow}>
                     <Text style={styles.tipLabel}>温馨提示：</Text>
                     <Text style={styles.tipContent}>如果您在登录过程中遇到问题，</Text>
@@ -283,7 +283,7 @@ export default function LoginPage() {
                     <Text style={styles.tipPhone}>{customerServicePhone}</Text>
                     <Text style={styles.tipContent}> 寻求帮助。</Text>
                   </Flex>
-                </View>
+                </View> */}
               </View>
 
               <Reanimated.View style={bottomAreaStyle} />

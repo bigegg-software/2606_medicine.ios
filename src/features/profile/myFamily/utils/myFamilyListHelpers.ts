@@ -46,6 +46,7 @@ export function maskFamilyPhone(phone?: string): string {
 }
 
 export function getFamilyDisplayName(item: OldFamilyBindItem): string {
+  // 老人端：有给家人的备注 childRemarkName 优先，否则家人真实姓名
   return (
     item.childRemarkName?.trim() ||
     item.jsUserName?.trim() ||

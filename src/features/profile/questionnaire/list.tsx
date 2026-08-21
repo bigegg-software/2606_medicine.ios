@@ -129,7 +129,7 @@ export default function QuestionnaireListPage() {
                                             </Flex>
                                         </TouchableOpacity>
                                     )}
-                                
+
                                 </Flex>
                                 {hasLastAssessment ? (
                                     <>
@@ -173,7 +173,21 @@ export default function QuestionnaireListPage() {
                                                     </Flex>
                                                 </TouchableOpacity>
                                             ) : lastAssessment?.id ? (
-                                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                                <TouchableOpacity
+                                                    activeOpacity={0.85}
+                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                    onPress={() =>
+                                                        navigation.navigate('QuestionnaireDetail', {
+                                                            id: lastAssessment.id ?? '',
+                                                            ...(viewNavParams ?? {}),
+                                                        })
+                                                    }>
+                                                    <MaterialIcons
+                                                        name="chevron-right"
+                                                        size={24}
+                                                        color={AppTheme.textSecondary}
+                                                    />
+                                                </TouchableOpacity>
                                             ) : null}
                                         </Flex>
                                     </>

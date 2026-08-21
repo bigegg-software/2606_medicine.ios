@@ -61,6 +61,7 @@ import QuestionnaireTestingRecordPage from '@/src/features/schedule/testing/ques
 import NutritionPage from '@/src/features/nutrition';
 import MealRecognizingPage from '@/src/features/nutrition/mealRecognizing';
 import FoodRecordingPage from '@/src/features/nutrition/foodRecording';
+import DietHistoryPage from '@/src/features/nutrition/dietHistoryPage';
 
 
 // 用药记录
@@ -169,6 +170,8 @@ export type RootStackParamList = {
     patientUserId?: string;
     relationLabel?: string;
     displayName?: string;
+    /** 指定处方 id（历史计划只读查看） */
+    exPatientRuleId?: string;
   } | undefined;
   NutritionPage: {
     tab?: 'diet' | 'prescription';
@@ -176,6 +179,8 @@ export type RootStackParamList = {
     patientUserId?: string;
     relationLabel?: string;
     displayName?: string;
+    /** 指定营养处方 id（历史处方只读查看） */
+    dietPatientRuleId?: string;
   } | undefined;
   ActivityDetail: { id: number | string };
   CourseDetail: { courseId: string };
@@ -318,6 +323,7 @@ export type RootStackParamList = {
   | { mode: 'text'; text: string; mealCategory?: number }
   | { mode: 'image'; imageUri: string; text?: string; mealCategory?: number };
   FoodRecordingPage: undefined;
+  DietHistoryPage: undefined;
   ManualCorrectionPage: {
     itemIndex: number;
     item: import('@/api/mealRecognition').FoodIdentifyItem;
@@ -599,6 +605,7 @@ export default function RootStack() {
       <Stack.Screen name="MealRecognitionPage" component={MealRecognitionPage} options={{ title: '用餐识别', headerShown: false, statusBarStyle: 'light' }} />
       <Stack.Screen name="MealRecognizingPage" component={MealRecognizingPage} options={{ title: '用餐识别', showHeaderBackground: false }} />
       <Stack.Screen name="FoodRecordingPage" component={FoodRecordingPage} options={{ title: '饮食记录', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
+      <Stack.Screen name="DietHistoryPage" component={DietHistoryPage} options={{ title: '历史营养处方' }} />
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />

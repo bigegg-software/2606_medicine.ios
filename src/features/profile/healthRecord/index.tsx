@@ -259,10 +259,14 @@ export default function HealthRecordPage() {
     useEffect(() => {
         navigation.setOptions({
             headerRight: readOnly
-                ? () => <FamilyRelationHeaderBadge label={relationLabel} />
+                ? () => (
+                    <FamilyRelationHeaderBadge
+                      label={displayName || relationLabel}
+                    />
+                  )
                 : undefined,
         });
-    }, [navigation, readOnly, relationLabel]);
+    }, [displayName, navigation, readOnly, relationLabel]);
 
     useEffect(() => {
         loadFamilyProfileRef.current();

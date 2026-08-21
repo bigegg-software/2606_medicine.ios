@@ -29,3 +29,27 @@ export function formatCourseWatchingCount(count?: number | null) {
   const safe = Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
   return `${safe.toLocaleString('en-US')}人正在看`;
 }
+
+/** 列表/详情点赞后的本地计数与状态 */
+export function applyCourseLikeToggle<T extends { isLiked?: boolean; likeCount?: number }>(
+  item: T,
+  nextLiked: boolean,
+): T {
+  return {
+    ...item,
+    isLiked: nextLiked,
+    likeCount: Math.max(0, Number(item.likeCount ?? 0) + (nextLiked ? 1 : -1)),
+  };
+}
+
+/** 列表/详情收藏后的本地计数与状态 */
+export function applyCourseFavoriteToggle<T extends {
+  isFavorited?: boolean;
+  favoriteCount?: number;
+}>(item: T, nextFavorited: boolean): T {
+  return {
+    ...item,
+    isFavorited: nextFavorited,
+    favoriteCount: Math.max(0, Number(item.favoriteCount ?? 0) + (nextFavorited ? 1 : -1)),
+  };
+}

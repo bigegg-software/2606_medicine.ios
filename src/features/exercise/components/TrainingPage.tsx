@@ -30,7 +30,7 @@ import {
     resolveExerciseStatProgressPercent,
     type ExerciseDayStatView,
 } from '../utils/exerciseDayStatHelpers';
-import { loadExPatientRuleForDate } from '../utils/exerciseRuleDateHelpers';
+import { loadExPatientRuleForDate, resolveLockedExerciseViewDate } from '../utils/exerciseRuleDateHelpers';
 import {
     getExerciseSignButtonLabel,
     performExerciseDailySign,
@@ -99,16 +99,21 @@ type Props = {
     /** 家人只读：不可训练/打卡 */
     forceReadOnly?: boolean;
     patientUserId?: string;
+    /** 历史计划：锁定当前处方，不可进播放页 */
+    lockToRule?: boolean;
 };
 
 export default function TrainingPage({
     exerciseRule = null,
     forceReadOnly = false,
     patientUserId,
+    lockToRule = false,
 }: Props) {
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
-    const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
+    const [selectedDate, setSelectedDate] = useState(() =>
+        lockToRule ? resolveLockedExerciseViewDate(exerciseRule) : moment().format('YYYY-MM-DD'),
+    );
     const [dayRule, setDayRule] = useState<InUseExPatientRule | null>(exerciseRule);
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [activePhase, setActivePhase] = useState<TrainingPhaseKey>('warmup');
@@ -128,8 +133,9 @@ export default function TrainingPage({
     const isPast = moment(selectedDate).isBefore(moment(), 'day');
     const isFuture = moment(selectedDate).isAfter(moment(), 'day');
     const isToday = !isPast && !isFuture;
-    /** 非今日或家人只读：不可执行 */
+    /** 非今日或家人/历史只读：不可执行 */
     const readOnly = forceReadOnly || !isToday;
+    const disablePlayer = lockToRule;
     const dateMode = isPast ? 'past' : isFuture ? 'future' : 'today';
     const patientOpts = useMemo(
         () => (patientUserId ? { patientUserId } : undefined),
@@ -162,21 +168,41 @@ export default function TrainingPage({
 
     const exerciseDayRecordMarker = useMemo(() => ({
         color: EXERCISE_CHECK_IN_DOT_COLOR,
-        loadByYear: (year: number) => loadExerciseCheckInMapByYear(year, patientUserId),
-    }), [patientUserId]);
+        loadByYear: (year: number) =>
+            loadExerciseCheckInMapByYear(year, patientUserId, exerciseRule?.exPatientRuleId),
+    }), [exerciseRule?.exPatientRuleId, patientUserId]);
+
+    /** 历史处方 getInfo 返回后，将日期对齐到处方周期内 */
+    useEffect(() => {
+        if (!lockToRule || !exerciseRule) return;
+        setSelectedDate(resolveLockedExerciseViewDate(exerciseRule));
+        setDayRule(exerciseRule);
+    }, [lockToRule, exerciseRule]);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
-        const rule = await loadExPatientRuleForDate(date, inUseRule, patientOpts);
+        if (lockToRule) {
+            setDayRule(inUseRule);
+            return inUseRule;
+        }
+        const rule = await loadExPatientRuleForDate(date, inUseRule, {
+            ...patientOpts,
+            exPatientRuleId: inUseRule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId,
+        });
         setDayRule(rule);
         return rule;
-    }, [patientOpts]);
+    }, [exerciseRule?.exPatientRuleId, lockToRule, patientOpts]);
 
     const loadWeekCheckIn = useCallback(async (date: string) => {
         const start = moment(date).startOf('isoWeek').format('YYYY-MM-DD');
         const end = moment(date).endOf('isoWeek').format('YYYY-MM-DD');
-        const map = await loadExerciseCheckInMapByDateRange(start, end, patientUserId);
+        const map = await loadExerciseCheckInMapByDateRange(
+            start,
+            end,
+            patientUserId,
+            exerciseRule?.exPatientRuleId ?? dayRule?.exPatientRuleId,
+        );
         setCheckInMap(prev => ({ ...prev, ...map }));
-    }, [patientUserId]);
+    }, [dayRule?.exPatientRuleId, exerciseRule?.exPatientRuleId, patientUserId]);
 
     const loadDayStat = useCallback(async (
         date: string,
@@ -371,6 +397,7 @@ export default function TrainingPage({
     ]);
 
     const openWarmupPlayer = useCallback((card: TrainingPhaseExerciseCard) => {
+        if (disablePlayer) return;
         navigation.navigate('ExercisePlayerPage', {
             exVideoId: card.exVideoId,
             title: card.title,
@@ -384,9 +411,10 @@ export default function TrainingPage({
             readOnly,
             customerLocalDate: selectedDate,
         });
-    }, [navigation, readOnly, selectedDate]);
+    }, [disablePlayer, navigation, readOnly, selectedDate]);
 
     const openMainPlayer = useCallback((card: MainTrainingPlayCard) => {
+        if (disablePlayer) return;
         const exerciseType = card.exerciseType;
         const rule = dayRule?.ruleRatioList?.find(
             item => item.exerciseType?.trim() === exerciseType,
@@ -408,9 +436,10 @@ export default function TrainingPage({
             readOnly,
             customerLocalDate: selectedDate,
         });
-    }, [dayRule, navigation, readOnly, selectedDate]);
+    }, [dayRule, disablePlayer, navigation, readOnly, selectedDate]);
 
     const openCooldownPlayer = useCallback((card: TrainingPhaseExerciseCard) => {
+        if (disablePlayer) return;
         navigation.navigate('ExercisePlayerPage', {
             exVideoId: card.exVideoId,
             title: card.title,
@@ -424,7 +453,7 @@ export default function TrainingPage({
             readOnly,
             customerLocalDate: selectedDate,
         });
-    }, [navigation, readOnly, selectedDate]);
+    }, [disablePlayer, navigation, readOnly, selectedDate]);
 
     const onPressBottomAction = useCallback(() => {
         if (!isToday) {
@@ -710,6 +739,7 @@ export default function TrainingPage({
                         dayRule={dayRule}
                         selectedDate={selectedDate}
                         readOnly={readOnly}
+                        disablePlayer={disablePlayer}
                         dateMode={dateMode}
                         patientUserId={patientUserId}
                     />
@@ -720,6 +750,7 @@ export default function TrainingPage({
                         dayRule={dayRule}
                         selectedDate={selectedDate}
                         readOnly={readOnly}
+                        disablePlayer={disablePlayer}
                         dateMode={dateMode}
                         patientUserId={patientUserId}
                     />
@@ -730,6 +761,7 @@ export default function TrainingPage({
                         dayRule={dayRule}
                         selectedDate={selectedDate}
                         readOnly={readOnly}
+                        disablePlayer={disablePlayer}
                         dateMode={dateMode}
                         patientUserId={patientUserId}
                     />
