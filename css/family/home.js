@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
         marginRight: 12,
     },
     todoItemText: {
+        flex: 1,
         flexShrink: 1,
         fontWeight: '500',
         fontSize: 14,

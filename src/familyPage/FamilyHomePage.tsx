@@ -6,6 +6,7 @@ import {
   ScrollView,
   Text,
   TouchableOpacity,
+  DeviceEventEmitter,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -13,10 +14,20 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useDispatch, useSelector } from 'react-redux';
 import HeaderBack from '@/src/components/HeaderBack';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
+import { markMessageRead } from '@/api/message';
+import { isResourceApiOk } from '@/src/utils/apiHelpers';
+import { normalizeIdentityPerspective } from '@/src/features/auth/utils/identityHelpers';
+import {
+  MESSAGE_UNREAD_CHANGED,
+} from '@/src/features/message/utils/messageHelpers';
+import {
+  MESSAGE_NOT_FOUND_TOAST,
+  navigateFromMessage,
+} from '@/src/features/message/utils/messageNavigationHelpers';
 import {
   buildFamilyHomeMemberCards,
   emptyFamilyHomeFocusSummary,
@@ -40,6 +51,10 @@ import {
   type FamilyHomeHealthSnapshot,
 } from './utils/familyHomeHealthHelpers';
 import {
+  loadFamilyHomeWarningTodos,
+  type FamilyHomeWarningTodoItem,
+} from './utils/familyHomeWarningHelpers';
+import {
   getApprovedFamilyBindList,
   getChildFamilyDisplayName,
   getFamilyTabKey,
@@ -55,12 +70,15 @@ export default function FamilyHomePage() {
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const familyList = useSelector((state: RootState) => state.family.list);
   const selectedFamilyKey = useSelector((state: RootState) => state.family.selectedKey);
+  const identityPerspective = systemUser?.identityPerspective;
 
   const [attentionMap, setAttentionMap] = useState<Record<string, boolean>>({});
   const [activityProgressMap, setActivityProgressMap] = useState<Record<string, number | null>>({});
   const [tokensMap, setTokensMap] = useState<Record<string, number | null>>({});
   const [healthMap, setHealthMap] = useState<Record<string, FamilyHomeHealthSnapshot>>({});
   const [focusSummary, setFocusSummary] = useState<FamilyHomeFocusSummary>(emptyFamilyHomeFocusSummary);
+  const [warningTodos, setWarningTodos] = useState<FamilyHomeWarningTodoItem[]>([]);
+  const [warningTodoTotal, setWarningTodoTotal] = useState(0);
 
   const greetingTitle = useMemo(
     () => getFamilyHomeGreetingTitle(userInfo, systemUser),
@@ -149,6 +167,56 @@ export default function FamilyHomePage() {
     }, [firstMember?.patientUserId]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      void (async () => {
+        const result = await loadFamilyHomeWarningTodos(familyList, identityPerspective);
+        if (cancelled) return;
+        setWarningTodos(result.items);
+        setWarningTodoTotal(result.total);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [familyList, identityPerspective]),
+  );
+
+  const handlePressWarningTodo = useCallback(
+    async (item: FamilyHomeWarningTodoItem) => {
+      if (item.unread) {
+        try {
+          const res = await markMessageRead(item.id, {
+            identityPerspective: normalizeIdentityPerspective(identityPerspective) || 'child',
+          });
+          if (isResourceApiOk(res as { code?: number })) {
+            setWarningTodos(prev =>
+              prev.map(row => (row.id === item.id ? { ...row, unread: false } : row)),
+            );
+            DeviceEventEmitter.emit(MESSAGE_UNREAD_CHANGED);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      const navResult = await navigateFromMessage(
+        navigation,
+        {
+          type: item.raw.type,
+          bizId: item.raw.bizId,
+          messageId: item.raw.messageId,
+          createTime: item.raw.createTime,
+        },
+        { isElder: false },
+      );
+      if (navResult.action === 'missing') {
+        Toast.show(navResult.toast ?? MESSAGE_NOT_FOUND_TOAST);
+      }
+    },
+    [identityPerspective, navigation],
+  );
+
   return (
     <View style={styles.container}>
       <HeaderBack />
@@ -179,7 +247,7 @@ export default function FamilyHomePage() {
             <View style={styles.todoHeader}>
               <Flex align="center">
                 <View style={styles.todoBar} />
-                <Text style={styles.todoTitle}>重要待办（0项）</Text>
+                <Text style={styles.todoTitle}>重要待办（{warningTodoTotal}项）</Text>
               </Flex>
               <TouchableOpacity
                 style={styles.todoRightHit}
@@ -201,7 +269,30 @@ export default function FamilyHomePage() {
                 />
               </TouchableOpacity>
             </View>
-            <FamilyHomeEmpty />
+            {warningTodos.length === 0 ? (
+              <FamilyHomeEmpty />
+            ) : (
+              warningTodos.map(item => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.todoItem}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    void handlePressWarningTodo(item);
+                  }}
+                >
+                  <Flex align="center">
+                    {item.unread && <View style={styles.todoDot} />}
+                    <Text style={styles.todoItemText} numberOfLines={1}>
+                      {item.text}
+                    </Text>
+                    <View style={styles.todoTag}>
+                      <Text style={styles.todoTagText}>{item.relationLabel}</Text>
+                    </View>
+                  </Flex>
+                </TouchableOpacity>
+              ))
+            )}
           </LinearGradient>
 
           <Flex align="center" style={styles.todoTitleWrap}>
