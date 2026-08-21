@@ -7,10 +7,9 @@ function isDeletedFlag(value?: string | number | null) {
   return String(value ?? '').trim() === '1';
 }
 
-/** 账号状态：0.正常 1.禁用 2.已注销 */
+/** 账号状态：0.正常 1.禁用 2.已注销 — 仅已注销弹窗/隐藏；禁用不弹窗、不按异常展示 */
 export function isFamilyAccountStatusAbnormal(status?: number | null) {
-  const value = Number(status);
-  return value === 1 || value === 2;
+  return Number(status) === 2;
 }
 
 /** 家属端已解绑、老人端尚未确认移除 */

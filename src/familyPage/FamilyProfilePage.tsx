@@ -382,14 +382,19 @@ export default function FamilyProfilePage() {
                       </Flex>
                     ) : null}
                     {!bindPending && selectedFamily.identityAuthStatus === 2 ? (
-                      <Flex style={styles.memberCertifiedWarn}>
-                        <Image
-                          source={require('@/assets/family/profile/icon_wtg.png')}
-                          style={styles.memberCertifiedBadge}
-                          resizeMode="contain"
-                        />
-                        <Text style={styles.memberCertifiedWarnText}>认证未通过</Text>
-                      </Flex>
+                      <TouchableOpacity
+                        activeOpacity={0.85}
+                        onPress={() => setRelationProofVisible(true)}
+                      >
+                        <Flex style={styles.memberCertifiedWarn}>
+                          <Image
+                            source={require('@/assets/family/profile/icon_wtg.png')}
+                            style={styles.memberCertifiedBadge}
+                            resizeMode="contain"
+                          />
+                          <Text style={styles.memberCertifiedWarnText}>认证未通过</Text>
+                        </Flex>
+                      </TouchableOpacity>
                     ) : null}
 
                     {/* {isFamilyIdentityCertified(selectedFamily) ? (

@@ -31,8 +31,8 @@ import {
   type FamilyPrescriptionTypeItem,
 } from './utils/familyDataHelpers';
 import {
+  getApprovedFamilyBindList,
   getChildFamilyDisplayName,
-  getDisplayFamilyBindList,
   getFamilyTabKey,
   getFamilyTabLabel,
   isFamilyBindPending,
@@ -91,7 +91,7 @@ export default function FamilyDataPage() {
   const [remindingMedicationKey, setRemindingMedicationKey] = useState('');
 
   const familyList = useMemo(
-    () => getDisplayFamilyBindList(familyListRaw),
+    () => getApprovedFamilyBindList(familyListRaw),
     [familyListRaw],
   );
 
