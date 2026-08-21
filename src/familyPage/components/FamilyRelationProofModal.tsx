@@ -4,26 +4,30 @@ import {
   Text,
   Image,
   TouchableOpacity,
-  ScrollView,
   StyleSheet,
   ActivityIndicator,
   Alert,
+  type LayoutChangeEvent,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheetModal from '@/src/components/BottomSheetModal';
 import { AppTheme } from '@/common/theme';
+import type { RootStackParamList } from '@/route/router';
 import {
   FAMILY_RELATION_PROOF_MAX_COUNT,
+  FAMILY_RELATION_PROOF_SLOT_GAP,
   buildFamilyRelationAuditPayload,
   buildFamilyRelationProofDesc,
-  pickFamilyRelationProofFromCamera,
-  pickFamilyRelationProofFromLibrary,
+  getFamilyRelationProofSlotLayout,
   submitFamilyRelationProof,
   uploadFamilyRelationProofFile,
   validateFamilyRelationProofSubmit,
   type FamilyRelationProofItem,
 } from '../utils/familyRelationProofHelpers';
+import { consumePendingFamilyRelationProofCapture } from '../utils/familyRelationProofCaptureSession';
 
 type Props = {
   visible: boolean;
@@ -36,7 +40,7 @@ type Props = {
   onSubmitted?: () => void;
 };
 
-type PendingSource = 'camera' | 'album' | null;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export default function FamilyRelationProofModal({
   visible,
@@ -48,28 +52,43 @@ export default function FamilyRelationProofModal({
   onClose,
   onSubmitted,
 }: Props) {
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const [sheetOpen, setSheetOpen] = useState(false);
   const [proofItems, setProofItems] = useState<FamilyRelationProofItem[]>([]);
   const [uploading, setUploading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const pendingSourceRef = useRef<PendingSource>(null);
+  const [proofRowWidth, setProofRowWidth] = useState(0);
+  const pendingCaptureNavRef = useRef(false);
+  const remainCountRef = useRef(FAMILY_RELATION_PROOF_MAX_COUNT);
 
   useEffect(() => {
     if (visible) {
       setProofItems([]);
       setUploading(false);
       setSubmitting(false);
-      pendingSourceRef.current = null;
+      pendingCaptureNavRef.current = false;
       setSheetOpen(true);
       return;
     }
-    pendingSourceRef.current = null;
+    pendingCaptureNavRef.current = false;
     setSheetOpen(false);
   }, [visible]);
 
   const remainCount = FAMILY_RELATION_PROOF_MAX_COUNT - proofItems.length;
+  remainCountRef.current = remainCount;
   const busy = uploading || submitting;
+  const showAddSlot = remainCount > 0;
+  const slotCount = proofItems.length + (showAddSlot ? 1 : 0);
+  const { size: slotSize, gap: slotGap } = getFamilyRelationProofSlotLayout(
+    slotCount,
+    proofRowWidth,
+  );
+
+  const handleProofRowLayout = useCallback((e: LayoutChangeEvent) => {
+    const nextWidth = Math.round(e.nativeEvent.layout.width);
+    setProofRowWidth(prev => (prev === nextWidth ? prev : nextWidth));
+  }, []);
 
   const appendFiles = useCallback(async (files: Array<{ uri: string; name: string; type: string }>) => {
     if (files.length === 0) return;
@@ -94,34 +113,34 @@ export default function FamilyRelationProofModal({
     }
   }, []);
 
-  const handleSheetDismissed = useCallback(() => {
-    const source = pendingSourceRef.current;
-    if (!source) return;
-    pendingSourceRef.current = null;
-    void (async () => {
-      if (source === 'camera') {
-        const file = await pickFamilyRelationProofFromCamera();
-        if (file) await appendFiles([file]);
-      } else {
-        const files = await pickFamilyRelationProofFromLibrary(remainCount);
-        if (files.length > 0) await appendFiles(files);
+  useFocusEffect(
+    useCallback(() => {
+      if (!visible) return;
+      const files = consumePendingFamilyRelationProofCapture();
+      if (files.length > 0) {
+        void appendFiles(files);
       }
-      if (visible) setSheetOpen(true);
-    })();
-  }, [appendFiles, remainCount, visible]);
-
-  const requestSource = useCallback(
-    (source: Exclude<PendingSource, null>) => {
-      if (busy) return;
-      if (remainCount <= 0) {
-        Alert.alert('提示', `最多上传${FAMILY_RELATION_PROOF_MAX_COUNT}张`);
-        return;
-      }
-      pendingSourceRef.current = source;
-      setSheetOpen(false);
-    },
-    [busy, remainCount],
+      setSheetOpen(true);
+    }, [appendFiles, visible]),
   );
+
+  const handleSheetDismissed = useCallback(() => {
+    if (!pendingCaptureNavRef.current) return;
+    pendingCaptureNavRef.current = false;
+    navigation.navigate('FamilyRelationProofCapturePage', {
+      remainCount: remainCountRef.current,
+    });
+  }, [navigation]);
+
+  const handlePressAdd = useCallback(() => {
+    if (busy) return;
+    if (remainCount <= 0) {
+      Alert.alert('提示', `最多上传${FAMILY_RELATION_PROOF_MAX_COUNT}张`);
+      return;
+    }
+    pendingCaptureNavRef.current = true;
+    setSheetOpen(false);
+  }, [busy, remainCount]);
 
   const handleRemove = useCallback((key: string) => {
     if (busy) return;
@@ -202,62 +221,51 @@ export default function FamilyRelationProofModal({
         <View style={styles.divider} />
         <Text style={styles.desc}>{buildFamilyRelationProofDesc(displayName)}</Text>
 
-        <Flex justify="center" style={styles.sourceRow}>
-          <TouchableOpacity
-            style={styles.sourceItem}
-            activeOpacity={0.8}
-            disabled={busy}
-            onPress={() => requestSource('camera')}
-          >
-            <View style={styles.sourceDash}>
-              <Image
-                source={require('@/assets/images/case/icon_camera.png')}
-                style={styles.sourceIcon}
-              />
-              <Text style={styles.sourceTitle}>拍照识别</Text>
+        <View
+          style={[styles.proofRow, { gap: slotGap || FAMILY_RELATION_PROOF_SLOT_GAP }]}
+          onLayout={handleProofRowLayout}
+        >
+          {proofItems.map(item => (
+            <View key={item.key} style={[styles.proofItem, { width: slotSize, height: slotSize }]}>
+              <Image source={{ uri: item.uri }} style={styles.proofImage} />
+              <TouchableOpacity
+                style={styles.proofRemove}
+                activeOpacity={0.8}
+                disabled={busy}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                onPress={() => handleRemove(item.key)}
+              >
+                <Image
+                  source={require('@/assets/family/profile/icon_close.png')}
+                  style={styles.proofRemoveIcon}
+                />
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.sourceItem}
-            activeOpacity={0.8}
-            disabled={busy}
-            onPress={() => requestSource('album')}
-          >
-            <View style={styles.sourceDash}>
-              <Image
-                source={require('@/assets/images/case/icon_image.png')}
-                style={styles.sourceIcon}
-              />
-              <Text style={styles.sourceTitle}>上传照片</Text>
-            </View>
-          </TouchableOpacity>
-        </Flex>
-
-        {proofItems.length > 0 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.previewScroll}
-            contentContainerStyle={styles.previewContent}
-          >
-            {proofItems.map(item => (
-              <View key={item.key} style={styles.previewItem}>
-                <Image source={{ uri: item.uri }} style={styles.previewImage} />
-                <TouchableOpacity
-                  style={styles.previewRemove}
-                  activeOpacity={0.8}
-                  disabled={busy}
-                  onPress={() => handleRemove(item.key)}
-                >
-                  <Image
-                    source={require('@/assets/images/case/icon_del.png')}
-                    style={styles.previewRemoveIcon}
-                  />
-                </TouchableOpacity>
+          ))}
+          {showAddSlot ? (
+            <TouchableOpacity
+              style={[styles.proofAdd, { width: slotSize, height: slotSize }]}
+              activeOpacity={0.8}
+              disabled={busy}
+              onPress={handlePressAdd}
+            >
+              <View style={[styles.proofAddPlus, { width: slotSize * 0.28, height: slotSize * 0.28 }]}>
+                <View
+                  style={[
+                    styles.proofAddPlusH,
+                    { width: slotSize * 0.22, height: Math.max(2, slotSize * 0.03) },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.proofAddPlusV,
+                    { width: Math.max(2, slotSize * 0.03), height: slotSize * 0.22 },
+                  ]}
+                />
               </View>
-            ))}
-          </ScrollView>
-        ) : null}
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         <TouchableOpacity
           style={[styles.submitBtn, (busy || proofItems.length === 0) && styles.submitBtnDisabled]}
@@ -330,66 +338,57 @@ const styles = StyleSheet.create({
     color: '#666666',
     textAlign: 'left',
   },
-  sourceRow: {
-    marginTop: 20,
-    gap: 24,
-  },
-  sourceItem: {
-    width: 99,
-    height: 100,
-  },
-  sourceDash: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-    borderStyle: 'dashed',
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  sourceIcon: {
-    width: 44,
-    height: 44,
-  },
-  sourceTitle: {
+  proofRow: {
     marginTop: 10,
-    fontWeight: '500',
-    fontSize: 13,
-    color: '#333333',
+    height: 150,
+    width: '100%',
+    flexDirection: 'row',
+    flexWrap: 'nowrap',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
   },
-  previewScroll: {
-    marginTop: 16,
-  },
-  previewContent: {
-    paddingRight: 8,
-  },
-  previewItem: {
-    width: 72,
-    height: 72,
-    marginRight: 10,
+  proofItem: {
     borderRadius: 8,
-    overflow: 'hidden',
+    overflow: 'visible',
     backgroundColor: '#F5F5F5',
   },
-  previewImage: {
+  proofImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 8,
   },
-  previewRemove: {
+  proofRemove: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    top: 0,
+    right: 0,
+    width: 25,
+    height: 25,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  previewRemoveIcon: {
-    width: 12,
-    height: 12,
+  proofRemoveIcon: {
+    width: 25,
+    height: 25,
+  },
+  proofAdd: {
+    borderRadius: 8,
+    backgroundColor: '#F5F5F5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proofAddPlus: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  proofAddPlusH: {
+    position: 'absolute',
+    borderRadius: 2,
+    backgroundColor: '#C8C8C8',
+  },
+  proofAddPlusV: {
+    position: 'absolute',
+    borderRadius: 2,
+    backgroundColor: '#C8C8C8',
   },
   submitBtn: {
     marginTop: 20,
@@ -401,11 +400,6 @@ const styles = StyleSheet.create({
   },
   submitBtnDisabled: {
     opacity: 0.5,
-  },
-  submitIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 4,
   },
   submitText: {
     fontSize: 16,

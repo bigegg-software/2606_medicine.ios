@@ -22,6 +22,39 @@ export type FamilyRelationProofItem = {
   ossId: string;
 };
 
+export type FamilyRelationProofSlotLayout = {
+  size: number;
+  gap: number;
+};
+
+export const FAMILY_RELATION_PROOF_SLOT_GAP = 12;
+export const FAMILY_RELATION_PROOF_SLOT_DEFAULT_SIZE = 105;
+
+/**
+ * 槽位布局：间距固定 12，左对齐。
+ * 1～2 个：按三列基准算宽 `(rowWidth - gap * 2) / 3`；
+ * 3～5 个：按当前数量均分 `(rowWidth - gap * (n - 1)) / n`。
+ */
+export function getFamilyRelationProofSlotLayout(
+  slotCount: number,
+  rowWidth = 0,
+): FamilyRelationProofSlotLayout {
+  const count = Math.max(1, Math.min(slotCount, FAMILY_RELATION_PROOF_MAX_COUNT));
+  const gap = FAMILY_RELATION_PROOF_SLOT_GAP;
+
+  if (rowWidth <= 0) {
+    return { size: FAMILY_RELATION_PROOF_SLOT_DEFAULT_SIZE, gap };
+  }
+
+  if (count <= 2) {
+    const size = Math.floor((rowWidth - gap * 2) / 3);
+    return { size: Math.max(1, size), gap };
+  }
+
+  const size = Math.floor((rowWidth - gap * (count - 1)) / count);
+  return { size: Math.max(1, size), gap };
+}
+
 const PROOF_MAX_EDGE = 1600;
 const PROOF_JPEG_COMPRESS = 0.7;
 

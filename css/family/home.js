@@ -153,6 +153,7 @@ const styles = StyleSheet.create({
     familyHealthIcon: {
         width: 22,
         height: 22,
+        borderRadius: 12,
     },
     familyHealthName: {
         fontWeight: 'bold',
@@ -261,7 +262,7 @@ const styles = StyleSheet.create({
     },
     activityScroll: {
         marginTop: 12,
-        paddingBottom:24
+        paddingBottom: 24
     },
     activityCard: {
         width: 245,

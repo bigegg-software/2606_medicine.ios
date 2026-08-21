@@ -51,6 +51,7 @@ import {
   MEAL_CATEGORY_BY_KEY,
   resolveMainMealsRecordStatus,
 } from '@/src/features/profile/medication/meal/utils/mealDetailHelpers';
+import { isDietRuleActiveOnDate } from '@/src/features/nutrition/components/utils/dietMealHelpers';
 import type { ImageSourcePropType } from 'react-native';
 import {
   getExerciseChildTypeLabel,
@@ -805,14 +806,60 @@ async function loadHistoryDietTimelineItems(
     .sort((left, right) => left.sortValue - right.sortValue);
 }
 
+/**
+ * 未来日期（今天之后～营养处方截止）：按处方 mealList 渲染推荐餐次；
+ * 若已有记录则优先展示记录。处方未覆盖该日则不展示用餐。
+ */
+async function loadFutureDietTimelineItems(
+  customerLocalDate: string,
+  options?: { patientUserId?: string | number | null },
+): Promise<CalendarTimelineItem[]> {
+  const dietRule = await loadDietRuleInfo(options);
+  if (!isDietRuleActiveOnDate(dietRule, customerLocalDate)) {
+    return [];
+  }
+
+  const mealDetailList = await loadMealDetailListForDate(customerLocalDate, options);
+  const recommendedCards = buildMealCardsFromRuleForDate(dietRule?.mealList, customerLocalDate);
+  const items: CalendarTimelineItem[] = [];
+  const coveredCategories = new Set<number>();
+
+  if (recommendedCards.length > 0) {
+    recommendedCards.forEach((mealCard, index) => {
+      const metaKey = getMealCardMetaKey(mealCard);
+      const category = MEAL_CATEGORY_BY_KEY[metaKey];
+      if (category != null) coveredCategories.add(category);
+      const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+      const item = mapMealTimelineItem(mealCard, records, index, true);
+      if (item) items.push(item);
+    });
+
+    Object.entries(MEAL_CATEGORY_KEY_BY_NUMBER).forEach(([categoryText, metaKey]) => {
+      const category = Number(categoryText);
+      if (coveredCategories.has(category)) return;
+      const records = getFoodRecordsByCategory(mealDetailList, metaKey);
+      if (records.length === 0) return;
+      items.push(mapRecordedMealTimelineItemWithoutCard(category, records, category));
+    });
+
+    return items.sort((left, right) => left.sortValue - right.sortValue);
+  }
+
+  return mapRecordedMealsFromDetailList(mealDetailList)
+    .sort((left, right) => left.sortValue - right.sortValue);
+}
+
 async function loadDietTimelineItems(
   customerLocalDate: string,
   options?: { patientUserId?: string | number | null },
 ): Promise<CalendarTimelineItem[]> {
   try {
-    const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
-    if (isToday) {
+    const todayKey = moment().format('YYYY-MM-DD');
+    if (customerLocalDate === todayKey) {
       return loadTodayDietTimelineItems(customerLocalDate, options);
+    }
+    if (customerLocalDate > todayKey) {
+      return loadFutureDietTimelineItems(customerLocalDate, options);
     }
     return loadHistoryDietTimelineItems(customerLocalDate, options);
   } catch {

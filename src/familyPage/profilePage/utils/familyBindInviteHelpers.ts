@@ -31,6 +31,7 @@ import {
   toFamilyPermissionApiCodes,
 } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
 import { apiResourceData, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
+import { removeFamilyBindById } from '@/src/familyPage/utils/familyProfileRemoveHelpers';
 
 export const FAMILY_BIND_INVITE_MESSAGE_TYPE = 'family_bind_invite_request';
 export const FAMILY_BIND_INVITE_ACCEPTED_MESSAGE_TYPE = 'family_bind_invite_accepted';
@@ -66,24 +67,34 @@ export function isFamilyBindInviteLinkValid(
 
 export const FAMILY_BIND_INVITE_INVALID_TOAST = '邀请已失效';
 
-/** 已邀请未绑定：仅老人自己发出的邀请可取消 */
+/** 已邀请未绑定：发起方可取消自己的待确认邀请 */
+export function canCancelFamilyInvite(
+  view: Pick<FamilyBindInviteView, 'bindStatus' | 'initiatedByElder'> | null | undefined,
+  isElder: boolean,
+) {
+  if (!view || Number(view.bindStatus) !== 0) return false;
+  // 老人取消自己发出的邀请；家人取消自己发出的申请
+  return isElder ? Boolean(view.initiatedByElder) : !Boolean(view.initiatedByElder);
+}
+
+/** @deprecated 使用 canCancelFamilyInvite */
 export function canCancelElderFamilyInvite(
   view: Pick<FamilyBindInviteView, 'bindStatus' | 'initiatedByElder'> | null | undefined,
 ) {
-  if (!view) return false;
-  return view.initiatedByElder && Number(view.bindStatus) === 0;
+  return canCancelFamilyInvite(view, true);
 }
 
-/** 邀请页底部操作：子女申请给老人看「拒绝/接受」；老人自己发出的待确认邀请看「取消邀请」 */
+/** 邀请页底部操作：对方申请看「拒绝/接受」；自己发出的待确认看「取消邀请」 */
 export function resolveFamilyBindInviteActionState(
   view: Pick<FamilyBindInviteView, 'bindStatus' | 'initiatedByElder'> | null | undefined,
   isElder: boolean,
   options?: { fromIncomingMessage?: boolean },
 ) {
   const showActionButtons = view != null && Number(view.bindStatus) !== 1;
-  const initiatedByElder = Boolean(view?.initiatedByElder) && !options?.fromIncomingMessage;
-  const showCancelInvite = isElder && initiatedByElder && Number(view?.bindStatus) === 0;
-  const showRejectButton = showActionButtons && !showCancelInvite && !(isElder && initiatedByElder);
+  // 从消息进入视为「对方发来的申请」，不展示取消邀请
+  const showCancelInvite =
+    !options?.fromIncomingMessage && canCancelFamilyInvite(view, isElder);
+  const showRejectButton = showActionButtons && !showCancelInvite;
   const showAcceptButton = showActionButtons && !showCancelInvite;
   return {
     showActionButtons,
@@ -269,4 +280,15 @@ export async function cancelElderFamilyBindInvite(
   } catch {
     return { ok: false, msg: '网络错误，请稍后重试' };
   }
+}
+
+/** 取消待确认邀请：老人 / 家人端按角色走对应删除接口 */
+export async function cancelFamilyBindInvite(
+  bindId: string,
+  options?: { isElder?: boolean },
+): Promise<{ ok: boolean; msg?: string }> {
+  if (options?.isElder) {
+    return cancelElderFamilyBindInvite(bindId);
+  }
+  return removeFamilyBindById(bindId);
 }

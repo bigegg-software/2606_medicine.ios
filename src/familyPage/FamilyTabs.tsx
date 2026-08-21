@@ -22,6 +22,7 @@ import type { FamilyBindItem } from '@/api/familyBind';
 import { getMessageUnreadCount } from '@/api/message';
 import {
   buildChildFamilyBindNoticeMessage,
+  buildChildFamilyBindNoticeTitle,
   confirmChildFamilyBindNoticeRemove,
   listChildFamilyBindNotices,
 } from './utils/familyBindNoticeHelpers';
@@ -168,7 +169,7 @@ export default function FamilyTabs() {
           if (!bindId) continue;
           await new Promise<void>(resolve => {
             Alert.alert(
-              '提示',
+              buildChildFamilyBindNoticeTitle(notice),
               buildChildFamilyBindNoticeMessage(notice),
               [
                 {

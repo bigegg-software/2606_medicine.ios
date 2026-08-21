@@ -66,6 +66,10 @@ export function buildPatientAccountAbnormalNoticeMessage(item: FamilyBindItem) {
   return `【${name}】账号异常，将自动取消家人关系绑定`;
 }
 
+export function buildChildFamilyBindNoticeTitle(notice: ChildFamilyBindNoticeItem) {
+  return notice.kind === 'accountAbnormal' ? '家人账号异常' : '解绑提示';
+}
+
 export function buildChildFamilyBindNoticeMessage(notice: ChildFamilyBindNoticeItem) {
   return notice.kind === 'accountAbnormal'
     ? buildPatientAccountAbnormalNoticeMessage(notice.item)

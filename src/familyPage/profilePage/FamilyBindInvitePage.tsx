@@ -12,7 +12,7 @@ import PageLayout from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/family/familyBindInvite';
 import type { RootStackParamList } from '@/route/router';
 import type { DictDataItem } from '@/api/dict';
@@ -24,11 +24,12 @@ import {
 } from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
 import { normalizeIdentityPerspective } from '@/src/features/auth/utils/identityHelpers';
 import { AppTheme } from '@/common/theme';
-import type { RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
+import { fetchFamilyBindMyList } from '@/store/actions/family';
 import {
   FAMILY_BIND_INVITE_INVALID_TOAST,
   buildFamilyBindInviteView,
-  cancelElderFamilyBindInvite,
+  cancelFamilyBindInvite,
   loadLiveFamilyBindInvite,
   resolveFamilyBindInviteActionState,
   respondToFamilyBindInvite,
@@ -44,6 +45,7 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function FamilyBindInvitePage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
+  const dispatch = useDispatch<AppDispatch>();
   const messageId = route.params.messageId;
   const bindId = route.params.id;
   const identityPerspective = useSelector(
@@ -199,10 +201,13 @@ export default function FamilyBindInvitePage() {
             if (submitting) return;
             setSubmitting(true);
             try {
-              const result = await cancelElderFamilyBindInvite(respondBindId);
+              const result = await cancelFamilyBindInvite(respondBindId, { isElder });
               if (!result.ok) {
                 Alert.alert('失败', result.msg ?? '请稍后重试');
                 return;
+              }
+              if (!isElder) {
+                await dispatch(fetchFamilyBindMyList({ force: true }));
               }
               Alert.alert('成功', '已取消邀请', [
                 { text: '确定', onPress: () => navigation.goBack() },
@@ -216,7 +221,7 @@ export default function FamilyBindInvitePage() {
         },
       },
     ]);
-  }, [navigation, resolveRespondBindId, submitting]);
+  }, [dispatch, isElder, navigation, resolveRespondBindId, submitting]);
 
   const relationLabel =
     (detail && (relationLabelMap[detail.relationType] || detail.relationType)) || '--';
@@ -272,7 +277,9 @@ export default function FamilyBindInvitePage() {
               ? detail.initiatedByElder
                 ? '请选择授予对方的查看权限'
                 : '以下为对方申请的查看权限，可修改后再授权'
-              : '以下为对方授予的查看权限（仅查看）'}
+              : detail.initiatedByElder
+                ? '以下为对方授予的查看权限（仅查看）'
+                : '以下为你申请的查看权限（待对方确认）'}
           </Text>
 
           <View style={styles.qxBox}>

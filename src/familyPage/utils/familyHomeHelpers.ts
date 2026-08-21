@@ -14,12 +14,14 @@ import { formatSignRewardsTokens } from '@/src/features/profile/utils/signInHelp
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { loadFamilyMealNutritionItems } from '@/src/familyPage/FamilyData/utils/familyDataMealHelpers';
 import { loadFamilyTodayAbnormalTypes } from './familyHomeHealthHelpers';
+import type { ImageSourcePropType } from 'react-native';
 import {
   getApprovedFamilyBindList,
   getDisplayFamilyBindList,
   getFamilyTabKey,
   getFamilyTabLabel,
   isFamilyBindPending,
+  resolveChildFamilyAvatarSource,
 } from './familyProfileHelpers';
 
 export type FamilyHomeMemberCard = {
@@ -27,7 +29,9 @@ export type FamilyHomeMemberCard = {
   name: string;
   relationLabel: string;
   patientUserId: string;
+  bindId: string;
   pending: boolean;
+  avatarSource: ImageSourcePropType;
 };
 
 /** 首页问候时段文案 */
@@ -261,7 +265,9 @@ export function buildFamilyHomeMemberCards(
       name: relationLabel,
       relationLabel,
       patientUserId: item.patientUserId != null ? String(item.patientUserId).trim() : '',
+      bindId: item.id != null ? String(item.id).trim() : '',
       pending: isFamilyBindPending(item),
+      avatarSource: resolveChildFamilyAvatarSource(item),
     };
   });
 }

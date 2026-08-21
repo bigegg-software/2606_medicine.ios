@@ -65,6 +65,14 @@ import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelatio
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
 import { loadCalendarFamilyPrescription } from './utils/calendarFamilyHelpers';
+import {
+  loadCalendarInUseDietRule,
+  shouldForceScheduleDietDot,
+  shouldForceScheduleExDot,
+  isExPatientRuleActiveOnDate,
+  buildUpcomingExerciseProgressMapFallback,
+} from './utils/calendarDietDotHelpers';
+import type { DietPatientRuleInfo } from '@/api/dietPatientRule';
 import type { InUseExPatientRule } from '@/api/schedule';
 
 const WEEK_LABELS = ['日', '一', '二', '三', '四', '五', '六'];
@@ -451,28 +459,28 @@ function LiveTimelineCard({
           [item.liveAnchorName, item.livePlatform].filter(Boolean).join('、') || item.desc;
         const statusText = getLiveStatusText(item.liveStatus, item.liveStatusName);
         const row = (
-            <Flex
-              justify="between"
-              align="center"
-              style={itemIndex > 0 ? styles.mergedTimelineCardItem : null}>
-              <View style={styles.mergedMedicationContent}>
-                <Flex align="center">
-                  <Image
-                    style={styles.taskCardIcon}
-                    source={require('@/assets/images/schedule/zb.png')}
-                  />
-                  <Text style={styles.taskCardTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                </Flex>
-                {subtitle ? (
-                  <Text style={[styles.mergedMedicationDesc, styles.activityLocationText]} numberOfLines={2}>
-                    {subtitle}
-                  </Text>
-                ) : null}
-              </View>
-              <TimelineStatusBtn label={statusText} />
-            </Flex>
+          <Flex
+            justify="between"
+            align="center"
+            style={itemIndex > 0 ? styles.mergedTimelineCardItem : null}>
+            <View style={styles.mergedMedicationContent}>
+              <Flex align="center">
+                <Image
+                  style={styles.taskCardIcon}
+                  source={require('@/assets/images/schedule/zb.png')}
+                />
+                <Text style={styles.taskCardTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+              </Flex>
+              {subtitle ? (
+                <Text style={[styles.mergedMedicationDesc, styles.activityLocationText]} numberOfLines={2}>
+                  {subtitle}
+                </Text>
+              ) : null}
+            </View>
+            <TimelineStatusBtn label={statusText} />
+          </Flex>
         );
 
         if (readOnly) {
@@ -511,28 +519,28 @@ function ActivityTimelineCard({
           item.activityIsBm,
         );
         const row = (
-            <Flex
-              justify="between"
-              align="center"
-              style={itemIndex > 0 ? styles.mergedTimelineCardItem : null}>
-              <View style={styles.mergedMedicationContent}>
-                <Flex align="center">
-                  <Image
-                    style={styles.taskCardIcon}
-                    source={require('@/assets/images/schedule/hd.png')}
-                  />
-                  <Text style={styles.taskCardTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                </Flex>
-                {location ? (
-                  <Text style={[styles.mergedMedicationDesc, styles.activityLocationText]} numberOfLines={2}>
-                    {location}
-                  </Text>
-                ) : null}
-              </View>
-              <TimelineStatusBtn label={statusText} />
-            </Flex>
+          <Flex
+            justify="between"
+            align="center"
+            style={itemIndex > 0 ? styles.mergedTimelineCardItem : null}>
+            <View style={styles.mergedMedicationContent}>
+              <Flex align="center">
+                <Image
+                  style={styles.taskCardIcon}
+                  source={require('@/assets/images/schedule/hd.png')}
+                />
+                <Text style={styles.taskCardTitle} numberOfLines={1}>
+                  {item.title}
+                </Text>
+              </Flex>
+              {location ? (
+                <Text style={[styles.mergedMedicationDesc, styles.activityLocationText]} numberOfLines={2}>
+                  {location}
+                </Text>
+              ) : null}
+            </View>
+            <TimelineStatusBtn label={statusText} />
+          </Flex>
         );
 
         if (readOnly) {
@@ -843,12 +851,18 @@ function CalendarMonthGrid({
   selectedDate,
   statusMap,
   todayLocalStatus,
+  dietRule,
+  prescription,
   onSelectDate,
 }: {
   calendarDays: CalendarDay[];
   selectedDate: string;
   statusMap: Map<string, DailyRecordStatusItem>;
   todayLocalStatus?: CalendarDayLocalDotStatus | null;
+  /** 在用营养处方：今天～截止日打用餐点 */
+  dietRule?: DietPatientRuleInfo | null;
+  /** 在用运动处方：今天～截止日打运动点 */
+  prescription?: InUseExPatientRule | null;
   onSelectDate: (dateKey: string) => void;
 }) {
   const todayKey = moment().format('YYYY-MM-DD');
@@ -859,9 +873,19 @@ function CalendarMonthGrid({
         const dateKey = day.date.format('YYYY-MM-DD');
         const isSelected = selectedDate === dateKey;
         const isTodayCell = dateKey === todayKey;
+        const forceDiet = shouldForceScheduleDietDot(dateKey, dietRule, todayKey);
+        const forceEx = shouldForceScheduleExDot(dateKey, prescription, todayKey);
+        const localStatus: CalendarDayLocalDotStatus | undefined =
+          forceDiet || forceEx || isTodayCell
+            ? {
+              ...(isTodayCell ? todayLocalStatus ?? {} : {}),
+              ...(forceDiet ? { isDiet: true } : {}),
+              ...(forceEx ? { isEx: true } : {}),
+            }
+            : undefined;
         const dayDots = getCalendarDayDotColors(
           statusMap.get(dateKey),
-          isTodayCell ? todayLocalStatus : undefined,
+          localStatus,
         );
         const overlapDots = dayDots.length >= 4;
         const isFirstRow = index < 7;
@@ -933,6 +957,7 @@ export default function ScheduleCalendarPage() {
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [todayLocalStatus, setTodayLocalStatus] = useState<CalendarDayLocalDotStatus>({});
+  const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const todayDotsLockedRef = useRef(false);
   const [loadingMonth, setLoadingMonth] = useState(false);
   const [loadingDay, setLoadingDay] = useState(false);
@@ -994,6 +1019,17 @@ export default function ScheduleCalendarPage() {
     return items.map(item => (item.kind === 'drug' ? { ...item, canCheckIn: false } : item));
   }, [isToday, medicationPlanGroups, readOnly, timelineItems]);
 
+  const loadDietRuleForDots = useCallback(async () => {
+    try {
+      const rule = await loadCalendarInUseDietRule(
+        patientUserId ? { patientUserId } : undefined,
+      );
+      setDietRule(rule);
+    } catch {
+      setDietRule(null);
+    }
+  }, [patientUserId]);
+
   const loadMonthlyOverview = useCallback(async (
     month: Moment,
     options?: { silent?: boolean },
@@ -1042,18 +1078,25 @@ export default function ScheduleCalendarPage() {
       }
 
       const todayKey = moment().format('YYYY-MM-DD');
-      const hasCurrentExercise = Boolean(rule?.exPatientRuleId);
+      const hasCurrentExercise = Boolean(rule?.exPatientRuleId || rule?.ruleRatioList?.length);
       const hasDayExercise = Boolean(status?.isEx);
-      const shouldLoadDayRate = hasDayExercise || (dateKey === todayKey && hasCurrentExercise);
+      const inUpcomingPrescription = dateKey >= todayKey
+        && hasCurrentExercise
+        && isExPatientRuleActiveOnDate(rule, dateKey);
+      const shouldLoadDayRate = hasDayExercise || inUpcomingPrescription;
       if (!shouldLoadDayRate) {
         setExerciseProgressMap({});
         return { rule, progressMap: {} as Record<string, number>, dictMaps };
       }
 
-      const progressMap = await loadCalendarDayCompleteRateProgressMap(
+      let progressMap = await loadCalendarDayCompleteRateProgressMap(
         dateKey,
         patientUserId ? { patientUserId } : undefined,
       );
+      // 今天/未来：接口无模块时按周训练安排回退，保证时间轴能渲染处方内容
+      if (inUpcomingPrescription && Object.keys(progressMap).length === 0) {
+        progressMap = buildUpcomingExerciseProgressMapFallback(rule, dateKey);
+      }
       setExerciseProgressMap(progressMap);
       return { rule, progressMap, dictMaps };
     } catch {
@@ -1162,6 +1205,10 @@ export default function ScheduleCalendarPage() {
   }, [patientUserId]);
 
   useEffect(() => {
+    void loadDietRuleForDots();
+  }, [loadDietRuleForDots]);
+
+  useEffect(() => {
     void loadMonthlyOverview(currentMonth);
   }, [currentMonth, loadMonthlyOverview]);
 
@@ -1195,6 +1242,7 @@ export default function ScheduleCalendarPage() {
       const month = currentMonthRef.current;
       const date = selectedDateRef.current;
       void loadMonthlyOverview(month, { silent: true });
+      void loadDietRuleForDots();
       void (async () => {
         const status = statusMapRef.current.get(date);
         const loaded = await loadExercisePrescription(date, status);
@@ -1206,7 +1254,14 @@ export default function ScheduleCalendarPage() {
         const groups = await loadTodayMedication(date);
         lockTodayDotsIfNeeded(date, items, groups);
       })();
-    }, [loadMonthlyOverview, loadDayTimeline, loadTodayMedication, loadExercisePrescription, lockTodayDotsIfNeeded]),
+    }, [
+      loadMonthlyOverview,
+      loadDietRuleForDots,
+      loadDayTimeline,
+      loadTodayMedication,
+      loadExercisePrescription,
+      lockTodayDotsIfNeeded,
+    ]),
   );
 
   // 月度 status 返回后，仅历史日且需要运动/用药时再补一次（今日跳过）
@@ -1445,6 +1500,8 @@ export default function ScheduleCalendarPage() {
               selectedDate={selectedDate}
               statusMap={statusMap}
               todayLocalStatus={todayLocalStatus}
+              dietRule={dietRule}
+              prescription={prescription}
               onSelectDate={handleSelectDate}
             />
           )}

@@ -140,6 +140,7 @@ import FamilyDetail from '@/src/features/profile/myFamily/detail';
 import FamilyBindInvitePage from '@/src/familyPage/profilePage/FamilyBindInvitePage';
 import FamilyAddPage from '@/src/familyPage/FamilyAddPage';
 import FamilyMemberProfilePage from '@/src/familyPage/profilePage/FamilyMemberProfilePage';
+import FamilyRelationProofCapturePage from '@/src/familyPage/FamilyRelationProofCapturePage';
 import FamilyAssessmentHistoryPage from '@/src/familyPage/FamilyData/FamilyAssessmentHistoryPage';
 import FamilyAssessmentResultPage from '@/src/familyPage/FamilyData/FamilyAssessmentResultPage';
 import FamilyAssessmentDetailPage from '@/src/familyPage/FamilyData/FamilyAssessmentDetailPage';
@@ -368,6 +369,7 @@ export type RootStackParamList = {
   FamilyBindInvitePage: { messageId?: string; id?: string };
   FamilyAddPage: undefined;
   FamilyMemberProfilePage: undefined;
+  FamilyRelationProofCapturePage: { remainCount?: number } | undefined;
 };
 
 const Stack: any = createNativeStackNavigator<RootStackParamList>();
@@ -539,6 +541,11 @@ export default function RootStack() {
         name="FamilyMemberProfilePage"
         component={FamilyMemberProfilePage}
         options={{ title: '个人信息' }}
+      />
+      <Stack.Screen
+        name="FamilyRelationProofCapturePage"
+        component={FamilyRelationProofCapturePage}
+        options={{ title: '拍摄关系证明', headerShown: false, ...darkMediaScreenOptions }}
       />
       <Stack.Screen name="AboutUsPage" component={AboutUs} options={{ title: "关于我们", showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="PolarDeviceTestPage" component={PolarDeviceTestPage} options={{ title: 'Polar H10 测试' }} />

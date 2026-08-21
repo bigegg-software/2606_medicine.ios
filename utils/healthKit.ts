@@ -1,5 +1,5 @@
 import moment from 'moment';
-import { Alert, AppState, DeviceEventEmitter, Platform } from 'react-native';
+import { Alert, AppState, DeviceEventEmitter, Linking, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import AppleHealthKit from 'react-native-health';
 import { getUserBaseInfo } from '@/api/patient';
@@ -220,7 +220,25 @@ export default async function updateHealthKit(
       if (completedRequests === totalRequests) {
         if (allResults.length === 0 && deviceMeasureItems.length === 0) {
           dispatch({ type: SET_UPLOADING, payload: false });
-          Alert.alert('提示', '暂无可同步的健康数据');
+          Alert.alert(
+            '无法上传数据',
+            '没有可上传的数据，请检查 "健康" > "个人中心" > "App" > "莱益晟" 中打开读取数据的权限',
+            [
+              {
+                text: '知道了',
+                onPress: () => { },
+                style: 'cancel',
+              },
+              {
+                text: '去设置',
+                onPress: () => {
+                  Linking.openURL('x-apple-health://').catch(() => {
+                    Linking.openSettings();
+                  });
+                },
+              },
+            ],
+          );
           resolve({ code: 0, msg: 'no data' });
           return;
         }

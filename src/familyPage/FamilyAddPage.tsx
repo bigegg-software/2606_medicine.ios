@@ -15,7 +15,7 @@ import PageLayout from '@/src/components/PageLayout';
 import { Flex, Picker } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/profile/myFamilyAdd';
 import { loadRelationTypeOptions } from '@/src/features/profile/emergencyHelpers';
 import type { DictDataItem } from '@/api/dict';
@@ -23,7 +23,7 @@ import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/compone
 import { addFamilyBind } from '@/api/familyBind';
 import { isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
-import type { AppDispatch } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
 import { fetchFamilyBindMyList } from '@/store/actions/family';
 import {
   FAMILY_PERMISSION_OPTIONS,
@@ -33,7 +33,15 @@ import {
   type FamilyPermissionKey,
 } from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
 import { toFamilyPermissionApiCodes } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
-import { validateFamilyBindAddInput } from './utils/familyBindAddHelpers';
+import {
+  FAMILY_BIND_ALREADY_BOUND_ALERT,
+  FAMILY_BIND_DUPLICATE_PENDING_ALERT,
+  hasApprovedFamilyBindByPhone,
+  hasPendingFamilyBindByPhone,
+  isFamilyBindAlreadyBoundError,
+  isFamilyBindDuplicatePendingError,
+  validateFamilyBindAddInput,
+} from './utils/familyBindAddHelpers';
 
 const ICON_SELECTED = '#6D925E';
 const ICON_UNSELECTED = '#333333';
@@ -43,12 +51,29 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 export default function FamilyAddPage() {
   const navigation = useNavigation<Nav>();
   const dispatch = useDispatch<AppDispatch>();
+  const familyList = useSelector((state: RootState) => state.family.list);
   const [name, setName] = useState('');
   const [relation, setRelation] = useState('');
   const [phone, setPhone] = useState('');
   const [relationOptions, setRelationOptions] = useState<DictDataItem[]>([]);
   const [selectedPermissions, setSelectedPermissions] = useState<FamilyPermissionKey[]>([]);
   const [submitting, setSubmitting] = useState(false);
+
+  const showDuplicatePendingAlert = () => {
+    Alert.alert(
+      FAMILY_BIND_DUPLICATE_PENDING_ALERT.title,
+      FAMILY_BIND_DUPLICATE_PENDING_ALERT.message,
+      [{ text: FAMILY_BIND_DUPLICATE_PENDING_ALERT.buttonText }],
+    );
+  };
+
+  const showAlreadyBoundAlert = () => {
+    Alert.alert(
+      FAMILY_BIND_ALREADY_BOUND_ALERT.title,
+      FAMILY_BIND_ALREADY_BOUND_ALERT.message,
+      [{ text: FAMILY_BIND_ALREADY_BOUND_ALERT.buttonText }],
+    );
+  };
 
   useEffect(() => {
     void (async () => {
@@ -92,6 +117,15 @@ export default function FamilyAddPage() {
     }
     if (submitting) return;
 
+    if (hasApprovedFamilyBindByPhone(familyList, phone)) {
+      showAlreadyBoundAlert();
+      return;
+    }
+    if (hasPendingFamilyBindByPhone(familyList, phone)) {
+      showDuplicatePendingAlert();
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await addFamilyBind({
@@ -108,6 +142,14 @@ export default function FamilyAddPage() {
             onPress: () => navigation.goBack(),
           },
         ]);
+        return;
+      }
+      if (isFamilyBindAlreadyBoundError(res as ApiResult)) {
+        showAlreadyBoundAlert();
+        return;
+      }
+      if (isFamilyBindDuplicatePendingError(res as ApiResult)) {
+        showDuplicatePendingAlert();
         return;
       }
       Alert.alert(

@@ -220,6 +220,11 @@ export default function FamilyHomePage() {
                 || emptyFamilyHomeHealthSnapshot();
               return (
                 <Pressable key={member.key} onPress={() => {
+                  if (member.pending) {
+                    if (!member.bindId) return;
+                    navigation.navigate('FamilyBindInvitePage', { id: member.bindId });
+                    return;
+                  }
                   navigation.navigate('FamilyTabs', { screen: 'FamilyData' });
                 }}>
                   <View style={styles.familyHealthItem}>
@@ -228,10 +233,10 @@ export default function FamilyHomePage() {
                         direction="column"
                         align="center"
                         justify="center"
-                        style={{ paddingVertical: 30 }}
+                        style={{ paddingVertical: 17 }}
                       >
                         <Image
-                          source={require('@/assets/images/default/default1.png')}
+                          source={member.avatarSource}
                           style={styles.familyHealthAddIcon}
                         />
                         <Text style={[styles.familyHealthName, { marginLeft: 0, marginTop: 8 }]}>
@@ -243,7 +248,7 @@ export default function FamilyHomePage() {
                       <>
                         <Flex align="center">
                           <Image
-                            source={require('@/assets/images/default/default1.png')}
+                            source={member.avatarSource}
                             style={styles.familyHealthIcon}
                           />
                           <Text style={styles.familyHealthName}>{member.name}</Text>
