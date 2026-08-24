@@ -114,13 +114,15 @@ export async function registerIosPushToken() {
 type PushPayloadData = {
   type?: unknown;
   bizId?: unknown;
+  userId?: unknown;
   aps?: {
     type?: unknown;
     bizId?: unknown;
+    userId?: unknown;
   };
 };
 
-function readPayloadValue(payload: unknown, key: 'type' | 'bizId') {
+function readPayloadValue(payload: unknown, key: 'type' | 'bizId' | 'userId') {
   if (!payload || typeof payload !== 'object') return undefined;
   const root = payload as PushPayloadData;
   const rootValue = root[key];
@@ -145,12 +147,14 @@ export function getNotificationPayload(notification: Notifications.Notification)
     ?? readPayloadValue(triggerPayload, 'type');
   const bizId = readPayloadValue(contentData, 'bizId')
     ?? readPayloadValue(triggerPayload, 'bizId');
+  const userId = readPayloadValue(contentData, 'userId')
+    ?? readPayloadValue(triggerPayload, 'userId');
 
-  return { type, bizId };
+  return { type, bizId, userId };
 }
 
 export function handlePushNotificationNavigation(notification: Notifications.Notification) {
-  const { type, bizId } = getNotificationPayload(notification);
+  const { type, bizId, userId } = getNotificationPayload(notification);
   if (!type || IGNORED_TAP_TYPES.has(type)) return;
 
   if (MEAL_TIP_TYPES.has(type)) {
@@ -169,11 +173,21 @@ export function handlePushNotificationNavigation(notification: Notifications.Not
   }
 
   if (QUESTIONNAIRE_WARNING_TYPES.has(type)) {
-    if (!bizId) {
+    const parts = bizId
+      ? bizId.split(':').map(part => part.trim()).filter(Boolean)
+      : [];
+    const questionId = parts.length > 1 ? (parts[parts.length - 1] ?? '') : (bizId ?? '');
+    const patientUserId =
+      userId
+      || (parts.length >= 3 ? parts[1] : '');
+    if (!questionId) {
       navigateWhenReady('QuestionnaireList');
       return;
     }
-    navigateWhenReady('QuestionnaireDetail', { id: bizId });
+    navigateWhenReady('QuestionnaireDetail', {
+      id: questionId,
+      ...(patientUserId ? { patientUserId, readOnly: true } : {}),
+    });
     return;
   }
 

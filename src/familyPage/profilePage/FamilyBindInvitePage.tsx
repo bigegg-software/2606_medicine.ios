@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
-import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useDispatch, useSelector } from 'react-redux';
 import styles from '@/css/family/familyBindInvite';
@@ -46,8 +46,8 @@ export default function FamilyBindInvitePage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const dispatch = useDispatch<AppDispatch>();
-  const messageId = route.params.messageId;
-  const bindId = route.params.id;
+  const bindId = route.params?.id;
+  const messageId = route.params?.messageId;
   const identityPerspective = useSelector(
     (state: RootState) => state.user.systemUser?.identityPerspective,
   );
@@ -103,11 +103,9 @@ export default function FamilyBindInvitePage() {
     }
   }, [bindId, isElder, messageId, navigation]);
 
-  useFocusEffect(
-    useCallback(() => {
-      void loadDetail();
-    }, [loadDetail]),
-  );
+  useEffect(() => {
+    void loadDetail();
+  }, [loadDetail]);
 
   const resolveRespondBindId = useCallback(() => {
     return detail?.id || bindId || '';
@@ -271,7 +269,7 @@ export default function FamilyBindInvitePage() {
         </View>
 
         <View style={[styles.rowBox, { marginTop: 12 }]}>
-          <Text style={styles.rowTitle}>授权权限</Text>
+          <Text style={[styles.rowTitle, { marginTop: 14 }]}>授权权限</Text>
           <Text style={styles.rowTitleDesc}>
             {isElder
               ? detail.initiatedByElder

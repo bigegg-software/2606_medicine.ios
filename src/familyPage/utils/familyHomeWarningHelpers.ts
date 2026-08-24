@@ -64,7 +64,29 @@ function toTodoItem(
   };
 }
 
-/** 按规则挑选首页展示的预警：单人取最新 2 条；多人取前两个亲属各 1 条 */
+const FAMILY_HOME_WARNING_DISPLAY_LIMIT = 2;
+const FAMILY_HOME_WARNING_MEMBER_LIMIT_DEFAULT = 2;
+const FAMILY_HOME_WARNING_MEMBER_LIMIT_FALLBACK = 3;
+
+function findLatestWarningForMember(
+  rows: PatientMessageItem[],
+  member: FamilyHomeWarningMember,
+  usedIds: Set<string>,
+): PatientMessageItem | undefined {
+  return rows.find(item => {
+    const id = String(item.messageId);
+    if (usedIds.has(id)) return false;
+    if (item.userId == null || item.userId === '') return false;
+    return String(item.userId) === member.patientUserId;
+  });
+}
+
+/**
+ * 按规则挑选首页展示的预警：
+ * - 无家人：空
+ * - 单人：最新 2 条
+ * - 多人：前两个亲属各 1 条；不足 2 条时再扩到前三个亲属各取 1 条补齐
+ */
 export function pickFamilyHomeWarningTodos(
   rows: PatientMessageItem[],
   members: FamilyHomeWarningMember[],
@@ -79,23 +101,29 @@ export function pickFamilyHomeWarningTodos(
         if (row.userId == null || row.userId === '') return true;
         return String(row.userId) === member.patientUserId;
       })
-      .slice(0, 2)
+      .slice(0, FAMILY_HOME_WARNING_DISPLAY_LIMIT)
       .map(row => toTodoItem(row, member, identityPerspective));
   }
 
   const picked: FamilyHomeWarningTodoItem[] = [];
   const usedIds = new Set<string>();
+  const usedMemberIds = new Set<string>();
 
-  for (const member of members.slice(0, 2)) {
-    const row = rows.find(item => {
-      const id = String(item.messageId);
-      if (usedIds.has(id)) return false;
-      if (item.userId == null || item.userId === '') return false;
-      return String(item.userId) === member.patientUserId;
-    });
-    if (!row) continue;
-    usedIds.add(String(row.messageId));
-    picked.push(toTodoItem(row, member, identityPerspective));
+  const pickFromMembers = (limit: number) => {
+    for (const member of members.slice(0, limit)) {
+      if (picked.length >= FAMILY_HOME_WARNING_DISPLAY_LIMIT) break;
+      if (usedMemberIds.has(member.patientUserId)) continue;
+      const row = findLatestWarningForMember(rows, member, usedIds);
+      if (!row) continue;
+      usedIds.add(String(row.messageId));
+      usedMemberIds.add(member.patientUserId);
+      picked.push(toTodoItem(row, member, identityPerspective));
+    }
+  };
+
+  pickFromMembers(FAMILY_HOME_WARNING_MEMBER_LIMIT_DEFAULT);
+  if (picked.length < FAMILY_HOME_WARNING_DISPLAY_LIMIT) {
+    pickFromMembers(FAMILY_HOME_WARNING_MEMBER_LIMIT_FALLBACK);
   }
 
   return picked;

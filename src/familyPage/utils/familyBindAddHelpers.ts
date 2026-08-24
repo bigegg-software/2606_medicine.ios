@@ -1,5 +1,6 @@
 import type { FamilyBindItem } from '@/api/familyBind';
 import type { FamilyPermissionKey } from '@/src/features/profile/myFamily/utils/myFamilyAddHelpers';
+import { isChildFamilyBindVisible } from './familyBindNoticeHelpers';
 
 export function validateFamilyBindAddInput(input: {
   name: string;
@@ -48,6 +49,7 @@ export function hasPendingFamilyBindByPhone(
   const normalized = normalizePhone(phone);
   if (!normalized) return false;
   return (list ?? []).some(item => {
+    if (!isChildFamilyBindVisible(item)) return false;
     if (Number(item.bindStatus) !== 0) return false;
     return familyBindPhoneMatches(item, normalized);
   });
@@ -61,6 +63,7 @@ export function hasApprovedFamilyBindByPhone(
   const normalized = normalizePhone(phone);
   if (!normalized) return false;
   return (list ?? []).some(item => {
+    if (!isChildFamilyBindVisible(item)) return false;
     if (Number(item.bindStatus) !== 1) return false;
     return familyBindPhoneMatches(item, normalized);
   });

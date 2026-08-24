@@ -55,6 +55,7 @@ const styles = StyleSheet.create({
         color: "#6D925E",
     },
     topBoxSubtitle: {
+        width: 220,
         marginTop: 8,
         fontWeight: 500,
         fontSize: 14,

@@ -122,6 +122,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
   },
+  calendarTitleDisabled: {
+    color: '#CCCCCC',
+  },
   calendarSubtitle: {
     fontWeight: 500,
     fontSize: 18,
@@ -135,6 +138,9 @@ const styles = StyleSheet.create({
     marginTop: 4,
     color: AppTheme.primaryColor,
     textAlign: 'center',
+  },
+  calendarSubtitleDisabled: {
+    color: '#CCCCCC',
   },
   calendarDotWrap: {
     marginTop: 2,

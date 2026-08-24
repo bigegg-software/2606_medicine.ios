@@ -34,6 +34,7 @@ import {
 import {
   buildFamilyAlertScopeParams,
   buildWarningListDisplayItem,
+  collectFamilyAlertPatientUserIds,
 } from './utils/familyAlertHelpers';
 import {
   MESSAGE_NOT_FOUND_TOAST,
@@ -52,9 +53,19 @@ export default function FamilyAlertPage() {
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
   );
+  const familyList = useSelector((state: RootState) => state.family.list);
+  const familyUserIds = useMemo(
+    () => collectFamilyAlertPatientUserIds(familyList),
+    [familyList],
+  );
   const messageScope = useMemo(
-    () => buildFamilyAlertScopeParams({ identityPerspective, userId }),
-    [identityPerspective, userId],
+    () =>
+      buildFamilyAlertScopeParams({
+        identityPerspective,
+        userId,
+        familyUserIds,
+      }),
+    [familyUserIds, identityPerspective, userId],
   );
 
   const [list, setList] = useState<MessageListDisplayItem[]>([]);
@@ -197,6 +208,8 @@ export default function FamilyAlertPage() {
           bizId: item.raw.bizId,
           messageId: item.raw.messageId,
           createTime: item.raw.createTime,
+          userId: item.raw.userId,
+          params: item.raw.params,
         },
         { isElder: false },
       );

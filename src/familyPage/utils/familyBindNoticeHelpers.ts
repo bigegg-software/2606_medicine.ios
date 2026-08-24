@@ -1,5 +1,5 @@
 import type { FamilyBindItem } from '@/api/familyBind';
-import { isFamilyAccountStatusAbnormal } from '@/src/features/profile/utils/profileFamilyUnbindHelpers';
+import { isFamilyAccountStatusAbnormal, isFamilyAccountStatusDisabled } from '@/src/features/profile/utils/profileFamilyUnbindHelpers';
 import { getChildFamilyRawDisplayName } from './familyProfileHelpers';
 import { removeFamilyBindById } from './familyProfileRemoveHelpers';
 
@@ -37,6 +37,7 @@ export function listChildFamilyBindNotices(
   const notices: ChildFamilyBindNoticeItem[] = [];
   list.forEach(item => {
     if (isDeletedFlag(item.delFlagByJs)) return;
+    if (isFamilyAccountStatusDisabled(item.patientAccountStatus)) return;
     if (isFamilyUnbindPendingByOld(item)) {
       notices.push({ kind: 'unbindByOld', item });
       return;
@@ -48,9 +49,10 @@ export function listChildFamilyBindNotices(
   return notices;
 }
 
-/** 家人端列表可见（仅家属已确认删除后隐藏；待确认解绑仍展示，避免未点确认就消失） */
+/** 家人端列表可见：已确认删除 / 患者账号禁用 均不展示 */
 export function isChildFamilyBindVisible(item: FamilyBindItem): boolean {
   if (isDeletedFlag(item.delFlagByJs)) return false;
+  if (isFamilyAccountStatusDisabled(item.patientAccountStatus)) return false;
   return true;
 }
 

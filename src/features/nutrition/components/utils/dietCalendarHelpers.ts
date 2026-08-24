@@ -27,6 +27,55 @@ export function clampDietCalendarDate(date: string): string {
   return value < DIET_CALENDAR_MIN_DATE ? DIET_CALENDAR_MIN_DATE : value;
 }
 
+/**
+ * 日期是否在处方起止范围内（含起止日）。
+ * 缺 start / end 时该侧不限制；两侧都无效则全部可选。
+ */
+export function isCalendarDateInPrescriptionRange(
+  date: string,
+  startDate?: string | null,
+  endDate?: string | null,
+): boolean {
+  const day = moment(date, 'YYYY-MM-DD', true);
+  if (!day.isValid()) return false;
+
+  const start = startDate?.trim();
+  if (start) {
+    const startDay = moment(start, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+    if (startDay.isValid() && day.isBefore(startDay, 'day')) return false;
+  }
+
+  const end = endDate?.trim();
+  if (end) {
+    const endDay = moment(end, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+    if (endDay.isValid() && day.isAfter(endDay, 'day')) return false;
+  }
+
+  return true;
+}
+
+/** 将日期钳到处方范围内：优先今天，否则开始日，再否则结束日 */
+export function clampDateToPrescriptionRange(
+  date: string,
+  startDate?: string | null,
+  endDate?: string | null,
+): string {
+  if (isCalendarDateInPrescriptionRange(date, startDate, endDate)) return date;
+  const today = moment().format('YYYY-MM-DD');
+  if (isCalendarDateInPrescriptionRange(today, startDate, endDate)) return today;
+  const start = startDate?.trim();
+  if (start) {
+    const startDay = moment(start, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+    if (startDay.isValid()) return startDay.format('YYYY-MM-DD');
+  }
+  const end = endDate?.trim();
+  if (end) {
+    const endDay = moment(end, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+    if (endDay.isValid()) return endDay.format('YYYY-MM-DD');
+  }
+  return date;
+}
+
 export function buildDietWeekDays(anchor: Moment | string = moment()): DietWeekDayItem[] {
   const start = moment(anchor).startOf('isoWeek');
   return Array.from({ length: 7 }, (_, index) => {

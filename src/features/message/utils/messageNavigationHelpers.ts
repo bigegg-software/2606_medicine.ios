@@ -5,7 +5,6 @@ import { getInUseDietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { getLiveStreamInfo } from '@/api/liveStream';
 import type { PatientMessageItem } from '@/api/message';
-import { getUserQuestionDetail } from '@/api/questionTemplate';
 import type { RootStackParamList } from '@/route/router';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -91,6 +90,24 @@ function normalizeBizId(bizId?: string | null) {
   return value || '';
 }
 
+/** 问卷预警：优先 params.questionId，否则取 bizId 末段（如 daily_living:userId:questionId） */
+function resolveQuestionnaireDetailId(item: {
+  bizId?: string | null;
+  params?: Record<string, unknown> | null;
+}): string {
+  const fromParams = item.params?.questionId;
+  if (fromParams != null && String(fromParams).trim()) {
+    return String(fromParams).trim();
+  }
+  const bizId = normalizeBizId(item.bizId);
+  if (!bizId) return '';
+  if (bizId.includes(':')) {
+    const parts = bizId.split(':').map(part => part.trim()).filter(Boolean);
+    return parts[parts.length - 1] ?? '';
+  }
+  return bizId;
+}
+
 /** 取消息发送日（createTime 北京时间墙钟日期），用于打开当日体征记录 */
 function resolveMessageSendDate(createTime?: string | null) {
   const raw = String(createTime ?? '').trim();
@@ -107,6 +124,8 @@ export async function resolveMessageNavigation(
     bizId?: string | null;
     messageId?: string | number | null;
     createTime?: string | null;
+    userId?: string | number | null;
+    params?: Record<string, unknown> | null;
   },
   options?: { isElder?: boolean },
 ): Promise<
@@ -165,6 +184,10 @@ export async function resolveMessageNavigation(
   }
 
   const bizId = normalizeBizId(item.bizId);
+  const patientUserId =
+    item.userId != null && String(item.userId).trim()
+      ? String(item.userId).trim()
+      : '';
 
   if (MEDICATION_TYPES.has(type)) {
     return { action: 'navigate', name: 'Medication', params: { tab: 'medication' } };
@@ -189,13 +212,16 @@ export async function resolveMessageNavigation(
   }
 
   if (QUESTIONNAIRE_TYPES.has(type)) {
-    if (!bizId) return { action: 'missing' };
-    const exists = await checkResourceExists(() => getUserQuestionDetail(bizId));
-    if (exists === 'missing') return { action: 'missing' };
+    const questionId = resolveQuestionnaireDetailId(item);
+    if (!questionId) return { action: 'missing' };
+    // userId 作为 patientUserId，直接打开对应问卷详情
     return {
       action: 'navigate',
       name: 'QuestionnaireDetail',
-      params: { id: bizId },
+      params: {
+        id: questionId,
+        ...(patientUserId ? { patientUserId, readOnly: true } : {}),
+      },
     };
   }
 
@@ -229,12 +255,29 @@ export async function resolveMessageNavigation(
       params: {
         type: vitalType,
         date: resolveMessageSendDate(item.createTime),
+        // userId 作为 patientUserId，打开对应家人的健康数据
+        ...(patientUserId ? { patientUserId, readOnly: true } : {}),
       },
     };
   }
 
   if (type === 'identity_audit_approved') {
     return { action: 'none' };
+  }
+
+  if (type === 'family_account_abnormal') {
+    if (options?.isElder === false) {
+      return {
+        action: 'navigate',
+        name: 'FamilyTabs',
+        params: { screen: 'FamilyProfile' },
+      };
+    }
+    return {
+      action: 'navigate',
+      name: 'MainTabs',
+      params: { screen: 'Profile' },
+    };
   }
 
   if (type === 'identity_audit_rejected') {
@@ -258,7 +301,10 @@ export async function resolveMessageNavigation(
 
 export async function navigateFromMessage(
   navigation: Nav,
-  item: Pick<PatientMessageItem, 'type' | 'bizId' | 'messageId' | 'createTime'>,
+  item: Pick<
+    PatientMessageItem,
+    'type' | 'bizId' | 'messageId' | 'createTime' | 'userId' | 'params'
+  >,
   options?: { isElder?: boolean },
 ): Promise<{ action: 'navigated' | 'missing' | 'none'; toast?: string }> {
   const result = await resolveMessageNavigation(
@@ -267,6 +313,8 @@ export async function navigateFromMessage(
       bizId: item.bizId,
       messageId: item.messageId,
       createTime: item.createTime,
+      userId: item.userId,
+      params: item.params,
     },
     options,
   );

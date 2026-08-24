@@ -7,7 +7,11 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import moment from 'moment';
 import styles from '@/css/nutrition';
-import { buildDietWeekDays } from './utils/dietCalendarHelpers';
+import {
+    buildDietWeekDays,
+    clampDateToPrescriptionRange,
+    isCalendarDateInPrescriptionRange,
+} from './utils/dietCalendarHelpers';
 import { getDayMealEatDots, loadMealEatMapByYear, type MealEatMap } from './utils/dietMealEatHelpers';
 import DietProgressRing from './DietProgressRing';
 import DietDatePickerModal from './DietDatePickerModal';
@@ -298,6 +302,8 @@ export default function DietPage({
     const loadedEatYearsRef = useRef<Set<number>>(new Set());
     const loadingEatYearsRef = useRef<Set<number>>(new Set());
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
+    const prescriptionStartDate = dietRule?.startDate?.trim() || dayRule?.startDate?.trim() || '';
+    const prescriptionEndDate = dietRule?.endDate?.trim() || dayRule?.endDate?.trim() || '';
     const todayKey = moment().format('YYYY-MM-DD');
     const isPastSelected = selectedDate < todayKey;
     const isTodaySelected = selectedDate === todayKey;
@@ -307,12 +313,18 @@ export default function DietPage({
         [dayRule?.mealList, selectedDate],
     );
     const isBeforePrescriptionStart = useMemo(() => {
-        const start = dietRule?.startDate?.trim() || dayRule?.startDate?.trim();
-        if (!start) return false;
-        const startDay = moment(start, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
+        if (!prescriptionStartDate) return false;
+        const startDay = moment(prescriptionStartDate, ['YYYY-MM-DD', 'YYYY/MM/DD', moment.ISO_8601], true);
         if (!startDay.isValid()) return false;
         return moment(selectedDate, 'YYYY-MM-DD', true).isBefore(startDay, 'day');
-    }, [dayRule?.startDate, dietRule?.startDate, selectedDate]);
+    }, [prescriptionStartDate, selectedDate]);
+
+    useEffect(() => {
+        if (!prescriptionStartDate && !prescriptionEndDate) return;
+        setSelectedDate(prev =>
+            clampDateToPrescriptionRange(prev, prescriptionStartDate, prescriptionEndDate),
+        );
+    }, [prescriptionEndDate, prescriptionStartDate]);
 
     const signButtonLabel = useMemo(() => {
         if (isPastSelected) return getDietHistorySignButtonLabel(historySigned);
@@ -664,6 +676,8 @@ export default function DietPage({
                 onSelect={setSelectedDate}
                 patientUserId={patientUserId}
                 dietPatientRuleId={dietPatientRuleId}
+                selectableStartDate={prescriptionStartDate || null}
+                selectableEndDate={prescriptionEndDate || null}
             />
             <ScrollView
                 style={styles.scroll}
@@ -681,18 +695,44 @@ export default function DietPage({
                 <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;
-                        const mealDots = getDayMealEatDots(eatMap[item.key]);
+                        const selectable = isCalendarDateInPrescriptionRange(
+                            item.key,
+                            prescriptionStartDate,
+                            prescriptionEndDate,
+                        );
+                        const mealDots = selectable ? getDayMealEatDots(eatMap[item.key]) : [];
                         return (
                             <TouchableOpacity
                                 key={item.key}
-                                activeOpacity={0.7}
-                                style={[styles.calendarCol, isActive && styles.calendarColActive]}
-                                onPress={() => setSelectedDate(item.key)}
+                                activeOpacity={selectable ? 0.7 : 1}
+                                disabled={!selectable}
+                                style={[
+                                    styles.calendarCol,
+                                    isActive && selectable && styles.calendarColActive,
+                                ]}
+                                onPress={() => {
+                                    if (!selectable) return;
+                                    setSelectedDate(item.key);
+                                }}
                             >
-                                <Text style={isActive ? styles.calendarTitleActive : styles.calendarTitle}>
+                                <Text
+                                    style={[
+                                        isActive && selectable
+                                            ? styles.calendarTitleActive
+                                            : styles.calendarTitle,
+                                        !selectable && styles.calendarTitleDisabled,
+                                    ]}
+                                >
                                     {item.label}
                                 </Text>
-                                <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
+                                <Text
+                                    style={[
+                                        isActive && selectable
+                                            ? styles.calendarSubtitleActive
+                                            : styles.calendarSubtitle,
+                                        !selectable && styles.calendarSubtitleDisabled,
+                                    ]}
+                                >
                                     {item.day}
                                 </Text>
                                 <View style={styles.calendarMealDotWrap}>

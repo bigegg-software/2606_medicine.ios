@@ -172,8 +172,14 @@ export async function loadLiveFamilyBindInvite(options: {
   }
   if (!bindId) return null;
 
+  const explicitBindId = Boolean(String(options.bindId ?? '').trim());
+  /** 首页/档案等带 bindId 直达时，待确认绑定仍需展示（与列表可见规则略不同） */
+  const allowPendingDirectOpen = explicitBindId && !messageId;
+
   const loadByRole = async (isElder: boolean) => {
     const live = await loadFamilyBindInviteById(bindId, { isElder });
+    if (!live) return null;
+    if (allowPendingDirectOpen && Number(live.bindStatus) === 0) return live;
     return isFamilyBindInviteLinkValid(live) ? live : null;
   };
 

@@ -22,6 +22,7 @@ import {
   buildDietMonthCells,
   buildDietMonthKeys,
   getDietMonthWeekCount,
+  isCalendarDateInPrescriptionRange,
   shiftDietMonthKeys,
   type DietCalendarDayCell,
 } from './utils/dietCalendarHelpers';
@@ -47,6 +48,10 @@ type Props = {
   patientUserId?: string;
   /** 营养处方 id（餐次打点数据隔离） */
   dietPatientRuleId?: string | number | null;
+  /** 可选日期起（处方开始） */
+  selectableStartDate?: string | null;
+  /** 可选日期止（处方结束） */
+  selectableEndDate?: string | null;
   /** 传入则按上传状态展示主题色点；默认餐食打卡三色点 */
   uploadMarker?: DatePickerUploadMarker;
   /**
@@ -114,6 +119,7 @@ type MonthSectionProps = {
   selectedDate: string;
   todayKey: string;
   dayDotColors: (dateKey: string) => string[];
+  isDateSelectable: (dateKey: string) => boolean;
   onSelect: (date: string) => void;
 };
 
@@ -122,6 +128,7 @@ const MonthSection = memo(function MonthSection({
   selectedDate,
   todayKey,
   dayDotColors,
+  isDateSelectable,
   onSelect,
 }: MonthSectionProps) {
   const cells = getMonthCells(monthKey);
@@ -140,25 +147,31 @@ const MonthSection = memo(function MonthSection({
               }
               const selected = cell.key === selectedDate;
               const isToday = cell.key === todayKey;
-              const dots = dayDotColors(cell.key);
+              const selectable = isDateSelectable(cell.key);
+              const dots = selectable ? dayDotColors(cell.key) : [];
               return (
                 <Pressable
                   key={cell.key}
                   style={styles.dayCell}
-                  onPress={() => onSelect(cell.key)}
+                  disabled={!selectable}
+                  onPress={() => {
+                    if (!selectable) return;
+                    onSelect(cell.key);
+                  }}
                 >
                   <View
                     style={[
                       styles.dayInner,
-                      selected && styles.dayInnerSelected,
-                      !selected && isToday && styles.dayInnerToday,
+                      selected && selectable && styles.dayInnerSelected,
+                      !selected && isToday && selectable && styles.dayInnerToday,
                     ]}
                   >
                     <Text
                       style={[
                         styles.dayText,
-                        selected && styles.dayTextSelected,
-                        !selected && isToday && styles.dayTextToday,
+                        !selectable && styles.dayTextMuted,
+                        selected && selectable && styles.dayTextSelected,
+                        !selected && isToday && selectable && styles.dayTextToday,
                       ]}
                     >
                       {cell.day}
@@ -189,6 +202,8 @@ export default function DietDatePickerModal({
   onSelect,
   patientUserId,
   dietPatientRuleId,
+  selectableStartDate,
+  selectableEndDate,
   uploadMarker,
   dayRecordMarker,
 }: Props) {
@@ -446,9 +461,18 @@ export default function DietDatePickerModal({
   }).current;
 
   const handleSelect = useCallback((date: string) => {
+    if (!isCalendarDateInPrescriptionRange(date, selectableStartDate, selectableEndDate)) {
+      return;
+    }
     onSelect(date);
     onClose();
-  }, [onClose, onSelect]);
+  }, [onClose, onSelect, selectableEndDate, selectableStartDate]);
+
+  const isDateSelectable = useCallback(
+    (dateKey: string) =>
+      isCalendarDateInPrescriptionRange(dateKey, selectableStartDate, selectableEndDate),
+    [selectableEndDate, selectableStartDate],
+  );
 
   const getItemLayout = useCallback((data: ArrayLike<string> | null | undefined, index: number) => {
     const keys = data ? Array.from(data as ArrayLike<string>) : monthKeysRef.current;
@@ -467,9 +491,10 @@ export default function DietDatePickerModal({
       selectedDate={selectedDate}
       todayKey={todayKey}
       dayDotColors={dayDotColors}
+      isDateSelectable={isDateSelectable}
       onSelect={handleSelect}
     />
-  ), [dayDotColors, handleSelect, selectedDate, todayKey]);
+  ), [dayDotColors, handleSelect, isDateSelectable, selectedDate, todayKey]);
 
   const keyExtractor = useCallback((item: string) => item, []);
 

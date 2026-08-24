@@ -12,6 +12,11 @@ export function isFamilyAccountStatusAbnormal(status?: number | null) {
   return Number(status) === 2;
 }
 
+/** 账号已禁用（status=1） */
+export function isFamilyAccountStatusDisabled(status?: number | null) {
+  return Number(status) === 1;
+}
+
 /** 家属端已解绑、老人端尚未确认移除 */
 export function isFamilyUnbindPendingByJs(item: OldFamilyBindItem): boolean {
   return isDeletedFlag(item.delFlagByJs) && !isDeletedFlag(item.delFlagByOld);

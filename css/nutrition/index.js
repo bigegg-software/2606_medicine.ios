@@ -59,8 +59,10 @@ const styles = StyleSheet.create({
   calendarColActive: { backgroundColor: "rgba(109,146,94,0.12)" },
   calendarTitle: { fontWeight: "bold", fontSize: 13, color: "#666666", marginTop: 8, textAlign: "center" },
   calendarTitleActive: { fontWeight: "bold", fontSize: 13, color: AppTheme.primaryColor, marginTop: 8, textAlign: "center" },
+  calendarTitleDisabled: { color: "#CCCCCC" },
   calendarSubtitle: { fontWeight: 500, fontSize: 18, marginTop: 4, color: AppTheme.textPrimary, textAlign: "center" },
   calendarSubtitleActive: { fontWeight: 500, fontSize: 18, marginTop: 4, color: AppTheme.primaryColor, textAlign: "center" },
+  calendarSubtitleDisabled: { color: "#CCCCCC" },
   calendarMealDotWrap: {
     marginTop: 2,
     minHeight: 6,

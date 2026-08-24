@@ -14,7 +14,13 @@ import type { InUseExPatientRule } from '@/api/schedule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
-import { buildDietWeekDays } from '../utils/dietCalendarHelpers';
+import {
+    buildDietWeekDays,
+} from '../utils/dietCalendarHelpers';
+import {
+    clampDateToPrescriptionRange,
+    isCalendarDateInPrescriptionRange,
+} from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
 import {
     EXERCISE_CHECK_IN_DOT_COLOR,
     loadExerciseCheckInMapByDateRange,
@@ -130,6 +136,8 @@ export default function TrainingPage({
     /** 冷身列表（含完成进度），用于底部「开始冷身 / 完成今日打卡」 */
     const [cooldownCards, setCooldownCards] = useState<TrainingPhaseExerciseCard[]>([]);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
+    const prescriptionStartDate = exerciseRule?.startDate?.trim() || dayRule?.startDate?.trim() || '';
+    const prescriptionEndDate = exerciseRule?.endDate?.trim() || dayRule?.endDate?.trim() || '';
     const isPast = moment(selectedDate).isBefore(moment(), 'day');
     const isFuture = moment(selectedDate).isAfter(moment(), 'day');
     const isToday = !isPast && !isFuture;
@@ -178,6 +186,14 @@ export default function TrainingPage({
         setSelectedDate(resolveLockedExerciseViewDate(exerciseRule));
         setDayRule(exerciseRule);
     }, [lockToRule, exerciseRule]);
+
+    /** 处方起止变化时，选中日钳到周期内 */
+    useEffect(() => {
+        if (!prescriptionStartDate && !prescriptionEndDate) return;
+        setSelectedDate(prev =>
+            clampDateToPrescriptionRange(prev, prescriptionStartDate, prescriptionEndDate),
+        );
+    }, [prescriptionEndDate, prescriptionStartDate]);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
         if (lockToRule) {
@@ -629,22 +645,50 @@ export default function TrainingPage({
                 onClose={() => setDatePickerVisible(false)}
                 onSelect={setSelectedDate}
                 dayRecordMarker={exerciseDayRecordMarker}
+                selectableStartDate={prescriptionStartDate || null}
+                selectableEndDate={prescriptionEndDate || null}
             />
             <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
                 <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;
-                        const hasCheckIn = Boolean(checkInMap[item.key]);
+                        const selectable = isCalendarDateInPrescriptionRange(
+                            item.key,
+                            prescriptionStartDate,
+                            prescriptionEndDate,
+                        );
+                        const hasCheckIn = selectable && Boolean(checkInMap[item.key]);
                         return (
                             <TouchableOpacity
                                 key={item.key}
-                                activeOpacity={0.7}
-                                style={[styles.calendarCol, isActive && styles.calendarColActive]}
-                                onPress={() => setSelectedDate(item.key)}>
-                                <Text style={isActive ? styles.calendarTitleActive : styles.calendarTitle}>
+                                activeOpacity={selectable ? 0.7 : 1}
+                                disabled={!selectable}
+                                style={[
+                                    styles.calendarCol,
+                                    isActive && selectable && styles.calendarColActive,
+                                ]}
+                                onPress={() => {
+                                    if (!selectable) return;
+                                    setSelectedDate(item.key);
+                                }}>
+                                <Text
+                                    style={[
+                                        isActive && selectable
+                                            ? styles.calendarTitleActive
+                                            : styles.calendarTitle,
+                                        !selectable && styles.calendarTitleDisabled,
+                                    ]}
+                                >
                                     {item.label}
                                 </Text>
-                                <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
+                                <Text
+                                    style={[
+                                        isActive && selectable
+                                            ? styles.calendarSubtitleActive
+                                            : styles.calendarSubtitle,
+                                        !selectable && styles.calendarSubtitleDisabled,
+                                    ]}
+                                >
                                     {item.day}
                                 </Text>
                                 <View style={styles.calendarDotWrap}>

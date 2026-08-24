@@ -27,7 +27,11 @@ import {
   listChildFamilyBindNotices,
 } from './utils/familyBindNoticeHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import { buildMessageScopeParams, formatHomeUnreadBadge, MESSAGE_UNREAD_CHANGED, } from '@/src/features/message/utils/messageHelpers';
+import { formatHomeUnreadBadge, MESSAGE_UNREAD_CHANGED } from '@/src/features/message/utils/messageHelpers';
+import {
+  buildFamilyAlertScopeParams,
+  collectFamilyAlertPatientUserIds,
+} from './utils/familyAlertHelpers';
 import homeStyles from '@/css/family/home';
 import FamilyHomePage from './FamilyHomePage';
 import FamilyDataPage from './FamilyData/FamilyDataPage';
@@ -75,9 +79,19 @@ function FamilyAlertHeaderButton() {
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
   );
+  const familyList = useSelector((state: RootState) => state.family.list);
+  const familyUserIds = useMemo(
+    () => collectFamilyAlertPatientUserIds(familyList),
+    [familyList],
+  );
   const messageScope = useMemo(
-    () => buildMessageScopeParams({ identityPerspective, userId }),
-    [identityPerspective, userId],
+    () =>
+      buildFamilyAlertScopeParams({
+        identityPerspective,
+        userId,
+        familyUserIds,
+      }),
+    [familyUserIds, identityPerspective, userId],
   );
   const [unreadCount, setUnreadCount] = useState(0);
   const badgeText = formatHomeUnreadBadge(unreadCount);

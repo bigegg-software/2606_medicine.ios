@@ -17,7 +17,7 @@ import HeaderBack from '@/src/components/HeaderBack';
 import { Flex, Toast } from '@ant-design/react-native';
 import type { RootStackParamList } from '@/route/router';
 import type { AppDispatch, RootState } from '@/store/store';
-import { fetchFamilyBindMyList } from '@/store/actions/family';
+import { fetchFamilyBindMyList, setSelectedFamilyKey } from '@/store/actions/family';
 import { markMessageRead } from '@/api/message';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import { normalizeIdentityPerspective } from '@/src/features/auth/utils/identityHelpers';
@@ -207,6 +207,8 @@ export default function FamilyHomePage() {
           bizId: item.raw.bizId,
           messageId: item.raw.messageId,
           createTime: item.raw.createTime,
+          userId: item.raw.userId ?? item.patientUserId,
+          params: item.raw.params,
         },
         { isElder: false },
       );
@@ -231,7 +233,7 @@ export default function FamilyHomePage() {
           <Flex style={styles.topBox} justify="between" align="start">
             <View>
               <Text style={styles.topBoxTitle}>{greetingTitle}</Text>
-              <Text style={styles.topBoxSubtitle}>{greetingSubtitle}</Text>
+              <Text style={styles.topBoxSubtitle} numberOfLines={1}>{greetingSubtitle}</Text>
             </View>
 
             <Image source={require('@/assets/family/home/img.png')} style={styles.topBoxImg} />
@@ -311,6 +313,7 @@ export default function FamilyHomePage() {
                 || emptyFamilyHomeHealthSnapshot();
               return (
                 <Pressable key={member.key} onPress={() => {
+                  dispatch(setSelectedFamilyKey(member.key));
                   if (member.pending) {
                     if (!member.bindId) return;
                     navigation.navigate('FamilyBindInvitePage', { id: member.bindId });

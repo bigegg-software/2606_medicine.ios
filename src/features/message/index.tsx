@@ -191,6 +191,8 @@ export default function MessagePage() {
                 bizId: item.raw.bizId,
                 messageId: item.raw.messageId,
                 createTime: item.raw.createTime,
+                userId: item.raw.userId,
+                params: item.raw.params,
             },
             { isElder: messageScope.identityPerspective !== 'child' },
         );
