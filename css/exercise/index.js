@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
 
   /** 训练播放页 · 实时心率卡片 */
   playerRealtimeHrCard: {
-    marginTop: 10,
+    // marginTop: 10,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 15,

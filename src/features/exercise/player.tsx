@@ -55,6 +55,7 @@ import {
   getExercisePlayerTypeLabel,
   getExitConfirmContent,
   getShortSessionConfirmContent,
+  formatExercisePlayerHeaderTitle,
   isGroupCountDone,
   isGroupDisplayDone,
   loadExercisePlayerContext,
@@ -78,6 +79,7 @@ import {
   resolveGroupAutoMaxCount,
   resolveGroupSessionTargetSeconds,
   resolveNextExercisePlayerParams,
+  shouldAutoAdvanceBySessionTimer,
 } from './utils/exercisePlayerAutoAdvanceHelpers';
 
 type PrescriptionContext = {
@@ -85,7 +87,11 @@ type PrescriptionContext = {
   rule?: ExPatientRuleRatio;
 };
 
+/** 视频播放器暂时关闭：仅展示封面，计时与保存逻辑保留 */
+const ENABLE_EXERCISE_VIDEO_PLAYER = false;
+
 function safePauseVideoPlayer(player: { pause: () => void }) {
+  if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
   try {
     player.pause();
   } catch {
@@ -94,6 +100,7 @@ function safePauseVideoPlayer(player: { pause: () => void }) {
 }
 
 function safePlayVideoPlayer(player: { play: () => void }) {
+  if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
   try {
     player.play();
   } catch {
@@ -160,13 +167,15 @@ export default function ExercisePlayerPage() {
   isGroupRestingRef.current = isGroupResting;
   todayDurationRef.current = todayDuration;
 
-  const videoUrl = video?.videoOssUrl?.trim() || null;
+  const videoUrl = ENABLE_EXERCISE_VIDEO_PLAYER
+    ? (video?.videoOssUrl?.trim() || null)
+    : null;
   const player = useVideoPlayer(videoUrl, instance => {
     instance.loop = true;
   });
 
   const activeRule = prescriptionContext.rule;
-  const pageTitle = route.params?.title?.trim()
+  const basePageTitle = route.params?.title?.trim()
     || getExercisePlayerTypeLabel(activeRule?.exerciseType)
     || '训练';
   const videoTitle = video?.title?.trim()
@@ -196,6 +205,14 @@ export default function ExercisePlayerPage() {
     videoKeepSecondVal: video?.keepSecondVal,
     videoTimerType: video?.timerType,
   });
+  const pageTitle = formatExercisePlayerHeaderTitle(basePageTitle, {
+    timerType: scheduleRule.timerType,
+    durationMinutes: targetMinutes,
+    numberVal: scheduleRule.targetCount,
+    keepSecondVal: scheduleRule.keepSecondVal,
+    groupVal: scheduleRule.groupVal,
+    ruleSubtitle,
+  });
   const totalGroups = scheduleRule.groupVal;
   const trainingPhase = (route.params?.trainingPhase?.trim() || 'hot') as ExRecordTrainingPhase;
   const timerType = scheduleRule.timerType;
@@ -204,13 +221,14 @@ export default function ExercisePlayerPage() {
     0,
     Math.round(Number(targetMinutes) || 0) - Math.round(Number(todayDuration.completedMinutes) || 0),
   );
-  // 次数组按视频时长；秒数组按 keepSecond（如 20秒）；分钟计时按剩余处方分钟
+  // 次数组按秒不自动切；秒数组按 keepSecond；分钟计时按剩余处方分钟
   const groupSessionTargetSeconds = resolveGroupSessionTargetSeconds({
     timerType,
     keepSecondVal: scheduleRule.keepSecondVal,
     playerDuration: videoDurationSeconds,
     apiDuration: video?.duration,
   });
+  const canAutoAdvanceByTimer = shouldAutoAdvanceBySessionTimer(timerType);
   const progressTargetSeconds = isDurationTimer
     ? Math.max(0, remainingDurationMinutes) * 60
     : groupSessionTargetSeconds;
@@ -435,7 +453,7 @@ export default function ExercisePlayerPage() {
   useEffect(() => {
     // 标题居中省略；限制标题最大宽度，避免挤出右侧标签
     const screenW = Dimensions.get('window').width;
-    const titleMaxWidth = Math.floor(screenW * 0.42);
+    const titleMaxWidth = Math.floor(screenW * 0.55);
     navigation.setOptions({
       title: pageTitle,
       headerTitleAlign: 'center',
@@ -486,19 +504,26 @@ export default function ExercisePlayerPage() {
   }, [isGroupRestTimerRunning, isGroupResting, readOnly]);
 
   useEffect(() => {
-    if (loading || !videoUrl || hasAutoStartedRef.current) return;
+    // 无视频时：进入页即启动训练计时；有视频时：等视频源就绪后再播
+    if (loading || hasAutoStartedRef.current) return;
+    if (ENABLE_EXERCISE_VIDEO_PLAYER && !videoUrl) return;
 
     hasAutoStartedRef.current = true;
-    safePlayVideoPlayer(player);
+    if (ENABLE_EXERCISE_VIDEO_PLAYER) {
+      safePlayVideoPlayer(player);
+    }
     if (!readOnly) {
       isTrainingRef.current = true;
       setIsTraining(true);
-      setIsVideoPlaying(true);
+      if (ENABLE_EXERCISE_VIDEO_PLAYER) {
+        setIsVideoPlaying(true);
+      }
     }
   }, [loading, player, readOnly, videoUrl]);
 
   // player 在视频源就绪后可能重建；训练中则续播
   useEffect(() => {
+    if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
     if (loading || !videoUrl || !hasAutoStartedRef.current || readOnly) return;
     if (isTrainingRef.current && !isGroupRestingRef.current) {
       safePlayVideoPlayer(player);
@@ -507,6 +532,7 @@ export default function ExercisePlayerPage() {
 
   // 首次 play 可能早于 readyToPlay；就绪后再对齐一次
   useEventListener(player, 'statusChange', ({ status }) => {
+    if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
     if (status !== 'readyToPlay' || readOnly) return;
     if (!isTrainingRef.current || isGroupRestingRef.current) return;
     safePlayVideoPlayer(player);
@@ -515,6 +541,7 @@ export default function ExercisePlayerPage() {
   });
 
   useEventListener(player, 'playingChange', ({ isPlaying }) => {
+    if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
     const playing = Boolean(isPlaying);
     setIsVideoPlaying(playing);
     if (readOnly || isGroupRestingRef.current) return;
@@ -525,17 +552,20 @@ export default function ExercisePlayerPage() {
   });
 
   useEventListener(player, 'sourceLoad', ({ duration }) => {
+    if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
     const seconds = Math.round(Number(duration) || 0);
     if (seconds > 0) setVideoDurationSeconds(seconds);
   });
 
   useEffect(() => {
+    if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
     const seconds = Math.round(Number(player?.duration) || 0);
     if (seconds > 0) setVideoDurationSeconds(seconds);
   }, [player, videoUrl]);
 
   // 进入播放页且视频就绪后上报一次播放量
   useEffect(() => {
+    if (!ENABLE_EXERCISE_VIDEO_PLAYER) return;
     if (loading || !videoUrl || hasRecordedViewRef.current) return;
     const exVideoId = video?.exVideoId != null
       ? String(video.exVideoId)
@@ -864,9 +894,9 @@ export default function ExercisePlayerPage() {
 
   /**
    * 自动提交：
-   * - 计时：剩余目标时长到点 → 提交 → 下一项（已 12/12 再次进入不跳）
-   * - 组别：按视频时长计时到点 → 按最大完成度提交「下一未录入组」
-   *   （半完成如 1/3 也算已录入，自动进下一组；全部组都有数据则不跳）
+   * - 计时（分钟）：剩余目标时长到点 → 提交 → 下一项
+   * - 秒数组（keep_second_number）：按每组秒数到点 → 提交该组 → 下一组/下一项
+   * - 次数组（group_number）：不主动切换，需手动保存
    */
   useEffect(() => {
     if (
@@ -877,6 +907,7 @@ export default function ExercisePlayerPage() {
       || isGroupResting
       || !isTraining
       || autoSubmittingRef.current
+      || !canAutoAdvanceByTimer
     ) {
       return;
     }
@@ -908,6 +939,9 @@ export default function ExercisePlayerPage() {
       })();
       return;
     }
+
+    // 仅秒数组自动按时间切组
+    if (timerType !== 'keep_second_number') return;
 
     const groupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
     if (groupTotal <= 0) return;
@@ -945,6 +979,7 @@ export default function ExercisePlayerPage() {
       if (!ok) autoSubmittingRef.current = false;
     })();
   }, [
+    canAutoAdvanceByTimer,
     groupCounts,
     groupSessionTargetSeconds,
     groupTargetCount,
@@ -1171,40 +1206,42 @@ export default function ExercisePlayerPage() {
         <ScrollView
           style={{ flex: 1 }}
           contentContainerStyle={[styles.scroll, { paddingBottom: 24 }]}>
-          <View style={[styles.playerBox, { marginTop: 0 }]}>
-            <View style={styles.playerContent}>
-              {videoUrl ? (
-                <VideoView
-                  style={styles.playerVideo}
-                  player={player}
-                  nativeControls
-                  contentFit="contain"
-                  allowsPictureInPicture={false}
-                />
-              ) : video?.coverOssUrl ? (
-                <Image
-                  style={styles.playerCover}
-                  source={{ uri: video.coverOssUrl }}
-                  resizeMode="cover"
-                />
-              ) : (
-                <Flex justify="center" style={{ flex: 1 }}>
-                  <Text style={styles.pagePlaceholderText}>暂无训练视频</Text>
-                </Flex>
-              )}
-            </View>
+          {ENABLE_EXERCISE_VIDEO_PLAYER ? (
+            <View style={[styles.playerBox, { marginTop: 0 }]}>
+              <View style={styles.playerContent}>
+                {videoUrl ? (
+                  <VideoView
+                    style={styles.playerVideo}
+                    player={player}
+                    nativeControls
+                    contentFit="contain"
+                    allowsPictureInPicture={false}
+                  />
+                ) : video?.coverOssUrl ? (
+                  <Image
+                    style={styles.playerCover}
+                    source={{ uri: video.coverOssUrl }}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <Flex justify="center" style={{ flex: 1 }}>
+                    <Text style={styles.pagePlaceholderText}>暂无训练视频</Text>
+                  </Flex>
+                )}
+              </View>
 
-            <Flex justify="between" align="center" style={styles.playerTitleBox}>
-              <Text style={[styles.playerTitleText, { flexShrink: 1 }]} numberOfLines={1}>
-                {videoTitle}
-              </Text>
-              {ruleSubtitle ? (
-                <Text style={styles.playerRuleSubtitle} numberOfLines={1}>
-                  {ruleSubtitle}
+              <Flex justify="between" align="center" style={styles.playerTitleBox}>
+                <Text style={[styles.playerTitleText, { flexShrink: 1 }]} numberOfLines={1}>
+                  {videoTitle}
                 </Text>
-              ) : null}
-            </Flex>
-          </View>
+                {ruleSubtitle ? (
+                  <Text style={styles.playerRuleSubtitle} numberOfLines={1}>
+                    {ruleSubtitle}
+                  </Text>
+                ) : null}
+              </Flex>
+            </View>
+          ) : null}
           <View style={exerciseStyles.playerRealtimeHrCard}>
             <Flex align="start">
               <Image
@@ -1278,20 +1315,24 @@ export default function ExercisePlayerPage() {
                 : sessionTimeText}
             </Text>
             <Flex style={styles.progressBox}>
-              <Flex
-                style={[
-                  styles.progressBar,
-                  {
-                    width: `${readOnly
-                      ? calcTrainingProgressPercentBySeconds(
-                        (todayDuration.completedMinutes || 0) * 60,
-                        progressTargetSeconds || Math.max(1, (targetMinutes || 0) * 60),
-                      )
-                      : progressPercent}%`,
-                  },
-                ]}
-                justify="end"
-              />
+              {/* 次数组无计时目标，不展示左侧进度块；秒/分钟/组间休息仍展示 */}
+              {(isGroupResting || canAutoAdvanceByTimer || readOnly) ? (
+                <Flex
+                  style={[
+                    styles.progressBar,
+                    {
+                      width: `${readOnly
+                        ? calcTrainingProgressPercentBySeconds(
+                          (todayDuration.completedMinutes || 0) * 60,
+                          progressTargetSeconds || Math.max(1, (targetMinutes || 0) * 60),
+                        )
+                        : progressPercent}%`,
+                      minWidth: (readOnly || progressPercent > 0) ? 8 : 0,
+                    },
+                  ]}
+                  justify="end"
+                />
+              ) : null}
             </Flex>
             {!readOnly ? (
               <Flex style={styles.btnBox} justify="center">
@@ -1351,7 +1392,9 @@ export default function ExercisePlayerPage() {
                   <Text style={styles.playerGroupTipText}>
                     {isDurationTimer
                       ? '点击下方保存数据，将记录本次计时分钟'
-                      : `点击组别依次记录每组完成情况；组间休息${restBetweenGroupSeconds}秒`}
+                      : timerType === 'keep_second_number'
+                        ? `按每组时长自动计时；组间休息${restBetweenGroupSeconds}秒`
+                        : `点击组别依次记录每组完成情况；组间休息${restBetweenGroupSeconds}秒`}
                   </Text>
                 </Flex>
               ) : null}

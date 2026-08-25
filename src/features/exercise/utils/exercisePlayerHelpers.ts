@@ -106,6 +106,63 @@ export function resolveGroupInputMeta(timerType?: string) {
   return { title: '完成次数', unit: '次' };
 }
 
+/** 导航标题规则后缀：如 2分钟、2x3组、30秒x20组 */
+export function resolveExercisePlayerTitleRuleSuffix(params: {
+  timerType?: string | null;
+  durationMinutes?: number | null;
+  numberVal?: number | null;
+  keepSecondVal?: number | null;
+  groupVal?: number | null;
+}): string {
+  const timerType = params.timerType?.trim() || '';
+  const group = Math.round(Number(params.groupVal) || 0);
+  const hasGroup = group > 0;
+
+  if (timerType === 'duration_min') {
+    const minutes = Math.round(Number(params.durationMinutes) || 0);
+    if (minutes > 0) {
+      return hasGroup && group > 1 ? `${minutes}分钟x${group}组` : `${minutes}分钟`;
+    }
+  }
+
+  if (timerType === 'group_number') {
+    const times = Math.round(Number(params.numberVal) || 0);
+    if (times > 0 && hasGroup) return `${times}x${group}组`;
+    if (times > 0) return `${times}次`;
+    if (hasGroup) return `${group}组`;
+  }
+
+  if (timerType === 'keep_second_number') {
+    const seconds = Math.round(Number(params.keepSecondVal) || 0);
+    if (seconds > 0 && hasGroup) return `${seconds}秒x${group}组`;
+    if (seconds > 0) return `${seconds}秒`;
+    if (hasGroup) return `${group}组`;
+  }
+
+  return '';
+}
+
+/** 播放页导航标题：动作名 + 规则，如「深蹲 2分钟」「深蹲 2x3组」 */
+export function formatExercisePlayerHeaderTitle(
+  title: string,
+  params: {
+    timerType?: string | null;
+    durationMinutes?: number | null;
+    numberVal?: number | null;
+    keepSecondVal?: number | null;
+    groupVal?: number | null;
+    ruleSubtitle?: string | null;
+  },
+): string {
+  const base = title.trim() || '训练';
+  const suffix = resolveExercisePlayerTitleRuleSuffix(params);
+  if (suffix) return `${base} ${suffix}`;
+  const fromRoute = String(params.ruleSubtitle ?? '')
+    .split(' · ')[0]
+    ?.trim();
+  return fromRoute ? `${base} ${fromRoute}` : base;
+}
+
 /** 计时类型：无组时按 1 组写入分钟数 */
 export function resolveDurationSaveGroupTotal(groupVal: number, timerType?: string) {
   const total = Math.max(0, Math.round(Number(groupVal) || 0));

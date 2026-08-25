@@ -54,12 +54,12 @@ export default function ExercisePage() {
   /** 家人只读：优先路由/家人列表姓名，绝不回落登录人；姓名匿名展示 */
   const displayName = isFamilyView
     ? (
-        routeDisplayName
-        || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
-        || maskFamilyDisplayName(familyUser?.name)
-        || relationLabel
-        || '未命名'
-      )
+      routeDisplayName
+      || (familyFromStore ? getChildFamilyDisplayName(familyFromStore) : '')
+      || maskFamilyDisplayName(familyUser?.name)
+      || relationLabel
+      || '未命名'
+    )
     : getDisplayUserName(user, systemUser);
   const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
@@ -145,19 +145,19 @@ export default function ExercisePage() {
         ? () => <FamilyRelationHeaderBadge label={relationLabel} />
         : showHistoryEntry
           ? () => (
-              <TouchableOpacity
-                style={styles.headerHistoryBtn}
-                activeOpacity={0.8}
-                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                onPress={() => navigation.navigate('ScheduleHistoryPage')}
-              >
-                <Image
-                  source={require('@/assets/images/exercise/icon_history.png')}
-                  style={styles.headerHistoryIcon}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            )
+            <TouchableOpacity
+              style={styles.headerHistoryBtn}
+              activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => navigation.navigate('ScheduleHistoryPage')}
+            >
+              <Image
+                source={require('@/assets/images/exercise/icon_history.png')}
+                style={styles.headerHistoryIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          )
           : () => null,
     });
   }, [exPatientRuleId, navigation, pageTitle, isFamilyView, relationLabel]);
