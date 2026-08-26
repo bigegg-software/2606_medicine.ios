@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   avatarValue: { marginLeft: 5, fontWeight: "bold", fontSize: 16, color: "#333333", lineHeight: 19 },
   rlBox: { width: 91, height: 28, marginRight: -12, position: "relative" },
   rlImg: { width: 91, height: 28, position: "absolute" },
-  bgImg: { width: '100%', marginTop: 20, borderRadius: 8, overflow: 'hidden' },
+  bgImg: { width: '100%', marginTop: 12, borderRadius: 8, overflow: 'hidden' },
   diamondsBox: { padding: 12 },
   diamondsImg: { width: 18, height: 18, marginRight: 6 },
   diamondsTitle: { fontSize: 15, fontWeight: 'bold', color: '#804A15' },
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     marginTop: 0,
   },
   familyBox: {
-    marginTop: 10,
+    marginTop: 12,
     backgroundColor: "#FEFFFF",
     shadowColor: "#0C3D9A",
     shadowOffset: { width: 0, height: 2 },
@@ -244,6 +244,39 @@ const styles = StyleSheet.create({
   signBtnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   menuRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#fff', borderRadius: 12, padding: 16, marginBottom: 10, borderWidth: 1, borderColor: AppTheme.borderColor, gap: 12 },
   menuLabel: { flex: 1, fontSize: 17, color: AppTheme.textPrimary },
+  qyBox: {
+    paddingHorizontal: 16,
+    paddingVertical: 20
+  },
+  qyStatusLabelMask: {
+    alignSelf: 'flex-start',
+  },
+  qyStatusLabelGradient: {
+    alignSelf: 'flex-start',
+  },
+  qyStatusLabel: {
+    fontFamily: 'Douyin Sans',
+    fontWeight: 'bold',
+    fontSize: 16,
+    color: '#000000',
+  },
+  qyStatusLabelHidden: {
+    opacity: 0,
+  },
+  qyStatusText: {
+    fontWeight: 500,
+    fontSize: 14,
+    color: "#6D925E"
+  },
+  qyStatusTextUnpaid: {
+    color: "#999999",
+  },
+  qyStatusTime: {
+    marginTop: 6,
+    fontWeight: 500,
+    fontSize: 14,
+    color: "#6D925E"
+  }
 })
 
 export default styles

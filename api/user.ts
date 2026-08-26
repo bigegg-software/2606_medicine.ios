@@ -43,6 +43,12 @@ export type SystemUser = {
   pcode?: string;
   deletedAccount?: number;
   tokens?: number;
+  /** 是否付费 0.否 1.是 */
+  isPaid?: number;
+  /** 付费有效开始日期 yyyy-MM-dd */
+  paidStartDate?: string;
+  /** 付费有效结束日期 yyyy-MM-dd */
+  paidEndDate?: string;
 };
 
 export type UserExtr = {

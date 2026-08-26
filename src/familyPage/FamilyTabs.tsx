@@ -249,7 +249,7 @@ export default function FamilyTabs() {
 
       if (routeName === 'FamilyProfile') {
         navigation.setOptions({
-          title: '我的档案',
+          title: '家人档案',
           headerTitle: undefined,
           headerLeft: undefined,
           headerRight: () => null,
@@ -336,12 +336,12 @@ export default function FamilyTabs() {
         name="FamilyProfile"
         component={FamilyProfilePage}
         options={{
-          tabBarLabel: '我的',
+          tabBarLabel: '家人',
           tabBarIcon: ({ focused }) => (
             <TabIcon
               focused={focused}
-              source={require('@/assets/tabbar/user.png')}
-              activeSource={require('@/assets/tabbar/userActive.png')}
+              source={require('@/assets/tabbar/me.png')}
+              activeSource={require('@/assets/tabbar/meActive.png')}
             />
           ),
         }}

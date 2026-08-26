@@ -52,13 +52,19 @@ export type ExRecordVideoMarkResult = {
   };
 };
 
+/** 提交累计锻炼时长（分钟）：支持两位小数，如 50 秒 → 0.83 */
+function normalizeRecordExerciseDuration(value: number) {
+  const minutes = Math.max(0, Number(value) || 0);
+  return Math.round(minutes * 100) / 100;
+}
+
 /** 标记完成组数（整数组覆盖写入）；全部组完成时调用，有效字段 complateGroups */
 export const markCompleteGroups = (data: MarkCompleteGroupsPayload) =>
   request.post<ExRecordVideoMarkResult>('/patient/exRecordVideo/markCompleteGroups', {
     ...data,
     exPatientRuleId: String(data.exPatientRuleId),
     exVideoId: String(data.exVideoId),
-    exerciseDuration: Math.max(0, Math.floor(Number(data.exerciseDuration) || 0)),
+    exerciseDuration: normalizeRecordExerciseDuration(data.exerciseDuration),
     exerciseKcal: data.exerciseKcal != null
       ? Math.max(0, Number(data.exerciseKcal) || 0)
       : undefined,
@@ -76,7 +82,7 @@ export const recordGroupCounts = (data: MarkCompleteGroupsPayload & {
     ...data,
     exPatientRuleId: String(data.exPatientRuleId),
     exVideoId: String(data.exVideoId),
-    exerciseDuration: Math.max(0, Math.floor(Number(data.exerciseDuration) || 0)),
+    exerciseDuration: normalizeRecordExerciseDuration(data.exerciseDuration),
     exerciseKcal: data.exerciseKcal != null
       ? Math.max(0, Number(data.exerciseKcal) || 0)
       : undefined,
@@ -92,7 +98,7 @@ export const recordDuration = (data: MarkCompleteGroupsPayload) =>
     ...data,
     exPatientRuleId: String(data.exPatientRuleId),
     exVideoId: String(data.exVideoId),
-    exerciseDuration: Math.max(0, Math.floor(Number(data.exerciseDuration) || 0)),
+    exerciseDuration: normalizeRecordExerciseDuration(data.exerciseDuration),
     exerciseKcal: data.exerciseKcal != null
       ? Math.max(0, Number(data.exerciseKcal) || 0)
       : undefined,
@@ -108,7 +114,7 @@ export const recordKcal = (data: MarkCompleteGroupsPayload & { exerciseKcal: num
     ...data,
     exPatientRuleId: String(data.exPatientRuleId),
     exVideoId: String(data.exVideoId),
-    exerciseDuration: Math.max(0, Math.floor(Number(data.exerciseDuration) || 0)),
+    exerciseDuration: normalizeRecordExerciseDuration(data.exerciseDuration),
     exerciseKcal: Math.max(0, Number(data.exerciseKcal) || 0),
     complateGroups: Array.isArray(data.complateGroups) ? data.complateGroups : [],
     complateGroupCounts: Array.isArray(data.complateGroupCounts)

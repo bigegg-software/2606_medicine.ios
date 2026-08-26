@@ -163,8 +163,49 @@ export function formatPrescriptionGeneratedText(rule?: InUseExPatientRule | null
   return dateText === '--' ? '生成 --' : `生成 ${dateText}`;
 }
 
+/** 首次进阶周数：纯数字（如 "2"）才参与下次评估推算 */
+export function parseFirstAdvanceWeeksNumber(firstAdvanceWeeks?: string | null) {
+  const text = String(firstAdvanceWeeks ?? '').trim();
+  if (!/^\d+$/.test(text)) return null;
+  const weeks = Number(text);
+  if (!Number.isFinite(weeks) || weeks <= 0) return null;
+  return weeks;
+}
+
+/**
+ * 下次评估日期：
+ * - firstAdvanceWeeks 非纯数字 → 沿用处方结束日
+ * - 为数字 N → 从 startDate 起每次 +N*7 天，直到不早于今天；超出 endDate 则取 endDate
+ */
+export function resolvePrescriptionNextAssessDate(
+  rule?: InUseExPatientRule | null,
+  today?: moment.Moment | null,
+) {
+  const end = moment(rule?.endDate);
+  const fallback = end.isValid() ? end.clone().startOf('day') : null;
+
+  const weeks = parseFirstAdvanceWeeksNumber(rule?.firstAdvanceWeeks);
+  if (weeks == null) return fallback;
+
+  const start = moment(rule?.startDate);
+  if (!start.isValid()) return fallback;
+
+  const now = (today?.isValid() ? today.clone() : moment()).startOf('day');
+  let next = start.clone().startOf('day').add(weeks * 7, 'days');
+
+  while (next.isBefore(now, 'day')) {
+    next.add(weeks * 7, 'days');
+  }
+
+  if (fallback && next.isAfter(fallback, 'day')) {
+    return fallback;
+  }
+  return next;
+}
+
 export function formatPrescriptionNextAssessText(rule?: InUseExPatientRule | null) {
-  const dateText = formatZhDate(rule?.endDate);
+  const next = resolvePrescriptionNextAssessDate(rule);
+  const dateText = next?.isValid() ? next.format('YYYY年M月D日') : '--';
   return dateText === '--' ? '下次评估 --' : `下次评估 ${dateText}`;
 }
 

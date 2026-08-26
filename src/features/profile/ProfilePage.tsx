@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Pressable, TouchableOpacity, ImageBackground, ScrollView, Alert, ActivityIndicator, Image } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import MaskedView from '@react-native-masked-view/masked-view';
 import { TabPageLayout } from '@/src/components/PageLayout';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -57,6 +59,7 @@ import {
   filterVisibleOldFamilyBindList,
   listOldFamilyBindNotices,
 } from './utils/profileFamilyUnbindHelpers';
+import { resolveProfilePaidStatus } from './utils/profilePaidHelpers';
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const navList = [
@@ -372,6 +375,7 @@ export default function ProfilePage() {
   };
 
   const name = getDisplayUserName(user, systemUser);
+  const paidStatus = resolveProfilePaidStatus(systemUser);
   const avatarOssUrl = String(user?.avatarOssUrl ?? '');
   const defaultAvatar = getDefaultAvatarByGender(user?.gender);
   if (loading && user == null) {
@@ -428,7 +432,7 @@ export default function ProfilePage() {
 
         <ImageBackground
           source={require('@/assets/images/user/userBack.png')}
-          style={styles.bgImg}>
+          style={[styles.bgImg, { marginTop: 20 }]}>
           <Flex align="start" style={styles.diamondsBox}>
             <View style={{ flex: 1 }}>
               <Flex justify='between'>
@@ -439,7 +443,7 @@ export default function ProfilePage() {
                 <TouchableOpacity
                   disabled={signing || signedToday}
                   onPress={handleSignIn}
-               >
+                >
                   <Flex style={styles.diamondsSignIn}>
                     <Text style={styles.diamondsSignInText}>
                       {buildSignButtonLabel(10, signedToday)}
@@ -718,6 +722,39 @@ export default function ProfilePage() {
             </Flex>
           </TouchableOpacity>
         </View>
+        <ImageBackground
+          source={require('@/assets/images/user/qyBack.png')}
+          style={styles.bgImg}>
+          <View style={styles.qyBox}>
+            <Flex align="center">
+              <MaskedView
+                style={styles.qyStatusLabelMask}
+                maskElement={<Text style={styles.qyStatusLabel}>签约状态 ：</Text>}
+              >
+                <LinearGradient
+                  colors={['#477932', '#6D925E']}
+                  locations={[0, 1]}
+                  start={{ x: 0.5, y: 1 }}
+                  end={{ x: 0.5, y: 0 }}
+                  style={styles.qyStatusLabelGradient}
+                >
+                  <Text style={[styles.qyStatusLabel, styles.qyStatusLabelHidden]}>签约状态 ：</Text>
+                </LinearGradient>
+              </MaskedView>
+              <Text
+                style={[
+                  styles.qyStatusText,
+                ]}
+              >
+                {paidStatus.statusText}
+              </Text>
+            </Flex>
+            {/* {paidStatus.dateRangeText ? ( */}
+              <Text style={styles.qyStatusTime}>{paidStatus.dateRangeText|| '如需签约请联系工作人员'}</Text>
+            {/* ) : null} */}
+          </View>
+        </ImageBackground>
+
         {/* <Text style={styles.modelTitle}>隐私设置</Text>
         <View style={styles.familyBox}>
           <Flex justify='between' style={styles.familyItem}>

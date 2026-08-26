@@ -127,7 +127,7 @@ export function resolveExercisePlayerTitleRuleSuffix(params: {
 
   if (timerType === 'group_number') {
     const times = Math.round(Number(params.numberVal) || 0);
-    if (times > 0 && hasGroup) return `${times}x${group}组`;
+    if (times > 0 && hasGroup) return `${times}次x${group}组`;
     if (times > 0) return `${times}次`;
     if (hasGroup) return `${group}组`;
   }
@@ -142,7 +142,7 @@ export function resolveExercisePlayerTitleRuleSuffix(params: {
   return '';
 }
 
-/** 播放页导航标题：动作名 + 规则，如「深蹲 2分钟」「深蹲 2x3组」 */
+/** 播放页导航标题：动作名 + 规则，如「深蹲 2分钟」「深蹲 13次x3组」 */
 export function formatExercisePlayerHeaderTitle(
   title: string,
   params: {
