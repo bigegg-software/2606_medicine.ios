@@ -107,14 +107,14 @@ export const FAMILY_PRESCRIPTION_TYPES: FamilyPrescriptionTypeItem[] = [
     key: 'flexibility',
     title: '柔韧拉伸',
     progress: null,
-    progressColor: '#EE9C44',
+    progressColor: '#0951AE',
     icon: require('@/assets/images/schedule/exercise1.png'),
   },
   {
     key: 'balance',
     title: '平衡控制',
     progress: null,
-    progressColor: '#0951AE',
+    progressColor: '#EE9C44',
     icon: require('@/assets/images/schedule/exercise4.png'),
   },
 ];

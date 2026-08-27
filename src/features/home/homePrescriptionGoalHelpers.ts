@@ -287,9 +287,12 @@ function buildExerciseHabitDisplay(
   };
 }
 
-async function hasLatestMeasure(type: '血压' | '血糖' | '体重' | '血脂') {
+async function hasLatestMeasure(
+  type: '血压' | '血糖' | '体重' | '血脂',
+  patientUserId?: string | number | null,
+) {
   try {
-    const res = await getMeasureDataLatestByType(type);
+    const res = await getMeasureDataLatestByType(type, { patientUserId });
     if (!isResourceApiOk(res as unknown as { code?: number })) return false;
     const data = apiResourceData<MeasureDataItem>(
       res as unknown as { code?: number; data?: MeasureDataItem },
@@ -310,12 +313,13 @@ async function hasLatestMeasure(type: '血压' | '血糖' | '体重' | '血脂')
 async function loadComplianceDaysDisplay(
   prescription: InUseExPatientRule,
   indicatorValue: 'xueYa' | 'xueTang',
+  patientUserId?: string | number | null,
 ): Promise<HomePrescriptionGoalDisplay | null> {
   const cycleDays = getPrescriptionCycleDayCount(prescription.startDate, prescription.endDate);
   if (cycleDays == null || cycleDays <= 0) return null;
 
   const measureType = COMPLIANCE_MEASURE_TYPE[indicatorValue];
-  const measured = await hasLatestMeasure(measureType);
+  const measured = await hasLatestMeasure(measureType, patientUserId);
   if (!measured) return buildWaitAssessmentDisplay();
 
   let compliantDays = 0;
@@ -324,10 +328,13 @@ async function loadComplianceDaysDisplay(
     : null;
   if (exPatientRuleId) {
     try {
-      const countRes = await getMeasureDataNormalDayCount({
-        exPatientRuleId,
-        type: measureType,
-      });
+      const countRes = await getMeasureDataNormalDayCount(
+        {
+          exPatientRuleId,
+          type: measureType,
+        },
+        { patientUserId },
+      );
       const countPayload = countRes as unknown as { code?: number; data?: number };
       if (isResourceApiOk(countPayload)) {
         compliantDays = Math.max(0, Math.round(Number(apiResourceData<number>(countPayload) ?? 0)));
@@ -374,10 +381,15 @@ async function loadHealthTestDisplay(
   }
 }
 
-async function loadMainCompleteRate(exPatientRuleId?: string | number | null) {
+async function loadMainCompleteRate(
+  exPatientRuleId?: string | number | null,
+  patientUserId?: string | number | null,
+) {
   if (exPatientRuleId == null) return null;
   try {
-    const res = await getExPatientRuleModuleCompleteRate(String(exPatientRuleId));
+    const res = await getExPatientRuleModuleCompleteRate(String(exPatientRuleId), {
+      patientUserId,
+    });
     if (!isResourceApiOk(res as unknown as { code?: number })) return null;
     const data = apiResourceData<{ mainCompleteRate?: number }>(
       res as unknown as { code?: number; data?: { mainCompleteRate?: number } },
@@ -391,15 +403,21 @@ async function loadMainCompleteRate(exPatientRuleId?: string | number | null) {
 export async function loadHomePrescriptionGoalDisplay(
   prescription: InUseExPatientRule | null | undefined,
   userId?: string | number,
+  options?: { patientUserId?: string | number | null },
 ): Promise<HomePrescriptionGoalDisplay | null> {
   if (!prescription) return null;
+
+  const patientUserId = options?.patientUserId ?? null;
 
   if (isExerciseRestDay(prescription, moment().format('YYYY-MM-DD'))) {
     return { layout: 'text', text: REST_DAY_TEXT };
   }
 
   const target = pickHomePrescriptionGoalTarget(prescription.healthGoalTargetList);
-  const mainCompleteRate = await loadMainCompleteRate(prescription.exPatientRuleId);
+  const mainCompleteRate = await loadMainCompleteRate(
+    prescription.exPatientRuleId,
+    patientUserId,
+  );
 
   if (!target) {
     return buildFallbackDisplay(prescription, mainCompleteRate);
@@ -410,18 +428,22 @@ export async function loadHomePrescriptionGoalDisplay(
 
   if (assessmentType === 'health_indicator_type') {
     if (assessmentValue === 'xueYa' || assessmentValue === 'xueTang') {
-      const display = await loadComplianceDaysDisplay(prescription, assessmentValue);
+      const display = await loadComplianceDaysDisplay(
+        prescription,
+        assessmentValue,
+        patientUserId,
+      );
       return display ?? buildFallbackDisplay(prescription, mainCompleteRate);
     }
     if (assessmentValue === 'tiZhong') {
-      const measured = await hasLatestMeasure('体重');
+      const measured = await hasLatestMeasure('体重', patientUserId);
       if (!measured && toFiniteNumber(target.weight?.baseline) == null) {
         return buildWaitAssessmentDisplay();
       }
       return buildWeightDisplay(target) ?? buildFallbackDisplay(prescription, mainCompleteRate);
     }
     if (assessmentValue === 'xueZhi') {
-      const measured = await hasLatestMeasure('血脂');
+      const measured = await hasLatestMeasure('血脂', patientUserId);
       if (!measured && !target.bloodLipid) {
         return buildWaitAssessmentDisplay();
       }
@@ -430,7 +452,11 @@ export async function loadHomePrescriptionGoalDisplay(
   }
 
   if (assessmentType === 'sys_health_test_item') {
-    const display = await loadHealthTestDisplay(prescription, target, userId);
+    const display = await loadHealthTestDisplay(
+      prescription,
+      target,
+      patientUserId ?? userId,
+    );
     return display ?? buildFallbackDisplay(prescription, mainCompleteRate);
   }
 

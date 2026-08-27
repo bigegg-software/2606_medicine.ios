@@ -49,6 +49,14 @@ export type FamilyHomeHealthSnapshot = {
 const FAMILY_HOME_HEALTH_ROW_COUNT = 4;
 const MEASURE_TYPES = new Set<string>(['血糖', '血压', '体温', '体重', '血脂', '尿酸']);
 
+/** 无异常时默认展示的四项 */
+const FAMILY_HOME_HEALTH_DEFAULT_TYPES: readonly VitalIndexKey[] = [
+  '血糖',
+  '血压',
+  '血氧',
+  '血脂',
+];
+
 export function buildFamilyHomeHealthRowTypes(
   abnormalList?: string[] | null,
 ): VitalIndexKey[] {
@@ -58,11 +66,19 @@ export function buildFamilyHomeHealthRowTypes(
     if (!isVitalIndexKey(key) || rows.includes(key)) return;
     rows.push(key);
   });
-  VITAL_INDEX_KEYS.forEach(key => {
+  FAMILY_HOME_HEALTH_DEFAULT_TYPES.forEach(key => {
     if (rows.length >= FAMILY_HOME_HEALTH_ROW_COUNT) return;
     if (rows.includes(key)) return;
     rows.push(key);
   });
+  // 默认四项仍不足时，再按全局体征顺序补齐
+  if (rows.length < FAMILY_HOME_HEALTH_ROW_COUNT) {
+    VITAL_INDEX_KEYS.forEach(key => {
+      if (rows.length >= FAMILY_HOME_HEALTH_ROW_COUNT) return;
+      if (rows.includes(key)) return;
+      rows.push(key);
+    });
+  }
   return rows.slice(0, FAMILY_HOME_HEALTH_ROW_COUNT);
 }
 

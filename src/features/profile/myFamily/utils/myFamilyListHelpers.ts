@@ -98,6 +98,15 @@ export function formatFamilyPermissionSummary(authPermissions?: string[]): strin
   return `已授权${list.length}项·${list.join(' ')}`;
 }
 
+/** 个人中心「我的家人」预览最多展示条数 */
+export const PROFILE_FAMILY_LIST_DISPLAY_LIMIT = 3;
+
+export function sliceProfileFamilyListForDisplay(
+  list: OldFamilyBindItem[],
+): OldFamilyBindItem[] {
+  return list.slice(0, PROFILE_FAMILY_LIST_DISPLAY_LIMIT);
+}
+
 export function getFamilyListSubtitle(item: OldFamilyBindItem): string {
   const status = getFamilyBindStatusMeta(item.bindStatus);
   if (status.pending) return '等待确认中...';

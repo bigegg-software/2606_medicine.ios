@@ -21,12 +21,10 @@ import {
   setSelectedFamilyKey,
 } from '@/store/actions/family';
 import {
-  FAMILY_MEAL_STATUS_STYLE,
   chunkFamilyVitalRows,
   hasAnyFamilyDataPagePermission,
   hasFamilyDataPermission,
   type FamilyAssessmentItem,
-  type FamilyMealNutritionItem,
   type FamilyMedicationItem,
   type FamilyPrescriptionTypeItem,
 } from './utils/familyDataHelpers';
@@ -44,11 +42,13 @@ import {
 } from './utils/familyDataVitalHelpers';
 import {
   emptyFamilyPrescriptionItems,
+  loadFamilyPrescriptionGoalDisplay,
   loadFamilyPrescriptionItems,
 } from './utils/familyDataPrescriptionHelpers';
 import {
-  emptyFamilyMealNutritionItems,
-  loadFamilyMealNutritionItems,
+  emptyFamilyMealSectionView,
+  loadFamilyMealSectionView,
+  type FamilyMealSectionView,
 } from './utils/familyDataMealHelpers';
 import {
   emptyFamilyMedicationItems,
@@ -63,9 +63,12 @@ import {
   resolveFamilyMedicationRemindSenderName,
   sendFamilyMedicationRemindMessage,
 } from './utils/familyDataMedicationRemindHelpers';
-import TaskProgressRing from '@/src/features/schedule/components/TaskProgressRing';
+import type { HomePrescriptionGoalDisplay } from '@/src/features/home/homePrescriptionGoalHelpers';
+import MiniProgressRing from '@/src/features/home/components/MiniProgressRing';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import styles from '@/css/family/data';
+
+const CF_PROGRESS_TRACK_WIDTH = 70;
 
 export default function FamilyDataPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -80,7 +83,10 @@ export default function FamilyDataPage() {
   const [prescriptionItems, setPrescriptionItems] = useState<FamilyPrescriptionTypeItem[]>(
     emptyFamilyPrescriptionItems,
   );
-  const [mealItems, setMealItems] = useState<FamilyMealNutritionItem[]>(emptyFamilyMealNutritionItems);
+  const [prescriptionGoal, setPrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(
+    null,
+  );
+  const [mealSection, setMealSection] = useState<FamilyMealSectionView>(emptyFamilyMealSectionView);
   const [medicationItems, setMedicationItems] = useState<FamilyMedicationItem[]>(
     emptyFamilyMedicationItems,
   );
@@ -192,26 +198,32 @@ export default function FamilyDataPage() {
   const loadPrescription = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
       setPrescriptionItems(emptyFamilyPrescriptionItems());
+      setPrescriptionGoal(null);
       return;
     }
     try {
-      const items = await loadFamilyPrescriptionItems(patientUserId);
+      const [items, goalDisplay] = await Promise.all([
+        loadFamilyPrescriptionItems(patientUserId),
+        loadFamilyPrescriptionGoalDisplay(patientUserId),
+      ]);
       setPrescriptionItems(items);
+      setPrescriptionGoal(goalDisplay);
     } catch {
       setPrescriptionItems(emptyFamilyPrescriptionItems());
+      setPrescriptionGoal(null);
     }
   }, []);
 
   const loadMeals = useCallback(async (patientUserId: string) => {
     if (!patientUserId) {
-      setMealItems(emptyFamilyMealNutritionItems());
+      setMealSection(emptyFamilyMealSectionView());
       return;
     }
     try {
-      const items = await loadFamilyMealNutritionItems(patientUserId);
-      setMealItems(items);
+      const section = await loadFamilyMealSectionView(patientUserId);
+      setMealSection(section);
     } catch {
-      setMealItems(emptyFamilyMealNutritionItems());
+      setMealSection(emptyFamilyMealSectionView());
     }
   }, []);
 
@@ -259,11 +271,12 @@ export default function FamilyDataPage() {
         void loadPrescription(selectedPatientUserId);
       } else {
         setPrescriptionItems(emptyFamilyPrescriptionItems());
+        setPrescriptionGoal(null);
       }
       if (canViewDiet) {
         void loadMeals(selectedPatientUserId);
       } else {
-        setMealItems(emptyFamilyMealNutritionItems());
+        setMealSection(emptyFamilyMealSectionView());
       }
       if (canViewMedication) {
         void loadMedications(selectedPatientUserId);
@@ -446,7 +459,7 @@ export default function FamilyDataPage() {
               <Flex align="center" justify="between">
                 <Text style={styles.vitalHeaderTitle}>运动处方</Text>
                 <Flex align="center">
-                  <Text style={styles.vitalHeaderRight}>查看</Text>
+                  <Text style={styles.vitalHeaderRight}>查看详情</Text>
                   <Image
                     source={require('@/assets/images/schedule/right.png')}
                     style={styles.vitalTrendArrow}
@@ -455,26 +468,55 @@ export default function FamilyDataPage() {
                 </Flex>
               </Flex>
             </TouchableOpacity>
-            <View style={styles.prescriptionTypeBox}>
-              {prescriptionItems.map(item => (
-                <View key={item.key} style={styles.prescriptionTypeCol}>
-                  <Flex align="center">
-                    <Image
-                      source={item.icon}
-                      style={styles.prescriptionTypeIcon}
-                      resizeMode="contain"
-                    />
-                    <Text style={styles.prescriptionTypeTitle}>{item.title}</Text>
-                  </Flex>
-                  <View style={styles.prescriptionTypeProgress}>
-                    <TaskProgressRing
-                      progress={item.progress}
-                      progressColor={item.progressColor}
-                    />
+            <Flex justify="between" style={styles.prescriptionCfContent}>
+              {prescriptionItems.map(item => {
+                const hasType = item.progress != null;
+                const progress = item.progress ?? 0;
+                return (
+                  <View key={item.key} style={styles.prescriptionCfItem}>
+                    <Text style={styles.prescriptionCfValue}>
+                      {hasType ? `${item.progress}%` : '--'}
+                    </Text>
+                    <Text style={styles.prescriptionCfText}>{item.title}</Text>
+                    <View style={styles.prescriptionCfProgressTrack}>
+                      <View
+                        style={[
+                          styles.prescriptionCfProgressFill,
+                          {
+                            width: Math.max(
+                              0,
+                              Math.min(
+                                CF_PROGRESS_TRACK_WIDTH,
+                                (CF_PROGRESS_TRACK_WIDTH * progress) / 100,
+                              ),
+                            ),
+                            backgroundColor: item.progressColor,
+                          },
+                        ]}
+                      />
+                    </View>
                   </View>
-                </View>
-              ))}
-            </View>
+                );
+              })}
+            </Flex>
+            {prescriptionGoal ? (
+              <Flex style={styles.prescriptionCfBottom} align="center">
+                {prescriptionGoal.layout === 'metric' ? (
+                  <>
+                    <Text style={styles.prescriptionCfBtm1}>{prescriptionGoal.label}</Text>
+                    <Text style={styles.prescriptionCfBtmText}>{prescriptionGoal.value}</Text>
+                    <Text style={styles.prescriptionCfBtm1}>{prescriptionGoal.unit}</Text>
+                    <Flex style={styles.prescriptionCfYdbBox}>
+                      <Text style={styles.prescriptionCfYdbText}>{prescriptionGoal.badge}</Text>
+                    </Flex>
+                  </>
+                ) : (
+                  <Text style={styles.prescriptionCfBtm1} numberOfLines={2}>
+                    {prescriptionGoal.text}
+                  </Text>
+                )}
+              </Flex>
+            ) : null}
           </View>
         ) : null}
         {canViewDiet ? (
@@ -491,9 +533,9 @@ export default function FamilyDataPage() {
               }}
             >
               <Flex align="center" justify="between">
-                <Text style={styles.vitalHeaderTitle}>用餐记录</Text>
+                <Text style={styles.vitalHeaderTitle}>饮食处方</Text>
                 <Flex align="center">
-                  <Text style={styles.vitalHeaderRight}>查看</Text>
+                  <Text style={styles.vitalHeaderRight}>查看详情</Text>
                   <Image
                     source={require('@/assets/images/schedule/right.png')}
                     style={styles.vitalTrendArrow}
@@ -502,55 +544,105 @@ export default function FamilyDataPage() {
                 </Flex>
               </Flex>
             </TouchableOpacity>
-            <View style={styles.mealNutritionBox}>
-              {mealItems.map(item => {
-                const statusStyle = FAMILY_MEAL_STATUS_STYLE[item.status];
-                return (
-                  <View key={item.key} style={styles.mealNutritionItem}>
-                    <Flex align="center" justify="between">
-                      <Flex align="center" style={{ flex: 1 }}>
-                        <Image
-                          source={item.icon}
-                          style={styles.mealNutritionIcon}
-                          resizeMode="contain"
-                        />
-                        <Text style={[styles.mealNutritionTitle, { color: item.titleColor }]}>
-                          {item.title}
-                        </Text>
-                      </Flex>
-                      <View
-                        style={[
-                          styles.mealNutritionStatus,
-                          {
-                            backgroundColor: statusStyle.backgroundColor,
-                            borderColor: statusStyle.borderColor,
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.mealNutritionStatusText, { color: statusStyle.color }]}>
-                          {item.status}
-                        </Text>
-                      </View>
+
+            <Flex justify="between" style={styles.mealYyContent}>
+              {mealSection.metrics.map(item => (
+                <Flex key={item.key} style={styles.mealYyItem} align="center">
+                  <MiniProgressRing
+                    size={30}
+                    progress={item.progress}
+                    trackColor="rgba(131,174,255,0.14)"
+                    color={item.color}
+                  />
+                  <View style={styles.mealYyItemRight}>
+                    <Flex style={styles.mealYyValueRow} align="center">
+                      <Text style={styles.mealYyValue} numberOfLines={1}>
+                        {item.currentText}
+                      </Text>
+                      <Text style={styles.mealYyUnit} numberOfLines={1}>
+                        {item.key === 'calorie' ? '/' : ' /'}
+                        {item.targetText}
+                      </Text>
                     </Flex>
-                    <Text style={styles.mealNutritionValue}>
-                      {item.currentValue}
-                      <Text style={styles.mealNutritionValueTarget}>/{item.targetValue}</Text>
-                    </Text>
-                    <View style={styles.mealNutritionBarTrack}>
-                      <View
-                        style={[
-                          styles.mealNutritionBarFill,
-                          {
-                            width: `${Math.max(0, Math.min(item.progress, 100))}%`,
-                            backgroundColor: item.progressColor,
-                          },
-                        ]}
-                      />
-                    </View>
+                    <Text style={styles.mealYyTitle}>{item.title}</Text>
                   </View>
-                );
-              })}
-            </View>
+                </Flex>
+              ))}
+            </Flex>
+
+            <Flex style={styles.mealYsBox} align="center">
+              <Flex align="center">
+                <Image style={styles.mealYsIcon} source={mealSection.mealIcon} />
+                <Text style={styles.mealYsText}>{mealSection.mealTitle}</Text>
+              </Flex>
+              <Flex
+                justify="center"
+                align="center"
+                style={[
+                  styles.mealWlrBox,
+                  mealSection.hasLoggedCurrentMeal ? styles.mealWlrBoxLogged : null,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.mealWlrText,
+                    mealSection.hasLoggedCurrentMeal ? styles.mealWlrTextLogged : null,
+                  ]}
+                >
+                  {mealSection.hasLoggedCurrentMeal ? '已录入' : '未录入'}
+                </Text>
+              </Flex>
+              <View style={styles.mealLine} />
+              <View style={styles.mealFoodArea}>
+                {mealSection.foodDisplay.visible.length === 0 ? (
+                  <View style={styles.mealFoodChip}>
+                    <Text style={styles.mealFoodText}>暂无建议</Text>
+                  </View>
+                ) : (
+                  <View style={styles.mealFoodList}>
+                    {mealSection.foodDisplay.visible.map((food, index) => {
+                      const shouldTruncate =
+                        mealSection.foodDisplay.truncateLast
+                        && index === mealSection.foodDisplay.visible.length - 1;
+                      return (
+                        <View
+                          key={`${food}-${index}`}
+                          style={[
+                            styles.mealFoodChip,
+                            shouldTruncate ? styles.mealFoodChipShrink : null,
+                          ]}
+                        >
+                          <Text
+                            style={styles.mealFoodText}
+                            numberOfLines={shouldTruncate ? 1 : undefined}
+                            ellipsizeMode="tail"
+                          >
+                            {food}
+                          </Text>
+                        </View>
+                      );
+                    })}
+                    {mealSection.foodDisplay.hasMore && !mealSection.foodDisplay.truncateLast ? (
+                      <View style={styles.mealFoodChip}>
+                        <Text style={styles.mealFoodEllipsis}>...</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                )}
+              </View>
+            </Flex>
+
+            {!mealSection.hasDietRule ? (
+              <Flex style={styles.mealYyEmptyTip} align="center">
+                <Image
+                  source={require('@/assets/images/home/icon_warn.png')}
+                  style={styles.mealYyEmptyTipIcon}
+                />
+                <Text style={styles.mealYyEmptyTipText}>
+                  暂无营养处方，如需开方，请联系工作人员
+                </Text>
+              </Flex>
+            ) : null}
           </View>
         ) : null}
         {canViewMedication ? (

@@ -45,6 +45,7 @@ import {
   getFamilyDisplayName,
   getFamilyListSubtitle,
   resolveFamilyBindAvatarSource,
+  sliceProfileFamilyListForDisplay,
 } from '@/src/features/profile/myFamily/utils/myFamilyListHelpers';
 import {
   hydrateEquipment,
@@ -153,6 +154,11 @@ export default function ProfilePage() {
     });
     return map;
   }, [relationOptions]);
+
+  const displayedFamilyList = useMemo(
+    () => sliceProfileFamilyListForDisplay(familyList),
+    [familyList],
+  );
 
   const loadSignTip = useCallback(async () => {
     try {
@@ -507,14 +513,14 @@ export default function ProfilePage() {
               </TouchableOpacity>
             </Flex>
           ) : (
-            familyList.map((item, index) => {
+            displayedFamilyList.map((item, index) => {
               const relationLabel =
                 relationLabelMap[String(item.relationType ?? '')] ||
                 item.relationType ||
                 '家人';
               const status = getFamilyBindStatusMeta(item.bindStatus);
               const bindId = item.id != null ? String(item.id) : undefined;
-              const isLast = index === familyList.length - 1;
+              const isLast = index === displayedFamilyList.length - 1;
               return (
                 <Pressable
                   key={bindId ?? `${item.jsUserId}-${item.jsPhonenumber}-${index}`}
