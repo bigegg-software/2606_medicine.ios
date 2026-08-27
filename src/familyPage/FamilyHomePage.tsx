@@ -249,7 +249,8 @@ export default function FamilyHomePage() {
             <View style={styles.todoHeader}>
               <Flex align="center">
                 <View style={styles.todoBar} />
-                <Text style={styles.todoTitle}>重要待办（{warningTodoTotal}项）</Text>
+                {/* （{warningTodoTotal}项） */}
+                <Text style={styles.todoTitle}>重要待办</Text>
               </Flex>
               <TouchableOpacity
                 style={styles.todoRightHit}

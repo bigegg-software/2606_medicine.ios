@@ -152,7 +152,7 @@ const styles = StyleSheet.create({
         color: "#333333"
     },
     blurCardValueBp: {
-        fontSize: 16,
+        fontSize: 14,
     },
     blurCardUnit: {
         fontWeight: 400,

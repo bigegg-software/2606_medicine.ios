@@ -23,6 +23,7 @@ import { addPushNotificationListeners, registerIosPushToken, syncNotificationSet
 import SyncReminderWatcher from '@/src/components/SyncReminderWatcher';
 import SessionExpiredWatcher from '@/src/components/SessionExpiredWatcher';
 import UploadProgressBar from '@/src/components/UploadProgressBar';
+import { pingApiOnAppLaunch } from '@/utils/appLaunchApiPing';
 
 function AutoSyncOnLaunch() {
   const isLogin = useSelector((state: RootState) => state.login.isLogin);
@@ -169,6 +170,8 @@ export default function App() {
   });
 
   useEffect(() => {
+    void pingApiOnAppLaunch();
+
     (async () => {
       const token = await getToken();
       const isLoggedIn = !!(token && token.length > 0);

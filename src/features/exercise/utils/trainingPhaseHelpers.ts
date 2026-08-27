@@ -27,7 +27,27 @@ import {
   resolveScheduleGroupVal,
 } from './exercisePlayerHelpers';
 
-const DEFAULT_THUMB = require('@/assets/images/exercise/ydkz.png');
+const DEFAULT_TRAINING_THUMB_BY_KEY = {
+  cardio: require('@/assets/images/exercise/thumb_cardio.png'),
+  strength: require('@/assets/images/exercise/thumb_strength.png'),
+  flexibility: require('@/assets/images/exercise/thumb_flexibility.png'),
+  balance: require('@/assets/images/exercise/thumb_balance.png'),
+  hot: require('@/assets/images/exercise/thumb_hot.png'),
+  cold: require('@/assets/images/exercise/thumb_cold.png'),
+} as const;
+
+type DefaultTrainingThumbKey = keyof typeof DEFAULT_TRAINING_THUMB_BY_KEY;
+
+/** 无封面时按训练类型 / 阶段使用默认缩略图 */
+export function resolveDefaultTrainingThumb(
+  key?: string | null,
+): ImageSourcePropType {
+  const normalized = String(key ?? '').trim() as DefaultTrainingThumbKey;
+  if (normalized && DEFAULT_TRAINING_THUMB_BY_KEY[normalized]) {
+    return DEFAULT_TRAINING_THUMB_BY_KEY[normalized];
+  }
+  return DEFAULT_TRAINING_THUMB_BY_KEY.cardio;
+}
 
 export type TrainingPhaseExerciseCard = {
   key: string;
@@ -401,9 +421,12 @@ async function fetchVideoInfo(exVideoId: string): Promise<ExVideoInfo | null> {
 export async function buildTrainingPhaseCards(
   items: ExWeekTrainingItem[] | undefined,
   bodyPartLabelMap?: Record<string, string>,
+  options?: { defaultThumbKey?: string | null },
 ): Promise<TrainingPhaseExerciseCard[]> {
   const list = items ?? [];
   if (list.length === 0) return [];
+
+  const defaultThumb = resolveDefaultTrainingThumb(options?.defaultThumbKey);
 
   const [videos, labelMap] = await Promise.all([
     Promise.all(
@@ -428,7 +451,7 @@ export async function buildTrainingPhaseCards(
       exVideoId,
       title: video?.title?.trim() || '训练动作',
       ruleText: bodyPartText ? `${ruleText} · ${bodyPartText}` : ruleText,
-      coverSource: coverUrl ? { uri: coverUrl } : DEFAULT_THUMB,
+      coverSource: coverUrl ? { uri: coverUrl } : defaultThumb,
       durationMinutes: resolveDurationMinutes(item),
       kcal: Number.isFinite(Number(item.kcal)) ? Number(item.kcal) : 0,
       timerType: item.timerType?.trim() || '',
@@ -627,7 +650,9 @@ export async function buildMainTrainingModules(
   for (const typeKey of typeOrder) {
     const items = merged[typeKey];
     if (!items.length) continue;
-    const baseCards = await buildTrainingPhaseCards(items, bodyPartLabelMap);
+    const baseCards = await buildTrainingPhaseCards(items, bodyPartLabelMap, {
+      defaultThumbKey: typeKey,
+    });
     if (!baseCards.length) continue;
     const cards = await attachTrainingPhaseCompleteInfo(baseCards, {
       exPatientRuleId,

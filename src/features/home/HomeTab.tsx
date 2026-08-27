@@ -17,6 +17,7 @@ import styles from '@/css/home/home';
 import MiniProgressRing from './components/MiniProgressRing';
 import MiniVitalBars from './components/MiniVitalBars';
 import MiniVitalScatter from './components/MiniVitalScatter';
+import MiniSleepStageChart from './components/MiniSleepStageChart';
 import VitalInfoModal from './components/VitalInfoModal';
 import AutoScrollText from '@/src/components/AutoScrollText';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
@@ -565,14 +566,18 @@ export default function HomeTab() {
                       <Text
                         style={[
                           styles.blurCardValue,
-                          card.key === '血压' && styles.blurCardValueBp,
+                          (card.key === '血压' || card.key === '睡眠') && styles.blurCardValueBp,
                         ]}>
                         {card.value}
                       </Text>
-                      <Text style={styles.blurCardUnit}>{card.unit}</Text>
+                      {card.unit ? (
+                        <Text style={styles.blurCardUnit}>{card.unit}</Text>
+                      ) : null}
                     </Flex>
                     <Flex align="center" style={styles.blurCardSparklineWrap}>
-                      {card.sparkline.length > 0 ? (
+                      {card.chartKind === 'sleepStage' ? (
+                        <MiniSleepStageChart data={card.sleepStageTimeline} />
+                      ) : card.sparkline.length > 0 ? (
                         card.chartKind === 'bar' ? (
                           <MiniVitalBars data={card.sparkline} color={card.chartColor} />
                         ) : (
@@ -580,7 +585,14 @@ export default function HomeTab() {
                         )
                       ) : null}
                     </Flex>
-                    <Text style={styles.blurCardValueText}>{card.subtitle}</Text>
+                    <Text
+                      style={[
+                        styles.blurCardValueText,
+                        card.subtitleColor ? { color: card.subtitleColor } : null,
+                      ]}
+                    >
+                      {card.subtitle}
+                    </Text>
                   </TouchableOpacity>
                 </View>
               ))}

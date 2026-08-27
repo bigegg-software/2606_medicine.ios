@@ -260,7 +260,7 @@ export default function ExercisePage() {
         </View>
       )}
 
-      {!readOnly && activeNav === 0 ? (
+      {!readOnly && activeNav === 0 && exerciseRule ? (
         <TouchableOpacity
           style={styles.checkInFab}
           activeOpacity={0.85}

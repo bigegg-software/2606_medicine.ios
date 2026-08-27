@@ -2,6 +2,7 @@ import type { ImageSourcePropType } from 'react-native';
 import type { MeasureDataItem, MeasureDataType } from '@/api/measureData';
 import type { WearableDataItem, WearableDataType } from '@/api/wearableData';
 import { WEARABLE_DATA_TYPES } from '@/api/wearableData';
+import type { SleepStageTimelineSegment } from '@/src/features/profile/components/sleepStageChartHelpers';
 import {
   buildBloodLipidTcSeries,
   buildBloodPressureSeriesFromItems,
@@ -36,7 +37,7 @@ export const HOME_BLUR_CHART_WIDTH = 72;
 export const HOME_BLUR_CHART_HEIGHT = 30;
 export const HOME_BLUR_PROGRESS_WIDTH = 74;
 
-export type HomeBlurVitalChartKind = 'scatter' | 'bar' | 'progress';
+export type HomeBlurVitalChartKind = 'scatter' | 'bar' | 'progress' | 'sleepStage';
 
 export type HomeBlurVitalCardView = {
   key: VitalIndexKey;
@@ -58,10 +59,14 @@ export type HomeBlurVitalCardView = {
     | 'UricAcidPage';
   value: string;
   subtitle: string;
+  /** 副标题/状态色（睡眠质量等，对齐 VitalsPage） */
+  subtitleColor?: string;
   chartKind: HomeBlurVitalChartKind;
   chartColor: string;
   sparkline: number[];
   progress: number;
+  /** 睡眠阶段时间轴（今日） */
+  sleepStageTimeline?: SleepStageTimelineSegment[];
 };
 
 export type HomeBlurVitalDataBag = {
@@ -163,7 +168,7 @@ const HOME_BLUR_VITAL_META: Record<VitalIndexKey, HomeBlurVitalMeta> = {
     infoKey: '睡眠',
     icon: HOME_ICONS.睡眠,
     route: 'SleepPage',
-    chartKind: 'progress',
+    chartKind: 'sleepStage',
     chartColor: '#8f85f5',
     wearableTypes: [WEARABLE_DATA_TYPES.sleep],
   },
@@ -229,15 +234,6 @@ function toSparklineValues(series: { value: number }[]) {
   if (values.length >= 2) return values;
   if (values.length === 1) return [values[0], values[0]];
   return [];
-}
-
-function parseSleepHours(durationText: string) {
-  const hourMatch = durationText.match(/(\d+(?:\.\d+)?)\s*小时/);
-  const minuteMatch = durationText.match(/(\d+)\s*分钟/);
-  const hours = hourMatch ? Number(hourMatch[1]) : 0;
-  const minutes = minuteMatch ? Number(minuteMatch[1]) : 0;
-  if (!Number.isFinite(hours) && !Number.isFinite(minutes)) return 0;
-  return Math.max(0, hours) + Math.max(0, minutes) / 60;
 }
 
 function getLatestTodayMeasureItem(items: MeasureDataItem[]) {
@@ -395,21 +391,20 @@ export function buildHomeBlurVitalCards(
         };
       }
       case '睡眠': {
+        // 对齐 VitalsPage：时长 + 质量状态 + 今日阶段图
         const items = bag.wearableByType[WEARABLE_DATA_TYPES.sleep] ?? [];
         const summary = getSleepSummary(items, 'today');
-        const hours = parseSleepHours(summary.duration);
-        const value =
-          summary.duration === '--' || hours <= 0
-            ? '--'
-            : Number.isInteger(hours)
-              ? String(hours)
-              : hours.toFixed(1);
+        const duration = summary.duration?.trim() || '--';
         return {
           ...base,
-          value,
-          unit: '小时',
-          subtitle: `目标：${bag.sleepGoalHours}小时`,
-          progress: calcNutritionProgress(hours, bag.sleepGoalHours),
+          value: duration,
+          // 时长文案已含「小时/分钟」，避免再拼单位；无数据时保留「小时」
+          unit: duration === '--' ? '小时' : '',
+          subtitle: summary.quality.label || '暂无数据',
+          subtitleColor: summary.quality.color || '#999999',
+          chartKind: 'sleepStage',
+          chartColor: '#8f85f5',
+          sleepStageTimeline: summary.stageTimeline,
         };
       }
       case '血氧': {

@@ -262,7 +262,9 @@ export default function TrainingPage({
                 setWarmupCards([]);
                 return;
             }
-            const cards = await buildTrainingPhaseCards(hotList);
+            const cards = await buildTrainingPhaseCards(hotList, undefined, {
+                defaultThumbKey: 'hot',
+            });
             const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
                 exPatientRuleId: rule?.exPatientRuleId,
                 customerLocalDate: date,
@@ -285,7 +287,9 @@ export default function TrainingPage({
                 setCooldownCards([]);
                 return;
             }
-            const cards = await buildTrainingPhaseCards(coldList);
+            const cards = await buildTrainingPhaseCards(coldList, undefined, {
+                defaultThumbKey: 'cold',
+            });
             const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
                 exPatientRuleId: rule?.exPatientRuleId,
                 customerLocalDate: date,

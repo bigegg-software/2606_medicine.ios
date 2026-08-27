@@ -4,6 +4,11 @@ import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { InUseExPatientRule } from '@/api/schedule';
 import { loadCalendarDayCompleteRateProgressMap } from '@/src/features/schedule/calendarDayCompleteRateHelpers';
 import {
+  buildExercisePrescriptionMetrics,
+  enrichHealthGoalTargets,
+  loadScheduleDictMaps,
+} from '@/src/features/schedule/scheduleHelpers';
+import {
   loadHomePrescriptionGoalDisplay,
   type HomePrescriptionGoalDisplay,
 } from '@/src/features/home/homePrescriptionGoalHelpers';
@@ -12,34 +17,21 @@ import {
   type FamilyPrescriptionTypeItem,
 } from './familyDataHelpers';
 
+export type FamilyPrescriptionSection = {
+  items: FamilyPrescriptionTypeItem[];
+  goal: HomePrescriptionGoalDisplay | null;
+};
+
 /** 无选中家人 / 加载失败时的空进度列表 */
 export function emptyFamilyPrescriptionItems(): FamilyPrescriptionTypeItem[] {
   return FAMILY_PRESCRIPTION_TYPES.map(item => ({ ...item, progress: null }));
 }
 
-/** 拉取指定家人今日四模块运动处方进度（X-Patient-User-Id） */
-export async function loadFamilyPrescriptionItems(
-  patientUserId: string,
-): Promise<FamilyPrescriptionTypeItem[]> {
-  const id = String(patientUserId).trim();
-  if (!id) return emptyFamilyPrescriptionItems();
-
-  try {
-    const progressMap = await loadCalendarDayCompleteRateProgressMap(
-      moment().format('YYYY-MM-DD'),
-      { patientUserId: id },
-    );
-    return FAMILY_PRESCRIPTION_TYPES.map(item => ({
-      ...item,
-      // 接口未返回该模块代表当天没有安排；与已安排但完成率为 0 区分开。
-      progress: progressMap[item.key] ?? null,
-    }));
-  } catch {
-    return emptyFamilyPrescriptionItems();
-  }
+export function emptyFamilyPrescriptionSection(): FamilyPrescriptionSection {
+  return { items: emptyFamilyPrescriptionItems(), goal: null };
 }
 
-/** 拉取家人在用运动处方（用于底部目标条） */
+/** 拉取家人在用运动处方（对齐首页：补充健康目标详情） */
 export async function loadFamilyInUsePrescription(
   patientUserId: string,
 ): Promise<InUseExPatientRule | null> {
@@ -48,21 +40,75 @@ export async function loadFamilyInUsePrescription(
   try {
     const res = await getInUseExPatientRuleInfo({ patientUserId: id });
     if (!isResourceApiOk(res as { code?: number })) return null;
-    return apiResourceData<InUseExPatientRule>(
-      res as { code?: number; data?: InUseExPatientRule },
-    ) ?? null;
+    let current =
+      apiResourceData<InUseExPatientRule>(
+        res as { code?: number; data?: InUseExPatientRule },
+      ) ?? null;
+    if (!current) return null;
+
+    if (current.healthGoalTargetList?.length) {
+      const enrichedTargets = await enrichHealthGoalTargets(current.healthGoalTargetList);
+      current = { ...current, healthGoalTargetList: enrichedTargets };
+    }
+    return current;
   } catch {
     return null;
   }
 }
 
-/** 家人运动处方底部目标文案（对齐首页） */
-export async function loadFamilyPrescriptionGoalDisplay(
+/**
+ * 家人运动处方区块：进度 + 底部目标
+ * 逻辑对齐首页 HomeTab.loadExercisePrescription
+ */
+export async function loadFamilyPrescriptionSection(
   patientUserId: string,
-): Promise<HomePrescriptionGoalDisplay | null> {
+): Promise<FamilyPrescriptionSection> {
   const id = String(patientUserId).trim();
-  if (!id) return null;
-  const prescription = await loadFamilyInUsePrescription(id);
-  if (!prescription) return null;
-  return loadHomePrescriptionGoalDisplay(prescription, id, { patientUserId: id });
+  if (!id) return emptyFamilyPrescriptionSection();
+
+  try {
+    const [dictMaps, prescription] = await Promise.all([
+      loadScheduleDictMaps().catch(() => null),
+      loadFamilyInUsePrescription(id),
+    ]);
+
+    if (!prescription) {
+      return emptyFamilyPrescriptionSection();
+    }
+
+    const progressMap = await loadCalendarDayCompleteRateProgressMap(
+      moment().format('YYYY-MM-DD'),
+      { patientUserId: id },
+    );
+
+    const metrics = buildExercisePrescriptionMetrics(
+      prescription.ruleRatioList,
+      dictMaps ?? undefined,
+      progressMap,
+      { availableTypeKeys: new Set(Object.keys(progressMap)) },
+    );
+
+    const colorByKey = Object.fromEntries(
+      FAMILY_PRESCRIPTION_TYPES.map(item => [item.key, item.progressColor]),
+    );
+    const iconByKey = Object.fromEntries(
+      FAMILY_PRESCRIPTION_TYPES.map(item => [item.key, item.icon]),
+    );
+
+    const items: FamilyPrescriptionTypeItem[] = metrics.map(item => ({
+      key: item.key,
+      title: item.label,
+      progress: item.value,
+      progressColor: colorByKey[item.key] ?? item.color,
+      icon: iconByKey[item.key] ?? FAMILY_PRESCRIPTION_TYPES[0]!.icon,
+    }));
+
+    const goal = await loadHomePrescriptionGoalDisplay(prescription, id, {
+      patientUserId: id,
+    });
+
+    return { items, goal };
+  } catch {
+    return emptyFamilyPrescriptionSection();
+  }
 }

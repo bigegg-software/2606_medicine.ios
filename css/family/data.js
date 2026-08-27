@@ -475,38 +475,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 6,
   },
-  prescriptionCfBottom: {
-    marginTop: 18,
-    backgroundColor: '#F6F8FB',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  prescriptionCfBtmText: {
-    fontWeight: 'bold',
-    fontSize: 18,
-    color: '#333333',
-    paddingHorizontal: 4,
-  },
-  prescriptionCfBtm1: {
-    fontWeight: '500',
-    fontSize: 12,
-    color: '#666666',
-  },
-  prescriptionCfYdbBox: {
-    backgroundColor: 'rgba(109,146,94,0.16)',
-    borderRadius: 4,
-    paddingHorizontal: 19,
-    height: 21,
-    marginLeft: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  prescriptionCfYdbText: {
-    fontWeight: '500',
-    fontSize: 12,
-    color: '#6D925E',
-  },
   /** 用餐记录：对齐首页营养处方内容区 */
   mealYyContent: {
     marginTop: 11,

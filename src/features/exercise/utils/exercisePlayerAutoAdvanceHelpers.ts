@@ -198,7 +198,9 @@ async function resolveInWarmupPhase(options: {
   const { dayRule, customerLocalDate, currentExVideoId, fromStart, readOnly } = options;
   const phaseBundle = getWarmupHotList(dayRule, customerLocalDate);
   if (phaseBundle.isRest || phaseBundle.hotList.length === 0) return null;
-  const baseCards = await buildTrainingPhaseCards(phaseBundle.hotList);
+  const baseCards = await buildTrainingPhaseCards(phaseBundle.hotList, undefined, {
+    defaultThumbKey: 'hot',
+  });
   const cards = await attachTrainingPhaseCompleteInfo(baseCards, {
     exPatientRuleId: dayRule.exPatientRuleId,
     customerLocalDate,
@@ -248,7 +250,9 @@ async function resolveInCooldownPhase(options: {
   const { dayRule, customerLocalDate, currentExVideoId, fromStart, readOnly } = options;
   const phaseBundle = getCooldownColdList(dayRule, customerLocalDate);
   if (phaseBundle.isRest || phaseBundle.coldList.length === 0) return null;
-  const baseCards = await buildTrainingPhaseCards(phaseBundle.coldList);
+  const baseCards = await buildTrainingPhaseCards(phaseBundle.coldList, undefined, {
+    defaultThumbKey: 'cold',
+  });
   const cards = await attachTrainingPhaseCompleteInfo(baseCards, {
     exPatientRuleId: dayRule.exPatientRuleId,
     customerLocalDate,

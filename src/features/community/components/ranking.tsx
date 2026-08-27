@@ -302,7 +302,8 @@ export default function RankingPage() {
                     />
                     <Image source={myAvatarSource} style={styles.listImg} />
                     <View style={styles.rankingListInfo}>
-                        <Text style={styles.rankingItemText}>{myName}</Text>
+                        <Text style={styles.rankingItemText}>我</Text>
+                        {/* <Text style={styles.rankingItemText}>{myName}</Text> */}
                         <Text style={styles.rankingItemText2} numberOfLines={1}>{mySubtitle}</Text>
                     </View>
                     <Text style={styles.avatarValue}>{myTrailing}</Text>

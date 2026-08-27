@@ -42,8 +42,7 @@ import {
 } from './utils/familyDataVitalHelpers';
 import {
   emptyFamilyPrescriptionItems,
-  loadFamilyPrescriptionGoalDisplay,
-  loadFamilyPrescriptionItems,
+  loadFamilyPrescriptionSection,
 } from './utils/familyDataPrescriptionHelpers';
 import {
   emptyFamilyMealSectionView,
@@ -67,6 +66,7 @@ import type { HomePrescriptionGoalDisplay } from '@/src/features/home/homePrescr
 import MiniProgressRing from '@/src/features/home/components/MiniProgressRing';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import styles from '@/css/family/data';
+import homeStyles from '@/css/home/home';
 
 const CF_PROGRESS_TRACK_WIDTH = 70;
 
@@ -202,12 +202,9 @@ export default function FamilyDataPage() {
       return;
     }
     try {
-      const [items, goalDisplay] = await Promise.all([
-        loadFamilyPrescriptionItems(patientUserId),
-        loadFamilyPrescriptionGoalDisplay(patientUserId),
-      ]);
-      setPrescriptionItems(items);
-      setPrescriptionGoal(goalDisplay);
+      const section = await loadFamilyPrescriptionSection(patientUserId);
+      setPrescriptionItems(section.items);
+      setPrescriptionGoal(section.goal);
     } catch {
       setPrescriptionItems(emptyFamilyPrescriptionItems());
       setPrescriptionGoal(null);
@@ -500,20 +497,18 @@ export default function FamilyDataPage() {
               })}
             </Flex>
             {prescriptionGoal ? (
-              <Flex style={styles.prescriptionCfBottom} align="center">
+              <Flex style={homeStyles.cfBottom} align="center">
                 {prescriptionGoal.layout === 'metric' ? (
                   <>
-                    <Text style={styles.prescriptionCfBtm1}>{prescriptionGoal.label}</Text>
-                    <Text style={styles.prescriptionCfBtmText}>{prescriptionGoal.value}</Text>
-                    <Text style={styles.prescriptionCfBtm1}>{prescriptionGoal.unit}</Text>
-                    <Flex style={styles.prescriptionCfYdbBox}>
-                      <Text style={styles.prescriptionCfYdbText}>{prescriptionGoal.badge}</Text>
+                    <Text style={homeStyles.btm1}>{prescriptionGoal.label}</Text>
+                    <Text style={homeStyles.btmText}>{prescriptionGoal.value}</Text>
+                    <Text style={homeStyles.btm1}>{prescriptionGoal.unit}</Text>
+                    <Flex style={homeStyles.ydbBox}>
+                      <Text style={homeStyles.ydbText}>{prescriptionGoal.badge}</Text>
                     </Flex>
                   </>
                 ) : (
-                  <Text style={styles.prescriptionCfBtm1} numberOfLines={2}>
-                    {prescriptionGoal.text}
-                  </Text>
+                  <Text style={homeStyles.btm1} numberOfLines={2}>{prescriptionGoal.text}</Text>
                 )}
               </Flex>
             ) : null}

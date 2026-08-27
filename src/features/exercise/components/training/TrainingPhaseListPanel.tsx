@@ -94,7 +94,9 @@ export default function TrainingPhaseListPanel({
       }
 
       setLoading(true);
-      void buildTrainingPhaseCards(items)
+      void buildTrainingPhaseCards(items, undefined, {
+        defaultThumbKey: config.trainingPhase,
+      })
         .then(nextCards =>
           attachTrainingPhaseCompleteInfo(nextCards, {
             exPatientRuleId: dayRule?.exPatientRuleId,
