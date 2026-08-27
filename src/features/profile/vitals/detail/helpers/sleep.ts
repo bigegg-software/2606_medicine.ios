@@ -85,6 +85,25 @@ function formatClockHm(value?: string) {
   return parsed ? parsed.format('HH:mm') : null;
 }
 
+/** 就寝时间跨午夜：凌晨 0-12 点按「前一晚」计入（+24h），再参与平均 */
+function toBedtimeMinutesForAverage(parsed: moment.Moment) {
+  let minutes = parsed.hour() * 60 + parsed.minute();
+  if (minutes < 12 * 60) {
+    minutes += 24 * 60;
+  }
+  return minutes;
+}
+
+function averageClockMinutes(values: number[]) {
+  if (!values.length) return null;
+  return Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+}
+
+function formatAverageClockMinutes(totalMinutes: number) {
+  const normalized = ((totalMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
+  return moment().startOf('day').add(normalized, 'minutes').format('HH:mm');
+}
+
 function dedupeDailySleepItems(items: WearableDataItem[]) {
   const byDate = new Map<string, WearableDataItem>();
 
@@ -281,22 +300,17 @@ export function calcSleepDetailStats(
     const wake = parseClockTime(getSleepWakeTimeStr(item));
     const bed = parseClockTime(getSleepBedTimeStr(item));
     if (wake) wakeMinutes.push(wake.hour() * 60 + wake.minute());
-    if (bed) bedMinutes.push(bed.hour() * 60 + bed.minute());
+    if (bed) bedMinutes.push(toBedtimeMinutesForAverage(bed));
   }
 
-  const averageMinutes = (values: number[]) =>
-    values.length
-      ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length)
-      : null;
-
-  const avgWake = averageMinutes(wakeMinutes);
-  const avgBed = averageMinutes(bedMinutes);
+  const avgWake = averageClockMinutes(wakeMinutes);
+  const avgBed = averageClockMinutes(bedMinutes);
 
   return {
     totalSleep: formatSleepDuration(totalMinutes),
     dailyAverage: formatSleepDuration(Math.round(totalMinutes / rangedItems.length)),
-    avgWakeTime: avgWake != null ? moment().startOf('day').add(avgWake, 'minutes').format('HH:mm') : '--',
-    avgBedTime: avgBed != null ? moment().startOf('day').add(avgBed, 'minutes').format('HH:mm') : '--',
+    avgWakeTime: avgWake != null ? formatAverageClockMinutes(avgWake) : '--',
+    avgBedTime: avgBed != null ? formatAverageClockMinutes(avgBed) : '--',
   };
 }
 
