@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
         color: '#333333',
     },
     dangerBtnDelete: {
-        marginTop: 12,
+        // marginTop: 12,
         height: 51,
         borderRadius: 29,
         backgroundColor: 'rgba(251,69,80,0.06)',

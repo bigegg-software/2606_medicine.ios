@@ -106,14 +106,29 @@ export function buildStepsDetailTodaySeries(
   goalOverride?: number,
 ): StepsDetailPoint[] {
   const todayItems = items.filter(item => getWearableDate(item).isSame(moment(), 'day'));
-  const goal = getStepsDetailGoal(todayItems.length ? todayItems : items, goalOverride);
+  const sourceItems = todayItems.length ? todayItems : items;
+  const goal = getStepsDetailGoal(sourceItems, goalOverride);
   const bars = buildStepsTodayBarSeries(items);
 
-  if (bars.length) {
-    return bars.map(bar => mapStepsBarLabelToPoint(bar.label, bar.value, goal));
+  if (!bars.length) {
+    return [];
   }
 
-  return [];
+  const dayTotal = getStepsDetailDayTotal(items);
+  const maxBar = Math.max(...bars.map(bar => bar.value));
+  // 最大值已接近全日步数 → 原始点本身是累计快照，直接使用
+  const alreadyCumulative = dayTotal > 0 && maxBar >= dayTotal * 0.85;
+
+  if (alreadyCumulative) {
+    return bars.map(bar => mapStepsBarLabelToPoint(bar.label, Math.round(bar.value), goal));
+  }
+
+  // 增量样本：累加成「截至该时刻」的步数，最新点对齐全日总量
+  let cumulative = 0;
+  return bars.map(bar => {
+    cumulative += Math.max(0, Math.round(bar.value));
+    return mapStepsBarLabelToPoint(bar.label, cumulative, goal);
+  });
 }
 
 export function buildStepsDetailPeriodSeries(

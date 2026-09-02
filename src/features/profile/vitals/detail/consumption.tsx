@@ -52,20 +52,6 @@ function resetHeaderDisplay(range: StepsChartRange, goal: number) {
     return formatEnergyDetailPointDisplay(range, undefined, goal);
 }
 
-function applyTodayGoalStatus(dayTotal: number, goal: number) {
-    return formatEnergyDetailPointDisplay(
-        'today',
-        dayTotal > 0
-            ? {
-                hour: '',
-                value: dayTotal,
-                energyGoals: goal,
-            }
-            : undefined,
-        goal,
-    );
-}
-
 export default function ConsumptionPage() {
     const route = useRoute();
     const { readOnly, patientUserId, viewNavParams } = resolveVitalsViewMode(
@@ -107,26 +93,16 @@ export default function ConsumptionPage() {
             energyGoal,
         );
 
-        if (range === 'today') {
-            // 今日数值跟图表选中点；目标状态始终用「全天活动消耗」
-            if (point != null) {
-                setDisplayValue(pointDisplay.value);
-            }
-            const dayStatusDisplay = applyTodayGoalStatus(todayTotalEnergy, energyGoal);
-            setDisplayStatus(dayStatusDisplay.status);
-            setDisplayStatusColor(dayStatusDisplay.statusColor);
-            return;
-        }
-
-        // 周/月无选中点时保留当前展示，勿刷成空态
-        if (point == null) return;
+        if (range !== 'today' && point == null) return;
 
         setDisplayValue(pointDisplay.value);
         setDisplayStatus(pointDisplay.status);
         setDisplayStatusColor(pointDisplay.statusColor);
         setCurrentLabel(pointDisplay.currentLabel);
-        setSuggestionLabel(pointDisplay.suggestionLabel);
-    }, [energyGoal, todayTotalEnergy]);
+        if (range !== 'today') {
+            setSuggestionLabel(pointDisplay.suggestionLabel);
+        }
+    }, [energyGoal]);
 
     const energyYAxisBuilder = useCallback<StepsYAxisBuilder>(
         points => buildEnergyDetailYAxis(points as EnergyDetailPoint[], selectedType),
@@ -204,15 +180,8 @@ export default function ConsumptionPage() {
                 setTodayTotalEnergy(0);
             }
 
-            // 数据就绪后一次性写入头部，避免切换时先闪 --/旧状态
-            if (range === 'today') {
-                const dayDisplay = applyTodayGoalStatus(dayTotal, goal);
-                setDisplayValue(dayDisplay.value);
-                setDisplayStatus(dayDisplay.status);
-                setDisplayStatusColor(dayDisplay.statusColor);
-                setCurrentLabel('当前：今天');
-                setSuggestionLabel(dayDisplay.suggestionLabel);
-            } else {
+            // 周/月先写入头部；今日由图表默认选中最新点后回调更新
+            if (range !== 'today') {
                 const lastValid = [...nextChartData].reverse().find(point => point.value > 0);
                 const periodDisplay = formatEnergyDetailPointDisplay(
                     range,

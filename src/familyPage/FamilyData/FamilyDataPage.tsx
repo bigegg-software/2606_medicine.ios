@@ -369,7 +369,7 @@ export default function FamilyDataPage() {
         {canViewHealthData ? (
           <View style={styles.vitalCard}>
             <Flex align="center" justify="between">
-              <Text style={styles.vitalHeaderTitle}>体征监测</Text>
+              <Text style={styles.vitalHeaderTitle}>健康数据</Text>
               <Text style={styles.vitalHeaderRight}>
                 {loadingVitals ? '加载中…' : '最新一条'}
               </Text>
@@ -432,7 +432,7 @@ export default function FamilyDataPage() {
               }}
             >
               <Flex align="center" justify="center">
-                <Text style={styles.vitalTrendBtnText}>查看全部体征趋势图</Text>
+                <Text style={styles.vitalTrendBtnText}>查看全部健康趋势图</Text>
                 <Image
                   source={require('@/assets/images/schedule/right.png')}
                   style={styles.vitalTrendArrow}
@@ -528,7 +528,7 @@ export default function FamilyDataPage() {
               }}
             >
               <Flex align="center" justify="between">
-                <Text style={styles.vitalHeaderTitle}>饮食处方</Text>
+                <Text style={styles.vitalHeaderTitle}>营养处方</Text>
                 <Flex align="center">
                   <Text style={styles.vitalHeaderRight}>查看详情</Text>
                   <Image

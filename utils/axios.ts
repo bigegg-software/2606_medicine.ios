@@ -8,7 +8,7 @@ import { clearAll } from '@/services/storage';
 
 const apiClient = axios.create({
   baseURL,
-  timeout: 30000,
+  timeout: 60000,
   validateStatus: status => status !== undefined && status < 500,
 });
 

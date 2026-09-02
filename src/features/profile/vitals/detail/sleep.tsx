@@ -286,7 +286,7 @@ export default function SleepPage() {
                     ) : null}
                     {isTodayView ? (<View style={[styles.rowBox, { marginTop: 30 }]}>
                         <Flex justify='between' align='center'>
-                            <Text style={styles.analysisTitle}>睡眠分析</Text>
+                            <Text style={styles.analysisTitle}>睡眠评分</Text>
                             <Flex style={[styles.statusBox, { borderColor: sleepScoreSummary.qualityColor }]}>
                                 <Text style={[styles.statusText, { color: sleepScoreSummary.qualityColor }]}>
                                     {sleepScoreSummary.qualityLabel}

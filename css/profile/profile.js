@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
     color: AppTheme.primaryColor,
   },
   familyListStatusFail: {
-    color: '#FB4550',
+    color: AppTheme.textSecondary,
   },
   tabSize: { width: 58, height: 22 },
   logout: { marginTop: 10, backgroundColor: "#FFFFFF", shadowColor: "#0C3D9A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 8, height: 51, borderRadius: 30, alignItems: 'center' },

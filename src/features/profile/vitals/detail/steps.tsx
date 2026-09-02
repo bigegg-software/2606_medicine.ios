@@ -92,30 +92,17 @@ export default function StepsPage() {
             stepGoal,
         );
 
-        if (selectedType === 'today') {
-            setDisplayValue(pointDisplay.value);
-            const dayStatusDisplay = formatStepsDetailPointDisplay(
-                'today',
-                todayDaySteps > 0
-                    ? {
-                        hour: '',
-                        value: todayDaySteps,
-                        stepGoals: stepGoal,
-                    }
-                    : undefined,
-                stepGoal,
-            );
-            setDisplayStatus(dayStatusDisplay.status);
-            setDisplayStatusColor(dayStatusDisplay.statusColor);
-            return;
-        }
+        // 周/月无选中点时保留当前展示；今日由图表默认选中最新点驱动头部
+        if (selectedType !== 'today' && point == null) return;
 
         setDisplayValue(pointDisplay.value);
         setDisplayStatus(pointDisplay.status);
         setDisplayStatusColor(pointDisplay.statusColor);
         setCurrentLabel(pointDisplay.currentLabel);
-        setSuggestionLabel(pointDisplay.suggestionLabel);
-    }, [selectedType, stepGoal, todayDaySteps]);
+        if (selectedType !== 'today') {
+            setSuggestionLabel(pointDisplay.suggestionLabel);
+        }
+    }, [selectedType, stepGoal]);
 
     const stepsYAxisBuilder = useCallback<StepsYAxisBuilder>(
         points => buildStepsDetailYAxis(points as StepsDetailPoint[], selectedType),
@@ -149,20 +136,15 @@ export default function StepsPage() {
 
             const items = sortWearableItems(apiResourceData<WearableDataItem[]>(res) ?? []);
             const goal = getStepsDetailGoal(items, fallbackGoal);
+            const nextChartData =
+                range === 'today'
+                    ? buildStepsDetailTodaySeries(items, goal)
+                    : buildStepsDetailPeriodSeries(items, range, goal);
+
             setStepGoal(goal);
             setSuggestionLabel(formatStepsGoalLabel(goal));
-            if (range === 'today') {
-                setCurrentLabel('当前：今天');
-                setTodayDaySteps(getStepsDetailDayTotal(items));
-            } else {
-                setTodayDaySteps(0);
-            }
-
-            if (range === 'today') {
-                setChartData(buildStepsDetailTodaySeries(items, goal));
-            } else {
-                setChartData(buildStepsDetailPeriodSeries(items, range, goal));
-            }
+            setTodayDaySteps(range === 'today' ? getStepsDetailDayTotal(items) : 0);
+            setChartData(nextChartData);
 
             const overviewStats = calcStepsDetailOverview(items, range, goal);
             if (overviewStats) {
@@ -173,6 +155,21 @@ export default function StepsPage() {
                 });
             } else {
                 setOverview(EMPTY_OVERVIEW);
+            }
+
+            // 周/月先写入头部；今日由图表默认选中最新点后回调更新
+            if (range !== 'today') {
+                const lastValid = [...nextChartData].reverse().find(point => point.value > 0);
+                const periodDisplay = formatStepsDetailPointDisplay(
+                    range,
+                    lastValid as StepsDetailPoint | undefined,
+                    goal,
+                );
+                setDisplayValue(periodDisplay.value);
+                setDisplayStatus(periodDisplay.status);
+                setDisplayStatusColor(periodDisplay.statusColor);
+                setCurrentLabel(periodDisplay.currentLabel);
+                setSuggestionLabel(periodDisplay.suggestionLabel);
             }
         } catch {
             setChartData([]);

@@ -104,7 +104,11 @@ export function buildEnergyDetailTodaySeries(
   const bars = buildEnergyTodayBarSeries(activeItems, []);
 
   if (bars.length) {
-    return bars.map(bar => mapEnergyBarLabelToPoint(bar.label, bar.value, goal));
+    let cumulative = 0;
+    return bars.map(bar => {
+      cumulative = roundEnergyValue(cumulative + bar.value);
+      return mapEnergyBarLabelToPoint(bar.label, cumulative, goal);
+    });
   }
 
   return [];

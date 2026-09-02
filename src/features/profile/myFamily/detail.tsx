@@ -278,7 +278,7 @@ export default function MyFamilyDetailPage() {
         </View>
 
         <Text style={styles.rowBoxInfoText}>危险操作</Text>
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.dangerBtnRevoke}
           activeOpacity={0.8}
           disabled={saving}
@@ -291,7 +291,7 @@ export default function MyFamilyDetailPage() {
             />
             <Text style={styles.dangerBtnRevokeText}>解除全部授权（保留家人关系）</Text>
           </Flex>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
         <TouchableOpacity
           style={styles.dangerBtnDelete}
           activeOpacity={0.8}
