@@ -2,14 +2,14 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   listHealthTestRecords,
-  queryFirstAndLatestHealthTestRecord,
+  pickFirstAndLatestHealthTestRecords,
   type ExHealthTestRecord,
   type FirstAndLatestHealthTestRecord,
 } from '@/api/exHealthTestRecord';
 import type { HealthGoalTarget } from '@/api/healthGoal';
 import { fetchInUsePrescription } from '@/store/actions/prescription';
 import type { AppDispatch, RootState } from '@/store/store';
-import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 
 function sortHealthTestRecordsByTime(records: ExHealthTestRecord[]) {
   return [...records].sort((a, b) => {
@@ -21,8 +21,8 @@ function sortHealthTestRecordsByTime(records: ExHealthTestRecord[]) {
 
 export function useHealthTestRecords(options: {
   healthGoalId?: string;
-  healthTestItemId?: number;
-  userId?: number;
+  healthTestItemId?: number | string;
+  userId?: number | string;
 }) {
   const { healthGoalId, healthTestItemId, userId } = options;
   const dispatch = useDispatch<AppDispatch>();
@@ -54,44 +54,43 @@ export function useHealthTestRecords(options: {
     setLoading(true);
     try {
       let current = prescription;
-      if (!current?.exPatientRuleId) {
+      if (!current?.startDate || !current?.endDate) {
         current = await dispatch(fetchInUsePrescription()) ?? null;
       }
 
-      const ruleId = current?.exPatientRuleId;
-      if (ruleId == null) {
+      const startDate = current?.startDate?.trim();
+      const endDate = current?.endDate?.trim();
+      if (!startDate || !endDate) {
         setRecords(null);
         setRecordTotal(0);
         setLatestTwoRecords([]);
         return;
       }
 
-      const queryParams = {
-        exPatientRuleId: ruleId,
-        healthTestItemId,
-        userId,
-      };
+      // 按处方周期 list；首次/最新从 list 推导（教练代录可能无 exPatientRuleId）
+      const listRes = await listHealthTestRecords({
+        startDate,
+        endDate,
+        healthTestItemId: String(healthTestItemId),
+        userId: userId != null ? String(userId) : undefined,
+        pageNum: 1,
+        pageSize: 500,
+      });
 
-      const [firstLatestRes, listRes] = await Promise.all([
-        queryFirstAndLatestHealthTestRecord(queryParams),
-        listHealthTestRecords({ ...queryParams, pageNum: 1, pageSize: 2 }),
-      ]);
-
-      if (isResourceApiOk(firstLatestRes)) {
-        setRecords(apiResourceData<FirstAndLatestHealthTestRecord>(firstLatestRes as any) ?? null);
-      } else {
+      if (!isResourceApiOk(listRes)) {
         setRecords(null);
-      }
-
-      if (isResourceApiOk(listRes)) {
-        const total = Number((listRes as { total?: number }).total ?? 0);
-        const rows = sortHealthTestRecordsByTime(getResourceRows(listRes as any)).slice(0, 2);
-        setRecordTotal(Number.isFinite(total) ? total : rows.length);
-        setLatestTwoRecords(rows);
-      } else {
         setRecordTotal(0);
         setLatestTwoRecords([]);
+        return;
       }
+
+      const rows = getResourceRows<ExHealthTestRecord>(listRes as any);
+      const total = Number((listRes as { total?: number }).total ?? rows.length);
+      const sortedDesc = sortHealthTestRecordsByTime(rows);
+
+      setRecords(pickFirstAndLatestHealthTestRecords(rows));
+      setRecordTotal(Number.isFinite(total) ? total : rows.length);
+      setLatestTwoRecords(sortedDesc.slice(0, 2));
     } catch {
       setRecords(null);
       setRecordTotal(0);

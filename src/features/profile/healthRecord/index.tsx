@@ -35,6 +35,15 @@ import {
     loadRelationTypeLabelMap,
 } from '@/src/features/profile/emergencyHelpers';
 import { resolveDailyActivityLevelLabel } from '@/src/features/profile/healthRecord/utils/profileActivityLevelHelpers';
+import {
+    buildTrainingGoalLabelMap,
+    loadFitnessLevelDictItems,
+    loadTrainingGoalDictItems,
+    normalizeTrainingGoals,
+    resolveFitnessLevelLabel,
+    resolveTrainingGoalLabels,
+} from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
+import type { DictDataItem } from '@/api/dict';
 import { hasFamilyDataPermission } from '@/src/familyPage/FamilyData/utils/familyDataHelpers';
 import {
     findHealthRecordFamilyBind,
@@ -136,6 +145,20 @@ export default function HealthRecordPage() {
     const [lastAssessmentByType, setLastAssessmentByType] = useState<
         Partial<Record<QuestionnaireType, AssessmentSummary>>
     >({});
+    const [profileExtraExpanded, setProfileExtraExpanded] = useState(false);
+    const [fitnessLevelDictItems, setFitnessLevelDictItems] = useState<DictDataItem[]>([]);
+    const [trainingGoalLabelMap, setTrainingGoalLabelMap] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        void (async () => {
+            const [fitnessItems, trainingItems] = await Promise.all([
+                loadFitnessLevelDictItems(),
+                loadTrainingGoalDictItems(),
+            ]);
+            setFitnessLevelDictItems(fitnessItems);
+            setTrainingGoalLabelMap(buildTrainingGoalLabelMap(trainingItems));
+        })();
+    }, []);
 
     const loadRecords = useCallback(async () => {
         try {
@@ -261,9 +284,9 @@ export default function HealthRecordPage() {
             headerRight: readOnly
                 ? () => (
                     <FamilyRelationHeaderBadge
-                      label={displayName || relationLabel}
+                        label={displayName || relationLabel}
                     />
-                  )
+                )
                 : undefined,
         });
     }, [displayName, navigation, readOnly, relationLabel]);
@@ -307,6 +330,19 @@ export default function HealthRecordPage() {
     const birthMoment = moment(profileUser?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
     const birthDate = birthMoment.isValid() ? birthMoment.format('YYYY-MM-DD') : '--';
     const age = birthMoment.isValid() ? moment().diff(birthMoment, 'years') : '--';
+    const displayOrDash = (value?: string | null) => {
+        const text = value?.trim();
+        return text ? text : '--';
+    };
+    const fitnessLevelText = displayOrDash(
+        resolveFitnessLevelLabel(profileUser?.fitnessLevel, fitnessLevelDictItems),
+    );
+    const trainingGoalsText = displayOrDash(
+        resolveTrainingGoalLabels(
+            normalizeTrainingGoals(profileUser?.trainingGoals),
+            trainingGoalLabelMap,
+        ),
+    );
     return (
         <PageLayout style={styles.container}>
             <ScrollView contentContainerStyle={styles.body}>
@@ -360,10 +396,67 @@ export default function HealthRecordPage() {
                             {resolveDailyActivityLevelLabel(profileUser?.dailyActivityLevel) || '--'}
                         </Text>
                     </Flex>
-                    <Flex justify="between" style={[styles.infoItem, { borderBottomWidth: 0 }]}>
+                    <Flex justify="between" style={styles.infoItem}>
                         <Text style={styles.infoItemLabel}>手机号</Text>
                         <Text style={styles.infoItemValue}>{phoneText}</Text>
                     </Flex>
+
+                    {profileExtraExpanded ? (
+                        <>
+                            <Flex justify="between" style={styles.infoItem}>
+                                <Text style={styles.infoItemLabel}>主诉</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {displayOrDash(profileUser?.primaryDiagnosis)}
+                                </Text>
+                            </Flex>
+                            <Flex justify="between" style={styles.infoItem}>
+                                <Text style={styles.infoItemLabel}>健康标签</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {displayOrDash(profileUser?.diagnosticLabel)}
+                                </Text>
+                            </Flex>
+                            <Flex justify="between" style={styles.infoItem}>
+                                <Text style={styles.infoItemLabel}>主要健康目标</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {displayOrDash(profileUser?.primaryHealthGoal)}
+                                </Text>
+                            </Flex>
+                            <Flex justify="between" style={styles.infoItem}>
+                                <Text style={styles.infoItemLabel}>饮食偏好</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {displayOrDash(profileUser?.dietaryPreferences)}
+                                </Text>
+                            </Flex>
+                            <Flex justify="between" style={styles.infoItem}>
+                                <Text style={styles.infoItemLabel}>体能水平</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {fitnessLevelText}
+                                </Text>
+                            </Flex>
+                            <Flex justify="between" style={styles.infoItem}>
+                                <Text style={styles.infoItemLabel}>训练目标</Text>
+                                <Text style={styles.infoItemValue} numberOfLines={1}>
+                                    {trainingGoalsText}
+                                </Text>
+                            </Flex>
+                        </>
+                    ) : null}
+
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        style={styles.profileExpandBtn}
+                        onPress={() => setProfileExtraExpanded(prev => !prev)}
+                    >
+                        <MaterialIcons
+                            name={profileExtraExpanded ? 'keyboard-arrow-up' : 'keyboard-arrow-down'}
+                            size={21}
+                            color="#6D925E"
+                        />
+                        <Text style={styles.profileExpandBtnText}>
+                            {profileExtraExpanded ? '收起' : '展开'}
+                        </Text>
+
+                    </TouchableOpacity>
                 </View>
 
                 <View style={styles.infoBox}>
@@ -668,187 +761,187 @@ export default function HealthRecordPage() {
                     </View>
                 </View>
                 {canViewChronicDisease ? (
-                <View style={styles.infoBox}>
-                    <Flex justify='between'>
-                        <Text style={styles.sectionTitle}>慢病管理</Text>
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('ChronicDisease', viewNavParams)}>
-                            <Flex>
-                                <Text style={styles.more}>全部</Text>
-                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                            </Flex>
-                        </TouchableOpacity>
-                    </Flex>
-                    {chronicRecords.length > 0 ? (
-                        chronicRecords.map(item => {
-                            const dailyIndicators =
-                                item.id != null
-                                    ? dailyIndicatorsById.get(item.id) ?? DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS
-                                    : DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS;
-                            return (
-                                <ChronicDiseaseCard
-                                    key={String(item.id)}
-                                    record={item}
-                                    diseaseTypeLabels={diseaseTypeLabels}
-                                    dailyIndicators={dailyIndicators}
-                                    onPress={() =>
-                                        item.id != null
-                                        && navigation.navigate('ChronicDiseaseDetailPage', {
-                                            id: item.id,
-                                            ...(viewNavParams ?? {}),
-                                        })
-                                    }
-                                />
-                            );
-                        })
-                    ) : readOnly ? (
-                        <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0, marginTop: 10 }]}>
-                            <Text style={styles.familyItemName}>暂无慢病记录</Text>
+                    <View style={styles.infoBox}>
+                        <Flex justify='between'>
+                            <Text style={styles.sectionTitle}>慢病管理</Text>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('ChronicDisease', viewNavParams)}>
+                                <Flex>
+                                    <Text style={styles.more}>全部</Text>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
                         </Flex>
-                    ) : (
-                        <TouchableOpacity onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
+                        {chronicRecords.length > 0 ? (
+                            chronicRecords.map(item => {
+                                const dailyIndicators =
+                                    item.id != null
+                                        ? dailyIndicatorsById.get(item.id) ?? DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS
+                                        : DEFAULT_CHRONIC_DISEASE_DAILY_INDICATORS;
+                                return (
+                                    <ChronicDiseaseCard
+                                        key={String(item.id)}
+                                        record={item}
+                                        diseaseTypeLabels={diseaseTypeLabels}
+                                        dailyIndicators={dailyIndicators}
+                                        onPress={() =>
+                                            item.id != null
+                                            && navigation.navigate('ChronicDiseaseDetailPage', {
+                                                id: item.id,
+                                                ...(viewNavParams ?? {}),
+                                            })
+                                        }
+                                    />
+                                );
+                            })
+                        ) : readOnly ? (
                             <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0, marginTop: 10 }]}>
-                                <Text style={styles.familyItemName}>点击添加慢病</Text>
-                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                <Text style={styles.familyItemName}>暂无慢病记录</Text>
                             </Flex>
-                        </TouchableOpacity>
-                    )}
-                </View>
+                        ) : (
+                            <TouchableOpacity onPress={() => navigation.navigate('ChronicDiseaseAddPage')}>
+                                <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0, marginTop: 10 }]}>
+                                    <Text style={styles.familyItemName}>点击添加慢病</Text>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                                </Flex>
+                            </TouchableOpacity>
+                        )}
+                    </View>
                 ) : null}
                 {canViewAssessment ? (
-                <View style={styles.infoBox}>
-                    <Flex justify='between'>
-                        <Text style={styles.sectionTitle}>评估问卷</Text>
-                        <TouchableOpacity
-                            onPress={() => navigation.navigate('QuestionnaireList', viewNavParams)}>
-                            <Flex>
-                                <Text style={styles.more}>全部</Text>
-                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
-                            </Flex>
-                        </TouchableOpacity>
-                    </Flex>
-
-                    {QUESTIONNAIRE_CONFIG.map(item => {
-                        const lastAssessment = lastAssessmentByType[item.type];
-                        const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
-                        const canStart = canStartAssessment(item.type, lastAssessment?.date);
-                        const nextAssessmentDate = getNextAssessmentDate(item.type, lastAssessment?.date);
-                        const actionLabel = hasLastAssessment ? '重新评估' : '开始评估';
-
-                        return (
-                            <View key={item.type} style={questionnaireStyles.rowBox}>
-                                <Flex justify="between" align="center">
-                                    <View style={{ flex: 1, marginRight: 8 }}>
-                                        <Text style={questionnaireStyles.rowTitle}>
-                                            {QUESTIONNAIRE_TITLES[item.type]}
-                                        </Text>
-                                        <Text style={questionnaireStyles.rowText}>预计时间：{item.duration}</Text>
-                                    </View>
-                                    {hasLastAssessment ? (
-                                        <Image
-                                            style={questionnaireStyles.timeIcon}
-                                            source={require('@/assets/images/questionnaire/time.png')}
-                                        />
-                                    ) : readOnly ? null : (
-                                        <TouchableOpacity
-                                            style={questionnaireStyles.startBtn}
-                                            onPress={() =>
-                                                navigation.navigate('QuestionnairePage', { type: item.type })
-                                            }>
-                                            <Flex style={{ flex: 1 }} justify="center">
-                                                <Text style={questionnaireStyles.startText}>{actionLabel}</Text>
-                                            </Flex>
-                                        </TouchableOpacity>
-                                    )}
+                    <View style={styles.infoBox}>
+                        <Flex justify='between'>
+                            <Text style={styles.sectionTitle}>评估问卷</Text>
+                            <TouchableOpacity
+                                onPress={() => navigation.navigate('QuestionnaireList', viewNavParams)}>
+                                <Flex>
+                                    <Text style={styles.more}>全部</Text>
+                                    <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
                                 </Flex>
-                                {hasLastAssessment ? (
-                                    <>
-                                        <View style={[questionnaireStyles.rowLine, { marginTop: 12 }]} />
-                                        <Flex justify="between" align="center" style={questionnaireStyles.btmBox}>
+                            </TouchableOpacity>
+                        </Flex>
+
+                        {QUESTIONNAIRE_CONFIG.map(item => {
+                            const lastAssessment = lastAssessmentByType[item.type];
+                            const hasLastAssessment = Boolean(lastAssessment?.date || lastAssessment?.result);
+                            const canStart = canStartAssessment(item.type, lastAssessment?.date);
+                            const nextAssessmentDate = getNextAssessmentDate(item.type, lastAssessment?.date);
+                            const actionLabel = hasLastAssessment ? '重新评估' : '开始评估';
+
+                            return (
+                                <View key={item.type} style={questionnaireStyles.rowBox}>
+                                    <Flex justify="between" align="center">
+                                        <View style={{ flex: 1, marginRight: 8 }}>
+                                            <Text style={questionnaireStyles.rowTitle}>
+                                                {QUESTIONNAIRE_TITLES[item.type]}
+                                            </Text>
+                                            <Text style={questionnaireStyles.rowText}>预计时间：{item.duration}</Text>
+                                        </View>
+                                        {hasLastAssessment ? (
+                                            <Image
+                                                style={questionnaireStyles.timeIcon}
+                                                source={require('@/assets/images/questionnaire/time.png')}
+                                            />
+                                        ) : readOnly ? null : (
                                             <TouchableOpacity
-                                                style={{ flex: 1, marginRight: 8 }}
-                                                activeOpacity={lastAssessment?.id ? 0.85 : 1}
-                                                disabled={!lastAssessment?.id}
-                                                onPress={() => {
-                                                    if (!lastAssessment?.id) return;
-                                                    navigation.navigate('QuestionnaireDetail', {
-                                                        id: lastAssessment.id,
-                                                        ...(viewNavParams ?? {}),
-                                                    });
-                                                }}>
-                                                <Flex>
-                                                    <Image
-                                                        style={questionnaireStyles.iconSize}
-                                                        source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
-                                                    />
-                                                    <View style={{ marginLeft: 6, flexShrink: 1 }}>
-                                                        {lastAssessment?.result ? (
-                                                            <Text style={questionnaireStyles.rowTitleText}>
-                                                                {lastAssessment.result}
-                                                            </Text>
-                                                        ) : null}
-                                                        {lastAssessment?.date ? (
-                                                            <Text style={questionnaireStyles.rowText}>
-                                                                上次评估：{lastAssessment.date}
-                                                            </Text>
-                                                        ) : null}
-                                                    </View>
+                                                style={questionnaireStyles.startBtn}
+                                                onPress={() =>
+                                                    navigation.navigate('QuestionnairePage', { type: item.type })
+                                                }>
+                                                <Flex style={{ flex: 1 }} justify="center">
+                                                    <Text style={questionnaireStyles.startText}>{actionLabel}</Text>
                                                 </Flex>
                                             </TouchableOpacity>
-                                            {!readOnly ? (
+                                        )}
+                                    </Flex>
+                                    {hasLastAssessment ? (
+                                        <>
+                                            <View style={[questionnaireStyles.rowLine, { marginTop: 12 }]} />
+                                            <Flex justify="between" align="center" style={questionnaireStyles.btmBox}>
                                                 <TouchableOpacity
-                                                    style={[
-                                                        questionnaireStyles.startBtn,
-                                                        !canStart && questionnaireStyles.startBtnDisabled,
-                                                    ]}
-                                                    disabled={!canStart}
-                                                    onPress={() =>
-                                                        navigation.navigate('QuestionnairePage', { type: item.type })
-                                                    }>
-                                                    <Flex style={{ flex: 1 }} justify="center">
-                                                        <Text
-                                                            style={[
-                                                                questionnaireStyles.startText,
-                                                                !canStart && questionnaireStyles.startTextDisabled,
-                                                            ]}>
-                                                            {actionLabel}
-                                                        </Text>
+                                                    style={{ flex: 1, marginRight: 8 }}
+                                                    activeOpacity={lastAssessment?.id ? 0.85 : 1}
+                                                    disabled={!lastAssessment?.id}
+                                                    onPress={() => {
+                                                        if (!lastAssessment?.id) return;
+                                                        navigation.navigate('QuestionnaireDetail', {
+                                                            id: lastAssessment.id,
+                                                            ...(viewNavParams ?? {}),
+                                                        });
+                                                    }}>
+                                                    <Flex>
+                                                        <Image
+                                                            style={questionnaireStyles.iconSize}
+                                                            source={getAssessmentStatusIcon(lastAssessment?.statusStyle)}
+                                                        />
+                                                        <View style={{ marginLeft: 6, flexShrink: 1 }}>
+                                                            {lastAssessment?.result ? (
+                                                                <Text style={questionnaireStyles.rowTitleText}>
+                                                                    {lastAssessment.result}
+                                                                </Text>
+                                                            ) : null}
+                                                            {lastAssessment?.date ? (
+                                                                <Text style={questionnaireStyles.rowText}>
+                                                                    上次评估：{lastAssessment.date}
+                                                                </Text>
+                                                            ) : null}
+                                                        </View>
                                                     </Flex>
                                                 </TouchableOpacity>
-                                            ) : lastAssessment?.id ? (
-                                                <TouchableOpacity
-                                                    activeOpacity={0.85}
-                                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                                    onPress={() =>
-                                                        navigation.navigate('QuestionnaireDetail', {
-                                                            id: lastAssessment.id ?? '',
-                                                            ...(viewNavParams ?? {}),
-                                                        })
-                                                    }>
-                                                    <MaterialIcons
-                                                        name="chevron-right"
-                                                        size={24}
-                                                        color={AppTheme.textSecondary}
-                                                    />
-                                                </TouchableOpacity>
-                                            ) : null}
+                                                {!readOnly ? (
+                                                    <TouchableOpacity
+                                                        style={[
+                                                            questionnaireStyles.startBtn,
+                                                            !canStart && questionnaireStyles.startBtnDisabled,
+                                                        ]}
+                                                        disabled={!canStart}
+                                                        onPress={() =>
+                                                            navigation.navigate('QuestionnairePage', { type: item.type })
+                                                        }>
+                                                        <Flex style={{ flex: 1 }} justify="center">
+                                                            <Text
+                                                                style={[
+                                                                    questionnaireStyles.startText,
+                                                                    !canStart && questionnaireStyles.startTextDisabled,
+                                                                ]}>
+                                                                {actionLabel}
+                                                            </Text>
+                                                        </Flex>
+                                                    </TouchableOpacity>
+                                                ) : lastAssessment?.id ? (
+                                                    <TouchableOpacity
+                                                        activeOpacity={0.85}
+                                                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                                        onPress={() =>
+                                                            navigation.navigate('QuestionnaireDetail', {
+                                                                id: lastAssessment.id ?? '',
+                                                                ...(viewNavParams ?? {}),
+                                                            })
+                                                        }>
+                                                        <MaterialIcons
+                                                            name="chevron-right"
+                                                            size={24}
+                                                            color={AppTheme.textSecondary}
+                                                        />
+                                                    </TouchableOpacity>
+                                                ) : null}
+                                            </Flex>
+                                        </>
+                                    ) : null}
+                                    {!readOnly && !canStart && nextAssessmentDate ? (
+                                        <Flex style={questionnaireStyles.nextAssessBox} align="center">
+                                            <Image
+                                                style={questionnaireStyles.nextAssessIcon}
+                                                source={require('@/assets/images/questionnaire/icon_ts.png')}
+                                            />
+                                            <Text style={questionnaireStyles.nextAssessLabel}>下次评估时间：</Text>
+                                            <Text style={questionnaireStyles.nextAssessDate}>{nextAssessmentDate}</Text>
                                         </Flex>
-                                    </>
-                                ) : null}
-                                {!readOnly && !canStart && nextAssessmentDate ? (
-                                    <Flex style={questionnaireStyles.nextAssessBox} align="center">
-                                        <Image
-                                            style={questionnaireStyles.nextAssessIcon}
-                                            source={require('@/assets/images/questionnaire/icon_ts.png')}
-                                        />
-                                        <Text style={questionnaireStyles.nextAssessLabel}>下次评估时间：</Text>
-                                        <Text style={questionnaireStyles.nextAssessDate}>{nextAssessmentDate}</Text>
-                                    </Flex>
-                                ) : null}
-                            </View>
-                        );
-                    })}
-                </View>
+                                    ) : null}
+                                </View>
+                            );
+                        })}
+                    </View>
                 ) : null}
             </ScrollView>
         </PageLayout>

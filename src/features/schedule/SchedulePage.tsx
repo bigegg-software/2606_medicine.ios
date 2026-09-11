@@ -248,7 +248,7 @@ export default function SchedulePage() {
   }, [prescription?.endDate, prescription?.startDate]);
 
   const loadLatestHealthTestScores = useCallback(async () => {
-    if (prescription?.exPatientRuleId == null) {
+    if (!prescription?.startDate || !prescription?.endDate) {
       setLatestHealthTestByGoalId({});
       setBaselineHealthTestByGoalId({});
       setLatestJointRomByGoalId({});
@@ -261,7 +261,8 @@ export default function SchedulePage() {
       latestJointRomByGoalId: latestRom,
       firstJointRomByGoalId: firstRom,
     } = await loadHealthTestFirstAndLatestByGoalId(
-      prescription.exPatientRuleId,
+      prescription.startDate,
+      prescription.endDate,
       prescription.healthGoalTargetList,
       user?.userId,
     );
@@ -269,7 +270,7 @@ export default function SchedulePage() {
     setBaselineHealthTestByGoalId(firstByGoalId);
     setLatestJointRomByGoalId(latestRom);
     setBaselineJointRomByGoalId(firstRom);
-  }, [prescription?.exPatientRuleId, prescription?.healthGoalTargetList, user?.userId]);
+  }, [prescription?.endDate, prescription?.healthGoalTargetList, prescription?.startDate, user?.userId]);
 
   const loadLatestQuestionnaireScores = useCallback(async () => {
     if (prescription?.exPatientRuleId == null) {

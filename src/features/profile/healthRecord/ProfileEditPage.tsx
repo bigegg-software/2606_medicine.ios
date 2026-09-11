@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { View, Text, TextInput, Image, TouchableOpacity, ScrollView, Alert, ActivityIndicator, Keyboard, TouchableWithoutFeedback, Platform } from 'react-native';
 import PageLayout from '@/src/components/PageLayout';
-import { useNavigation } from '@react-navigation/native';
 import { Flex, DatePicker, Picker, Toast } from '@ant-design/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import moment from 'moment';
-import { getUserBaseInfo, updateUserBaseInfo } from '@/api/patient';
+import { getUserBaseInfo, updateUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { uploadOss } from '@/api/oss';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/healthRecord';
@@ -23,17 +22,30 @@ import {
   DAILY_ACTIVITY_LEVEL_PICKER_DATA,
   resolveDailyActivityLevelLabel,
 } from '@/src/features/profile/healthRecord/utils/profileActivityLevelHelpers';
+import {
+  buildFitnessLevelPickerData,
+  buildTrainingGoalOptions,
+  loadFitnessLevelDictItems,
+  loadTrainingGoalDictItems,
+  normalizeTrainingGoals,
+} from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
 
 const PROFILE_EDIT_ACCESSORY = {
   name: 'profileEditNameDoneToolbar',
   height: 'profileEditHeightDoneToolbar',
   weight: 'profileEditWeightDoneToolbar',
+  primaryDiagnosis: 'profileEditPrimaryDiagnosisDoneToolbar',
+  diagnosticLabel: 'profileEditDiagnosticLabelDoneToolbar',
+  primaryHealthGoal: 'profileEditPrimaryHealthGoalDoneToolbar',
+  dietaryPreferences: 'profileEditDietaryPreferencesDoneToolbar',
 } as const;
 
 const BLOOD_TYPES = ['A型', 'B型', 'AB型', 'O型', '不详'] as const;
+const BLOOD_TYPE_PICKER_DATA = BLOOD_TYPES.map(item => ({ label: item, value: item }));
 const GENDERS = ['男', '女'] as const;
 const NAME_MAX_LENGTH = 10;
 const METRIC_MAX_LENGTH = 6;
+const TEXT_AREA_MAX_LENGTH = 200;
 
 function limitText(value: string, maxLength: number) {
   return value.slice(0, maxLength);
@@ -79,42 +91,86 @@ async function pickImageFromLibrary() {
   return { uri: asset.uri, name, type };
 }
 
+type ProfileEditForm = {
+  avatarOssId?: string;
+  name: string;
+  gender: string;
+  birthDate: string;
+  height: string;
+  weight: string;
+  bloodType: string;
+  dailyActivityLevel: string;
+  primaryDiagnosis: string;
+  diagnosticLabel: string;
+  primaryHealthGoal: string;
+  dietaryPreferences: string;
+  fitnessLevel: string;
+  trainingGoals: string[];
+};
+
+const EMPTY_FORM: ProfileEditForm = {
+  avatarOssId: undefined,
+  name: '',
+  gender: '',
+  birthDate: '',
+  height: '',
+  weight: '',
+  bloodType: '',
+  dailyActivityLevel: '',
+  primaryDiagnosis: '',
+  diagnosticLabel: '',
+  primaryHealthGoal: '',
+  dietaryPreferences: '',
+  fitnessLevel: '',
+  trainingGoals: [],
+};
+
 export default function ProfileEditPage() {
-  const navigation = useNavigation();
   const dispatch = useDispatch<AppDispatch>();
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const [avatarOssUrl, setAvatarOssUrl] = useState('');
-  const [form, setForm] = useState({
-    avatarOssId: undefined as string | undefined,
-    name: '',
-    gender: '',
-    birthDate: '',
-    height: '',
-    weight: '',
-    bloodType: '',
-    dailyActivityLevel: '',
-  });
+  const [form, setForm] = useState<ProfileEditForm>(EMPTY_FORM);
   const [loading, setLoading] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [initializing, setInitializing] = useState(true);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [fitnessLevelPickerData, setFitnessLevelPickerData] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
+  const [trainingGoalOptions, setTrainingGoalOptions] = useState<
+    Array<{ label: string; value: string }>
+  >([]);
   const initialWeightRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, event => {
+      setKeyboardHeight(event.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await getUserBaseInfo();
-        const data = apiResourceData<{
-          userId?: number;
-          avatarOssId?: string;
-          avatarOssUrl?: string;
-          name?: string;
-          gender?: string;
-          birthDate?: string;
-          height?: number;
-          weight?: number;
-          bloodType?: string;
-          dailyActivityLevel?: string;
-        }>(res as { code?: number; data?: Record<string, unknown> });
+        const [res, fitnessItems, trainingItems] = await Promise.all([
+          getUserBaseInfo(),
+          loadFitnessLevelDictItems(),
+          loadTrainingGoalDictItems(),
+        ]);
+        setFitnessLevelPickerData(buildFitnessLevelPickerData(fitnessItems));
+        setTrainingGoalOptions(buildTrainingGoalOptions(trainingItems));
+
+        const data = apiResourceData<UserBaseInfo>(
+          res as { code?: number; data?: UserBaseInfo },
+        );
         if (data) {
           const loadedWeight = data.weight != null && Number.isFinite(Number(data.weight))
             ? Number(data.weight)
@@ -130,6 +186,12 @@ export default function ProfileEditPage() {
             weight: limitText(loadedWeight != null ? String(loadedWeight) : '', METRIC_MAX_LENGTH),
             bloodType: data.bloodType ?? '',
             dailyActivityLevel: data.dailyActivityLevel != null ? String(data.dailyActivityLevel) : '',
+            primaryDiagnosis: data.primaryDiagnosis ?? '',
+            diagnosticLabel: data.diagnosticLabel ?? '',
+            primaryHealthGoal: data.primaryHealthGoal ?? '',
+            dietaryPreferences: data.dietaryPreferences ?? '',
+            fitnessLevel: data.fitnessLevel != null ? String(data.fitnessLevel) : '',
+            trainingGoals: normalizeTrainingGoals(data.trainingGoals),
           });
         }
       } finally {
@@ -138,9 +200,21 @@ export default function ProfileEditPage() {
     })();
   }, []);
 
-  const patch = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+  const patch = <K extends keyof ProfileEditForm>(key: K, value: ProfileEditForm[K]) => {
     setForm(prev => ({ ...prev, [key]: value }));
   };
+
+  const toggleTrainingGoal = useCallback((value: string) => {
+    setForm(prev => {
+      const exists = prev.trainingGoals.includes(value);
+      return {
+        ...prev,
+        trainingGoals: exists
+          ? prev.trainingGoals.filter(item => item !== value)
+          : [...prev.trainingGoals, value],
+      };
+    });
+  }, []);
 
   const pickAvatar = async () => {
     if (uploadingAvatar) {
@@ -221,6 +295,12 @@ export default function ProfileEditPage() {
         weight,
         bloodType: form.bloodType || undefined,
         dailyActivityLevel: form.dailyActivityLevel || undefined,
+        primaryDiagnosis: form.primaryDiagnosis.trim() || undefined,
+        diagnosticLabel: form.diagnosticLabel.trim() || undefined,
+        primaryHealthGoal: form.primaryHealthGoal.trim() || undefined,
+        dietaryPreferences: form.dietaryPreferences.trim() || undefined,
+        fitnessLevel: form.fitnessLevel || undefined,
+        trainingGoals: form.trainingGoals,
       });
       if (!isResourceApiOk(res as { code?: number })) {
         const r = res as { msg?: string; message?: string };
@@ -239,27 +319,12 @@ export default function ProfileEditPage() {
 
       await dispatch(fetchUserBaseInfo({ force: true }));
       Toast.show('资料已保存');
-      // Alert.alert('成功', '资料已保存', [{ text: '确定', onPress: () => navigation.goBack() }]);
     } catch {
       Alert.alert('错误', '网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
-  }, [dispatch, form, navigation]);
-
-  useEffect(() => {
-    navigation.setOptions({
-      headerRight: () => (
-        <TouchableOpacity onPress={save} disabled={loading || initializing} style={{ marginRight: 16 }}>
-          {loading ? (
-            <ActivityIndicator size="small" color={AppTheme.primaryColor} />
-          ) : (
-            <Text style={{ color: AppTheme.primaryColor, fontSize: 16 }}>保存</Text>
-          )}
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, save, loading, initializing]);
+  }, [dispatch, form]);
 
   if (initializing) {
     return (
@@ -274,7 +339,7 @@ export default function ProfileEditPage() {
   const defaultAvatar = getDefaultAvatarByGender(form.gender);
 
   return (
-    <PageLayout style={styles.container}>
+    <PageLayout style={styles.container} edges={[]}>
       {Object.values(PROFILE_EDIT_ACCESSORY).map(id => (
         <KeyboardDoneAccessory key={id} nativeID={id} />
       ))}
@@ -319,26 +384,29 @@ export default function ProfileEditPage() {
 
             <Flex justify="between" align="center" style={styles.fieldBlock}>
               <Text style={styles.infoItemLabel}>性别</Text>
-              <View style={[styles.chipGrid, { gap: 8 }]}>
-                {GENDERS.map(item => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[
-                      styles.choiceChip,
-                      styles.choiceChipInline,
-                      form.gender === item && styles.choiceChipActive,
-                    ]}
-                    onPress={() => patch('gender', item)}>
-                    <Text
-                      style={[
-                        styles.choiceChipText,
-                        form.gender === item && styles.choiceChipTextActive,
-                      ]}>
-                      {item}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              <Flex align="center" style={styles.genderSelectRow}>
+                {GENDERS.map(item => {
+                  const selected = form.gender === item;
+                  return (
+                    <TouchableOpacity
+                      key={item}
+                      activeOpacity={0.7}
+                      style={styles.genderSelectItem}
+                      onPress={() => patch('gender', item)}
+                    >
+                      {selected ? (
+                        <Image
+                          style={styles.genderSelectIcon}
+                          source={require('@/assets/images/user/select.png')}
+                        />
+                      ) : (
+                        <View style={styles.genderSelectBox} />
+                      )}
+                      <Text style={styles.genderSelectText}>{item}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </Flex>
             </Flex>
 
             <DatePicker
@@ -354,7 +422,7 @@ export default function ProfileEditPage() {
                     <Text style={[styles.infoItemValue, !form.birthDate && styles.infoPlaceholder]}>
                       {form.birthDate || '请选择出生日期'}
                     </Text>
-                    <Image tintColor={AppTheme.primaryColor} source={require('@/assets/images/user/icon-rl.png')} style={styles.arrowRight} />
+                    <Image source={require('@/assets/images/user/icon_right.png')} style={styles.arrowRight} />
                   </Flex>
                 </Flex>
               </TouchableOpacity>
@@ -396,30 +464,31 @@ export default function ProfileEditPage() {
               <Text style={styles.unitText}>kg</Text>
             </Flex>
 
-            <View style={styles.fieldBlock}>
-              <Text style={styles.infoItemLabel}>血型</Text>
-              <View style={styles.chipGrid}>
-                {BLOOD_TYPES.map((item, index) => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[
-                      styles.choiceChip,
-                      styles.chipItem,
-                      index % 3 === 2 && styles.chipItemLastInRow,
-                      form.bloodType === item && styles.choiceChipActive,
-                    ]}
-                    onPress={() => patch('bloodType', item)}>
+            <Picker
+              data={BLOOD_TYPE_PICKER_DATA}
+              cols={1}
+              value={form.bloodType ? [form.bloodType] : []}
+              onOk={values => patch('bloodType', String(values[0] ?? ''))}>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Flex justify="between" align="center" style={styles.infoItem}>
+                  <Text style={styles.infoItemLabel}>血型</Text>
+                  <Flex justify="end" align="center" style={{ flex: 1 }}>
                     <Text
                       style={[
-                        styles.choiceChipText,
-                        form.bloodType === item && styles.choiceChipTextActive,
-                      ]}>
-                      {item}
+                        styles.infoItemValue,
+                        !form.bloodType && styles.infoPlaceholder,
+                      ]}
+                      numberOfLines={1}>
+                      {form.bloodType || '请选择血型'}
                     </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+                    <Image
+                      source={require('@/assets/images/vitals/icon_right.png')}
+                      style={{ width: 5, height: 9, marginLeft: 6 }}
+                    />
+                  </Flex>
+                </Flex>
+              </TouchableOpacity>
+            </Picker>
 
             <Picker
               data={DAILY_ACTIVITY_LEVEL_PICKER_DATA}
@@ -452,8 +521,156 @@ export default function ProfileEditPage() {
               <Text style={styles.infoItemValue}>{maskPhoneNumber(systemUser?.phonenumber)}</Text>
             </Flex>
           </View>
+
+          <View style={[styles.userBox, { marginTop: 12 }]}>
+            <View style={[styles.fieldMultilineBlock, styles.fieldMultilineBlockFirst]}>
+              <Text style={styles.infoItemLabel}>主诉</Text>
+              <TextInput
+                style={styles.fieldMultilineInput}
+                value={form.primaryDiagnosis}
+                onChangeText={t => patch('primaryDiagnosis', limitText(t, TEXT_AREA_MAX_LENGTH))}
+                placeholder="如当前有无慢性疾病、受伤情况等"
+                placeholderTextColor={AppTheme.textSecondary}
+                multiline
+                textAlignVertical="top"
+                maxLength={TEXT_AREA_MAX_LENGTH}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.primaryDiagnosis}
+              />
+            </View>
+
+            <View style={styles.fieldMultilineBlock}>
+              <Text style={styles.infoItemLabel}>健康标签</Text>
+              <TextInput
+                style={styles.fieldMultilineInput}
+                value={form.diagnosticLabel}
+                onChangeText={t => patch('diagnosticLabel', limitText(t, TEXT_AREA_MAX_LENGTH))}
+                placeholder="如高血压、肥胖等，用逗号分隔"
+                placeholderTextColor={AppTheme.textSecondary}
+                multiline
+                textAlignVertical="top"
+                maxLength={TEXT_AREA_MAX_LENGTH}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.diagnosticLabel}
+              />
+            </View>
+
+            <View style={styles.fieldMultilineBlock}>
+              <Text style={styles.infoItemLabel}>主要健康目标</Text>
+              <TextInput
+                style={styles.fieldMultilineInput}
+                value={form.primaryHealthGoal}
+                onChangeText={t => patch('primaryHealthGoal', limitText(t, TEXT_AREA_MAX_LENGTH))}
+                placeholder="如控制血压、减脂增肌等"
+                placeholderTextColor={AppTheme.textSecondary}
+                multiline
+                textAlignVertical="top"
+                maxLength={TEXT_AREA_MAX_LENGTH}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.primaryHealthGoal}
+              />
+            </View>
+
+            <View style={styles.fieldMultilineBlock}>
+              <Text style={styles.infoItemLabel}>饮食偏好</Text>
+              <TextInput
+                style={styles.fieldMultilineInput}
+                value={form.dietaryPreferences}
+                onChangeText={t => patch('dietaryPreferences', limitText(t, TEXT_AREA_MAX_LENGTH))}
+                placeholder="如素食、回民、不吃辣、不吃海鲜等"
+                placeholderTextColor={AppTheme.textSecondary}
+                multiline
+                textAlignVertical="top"
+                maxLength={TEXT_AREA_MAX_LENGTH}
+                inputAccessoryViewID={PROFILE_EDIT_ACCESSORY.dietaryPreferences}
+              />
+            </View>
+
+            <View style={styles.fieldMultilineBlock}>
+              <Text style={styles.infoItemLabel}>体能水平</Text>
+              <View style={styles.optionChipList}>
+                {fitnessLevelPickerData.map(item => {
+                  const selected = form.fitnessLevel === item.value;
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.fitnessLevelChip,
+                        selected && styles.fitnessLevelChipActive,
+                      ]}
+                      onPress={() => patch('fitnessLevel', item.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionChipText,
+                          selected && styles.optionChipTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={[styles.fieldMultilineBlock, { borderBottomWidth: 0 }]}>
+              <Text style={styles.infoItemLabel}>训练目标</Text>
+              <View style={styles.wrapChipGrid}>
+                {trainingGoalOptions.map(item => {
+                  const selected = form.trainingGoals.includes(item.value);
+                  return (
+                    <TouchableOpacity
+                      key={item.value}
+                      activeOpacity={0.7}
+                      style={[
+                        styles.trainingGoalChip,
+                        selected && styles.trainingGoalChipActive,
+                      ]}
+                      onPress={() => toggleTrainingGoal(item.value)}
+                    >
+                      <Text
+                        style={[
+                          styles.optionChipText,
+                          selected && styles.optionChipTextActive,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+          </View>
+          <Text style={styles.tipTextSecond}>
+            * 请尽量准确填写档案信息，方便系统为您精准定制健康方案
+          </Text>
         </ScrollView>
       </TouchableWithoutFeedback>
+
+      {keyboardHeight <= 0 ? (
+        <View style={styles.bottomBar}>
+          <TouchableOpacity
+            style={[styles.bottomBarButton, loading && { opacity: 0.6 }]}
+            activeOpacity={0.7}
+            onPress={save}
+            disabled={loading}
+          >
+            <Flex style={{ flex: 1 }} justify="center" align="center">
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <>
+                  <Image
+                    style={styles.bottomBarButtonImg}
+                    source={require('@/assets/images/schedule/save.png')}
+                  />
+                  <Text style={styles.bottomBarButtonText}>保存</Text>
+                </>
+              )}
+            </Flex>
+          </TouchableOpacity>
+        </View>
+      ) : null}
     </PageLayout>
   );
 }

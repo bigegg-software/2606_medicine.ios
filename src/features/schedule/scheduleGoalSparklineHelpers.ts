@@ -186,7 +186,8 @@ async function loadFastingBloodGlucoseDailySeries(startDate: string, endDate: st
 }
 
 async function loadHealthTestSeriesMaps(
-  exPatientRuleId: string | number,
+  startDate: string,
+  endDate: string,
   targets: HealthGoalTarget[],
   userId?: string | number | null,
 ) {
@@ -205,7 +206,8 @@ async function loadHealthTestSeriesMaps(
 
       try {
         const res = await listHealthTestRecords({
-          exPatientRuleId,
+          startDate,
+          endDate,
           healthTestItemId,
           userId: userId != null ? String(userId) : undefined,
           pageNum: 1,
@@ -311,9 +313,7 @@ export async function loadScheduleGoalChartSeries(options: {
     loadMeasureStatisGroups('血压', startDate, endDate),
     loadMeasureStatisGroups('尿酸', startDate, endDate),
     loadBloodLipidDailySeries(startDate, endDate),
-    options.exPatientRuleId != null
-      ? loadHealthTestSeriesMaps(options.exPatientRuleId, targets, options.userId)
-      : Promise.resolve({ healthTestByGoalId: {}, jointRomByGoalId: {} }),
+    loadHealthTestSeriesMaps(startDate, endDate, targets, options.userId),
     options.exPatientRuleId != null
       ? loadQuestionnaireSeriesByGoalId(options.exPatientRuleId, targets, options.userId)
       : Promise.resolve({}),

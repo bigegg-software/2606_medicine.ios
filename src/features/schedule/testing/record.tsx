@@ -17,7 +17,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '@/store/store';
 import {
     listHealthTestRecords,
-    queryFirstAndLatestHealthTestRecord,
+    pickFirstAndLatestHealthTestRecords,
     type ExHealthTestRecord,
 } from '@/api/exHealthTestRecord';
 import { getInUseExPatientRuleInfo } from '@/api/schedule';
@@ -69,7 +69,10 @@ export default function TestingRecordPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [loadingMore, setLoadingMore] = useState(false);
 
-    const exPatientRuleIdRef = useRef<string | number | undefined>(undefined);
+    const prescriptionRangeRef = useRef<{
+        startDate: string;
+        endDate: string;
+    } | null>(null);
     const hasMoreRef = useRef(false);
     const loadingMoreRef = useRef(false);
     const pageNumRef = useRef(1);
@@ -96,7 +99,7 @@ export default function TestingRecordPage() {
         }
 
         try {
-            if (!exPatientRuleIdRef.current) {
+            if (!prescriptionRangeRef.current) {
                 const prescriptionRes = await getInUseExPatientRuleInfo();
                 if (!isResourceApiOk(prescriptionRes)) {
                     if (mode !== 'loadMore') {
@@ -107,9 +110,13 @@ export default function TestingRecordPage() {
                     hasMoreRef.current = false;
                     return;
                 }
-                const prescription = apiResourceData<{ exPatientRuleId?: string | number }>(prescriptionRes as any);
-                const ruleId = prescription?.exPatientRuleId;
-                if (ruleId == null) {
+                const prescription = apiResourceData<{
+                    startDate?: string;
+                    endDate?: string;
+                }>(prescriptionRes as any);
+                const startDate = prescription?.startDate?.trim();
+                const endDate = prescription?.endDate?.trim();
+                if (!startDate || !endDate) {
                     if (mode !== 'loadMore') {
                         setRecords([]);
                         setFirstRecord(null);
@@ -118,33 +125,20 @@ export default function TestingRecordPage() {
                     hasMoreRef.current = false;
                     return;
                 }
-                exPatientRuleIdRef.current = ruleId;
+                prescriptionRangeRef.current = { startDate, endDate };
             }
 
-            const ruleId = exPatientRuleIdRef.current;
-            if (ruleId == null) return;
+            const range = prescriptionRangeRef.current;
+            if (!range) return;
 
-            const queryParams = {
-                exPatientRuleId: ruleId,
+            const listRes = await listHealthTestRecords({
+                startDate: range.startDate,
+                endDate: range.endDate,
                 healthTestItemId: String(healthTestItemId),
-                userId,
-            };
-
-            const requests: Promise<unknown>[] = [
-                listHealthTestRecords({ ...queryParams, pageNum: page, pageSize: PAGE_SIZE }),
-            ];
-            if (mode !== 'loadMore') {
-                requests.push(queryFirstAndLatestHealthTestRecord(queryParams));
-            }
-
-            const [listRes, firstLatestRes] = await Promise.all(requests);
-
-            if (mode !== 'loadMore' && firstLatestRes && isResourceApiOk(firstLatestRes as any)) {
-                const firstLatest = apiResourceData<{ firstRecord?: ExHealthTestRecord | null }>(
-                    firstLatestRes as any,
-                );
-                setFirstRecord(firstLatest?.firstRecord ?? null);
-            }
+                userId: userId != null ? String(userId) : undefined,
+                pageNum: page,
+                pageSize: PAGE_SIZE,
+            });
 
             if (isResourceApiOk(listRes as any)) {
                 const rows = sortHealthTestRecordsByTime(getResourceRows(listRes as any));
@@ -160,6 +154,7 @@ export default function TestingRecordPage() {
                 } else {
                     setRecords(rows);
                     hasMoreRef.current = rows.length < nextTotal;
+                    setFirstRecord(pickFirstAndLatestHealthTestRecords(rows).firstRecord ?? null);
                 }
 
                 setRecordTotal(nextTotal);
@@ -167,6 +162,7 @@ export default function TestingRecordPage() {
                 pageNumRef.current = page;
             } else if (mode !== 'loadMore') {
                 setRecords([]);
+                setFirstRecord(null);
                 setRecordTotal(0);
                 hasMoreRef.current = false;
             }
@@ -199,7 +195,7 @@ export default function TestingRecordPage() {
 
     useFocusEffect(
         useCallback(() => {
-            exPatientRuleIdRef.current = undefined;
+            prescriptionRangeRef.current = null;
             void fetchPage(1, 'initial');
         }, [fetchPage]),
     );

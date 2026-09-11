@@ -12,8 +12,8 @@ import type {
   HealthGoalTarget,
 } from '@/api/healthGoal';
 import {
-  queryFirstAndLatestHealthTestRecord,
-  type FirstAndLatestHealthTestRecord,
+  listHealthTestRecords,
+  pickFirstAndLatestHealthTestRecords,
 } from '@/api/exHealthTestRecord';
 import {
   queryFirstAndLatestExUserQuestion,
@@ -33,7 +33,7 @@ import {
 } from '@/src/features/schedule/testing/questionnaireHelpers';
 import { flattenMeasureItems } from '@/src/features/profile/vitals/vitalsHelpers';
 import { parseMeasureNumber } from '@/src/features/profile/vitals/detail/helpers/shared';
-import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { normalizeProgress } from './scheduleHelpers';
 
 export type ScheduleGoalCategoryTab = {
@@ -137,8 +137,8 @@ const BP_META: Array<{
     { key: 'dbp', title: '舒张压', shortLabel: 'Diastolic BP' },
   ];
 
-function toFiniteNumber(value?: number | null) {
-  if (value == null) return null;
+function toFiniteNumber(value?: number | string | null) {
+  if (value == null || value === '') return null;
   const num = Number(value);
   return Number.isFinite(num) ? num : null;
 }
@@ -1305,9 +1305,10 @@ function parseJointRomFieldsFromObjValue(
   return result;
 }
 
-/** 健康测试：查询首次及最新成绩（基线为空时用首次值） */
+/** 健康测试：按处方周期 list，推导首次及最新成绩（基线为空时用首次值） */
 export async function loadHealthTestFirstAndLatestByGoalId(
-  exPatientRuleId?: string | number | null,
+  startDate?: string | null,
+  endDate?: string | null,
   targets?: HealthGoalTarget[],
   userId?: string | number | null,
 ): Promise<HealthTestFirstAndLatestMap> {
@@ -1317,7 +1318,9 @@ export async function loadHealthTestFirstAndLatestByGoalId(
     latestJointRomByGoalId: {},
     firstJointRomByGoalId: {},
   };
-  if (exPatientRuleId == null || !targets?.length) return empty;
+  const rangeStart = startDate?.trim();
+  const rangeEnd = endDate?.trim();
+  if (!rangeStart || !rangeEnd || !targets?.length) return empty;
 
   const entries = await Promise.all(
     targets.map(async target => {
@@ -1327,10 +1330,13 @@ export async function loadHealthTestFirstAndLatestByGoalId(
       if (!healthTestItemId) return null;
 
       try {
-        const res = await queryFirstAndLatestHealthTestRecord({
-          exPatientRuleId: String(exPatientRuleId),
+        const res = await listHealthTestRecords({
+          startDate: rangeStart,
+          endDate: rangeEnd,
           healthTestItemId,
           userId: userId != null ? String(userId) : undefined,
+          pageNum: 1,
+          pageSize: 500,
         });
         if (!isResourceApiOk(res as unknown as { code?: number })) {
           return [
@@ -1341,15 +1347,14 @@ export async function loadHealthTestFirstAndLatestByGoalId(
             null,
           ] as const;
         }
-        const data = apiResourceData<FirstAndLatestHealthTestRecord>(
-          res as unknown as { code?: number; data?: FirstAndLatestHealthTestRecord },
-        );
+        const rows = getResourceRows(res as any);
+        const { firstRecord, latestRecord } = pickFirstAndLatestHealthTestRecords(rows);
         return [
           String(target.healthGoalId),
-          toFiniteNumber(data?.latestRecord?.testValue),
-          toFiniteNumber(data?.firstRecord?.testValue),
-          parseJointRomFieldsFromObjValue(data?.latestRecord?.objValue),
-          parseJointRomFieldsFromObjValue(data?.firstRecord?.objValue),
+          toFiniteNumber(latestRecord?.testValue),
+          toFiniteNumber(firstRecord?.testValue),
+          parseJointRomFieldsFromObjValue(latestRecord?.objValue),
+          parseJointRomFieldsFromObjValue(firstRecord?.objValue),
         ] as const;
       } catch {
         return [
@@ -1384,12 +1389,14 @@ export async function loadHealthTestFirstAndLatestByGoalId(
 
 /** @deprecated 使用 loadHealthTestFirstAndLatestByGoalId */
 export async function loadLatestHealthTestScoreByGoalId(
-  exPatientRuleId?: string | number | null,
+  startDate?: string | null,
+  endDate?: string | null,
   targets?: HealthGoalTarget[],
   userId?: string | number | null,
 ): Promise<Record<string, number | null>> {
   const { latestByGoalId } = await loadHealthTestFirstAndLatestByGoalId(
-    exPatientRuleId,
+    startDate,
+    endDate,
     targets,
     userId,
   );

@@ -38,6 +38,10 @@ export const DICT_TYPES = {
   activityType: 'activity_type',
   /** 健康目标分类 */
   targetCategory: 'target_category',
+  /** 体能水平 */
+  fitnessLevel: 'fitness_level',
+  /** 训练目标 */
+  trainingGoal: 'training_goal',
 } as const;
 
 export const EXERCISE_CHILD_DICT_BY_TYPE: Record<string, string> = {
