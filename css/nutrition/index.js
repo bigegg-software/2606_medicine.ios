@@ -15,7 +15,7 @@ const styles = StyleSheet.create({
   cfText: { fontWeight: 'bold', fontSize: 12, color: "#6D925E" },
   rightImg: { width: 70, height: 70, position: 'absolute', right: 0, top: 0 },
   topInfoBox: { marginTop: 12 },
-  topInfoText: { fontWeight: 500, fontSize: 12, color: "#666666" },
+  topInfoText: { fontWeight: 500, fontSize: 12, color: "#666666",width:"70%" },
   brBox: { height: 17, paddingHorizontal: 4, backgroundColor: "#6D925E", borderRadius: 4, marginRight: 6 },
   brText: { fontWeight: "bold", fontSize: 12, color: "#FFFFFF" },
   navBox: { marginHorizontal: 12, marginTop: 20, height: 40, padding: 3, backgroundColor: "rgba(109,146,94,0.12)", borderRadius: 25, gap: 6 },
@@ -108,6 +108,40 @@ const styles = StyleSheet.create({
   btmBox: { marginTop: 8, fontWeight: "bold", fontSize: 13, color: "#333333" },
   btmBoxText: { fontSize: 13, color: "#999999", lineHeight: 18 },
   calendarContentSubtitle: { fontWeight: 500, fontSize: 13, color: "#666666" },
+  mealMacroRow: {
+    marginTop: 21,
+    width: '100%',
+  },
+  mealMacroItem: {
+    flexShrink: 1,
+  },
+  mealMacroIcon: {
+    width: 12,
+    height: 12,
+    marginRight: 3,
+  },
+  mealMacroText: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#333333',
+  },
+  mealMacroApprox: {
+    flexShrink: 0,
+    fontWeight: 'bold',
+    fontSize: 14,
+    color: '#333333',
+  },
+  mealMacroDashWrap: {
+    marginTop: 21,
+    height: 1,
+    overflow: 'hidden',
+  },
+  mealMacroDash: {
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: 'rgba(23,63,125,0.08)',
+    marginTop: -1,
+  },
   dietMapBox: { marginTop: 20, height: 45 },
   mapImg: { width: 45, height: 45, marginRight: 12 },
   mapCenBox: { flex: 1 },
@@ -139,6 +173,7 @@ const styles = StyleSheet.create({
     color: '#6D925E',
   },
   actualEatFoodRow: {
+    flexDirection: 'row',
     borderRadius: 12,
     padding: 12,
     backgroundColor: "#FFF",

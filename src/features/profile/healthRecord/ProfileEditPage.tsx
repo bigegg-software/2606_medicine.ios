@@ -264,12 +264,24 @@ export default function ProfileEditPage() {
       Alert.alert('提示', '请选择性别');
       return;
     }
+    if (!form.birthDate.trim()) {
+      Alert.alert('提示', '请选择出生日期');
+      return;
+    }
     if (!form.height.trim()) {
       Alert.alert('提示', '请输入身高');
       return;
     }
     if (!form.weight.trim()) {
       Alert.alert('提示', '请输入体重');
+      return;
+    }
+    if (!form.bloodType.trim()) {
+      Alert.alert('提示', '请选择血型');
+      return;
+    }
+    if (!form.dailyActivityLevel.trim()) {
+      Alert.alert('提示', '请选择活动水平');
       return;
     }
 
@@ -613,7 +625,7 @@ export default function ProfileEditPage() {
             </View>
 
             <View style={[styles.fieldMultilineBlock, { borderBottomWidth: 0 }]}>
-              <Text style={styles.infoItemLabel}>训练目标</Text>
+              <Text style={styles.infoItemLabel}>训练目标（多选）</Text>
               <View style={styles.wrapChipGrid}>
                 {trainingGoalOptions.map(item => {
                   const selected = form.trainingGoals.includes(item.value);

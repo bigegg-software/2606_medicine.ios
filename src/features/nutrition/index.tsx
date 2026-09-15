@@ -160,17 +160,17 @@ export default function NutritionPage() {
         : isFamilyView
           ? () => <FamilyRelationHeaderBadge label={relationLabel} />
           : () => (
-              <TouchableOpacity
-                style={{ marginRight: 18 }}
-                onPress={() => {
-                  navigation.navigate('FoodRecordingPage');
-                }}>
-                <Image
-                  style={{ width: 24, height: 24 }}
-                  source={require('@/assets/images/nutrition/icon_history.png')}
-                />
-              </TouchableOpacity>
-            ),
+            <TouchableOpacity
+              style={{ marginRight: 18 }}
+              onPress={() => {
+                navigation.navigate('FoodRecordingPage');
+              }}>
+              <Image
+                style={{ width: 24, height: 24 }}
+                source={require('@/assets/images/nutrition/icon_history.png')}
+              />
+            </TouchableOpacity>
+          ),
     });
   }, [dietPatientRuleId, isFamilyView, navigation, pageTitle, relationLabel]);
 
@@ -195,7 +195,7 @@ export default function NutritionPage() {
             <Flex style={styles.brBox}>
               <Text style={styles.brText}>{isFamilyView ? relationLabel : '本人'}</Text>
             </Flex>
-            <Text style={styles.topInfoText}>{header.infoText}</Text>
+            <Text style={styles.topInfoText} numberOfLines={1}>{header.infoText}</Text>
           </Flex>
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>

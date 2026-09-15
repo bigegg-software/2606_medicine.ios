@@ -15,6 +15,7 @@ import {
   resolveFamilyBindAcceptedTarget,
 } from '@/src/familyPage/profilePage/utils/familyBindInviteHelpers';
 import { parseMessageCreateTime } from './messageHelpers';
+import { getHistoryPlanExerciseParams } from '@/src/features/schedule/utils/scheduleHistoryNavHelpers';
 
 export const MESSAGE_NOT_FOUND_TOAST = '信息不存在';
 
@@ -33,6 +34,12 @@ const EXERCISE_TYPES = new Set([
   'health_exercise_streak_warning',
   'health_exercise_not_started_tip',
   'health_exercise_goal_complete_tip',
+]);
+
+/** 运动/营养处方结束后提醒 → 个人资料编辑页 */
+const PRESCRIPTION_COMPLETE_TYPES = new Set([
+  'ex_patient_rule_complete',
+  'diet_patient_rule_complete',
 ]);
 
 const QUESTIONNAIRE_TYPES = new Set([
@@ -115,6 +122,12 @@ function resolveMessageSendDate(createTime?: string | null) {
   const time = parseMessageCreateTime(createTime ?? undefined);
   if (time) return time.format('YYYY-MM-DD');
   return moment().format('YYYY-MM-DD');
+}
+
+function resolveExPatientRuleIdFromParams(params?: Record<string, unknown> | null) {
+  const raw = params?.exPatientRuleId;
+  if (raw == null) return '';
+  return String(raw).trim();
 }
 
 /** 解析消息点击后的跳转目标；缺失业务数据时返回 missing */
@@ -203,11 +216,19 @@ export async function resolveMessageNavigation(
     };
   }
 
+  // 运动/营养处方完成 → 个人资料编辑页
+  if (PRESCRIPTION_COMPLETE_TYPES.has(type)) {
+    return { action: 'navigate', name: 'ProfileEditPage' };
+  }
+
+  // 运动提醒：params.exPatientRuleId 直达处方详情
   if (EXERCISE_TYPES.has(type)) {
+    const exPatientRuleId = resolveExPatientRuleIdFromParams(item.params);
+    if (!exPatientRuleId) return { action: 'missing' };
     return {
       action: 'navigate',
-      name: 'MainTabs',
-      params: { screen: 'Schedule' },
+      name: 'ExercisePage',
+      params: getHistoryPlanExerciseParams(exPatientRuleId),
     };
   }
 

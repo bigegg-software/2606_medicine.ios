@@ -81,8 +81,13 @@ export const getTodayMealDetailList = (
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });
 
-export const getMealDetailInfo = (mealDetailId: number) =>
-    request.get<MealDetailInfoResult>(`/patient/fitpulse/mealDetail/${mealDetailId}`);
+export const getMealDetailInfo = (
+    mealDetailId: string | number,
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<MealDetailInfoResult>(`/patient/fitpulse/mealDetail/${String(mealDetailId)}`, {
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
 
 export const addMealDetailList = (payload: AddMealDetailListPayload) =>
     request.post<ApiResult>('/patient/fitpulse/mealDetail/addMealDetailList', payload);
@@ -91,10 +96,11 @@ export const addMealDetailList = (payload: AddMealDetailListPayload) =>
 export const deleteMealDetail = (mealDetailId: string | number) =>
     request.delete<ApiResult>(`/patient/fitpulse/mealDetail/delete/${String(mealDetailId)}`);
 
-export type CaloriesToFoodEquivResult = ApiResult<string>;
+export type CaloriesToFoodEquivData = Record<string, string>;
+export type CaloriesToFoodEquivResult = ApiResult<CaloriesToFoodEquivData | string>;
 
-/** 根据卡路里换算约等于多少常见食物（AI） */
-export const getCaloriesToFoodEquiv = (params: { calories: number }) =>
+/** 根据营养量换算约等于多少常见食物（AI）；str 如 2233kcal , 112g蛋白质 ，307g碳水，62g脂肪 */
+export const getCaloriesToFoodEquiv = (params: { str: string }) =>
     request.get<CaloriesToFoodEquivResult>('/patient/fitpulse/mealDetail/caloriesToFoodEquiv', {
         params,
     });

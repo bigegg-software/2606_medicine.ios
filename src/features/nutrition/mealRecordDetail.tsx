@@ -21,7 +21,7 @@ import {
 
 export default function MealRecordDetailPage() {
   const route = useRoute<RouteProp<RootStackParamList, 'MealRecordDetailPage'>>();
-  const { mealDetailId } = route.params;
+  const { mealDetailId, patientUserId } = route.params;
 
   const [loading, setLoading] = useState(true);
   const [detailItem, setDetailItem] = useState<MealDetailItem | null>(null);
@@ -30,7 +30,7 @@ export default function MealRecordDetailPage() {
   const loadDetail = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMealDetailInfo(mealDetailId);
+      const res = await getMealDetailInfo(mealDetailId, patientUserId ? { patientUserId } : undefined);
       const normalized = normalizeMealDetailInfo(
         apiResourceData(res as unknown as ApiResult<MealDetailInfo | MealDetailItem>) ?? null,
       );
@@ -43,7 +43,7 @@ export default function MealRecordDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [mealDetailId]);
+  }, [mealDetailId, patientUserId]);
 
   useFocusEffect(
     useCallback(() => {

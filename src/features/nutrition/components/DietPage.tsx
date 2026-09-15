@@ -23,6 +23,8 @@ import {
 import {
     buildRecommendedMealSections,
     formatActualFoodMeta,
+    formatMealApproxCalories,
+    formatMealMacroGrams,
     type RecommendedMealSection,
 } from './utils/dietMealHelpers';
 import { fetchDietRuleForDate, loadDietRuleForDate } from './utils/dietRuleDateHelpers';
@@ -133,6 +135,7 @@ function RecommendedMealCard({
     onDeleteFood,
     showPhotoButton,
     showDeleteButton = true,
+    patientUserId,
 }: {
     section: RecommendedMealSection;
     actualCalories: number;
@@ -140,6 +143,7 @@ function RecommendedMealCard({
     onDeleteFood: (item: MealDetailItem) => void;
     showPhotoButton: boolean;
     showDeleteButton?: boolean;
+    patientUserId?: string;
 }) {
     const navigation = useNavigation<Nav>();
     const planCalories = section.planCalories > 0 ? Math.round(section.planCalories) : 0;
@@ -154,13 +158,45 @@ function RecommendedMealCard({
 
     return (
         <View style={styles.calendarContent}>
-            <Flex justify="between">
-                <Flex>
-                    <Image style={styles.dietListImage} source={section.icon} />
-                    <Text style={styles.calendarContentTitle}>{section.title}</Text>
-                </Flex>
-                <Text style={styles.calendarContentSubtitle}>{section.planCaloriesText}</Text>
+            <Flex align="center">
+                <Image style={styles.dietListImage} source={section.icon} />
+                <Text style={styles.calendarContentTitle}>{section.title}</Text>
             </Flex>
+            <Flex justify="between" align="center" style={styles.mealMacroRow}>
+                <Flex align="center" style={styles.mealMacroItem}>
+                    <Image
+                        style={styles.mealMacroIcon}
+                        source={require('@/assets/images/nutrition/dbz.png')}
+                    />
+                    <Text style={styles.mealMacroText}>
+                        蛋白质{formatMealMacroGrams(section.protein)}g
+                    </Text>
+                </Flex>
+                <Flex align="center" style={styles.mealMacroItem}>
+                    <Image
+                        style={styles.mealMacroIcon}
+                        source={require('@/assets/images/nutrition/ts.png')}
+                    />
+                    <Text style={styles.mealMacroText}>
+                        碳水{formatMealMacroGrams(section.carbs)}g
+                    </Text>
+                </Flex>
+                <Flex align="center" style={styles.mealMacroItem}>
+                    <Image
+                        style={styles.mealMacroIcon}
+                        source={require('@/assets/images/nutrition/zf.png')}
+                    />
+                    <Text style={styles.mealMacroText}>
+                        脂肪{formatMealMacroGrams(section.fat)}g
+                    </Text>
+                </Flex>
+                <Text style={styles.mealMacroApprox} numberOfLines={1}>
+                    {formatMealApproxCalories(section.planCalories)}
+                </Text>
+            </Flex>
+            <View style={styles.mealMacroDashWrap}>
+                <View style={styles.mealMacroDash} />
+            </View>
 
             {section.foods.map(food => (
                 <Flex key={food.key} style={styles.dietMapBox}>
@@ -206,9 +242,17 @@ function RecommendedMealCard({
                     </Flex>
 
                     {actualFoods.map((food, index) => (
-                        <Flex
+                        <TouchableOpacity
                             key={`${food.mealDetailId ?? food.mealName ?? index}`}
                             style={styles.actualEatFoodRow}
+                            activeOpacity={food.mealDetailId ? 0.7 : 1}
+                            onPress={() => {
+                                if (food.mealDetailId == null) return;
+                                navigation.navigate('MealRecordDetailPage', {
+                                    mealDetailId: String(food.mealDetailId),
+                                    ...(patientUserId ? { patientUserId } : {}),
+                                });
+                            }}
                         >
                             <Image
                                 style={styles.actualEatFoodImg}
@@ -236,7 +280,7 @@ function RecommendedMealCard({
                                     />
                                 </TouchableOpacity>
                             ) : null}
-                        </Flex>
+                        </TouchableOpacity>
                     ))}
 
                     <Flex justify="between" align="center" style={styles.actualEatSummaryRow}>
@@ -850,6 +894,7 @@ export default function DietPage({
                             onDeleteFood={onDeleteFood}
                             showPhotoButton={!readOnly && isTodaySelected}
                             showDeleteButton={!readOnly && isTodaySelected}
+                            patientUserId={patientUserId}
                         />
                     ))
                 ) : (

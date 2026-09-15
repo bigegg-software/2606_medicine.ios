@@ -29,6 +29,10 @@ export type RecommendedMealSection = {
   icon: ImageSourcePropType;
   planCalories: number;
   planCaloriesText: string;
+  /** 本餐宏量营养素合计（克） */
+  protein: number;
+  carbs: number;
+  fat: number;
   foods: RecommendedFoodItem[];
 };
 
@@ -104,6 +108,39 @@ function formatPlanCalories(value?: number | null) {
   return num > 0 ? `计划${num} kcal` : '计划-- kcal';
 }
 
+/** 本餐宏量：优先餐次字段，否则汇总 foodList */
+function resolveMealMacros(meal: DietMealItem) {
+  const mealProtein = toFiniteNumber(meal.protein);
+  const mealCarbs = toFiniteNumber(meal.carbs);
+  const mealFat = toFiniteNumber(meal.fat);
+  if (mealProtein > 0 || mealCarbs > 0 || mealFat > 0) {
+    return { protein: mealProtein, carbs: mealCarbs, fat: mealFat };
+  }
+
+  const list = meal.foodList ?? [];
+  if (!list.length) {
+    return { protein: 0, carbs: 0, fat: 0 };
+  }
+
+  return list.reduce(
+    (acc, food) => ({
+      protein: acc.protein + toFiniteNumber(food.protein),
+      carbs: acc.carbs + toFiniteNumber(food.carbs),
+      fat: acc.fat + toFiniteNumber(food.fat),
+    }),
+    { protein: 0, carbs: 0, fat: 0 },
+  );
+}
+
+export function formatMealMacroGrams(value?: number | null) {
+  return formatMacroGrams(value);
+}
+
+export function formatMealApproxCalories(value?: number | null) {
+  const num = Math.round(toFiniteNumber(value));
+  return num > 0 ? `≈${num}kcal` : '≈--kcal';
+}
+
 function mapFoodItem(food: DietMealFoodItem, index: number): RecommendedFoodItem {
   return {
     key: `food-${index}-${food.foodName ?? ''}`,
@@ -165,6 +202,7 @@ export function buildRecommendedMealSections(
       const category = Number(item.mealCategory);
       const meta = MEAL_SECTION_META[category] ?? MEAL_SECTION_META[1];
       const planCalories = Math.round(toFiniteNumber(item.calories));
+      const macros = resolveMealMacros(item);
       return {
         key: `${meta.title}-${category}-${index}`,
         category,
@@ -172,6 +210,9 @@ export function buildRecommendedMealSections(
         icon: meta.icon,
         planCalories,
         planCaloriesText: formatPlanCalories(item.calories),
+        protein: macros.protein,
+        carbs: macros.carbs,
+        fat: macros.fat,
         foods: buildFoodsFromMeal(item),
       };
     });
@@ -231,10 +272,8 @@ export function formatDietHeaderInfo(
   }
 
   const gender = base?.gender?.trim() || profile?.gender?.trim() || '';
-  const diagnosis = rule?.diagnosticLabel?.trim()
-    || rule?.diagnosis?.trim()
-    || base?.diagnosticLabel?.trim()
-    || base?.primaryDiagnosis?.trim()
+  const healthGoal = rule?.primaryHealthGoal?.trim()
+    || profile?.primaryHealthGoal?.trim()
     || '';
 
   const weightGoal = Number(userExtr?.weightGoals);
@@ -245,7 +284,7 @@ export function formatDietHeaderInfo(
     ? `处方V${rule.version}`
     : '';
 
-  const infoText = [age, gender, diagnosis, goalText].filter(Boolean).join(' | ') || '--';
+  const infoText = [age, gender, healthGoal, goalText].filter(Boolean).join(' | ') || '--';
 
   return { name: name || '--', version, infoText };
 }

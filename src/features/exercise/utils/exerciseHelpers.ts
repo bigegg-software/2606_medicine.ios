@@ -11,6 +11,10 @@ import type { UserBaseInfo } from '@/api/patient';
 import type { UserExtr } from '@/api/user';
 import { getExRecordDayCalendarList, getExRecordDayStatis, type ExRecordDayCalendarItem, type ExRecordDayStatisData } from '@/api/exRecordDay';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+  normalizeTrainingGoals,
+  resolveTrainingGoalLabels,
+} from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
 
 /** 仅处理诊断标签：中英文逗号分隔的多项统一用 | 连接 */
 export function formatDiagnosticLabelText(diagnosticLabel?: string | null) {
@@ -23,20 +27,24 @@ export function formatDiagnosticLabelText(diagnosticLabel?: string | null) {
     .join('|');
 }
 
-/** 运动页顶栏：年龄 | 性别 | 诊断 | 目标体重 */
+/** 运动页顶栏：年龄 | 性别 | 训练目标 | 目标体重 */
 export function formatExerciseUserInfoText(
   user?: UserBaseInfo | null,
   userExtr?: UserExtr | null,
-  diagnosticLabel?: string | null,
+  trainingGoals?: string[] | string | null,
+  trainingGoalLabelMap?: Record<string, string>,
 ) {
   const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
   const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
   const gender = user?.gender?.trim() || '';
-  const diagnosisText = formatDiagnosticLabelText(diagnosticLabel);
+  const goalsText = resolveTrainingGoalLabels(
+    normalizeTrainingGoals(trainingGoals ?? user?.trainingGoals),
+    trainingGoalLabelMap,
+  );
   const weightGoal = Number(userExtr?.weightGoals);
   const goalText =
     Number.isFinite(weightGoal) && weightGoal > 0 ? `目标${weightGoal}kg` : '';
-  return [age, gender, diagnosisText, goalText].filter(Boolean).join(' | ') || '--';
+  return [age, gender, goalsText, goalText].filter(Boolean).join(' | ') || '--';
 }
 
 const EXERCISE_TYPE_LABELS: Record<string, string> = {

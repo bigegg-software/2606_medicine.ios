@@ -315,7 +315,7 @@ export type RootStackParamList = {
   MedicationHistoryPage: undefined;
   MedicationDetailPage: { drugPatientRuleId: number } | undefined;
   MealDetailPage: undefined;
-  MealRecordDetailPage: { mealDetailId: number };
+  MealRecordDetailPage: { mealDetailId: string | number; patientUserId?: string };
   MealHistoryPage: undefined;
   MealDayDetailPage: { customerLocalDate: string };
   MealWaterPage: undefined;

@@ -8,13 +8,17 @@ import {
 
 export function pickMealRecordDetailItem(
   info: MealDetailInfo | null,
-  mealDetailId: number,
+  mealDetailId: string | number,
 ): MealDetailItem | null {
   if (!info?.mealDetailList?.length) return null;
+  const targetId = String(mealDetailId);
   const matched = info.mealDetailList.find(
-    item => item.mealDetailId != null && Number(item.mealDetailId) === Number(mealDetailId),
+    item => item.mealDetailId != null && String(item.mealDetailId) === targetId,
   );
-  return matched ?? info.mealDetailList[0] ?? null;
+  if (matched) return matched;
+  // 接口有时直接返回单条食物，无法按 id 对齐时仅在列表长度为 1 时回退
+  if (info.mealDetailList.length === 1) return info.mealDetailList[0] ?? null;
+  return null;
 }
 
 export function resolveMealRecordFoodImageUrl(

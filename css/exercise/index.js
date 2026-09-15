@@ -28,9 +28,10 @@ const styles = StyleSheet.create({
   topNameImage: { width: 12, height: 12, marginRight: 3 },
   cfText: { fontWeight: 'bold', fontSize: 12, color: '#6D925E' },
   rightImg: { width: 70, height: 70, position: 'absolute', right: 0, top: 0 },
-  topInfoBox: { marginTop: 12 },
-  topInfoText: { fontWeight: 500, fontSize: 12, color: '#666666' },
+  topInfoBox: { marginTop: 12, paddingRight: 78, alignItems: 'center' },
+  topInfoText: { flex: 1, flexShrink: 1, fontWeight: 500, fontSize: 12, color: '#666666' },
   brBox: {
+    flexShrink: 0,
     height: 17,
     paddingHorizontal: 4,
     backgroundColor: '#6D925E',

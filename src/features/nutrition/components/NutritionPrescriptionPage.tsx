@@ -36,8 +36,8 @@ import {
   buildPrescriptionMacroSources,
   buildPrescriptionMonitorCards,
   buildPrescriptionNutrients,
-  formatFoodEquivText,
-  nutrientGramsToCalories,
+  buildPrescriptionFoodEquivStr,
+  parseFoodEquivResponse,
 } from './utils/nutritionPrescriptionHelpers';
 import { buildTwoLineCollapsedText } from './utils/expandableTextHelpers';
 
@@ -258,24 +258,58 @@ export default function NutritionPrescriptionPage({
   useEffect(() => {
     let cancelled = false;
     const caloriesValue = Number(calories.calories);
+    const proteinItem = nutrientItems.find(item => item.key === 'protein');
+    const carbItem = nutrientItems.find(item => item.key === 'carb');
+    const fatItem = nutrientItems.find(item => item.key === 'fat');
 
     const loadFoodEquiv = async () => {
-      if (!Number.isFinite(caloriesValue) || caloriesValue <= 0) {
-        if (!cancelled) setCaloriesFoodEquiv('');
+      const str = buildPrescriptionFoodEquivStr({
+        calories: caloriesValue,
+        proteinG: proteinItem?.grams ?? 0,
+        carbsG: carbItem?.grams ?? 0,
+        fatG: fatItem?.grams ?? 0,
+      });
+      if (!str) {
+        if (!cancelled) {
+          setCaloriesFoodEquiv('');
+          setNutrientFoodEquivMap({});
+        }
         return;
       }
+
+      const kcalSeg = `${Math.round(caloriesValue)}kcal`;
+      const proteinSeg = `${Math.round(proteinItem?.grams ?? 0)}g蛋白质`;
+      const carbSeg = `${Math.round(carbItem?.grams ?? 0)}g碳水`;
+      const fatSeg = `${Math.round(fatItem?.grams ?? 0)}g脂肪`;
+
       try {
-        const res = await getCaloriesToFoodEquiv({ calories: caloriesValue });
+        const res = await getCaloriesToFoodEquiv({ str });
         if (cancelled) return;
         if (!isResourceApiOk(res as unknown as CaloriesToFoodEquivResult)) {
           setCaloriesFoodEquiv('');
+          setNutrientFoodEquivMap({});
           return;
         }
-        setCaloriesFoodEquiv(
-          formatFoodEquivText(apiResourceData(res as unknown as CaloriesToFoodEquivResult)),
+        const parsed = parseFoodEquivResponse(
+          apiResourceData(res as unknown as CaloriesToFoodEquivResult),
+          {
+            calories: kcalSeg,
+            protein: proteinSeg,
+            carb: carbSeg,
+            fat: fatSeg,
+          },
         );
+        setCaloriesFoodEquiv(parsed.calories);
+        setNutrientFoodEquivMap({
+          protein: parsed.protein,
+          carb: parsed.carb,
+          fat: parsed.fat,
+        });
       } catch {
-        if (!cancelled) setCaloriesFoodEquiv('');
+        if (!cancelled) {
+          setCaloriesFoodEquiv('');
+          setNutrientFoodEquivMap({});
+        }
       }
     };
 
@@ -283,35 +317,7 @@ export default function NutritionPrescriptionPage({
     return () => {
       cancelled = true;
     };
-  }, [calories.calories]);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadNutrientFoodEquiv = async () => {
-      const entries = await Promise.all(
-        nutrientItems.map(async item => {
-          const nutrientCalories = nutrientGramsToCalories(item.key, item.grams);
-          if (nutrientCalories <= 0) return [item.key, ''] as const;
-          try {
-            const res = await getCaloriesToFoodEquiv({ calories: nutrientCalories });
-            const payload = res as unknown as CaloriesToFoodEquivResult;
-            if (!isResourceApiOk(payload)) return [item.key, ''] as const;
-            return [item.key, formatFoodEquivText(apiResourceData(payload))] as const;
-          } catch {
-            return [item.key, ''] as const;
-          }
-        }),
-      );
-      if (cancelled) return;
-      setNutrientFoodEquivMap(Object.fromEntries(entries));
-    };
-
-    void loadNutrientFoodEquiv();
-    return () => {
-      cancelled = true;
-    };
-  }, [nutrientItems]);
+  }, [calories.calories, nutrientItems]);
 
   const toggleAdvice = (key: string) => {
     setExpandedMap(prev => ({ ...prev, [key]: !prev[key] }));
@@ -450,7 +456,7 @@ export default function NutritionPrescriptionPage({
                     <Text style={styles.colTitle}>{item.title}</Text>
                   </Flex>
                   <Text style={styles.colText}>
-                    {nutrientFoodEquivMap[item.key] || item.desc || '换算中...'}
+                    {nutrientFoodEquivMap[item.key] || '换算中...'}
                   </Text>
                 </View>
               ))}
@@ -636,48 +642,48 @@ export default function NutritionPrescriptionPage({
       )}
 
       {!readOnly ? (
-      <Flex
-        justify="between"
-        align="center"
-        style={[
-          styles.mealBottomBar,
-          { bottom: bottomBarBottom },
-          keyboardHeight > 0 ? { zIndex: 20, elevation: 20 } : null,
-        ]}
-      >
-        <Flex style={styles.bottomInputWrapper}>
-          <SpeechToText
-            ref={speechToTextRef}
-            onMicPress={handleMicPress}
-            onStart={handleVoiceStart}
-            onTextChange={handleVoiceTextChange}
-            onListeningChange={setIsVoiceListening}
-            idleIcon={require('@/assets/images/nutrition/icon_audio.png')}
-            activeIcon={require('@/assets/images/nutrition/icon_audio1.png')}
-            iconSize={20}
-            style={styles.mealMicWrap}
-          />
-          <TextInput
-            style={styles.mealInput}
-            value={mealNote}
-            onChangeText={setMealNote}
-            placeholder={mealNotePlaceholder}
-            placeholderTextColor="#999999"
-            returnKeyType="done"
-            onSubmitEditing={handleKeyboardClose}
-          />
+        <Flex
+          justify="between"
+          align="center"
+          style={[
+            styles.mealBottomBar,
+            { bottom: bottomBarBottom },
+            keyboardHeight > 0 ? { zIndex: 20, elevation: 20 } : null,
+          ]}
+        >
+          <Flex style={styles.bottomInputWrapper}>
+            <SpeechToText
+              ref={speechToTextRef}
+              onMicPress={handleMicPress}
+              onStart={handleVoiceStart}
+              onTextChange={handleVoiceTextChange}
+              onListeningChange={setIsVoiceListening}
+              idleIcon={require('@/assets/images/nutrition/icon_audio.png')}
+              activeIcon={require('@/assets/images/nutrition/icon_audio1.png')}
+              iconSize={20}
+              style={styles.mealMicWrap}
+            />
+            <TextInput
+              style={styles.mealInput}
+              value={mealNote}
+              onChangeText={setMealNote}
+              placeholder={mealNotePlaceholder}
+              placeholderTextColor="#999999"
+              returnKeyType="done"
+              onSubmitEditing={handleKeyboardClose}
+            />
+          </Flex>
+          <TouchableOpacity activeOpacity={0.7} onPress={handleRightPress}>
+            <Image
+              style={styles.mealBtmIcon}
+              source={
+                showSendAction
+                  ? require('@/assets/images/nutrition/icon_send.png')
+                  : require('@/assets/images/nutrition/icon_def.png')
+              }
+            />
+          </TouchableOpacity>
         </Flex>
-        <TouchableOpacity activeOpacity={0.7} onPress={handleRightPress}>
-          <Image
-            style={styles.mealBtmIcon}
-            source={
-              showSendAction
-                ? require('@/assets/images/nutrition/icon_send.png')
-                : require('@/assets/images/nutrition/icon_def.png')
-            }
-          />
-        </TouchableOpacity>
-      </Flex>
       ) : null}
     </View>
   );

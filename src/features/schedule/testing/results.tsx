@@ -478,7 +478,7 @@ export default function TestingResultsPage() {
                             style={styles.recordModalInput}
                             value={recordInput}
                             onChangeText={setRecordInput}
-                            keyboardType="number-pad"
+                            keyboardType="decimal-pad"
                             placeholder="请输入测试成绩"
                             placeholderTextColor="#CCCCCC"
                             underlineColorAndroid="transparent"

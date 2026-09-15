@@ -242,17 +242,104 @@ export function buildPrescriptionNutrients(rule?: DietPatientRuleInfo | null): P
   ];
 }
 
-/** 营养素克数换算为热量（蛋白/碳水 4kcal/g，脂肪 9kcal/g） */
-export function nutrientGramsToCalories(key: PrescriptionNutrientItem['key'], grams: number) {
-  const value = toNumber(grams);
-  if (value <= 0) return 0;
-  return Math.round(value * (key === 'fat' ? 9 : 4));
+/** 组装一次换算入参：2233kcal , 112g蛋白质 ，307g碳水，62g脂肪 */
+export function buildPrescriptionFoodEquivStr(input: {
+  calories: number;
+  proteinG: number;
+  carbsG: number;
+  fatG: number;
+}) {
+  const kcal = Math.round(toNumber(input.calories));
+  const protein = Math.round(toNumber(input.proteinG));
+  const carbs = Math.round(toNumber(input.carbsG));
+  const fat = Math.round(toNumber(input.fatG));
+  if (kcal <= 0 && protein <= 0 && carbs <= 0 && fat <= 0) return '';
+  return `${kcal}kcal, ${protein}g蛋白质,${carbs}g碳水,${fat}g脂肪`;
 }
 
 export function formatFoodEquivText(text?: string | null) {
   const raw = text?.trim() ?? '';
   if (!raw) return '';
   return raw.startsWith('≈') ? raw : `≈${raw}`;
+}
+
+export type FoodEquivParsed = {
+  calories: string;
+  protein: string;
+  carb: string;
+  fat: string;
+};
+
+function pickFoodEquivValue(
+  data: Record<string, unknown>,
+  keys: string[],
+): string {
+  for (const key of keys) {
+    const direct = data[key];
+    if (typeof direct === 'string' && direct.trim()) {
+      return formatFoodEquivText(direct);
+    }
+  }
+  const loweredKeys = keys.map(key => key.toLowerCase());
+  for (const [rawKey, value] of Object.entries(data)) {
+    if (typeof value !== 'string' || !value.trim()) continue;
+    const key = rawKey.trim();
+    const lower = key.toLowerCase();
+    if (
+      loweredKeys.some(item => lower === item || lower.includes(item) || key.includes(item))
+    ) {
+      return formatFoodEquivText(value);
+    }
+  }
+  return '';
+}
+
+/** 解析一次换算接口返回的结构到热量/蛋白/碳水/脂肪文案 */
+export function parseFoodEquivResponse(
+  data: unknown,
+  segments?: {
+    calories?: string;
+    protein?: string;
+    carb?: string;
+    fat?: string;
+  },
+): FoodEquivParsed {
+  const empty: FoodEquivParsed = { calories: '', protein: '', carb: '', fat: '' };
+  if (data == null) return empty;
+  if (typeof data === 'string') {
+    return { ...empty, calories: formatFoodEquivText(data) };
+  }
+  if (typeof data !== 'object') return empty;
+
+  const record = data as Record<string, unknown>;
+  return {
+    calories: pickFoodEquivValue(record, [
+      segments?.calories ?? '',
+      'kcal',
+      'calories',
+      'calorie',
+      '热量',
+      '卡路里',
+    ].filter(Boolean)),
+    protein: pickFoodEquivValue(record, [
+      segments?.protein ?? '',
+      'protein',
+      '蛋白质',
+      '蛋白',
+    ].filter(Boolean)),
+    carb: pickFoodEquivValue(record, [
+      segments?.carb ?? '',
+      'carb',
+      'carbs',
+      'carbohydrate',
+      '碳水',
+    ].filter(Boolean)),
+    fat: pickFoodEquivValue(record, [
+      segments?.fat ?? '',
+      'fat',
+      '脂肪',
+    ].filter(Boolean)),
+  };
 }
 
 export function buildPrescriptionDietMode(rule?: DietPatientRuleInfo | null): PrescriptionDietMode | null {

@@ -24,6 +24,10 @@ import type { RootStackParamList } from '@/route/router';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { getChildFamilyDisplayName, maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
+import {
+  buildTrainingGoalLabelMap,
+  loadTrainingGoalDictItems,
+} from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
 
 type Route = RouteProp<RootStackParamList, 'ExercisePage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -44,6 +48,7 @@ export default function ExercisePage() {
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const familyList = useSelector((s: RootState) => s.family.list);
   const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
+  const [trainingGoalLabelMap, setTrainingGoalLabelMap] = useState<Record<string, string>>({});
   const familyFromStore = useMemo(() => {
     if (!patientUserId) return null;
     return (
@@ -71,7 +76,8 @@ export default function ExercisePage() {
   const infoText = formatExerciseUserInfoText(
     profileUser,
     readOnly && isFamilyView ? null : userExtr,
-    exerciseRule?.diagnosticLabel,
+    exerciseRule?.trainingGoals ?? profileUser?.trainingGoals,
+    trainingGoalLabelMap,
   );
   const relationBadgeText = useMemo(
     () => (isFamilyView ? relationLabel : '本人'),
@@ -124,6 +130,17 @@ export default function ExercisePage() {
       void loadExerciseRule();
     }, [dispatch, loadExerciseRule, isFamilyView]),
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadTrainingGoalDictItems().then(items => {
+      if (cancelled) return;
+      setTrainingGoalLabelMap(buildTrainingGoalLabelMap(items));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const prevPatientUserIdRef = useRef(patientUserId);
   /** 右上角切换家人后刷新（跳过首屏与 focus 重复请求） */
@@ -199,7 +216,9 @@ export default function ExercisePage() {
             <Flex style={styles.brBox}>
               <Text style={styles.brText}>{relationBadgeText}</Text>
             </Flex>
-            <Text style={styles.topInfoText}>{infoText}</Text>
+            <Text style={styles.topInfoText} numberOfLines={1} ellipsizeMode="tail">
+              {infoText}
+            </Text>
           </Flex>
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>
