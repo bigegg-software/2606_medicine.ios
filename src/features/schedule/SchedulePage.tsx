@@ -52,6 +52,10 @@ import {
   type ScheduleGoalChartSeries,
 } from './scheduleGoalSparklineHelpers';
 import MiniSparkline from '@/src/features/home/components/MiniSparkline';
+import {
+  buildTrainingGoalLabelMap,
+  loadTrainingGoalDictItems,
+} from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
 
 export default function SchedulePage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -61,6 +65,7 @@ export default function SchedulePage() {
   const categoryLabelMap = useSelector((s: RootState) => s.prescription.categoryLabelMap);
   const categorySortMap = useSelector((s: RootState) => s.prescription.categorySortMap);
   const [activeNavTab, setActiveNavTab] = useState('');
+  const [trainingGoalLabelMap, setTrainingGoalLabelMap] = useState<Record<string, string>>({});
   const [milestoneInfo, setMilestoneInfo] = useState<ExMilestoneInfo | null>(null);
   const [sixWeekStats, setSixWeekStats] = useState<ExMilestoneWeekStat[]>([]);
   const [selectedWeekIndex, setSelectedWeekIndex] = useState(0);
@@ -105,9 +110,20 @@ export default function SchedulePage() {
   const [historyArchiveItems, setHistoryArchiveItems] = useState<ScheduleHistoryArchiveItem[]>([]);
 
   const topInfoText = useMemo(
-    () => formatScheduleTopInfoText(user, prescription),
-    [user, prescription],
+    () => formatScheduleTopInfoText(user, prescription, trainingGoalLabelMap),
+    [user, prescription, trainingGoalLabelMap],
   );
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadTrainingGoalDictItems().then(items => {
+      if (cancelled) return;
+      setTrainingGoalLabelMap(buildTrainingGoalLabelMap(items));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const dayProgress = useMemo(
     () => getPrescriptionDayProgress(prescription?.startDate, prescription?.endDate),
@@ -464,7 +480,9 @@ export default function SchedulePage() {
               <Text style={styles.pageTitleSubtitleText}>已坚持 {persistDaysText} 天</Text>
             </Flex>
           </Flex>
-          <Text style={styles.pageTopText}>{topInfoText}</Text>
+          <Text style={styles.pageTopText} numberOfLines={1} ellipsizeMode="tail">
+            {topInfoText}
+          </Text>
 
           <View style={styles.pageTopBgWrap}>
             <View style={styles.pageTopBg}>
@@ -522,18 +540,39 @@ export default function SchedulePage() {
           </View>
         </View>
 
-        <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
-          <Flex justify="between" align="center" style={{ flex: 1, paddingHorizontal: 20 }}>
-            <Text style={styles.backImage1Text}>目标拆解·进度</Text>
-            <Text style={styles.dayProgressText}>
-              <Text style={styles.dayProgressNum}>{dayProgress?.currentDay ?? '--'}</Text>
-              /{dayProgress?.totalDays ?? '--'}天
-            </Text>
-          </Flex>
-        </ImageBackground>
-
-        {categoryTabs.length > 0 ? (
+        {!prescription ? (
           <>
+            <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
+              <Flex justify="between" align="center" style={{ flex: 1, paddingHorizontal: 20 }}>
+                <Text style={styles.backImage1Text}>目标拆解·进度</Text>
+                <Text style={styles.dayProgressText}>
+                  <Text style={styles.dayProgressNum}>--</Text>
+                  /--天
+                </Text>
+              </Flex>
+            </ImageBackground>
+            <View style={styles.goalEmptyWrap}>
+              <Image
+                source={require('@/assets/images/exercise/icon_yd_empty.png')}
+                style={styles.goalEmptyIcon}
+              />
+              <Text style={styles.goalEmptyText}>
+                暂无运动处方，开方后展示目标拆解进度
+              </Text>
+            </View>
+          </>
+        ) : categoryTabs.length > 0 ? (
+          <>
+            <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={styles.backImage1}>
+              <Flex justify="between" align="center" style={{ flex: 1, paddingHorizontal: 20 }}>
+                <Text style={styles.backImage1Text}>目标拆解·进度</Text>
+                <Text style={styles.dayProgressText}>
+                  <Text style={styles.dayProgressNum}>{dayProgress?.currentDay ?? '--'}</Text>
+                  /{dayProgress?.totalDays ?? '--'}天
+                </Text>
+              </Flex>
+            </ImageBackground>
+
             <ImageBackground source={require('@/assets/images/schedule/calendarBack.png')} style={[styles.backImage1, { height: 66, marginTop: 0 }]}>
               <ScrollView
                 horizontal
@@ -656,17 +695,7 @@ export default function SchedulePage() {
               </View>
             ) : null}
           </>
-        ) : (
-          <View style={styles.goalEmptyWrap}>
-            <Image
-              source={require('@/assets/images/exercise/icon_yd_empty.png')}
-              style={styles.goalEmptyIcon}
-            />
-            <Text style={styles.goalEmptyText}>
-              暂无运动处方，开方后展示目标拆解进度
-            </Text>
-          </View>
-        )}
+        ) : null}
 
         <View style={[styles.commonWrap, { marginTop: 12 }]}>
           <Flex justify="between" align="center">

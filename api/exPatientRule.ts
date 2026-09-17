@@ -41,6 +41,12 @@ export type ExWeekTrainingMainBlock = {
 export type ExWeekTrainingSchedule = {
   day?: number;
   isRest?: boolean;
+  /** 是否顺延（接收顺延后的课表）0.否 1.是 */
+  isPostpone?: number | boolean;
+  /** 是否被顺延（腾空日，训练已被挪走）0.否 1.是；与 isPostpone 互斥 */
+  isPostponedAway?: number | boolean;
+  /** 顺延/被顺延操作时间 */
+  postponeTime?: string | null;
   hotList?: ExWeekTrainingItem[];
   mainList?: ExWeekTrainingMainBlock[];
   coldList?: ExWeekTrainingItem[];
@@ -269,4 +275,38 @@ export const getExPatientRuleHealthGoalProgress = (exPatientRuleId: string | num
   request.get<{ code?: number; msg?: string; data?: ExPatientRuleHealthGoalProgress }>(
     '/patient/exPatientRule/healthGoalProgress',
     { params: { exPatientRuleId: String(exPatientRuleId) } },
+  );
+
+/** 本周顺延预览：今日是否可顺延，及被顺延的源开始日期 */
+export type PostponeThisWeekInfo = {
+  /** 今日是否可本周顺延 */
+  canPostpone?: boolean;
+  /** 被顺延的源开始日期（连续未练训练日段最早一天，yyyy-MM-dd）；不可顺延时为 null */
+  sourceDate?: string | null;
+};
+
+export const getPostponeThisWeekInfo = (
+  exPatientRuleId: string | number,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<{ code?: number; msg?: string; data?: PostponeThisWeekInfo }>(
+    '/patient/exPatientRule/getPostponeThisWeekInfo',
+    {
+      params: { exPatientRuleId: String(exPatientRuleId) },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
+  );
+
+/** 本周运动处方顺延：今日～周日标记顺延，腾空日标记被顺延 */
+export const postponeThisWeek = (
+  exPatientRuleId: string | number,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.post<{ code?: number; msg?: string }>(
+    '/patient/exPatientRule/postponeThisWeek',
+    undefined,
+    {
+      params: { exPatientRuleId: String(exPatientRuleId) },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
   );

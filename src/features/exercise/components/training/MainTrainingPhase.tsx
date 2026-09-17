@@ -185,6 +185,7 @@ export default function MainTrainingPhase({
   const navigation = useNavigation<Nav>();
   const [loading, setLoading] = useState(true);
   const [isRest, setIsRest] = useState(false);
+  const [isPostponedAway, setIsPostponedAway] = useState(false);
   const [modules, setModules] = useState<MainTrainingTypeModule[]>([]);
   const fittTipLines = formatMainTrainingFittTipLines(dayRule);
 
@@ -196,12 +197,14 @@ export default function MainTrainingPhase({
         .then(result => {
           if (cancelled) return;
           setIsRest(result.isRest);
+          setIsPostponedAway(result.isPostponedAway);
           setModules(result.modules);
           setLoading(false);
         })
         .catch(() => {
           if (cancelled) return;
           setIsRest(false);
+          setIsPostponedAway(false);
           setModules([]);
           setLoading(false);
         });
@@ -241,7 +244,7 @@ export default function MainTrainingPhase({
     );
   }
 
-  if (isRest) {
+  if (isPostponedAway || isRest) {
     return (
       <View style={[styles.trainingPhaseContent, styles.mainTrainingRestEmpty]}>
         <Image
@@ -249,7 +252,9 @@ export default function MainTrainingPhase({
           source={require('@/assets/images/exercise/icon_rest.png')}
         />
         <Text style={styles.mainTrainingRestText}>
-          今日为休息日，暂无主训练安排
+          {isPostponedAway
+            ? '今日训练已顺延，暂无主训练安排'
+            : '今日为休息日，暂无主训练安排'}
         </Text>
       </View>
     );

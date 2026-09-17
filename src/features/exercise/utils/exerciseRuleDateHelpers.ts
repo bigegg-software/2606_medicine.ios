@@ -1,7 +1,6 @@
 import moment from 'moment';
 import {
   getExPatientRuleSnapshotByDate,
-  getInUseExPatientRuleInfo,
   type ExPatientRuleInfo,
 } from '@/api/exPatientRule';
 import type { InUseExPatientRule } from '@/api/schedule';
@@ -23,18 +22,15 @@ export async function fetchExPatientRuleForDate(
   customerLocalDate: string,
   options?: ExPatientRuleDateOptions,
 ): Promise<InUseExPatientRule | null> {
-  const isToday = customerLocalDate === moment().format('YYYY-MM-DD');
   const exPatientRuleId = toRuleId(options?.exPatientRuleId);
   try {
-    const res = isToday && !exPatientRuleId
-      ? await getInUseExPatientRuleInfo(options)
-      : await getExPatientRuleSnapshotByDate(
-          {
-            customerLocalDate,
-            ...(exPatientRuleId ? { exPatientRuleId } : {}),
-          },
-          options,
-        );
+    const res = await getExPatientRuleSnapshotByDate(
+      {
+        customerLocalDate,
+        ...(exPatientRuleId ? { exPatientRuleId } : {}),
+      },
+      options,
+    );
     if (!isResourceApiOk(res as unknown as { code?: number })) return null;
     return (
       apiResourceData<ExPatientRuleInfo>(
@@ -61,17 +57,12 @@ export function resolveLockedExerciseViewDate(
   return moment().format('YYYY-MM-DD');
 }
 
-/**
- * 今天与未来：使用当前在用处方；
- * 过去日期：按本地日期查询处方快照（带 exPatientRuleId 做数据隔离）。
- */
+/** 按本地日期查询运动处方快照（带 exPatientRuleId 做数据隔离） */
 export async function loadExPatientRuleForDate(
   customerLocalDate: string,
   inUseRule: InUseExPatientRule | null,
   options?: ExPatientRuleDateOptions,
 ): Promise<InUseExPatientRule | null> {
-  const today = moment().format('YYYY-MM-DD');
-  if (customerLocalDate >= today) return inUseRule;
   return fetchExPatientRuleForDate(customerLocalDate, {
     ...options,
     exPatientRuleId: options?.exPatientRuleId ?? inUseRule?.exPatientRuleId,

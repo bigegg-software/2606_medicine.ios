@@ -197,7 +197,7 @@ async function resolveInWarmupPhase(options: {
 }): Promise<ExercisePlayerRouteParams | null> {
   const { dayRule, customerLocalDate, currentExVideoId, fromStart, readOnly } = options;
   const phaseBundle = getWarmupHotList(dayRule, customerLocalDate);
-  if (phaseBundle.isRest || phaseBundle.hotList.length === 0) return null;
+  if (phaseBundle.isRest || phaseBundle.isPostponedAway || phaseBundle.hotList.length === 0) return null;
   const baseCards = await buildTrainingPhaseCards(phaseBundle.hotList, undefined, {
     defaultThumbKey: 'hot',
   });
@@ -225,8 +225,8 @@ async function resolveInMainPhase(options: {
   readOnly?: boolean;
 }): Promise<ExercisePlayerRouteParams | null> {
   const { dayRule, customerLocalDate, currentExVideoId, fromStart, readOnly } = options;
-  const { isRest, modules } = await buildMainTrainingModules(dayRule, customerLocalDate);
-  if (isRest) return null;
+  const { isRest, isPostponedAway, modules } = await buildMainTrainingModules(dayRule, customerLocalDate);
+  if (isRest || isPostponedAway) return null;
   const cards = flattenMainTrainingPlayCards(modules);
   const next = pickNextCard(cards, currentExVideoId, fromStart) as MainTrainingPlayCard | null;
   if (!next) return null;
@@ -249,7 +249,7 @@ async function resolveInCooldownPhase(options: {
 }): Promise<ExercisePlayerRouteParams | null> {
   const { dayRule, customerLocalDate, currentExVideoId, fromStart, readOnly } = options;
   const phaseBundle = getCooldownColdList(dayRule, customerLocalDate);
-  if (phaseBundle.isRest || phaseBundle.coldList.length === 0) return null;
+  if (phaseBundle.isRest || phaseBundle.isPostponedAway || phaseBundle.coldList.length === 0) return null;
   const baseCards = await buildTrainingPhaseCards(phaseBundle.coldList, undefined, {
     defaultThumbKey: 'cold',
   });

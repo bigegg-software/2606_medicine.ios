@@ -196,17 +196,14 @@ export default function TrainingPage({
     }, [prescriptionEndDate, prescriptionStartDate]);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
-        if (lockToRule) {
-            setDayRule(inUseRule);
-            return inUseRule;
-        }
         const rule = await loadExPatientRuleForDate(date, inUseRule, {
             ...patientOpts,
             exPatientRuleId: inUseRule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId,
         });
-        setDayRule(rule);
-        return rule;
-    }, [exerciseRule?.exPatientRuleId, lockToRule, patientOpts]);
+        const next = rule ?? inUseRule;
+        setDayRule(next);
+        return next;
+    }, [exerciseRule?.exPatientRuleId, patientOpts]);
 
     const loadWeekCheckIn = useCallback(async (date: string) => {
         const start = moment(date).startOf('isoWeek').format('YYYY-MM-DD');
@@ -239,7 +236,7 @@ export default function TrainingPage({
     ) => {
         try {
             const result = await buildMainTrainingModules(rule, date, patientUserId);
-            if (result.isRest) {
+            if (result.isRest || result.isPostponedAway) {
                 setMainAllProgressed(false);
                 setMainPlayCards([]);
                 return;
@@ -257,8 +254,8 @@ export default function TrainingPage({
         rule?: InUseExPatientRule | null,
     ) => {
         try {
-            const { isRest, hotList } = getWarmupHotList(rule, date);
-            if (isRest || hotList.length === 0) {
+            const { isRest, isPostponedAway, hotList } = getWarmupHotList(rule, date);
+            if (isRest || isPostponedAway || hotList.length === 0) {
                 setWarmupCards([]);
                 return;
             }
@@ -282,8 +279,8 @@ export default function TrainingPage({
         rule?: InUseExPatientRule | null,
     ) => {
         try {
-            const { isRest, coldList } = getCooldownColdList(rule, date);
-            if (isRest || coldList.length === 0) {
+            const { isRest, isPostponedAway, coldList } = getCooldownColdList(rule, date);
+            if (isRest || isPostponedAway || coldList.length === 0) {
                 setCooldownCards([]);
                 return;
             }

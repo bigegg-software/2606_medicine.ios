@@ -29,11 +29,12 @@ export default function WarmupPhase({
     bannerSource: require('@/assets/images/exercise/rs.png'),
     bannerDesc: '低强度有氧 + 动态拉伸，唤醒身体、升高体温、降低受伤风险。',
     restEmptyText: '今日为休息日，暂无热身安排',
+    postponedEmptyText: '今日训练已顺延，暂无热身安排',
     emptyText: '暂无热身训练项目',
     formatBannerTitle: formatWarmupBannerTitle,
     getList: (rule, date) => {
-      const { isRest, hotList } = getWarmupHotList(rule, date);
-      return { isRest, items: hotList };
+      const { isRest, isPostponedAway, hotList } = getWarmupHotList(rule, date);
+      return { isRest, isPostponedAway, items: hotList };
     },
   }), []);
 

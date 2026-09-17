@@ -34,7 +34,10 @@ import {
   type WeekCalendarItem,
 } from '@/api/schedule';
 import { getHealthGoalInfo, type HealthGoalInfo, type HealthGoalTarget } from '@/api/healthGoal';
-import { formatDiagnosticLabelText } from '@/src/features/exercise/utils/exerciseHelpers';
+import {
+  normalizeTrainingGoals,
+  resolveTrainingGoalLabels,
+} from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
 
 export type ScheduleDictMaps = {
   exerciseType: Record<string, string>;
@@ -980,20 +983,27 @@ export function getPrescriptionDayProgress(startDate?: string, endDate?: string)
   return { currentDay, totalDays };
 }
 
-/** 日程页顶栏：年龄 | 诊断 | 处方名 | 自开始日起 */
+/** 日程页顶栏：年龄 | 训练目标 | 处方名 | 自开始日起 */
 export function formatScheduleTopInfoText(
   user?: UserBaseInfo | null,
-  prescription?: Pick<InUseExPatientRule, 'diagnosticLabel' | 'prescriptionName' | 'startDate'> | null,
+  prescription?: Pick<
+    InUseExPatientRule,
+    'trainingGoals' | 'prescriptionName' | 'startDate'
+  > | null,
+  trainingGoalLabelMap?: Record<string, string>,
 ) {
   const birthMoment = moment(user?.birthDate, ['YYYY-MM-DD', 'YYYYMMDD'], true);
   const age = birthMoment.isValid() ? `${moment().diff(birthMoment, 'years')}岁` : '';
-  const diagnosis = formatDiagnosticLabelText(prescription?.diagnosticLabel);
+  const goalsText = resolveTrainingGoalLabels(
+    normalizeTrainingGoals(prescription?.trainingGoals ?? user?.trainingGoals),
+    trainingGoalLabelMap,
+  );
   const prescriptionName = prescription?.prescriptionName?.trim() || '';
   const start = prescription?.startDate?.trim();
   const startText = start
     ? `自${moment(start).isValid() ? moment(start).format('YYYY/MM/DD') : start}起`
     : '';
-  return [age, diagnosis, prescriptionName, startText].filter(Boolean).join(' | ') || '--';
+  return [age, goalsText, prescriptionName, startText].filter(Boolean).join(' | ') || '--';
 }
 
 export function getPrescriptionProgressStatusText(progress?: number) {

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -13,8 +14,8 @@ import { formatExerciseUserInfoText, normalizeExPatientRuleInfo } from './utils/
 import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
 import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
-import { getInUseExPatientRuleInfo, type InUseExPatientRule } from '@/api/schedule';
-import { getExPatientRuleInfo, type ExPatientRuleInfo } from '@/api/exPatientRule';
+import type { InUseExPatientRule } from '@/api/schedule';
+import { getExPatientRuleSnapshotByDate, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
@@ -28,6 +29,13 @@ import {
   buildTrainingGoalLabelMap,
   loadTrainingGoalDictItems,
 } from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
+import {
+  hasExPostponeChoiceToday,
+  postponeThisWeekByRuleId,
+  recordExPostponeChoice,
+  shouldShowPostponeThisWeekDialog,
+  showPostponeThisWeekDialog,
+} from './utils/exercisePostponeHelpers';
 
 type Route = RouteProp<RootStackParamList, 'ExercisePage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -90,19 +98,23 @@ export default function ExercisePage() {
     return `处方V${raw}`;
   })();
 
-  const loadExerciseRule = useCallback(async () => {
+  const loadExerciseRule = useCallback(async (customerLocalDate?: string) => {
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
-      // 历史计划详情：/patient/exPatientRule/getInfo?exPatientRuleId=
-      // 进行中/家人查看：getInUseInfo
+      const snapshotDate = customerLocalDate?.trim() || moment().format('YYYY-MM-DD');
       const [ruleRes, baseRes] = await Promise.all([
-        exPatientRuleId
-          ? getExPatientRuleInfo(String(exPatientRuleId), opts)
-          : getInUseExPatientRuleInfo(opts),
+        getExPatientRuleSnapshotByDate(
+          {
+            customerLocalDate: snapshotDate,
+            ...(exPatientRuleId ? { exPatientRuleId } : {}),
+          },
+          opts,
+        ),
         isFamilyView && patientUserId
           ? getUserBaseInfo({ patientUserId }).catch(() => null)
           : Promise.resolve(null),
       ]);
+      console.log('ruleRes', ruleRes);
       if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setExerciseRule(null);
       } else {
@@ -141,6 +153,56 @@ export default function ExercisePage() {
       cancelled = true;
     };
   }, []);
+
+  /** 进入本人进行中处方时，查询本周是否可顺延并弹窗 */
+  const postponePromptedRuleIdRef = useRef('');
+  useEffect(() => {
+    if (readOnly || isFamilyView) return;
+    const ruleId = exerciseRule?.exPatientRuleId;
+    if (ruleId == null || String(ruleId).trim() === '') return;
+    const id = String(ruleId);
+    if (postponePromptedRuleIdRef.current === id) return;
+
+    let cancelled = false;
+    const checkPostpone = async () => {
+      try {
+        const res = await getPostponeThisWeekInfo(id);
+        if (cancelled) return;
+        if (!isResourceApiOk(res as unknown as { code?: number })) return;
+        const info = apiResourceData(
+          res as unknown as { code?: number; data?: PostponeThisWeekInfo },
+        );
+        if (!shouldShowPostponeThisWeekDialog(info)) return;
+        const alreadyChose = await hasExPostponeChoiceToday(id);
+        if (cancelled) return;
+        if (alreadyChose) {
+          postponePromptedRuleIdRef.current = id;
+          return;
+        }
+        postponePromptedRuleIdRef.current = id;
+        showPostponeThisWeekDialog({
+          onCompletePrevious: () => {
+            void (async () => {
+              const recorded = await recordExPostponeChoice(id, 1);
+              if (!recorded) return;
+              const ok = await postponeThisWeekByRuleId(id);
+              if (!ok) return;
+              void loadExerciseRule();
+            })();
+          },
+          onStartToday: () => {
+            void recordExPostponeChoice(id, 0);
+          },
+        });
+      } catch {
+        // ignore
+      }
+    };
+    void checkPostpone();
+    return () => {
+      cancelled = true;
+    };
+  }, [exerciseRule?.exPatientRuleId, isFamilyView, readOnly]);
 
   const prevPatientUserIdRef = useRef(patientUserId);
   /** 右上角切换家人后刷新（跳过首屏与 focus 重复请求） */

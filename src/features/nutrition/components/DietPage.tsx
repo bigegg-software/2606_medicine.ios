@@ -17,6 +17,7 @@ import DietProgressRing from './DietProgressRing';
 import DietDatePickerModal from './DietDatePickerModal';
 import DietCheckInSuccessModal from './DietCheckInSuccessModal';
 import {
+    getAiMakeOneDayMealRemainCount,
     getDietPatientRuleAiMakeOneDayMeal,
     type DietPatientRuleInfo,
 } from '@/api/dietPatientRule';
@@ -338,6 +339,7 @@ export default function DietPage({
     const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(dietRule);
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [refreshRemainCount, setRefreshRemainCount] = useState<number | null>(null);
     const [signing, setSigning] = useState(false);
     const [signInfo, setSignInfo] = useState<DietUserSignInfo | null>(null);
     const [historySigned, setHistorySigned] = useState(false);
@@ -378,7 +380,10 @@ export default function DietPage({
         ? require('@/assets/images/nutrition/icon_x.png')
         : require('@/assets/images/nutrition/wc.png');
     const signButtonDisabled = !isTodaySelected || Boolean(signInfo?.signedToday) || signing;
-    const refreshDisabled = !isTodaySelected || Boolean(signInfo?.signedToday) || refreshing;
+    const refreshDisabled = !isTodaySelected
+        || Boolean(signInfo?.signedToday)
+        || refreshing
+        || (refreshRemainCount != null && refreshRemainCount <= 0);
 
     const loadSignInfo = useCallback(async () => {
         try {
@@ -394,6 +399,21 @@ export default function DietPage({
             );
         } catch {
             setSignInfo(null);
+        }
+    }, [patientOpts]);
+
+    const loadRefreshRemainCount = useCallback(async () => {
+        try {
+            const res = await getAiMakeOneDayMealRemainCount(patientOpts);
+            if (!isResourceApiOk(res as unknown as { code?: number })) {
+                setRefreshRemainCount(null);
+                return;
+            }
+            const raw = apiResourceData(res as unknown as { code?: number; data?: number });
+            const count = Number(raw);
+            setRefreshRemainCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null);
+        } catch {
+            setRefreshRemainCount(null);
         }
     }, [patientOpts]);
 
@@ -474,6 +494,7 @@ export default function DietPage({
             void loadDayData(selectedDate, dietRule);
             if (!readOnly) {
                 void loadSignInfo();
+                void loadRefreshRemainCount();
             }
             if (selectedDate < moment().format('YYYY-MM-DD')) {
                 void loadHistorySignStatus(selectedDate);
@@ -495,6 +516,7 @@ export default function DietPage({
             ensureEatYearLoaded,
             loadDayData,
             loadHistorySignStatus,
+            loadRefreshRemainCount,
             loadSignInfo,
             readOnly,
             selectedDate,
@@ -642,6 +664,10 @@ export default function DietPage({
             Toast.info('今日已打卡，不可换一换');
             return;
         }
+        if (refreshRemainCount != null && refreshRemainCount <= 0) {
+            Toast.info('今日换一换次数已用完');
+            return;
+        }
         const ruleId = dayRule?.dietPatientRuleId ?? dietRule?.dietPatientRuleId;
         if (ruleId == null || String(ruleId).trim() === '') {
             Toast.show('暂无可用处方');
@@ -673,6 +699,7 @@ export default function DietPage({
             }
             setDayRule(nextRule);
             onDietRuleChange?.(nextRule);
+            void loadRefreshRemainCount();
             Toast.success('已更新推荐餐食');
         } catch {
             Toast.show('换一换失败');
@@ -683,8 +710,10 @@ export default function DietPage({
     }, [
         dayRule?.dietPatientRuleId,
         dietRule?.dietPatientRuleId,
+        loadRefreshRemainCount,
         onDietRuleChange,
         refreshing,
+        refreshRemainCount,
         selectedDate,
         signInfo?.signedToday,
         patientOpts,

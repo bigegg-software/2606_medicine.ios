@@ -43,12 +43,13 @@ export type TrainingPhaseListConfig = {
   bannerSource: ImageSourcePropType;
   bannerDesc: string;
   restEmptyText: string;
+  postponedEmptyText: string;
   emptyText: string;
   formatBannerTitle: (totalMinutes: number) => string;
   getList: (
     rule: InUseExPatientRule | null | undefined,
     customerLocalDate: string,
-  ) => { isRest: boolean; items: ExWeekTrainingItem[] };
+  ) => { isRest: boolean; isPostponedAway?: boolean; items: ExWeekTrainingItem[] };
 };
 
 type Props = {
@@ -77,15 +78,21 @@ export default function TrainingPhaseListPanel({
   const [cards, setCards] = useState<TrainingPhaseExerciseCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRest, setIsRest] = useState(false);
+  const [isPostponedAway, setIsPostponedAway] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      const { isRest: restDay, items } = config.getList(dayRule, selectedDate);
+      const {
+        isRest: restDay,
+        isPostponedAway: postponedAway = false,
+        items,
+      } = config.getList(dayRule, selectedDate);
 
       setIsRest(restDay);
+      setIsPostponedAway(postponedAway);
 
-      if (restDay || items.length === 0) {
+      if (restDay || postponedAway || items.length === 0) {
         setCards([]);
         setLoading(false);
         return () => {
@@ -183,13 +190,15 @@ export default function TrainingPhaseListPanel({
         <View style={{ paddingVertical: 28, alignItems: 'center' }}>
           <ActivityIndicator color="#6D925E" />
         </View>
-      ) : isRest ? (
+      ) : isPostponedAway || isRest ? (
         <View style={styles.mainTrainingRestEmpty}>
           <Image
             style={styles.mainTrainingRestIcon}
             source={require('@/assets/images/exercise/icon_rest.png')}
           />
-          <Text style={styles.mainTrainingRestText}>{config.restEmptyText}</Text>
+          <Text style={styles.mainTrainingRestText}>
+            {isPostponedAway ? config.postponedEmptyText : config.restEmptyText}
+          </Text>
         </View>
       ) : cards.length === 0 ? (
         <View style={styles.mainTrainingRestEmpty}>

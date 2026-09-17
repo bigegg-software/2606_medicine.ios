@@ -29,11 +29,12 @@ export default function CooldownPhase({
     bannerSource: require('@/assets/images/exercise/ls.png'),
     bannerDesc: '低强度活动 + 静态拉伸，帮助心率平稳回落、促进恢复。',
     restEmptyText: '今日为休息日，暂无冷身安排',
+    postponedEmptyText: '今日训练已顺延，暂无冷身安排',
     emptyText: '暂无冷身训练项目',
     formatBannerTitle: formatCooldownBannerTitle,
     getList: (rule, date) => {
-      const { isRest, coldList } = getCooldownColdList(rule, date);
-      return { isRest, items: coldList };
+      const { isRest, isPostponedAway, coldList } = getCooldownColdList(rule, date);
+      return { isRest, isPostponedAway, items: coldList };
     },
   }), []);
 

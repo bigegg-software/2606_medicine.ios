@@ -565,14 +565,26 @@ export function formatCooldownBannerTitle(totalMinutes: number) {
   return '冷身放松·5–10 分钟';
 }
 
+function isScheduleFlagOn(value?: number | boolean | null) {
+  return value === true || Number(value) === 1;
+}
+
 function getDaySchedulePhase(
   rule: InUseExPatientRule | null | undefined,
   customerLocalDate: string,
-): { isRest: boolean; schedule: ExWeekTrainingSchedule | null } {
+): {
+  isRest: boolean;
+  isPostponedAway: boolean;
+  schedule: ExWeekTrainingSchedule | null;
+} {
   const schedule = getWeekScheduleForDate(rule?.weekTrainingScheduleList, customerLocalDate);
-  if (!schedule) return { isRest: false, schedule: null };
-  if (schedule.isRest) return { isRest: true, schedule };
-  return { isRest: false, schedule };
+  if (!schedule) return { isRest: false, isPostponedAway: false, schedule: null };
+  // 被顺延腾空日优先于休息日文案
+  if (isScheduleFlagOn(schedule.isPostponedAway)) {
+    return { isRest: false, isPostponedAway: true, schedule };
+  }
+  if (schedule.isRest) return { isRest: true, isPostponedAway: false, schedule };
+  return { isRest: false, isPostponedAway: false, schedule };
 }
 
 /** 指定日期是否为运动处方休息日 */
@@ -586,19 +598,19 @@ export function isExerciseRestDay(
 export function getWarmupHotList(
   rule: InUseExPatientRule | null | undefined,
   customerLocalDate: string,
-): { isRest: boolean; hotList: ExWeekTrainingItem[] } {
-  const { isRest, schedule } = getDaySchedulePhase(rule, customerLocalDate);
-  if (isRest) return { isRest: true, hotList: [] };
-  return { isRest: false, hotList: schedule?.hotList ?? [] };
+): { isRest: boolean; isPostponedAway: boolean; hotList: ExWeekTrainingItem[] } {
+  const { isRest, isPostponedAway, schedule } = getDaySchedulePhase(rule, customerLocalDate);
+  if (isRest || isPostponedAway) return { isRest, isPostponedAway, hotList: [] };
+  return { isRest: false, isPostponedAway: false, hotList: schedule?.hotList ?? [] };
 }
 
 export function getCooldownColdList(
   rule: InUseExPatientRule | null | undefined,
   customerLocalDate: string,
-): { isRest: boolean; coldList: ExWeekTrainingItem[] } {
-  const { isRest, schedule } = getDaySchedulePhase(rule, customerLocalDate);
-  if (isRest) return { isRest: true, coldList: [] };
-  return { isRest: false, coldList: schedule?.coldList ?? [] };
+): { isRest: boolean; isPostponedAway: boolean; coldList: ExWeekTrainingItem[] } {
+  const { isRest, isPostponedAway, schedule } = getDaySchedulePhase(rule, customerLocalDate);
+  if (isRest || isPostponedAway) return { isRest, isPostponedAway, coldList: [] };
+  return { isRest: false, isPostponedAway: false, coldList: schedule?.coldList ?? [] };
 }
 
 function mergeMainBlocks(blocks: ExWeekTrainingMainBlock[] | undefined) {
@@ -621,9 +633,9 @@ export async function buildMainTrainingModules(
   rule: InUseExPatientRule | null | undefined,
   customerLocalDate: string,
   patientUserId?: string | number | null,
-): Promise<{ isRest: boolean; modules: MainTrainingTypeModule[] }> {
-  const { isRest, schedule } = getDaySchedulePhase(rule, customerLocalDate);
-  if (isRest) return { isRest: true, modules: [] };
+): Promise<{ isRest: boolean; isPostponedAway: boolean; modules: MainTrainingTypeModule[] }> {
+  const { isRest, isPostponedAway, schedule } = getDaySchedulePhase(rule, customerLocalDate);
+  if (isRest || isPostponedAway) return { isRest, isPostponedAway, modules: [] };
 
   const merged = mergeMainBlocks(schedule?.mainList);
   const modules: MainTrainingTypeModule[] = [];
@@ -670,7 +682,7 @@ export async function buildMainTrainingModules(
     });
   }
 
-  return { isRest: false, modules };
+  return { isRest: false, isPostponedAway: false, modules };
 }
 
 export function formatMainTrainingFittTipLines(rule?: InUseExPatientRule | null) {

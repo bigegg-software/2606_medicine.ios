@@ -123,7 +123,7 @@ export async function performExerciseDailySign(params: {
       }
       mainTotalCount = dayStat.mainTotalCount;
       mainCompleteCount = dayStat.mainCompleteCount;
-      if (mainResult && !mainResult.isRest) {
+      if (mainResult && !mainResult.isRest && !mainResult.isPostponedAway) {
         mainAllProgressed = isMainTrainingAllProgressStarted(mainResult.modules);
       }
     } catch {

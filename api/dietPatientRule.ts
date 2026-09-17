@@ -239,3 +239,11 @@ export const getDietPatientRuleAiMakeOneDayMeal = (params: {
     request.get<DietAiMakeOneDayMealResult>('/patient/dietPatientRule/aiMakeOneDayMeal', {
         params,
     });
+
+/** 获取今日 AI 换一换剩余推荐次数 */
+export const getAiMakeOneDayMealRemainCount = (
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<ApiResult<number>>('/patient/dietPatientRule/getAiMakeOneDayMealRemainCount', {
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
