@@ -1,4 +1,4 @@
-import { Platform } from 'react-native';
+import { DeviceEventEmitter, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { updateExtrInfo } from '@/api/user';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -7,6 +7,10 @@ import {
   parseNotificationSettings,
   type NotificationSettings,
 } from '@/src/utils/notificationSettingsHelpers';
+import {
+  DIET_MEAL_DAY_ARCHIVE_REFRESH_EVENT,
+  DIET_MEAL_DAY_ARCHIVE_REFRESH_TYPE,
+} from '@/src/features/nutrition/components/utils/mealRefreshPeriodHelpers';
 
 let notificationSoundEnabled = true;
 
@@ -157,6 +161,11 @@ export function handlePushNotificationNavigation(notification: Notifications.Not
   const { type, bizId, userId } = getNotificationPayload(notification);
   if (!type || IGNORED_TAP_TYPES.has(type)) return;
 
+  if (type === DIET_MEAL_DAY_ARCHIVE_REFRESH_TYPE) {
+    navigateWhenReady('NutritionPage', { tab: 'diet' });
+    return;
+  }
+
   if (MEAL_TIP_TYPES.has(type)) {
     navigateWhenReady('NutritionPage', { tab: 'prescription' });
     return;
@@ -205,8 +214,12 @@ export function handlePushNotificationNavigation(notification: Notifications.Not
 
 export function addPushNotificationListeners() {
   const receivedSub = Notifications.addNotificationReceivedListener(notification => {
+    const payload = getNotificationPayload(notification);
     if (__DEV__) {
-      console.log('[Push] received:', getNotificationPayload(notification));
+      console.log('[Push] received:', payload);
+    }
+    if (payload.type === DIET_MEAL_DAY_ARCHIVE_REFRESH_TYPE) {
+      DeviceEventEmitter.emit(DIET_MEAL_DAY_ARCHIVE_REFRESH_EVENT, payload);
     }
   });
 

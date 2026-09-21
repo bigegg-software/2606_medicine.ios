@@ -29,6 +29,17 @@ import {
   loadTrainingGoalDictItems,
   normalizeTrainingGoals,
 } from '@/src/features/profile/healthRecord/utils/profileExtraFieldsHelpers';
+import {
+  hasDietArchiveFieldsChanged,
+  hasInUseDietPatientRule,
+  hasMealRefreshRemainCount,
+  loadAiMakeOneDayMealRemainCount,
+  MEAL_REFRESH_BY_ARCHIVE_MESSAGE,
+  MEAL_REFRESH_BY_ARCHIVE_TITLE,
+  pickDietArchiveRelatedFields,
+  type DietArchiveRelatedFields,
+} from '@/src/features/profile/healthRecord/utils/profileDietArchiveRefreshHelpers';
+import { postRefreshMealDayByArchive } from '@/api/dietPatientRule';
 
 const PROFILE_EDIT_ACCESSORY = {
   name: 'profileEditNameDoneToolbar',
@@ -141,6 +152,10 @@ export default function ProfileEditPage() {
     Array<{ label: string; value: string }>
   >([]);
   const initialWeightRef = useRef<number | null>(null);
+  const initialDietFieldsRef = useRef<DietArchiveRelatedFields>(
+    pickDietArchiveRelatedFields(EMPTY_FORM),
+  );
+  const mealRefreshRemainCountRef = useRef<number | null>(null);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -160,11 +175,13 @@ export default function ProfileEditPage() {
   useEffect(() => {
     (async () => {
       try {
-        const [res, fitnessItems, trainingItems] = await Promise.all([
+        const [res, fitnessItems, trainingItems, remainCount] = await Promise.all([
           getUserBaseInfo(),
           loadFitnessLevelDictItems(),
           loadTrainingGoalDictItems(),
+          loadAiMakeOneDayMealRemainCount(),
         ]);
+        mealRefreshRemainCountRef.current = remainCount;
         setFitnessLevelPickerData(buildFitnessLevelPickerData(fitnessItems));
         setTrainingGoalOptions(buildTrainingGoalOptions(trainingItems));
 
@@ -192,6 +209,12 @@ export default function ProfileEditPage() {
             dietaryPreferences: data.dietaryPreferences ?? '',
             fitnessLevel: data.fitnessLevel != null ? String(data.fitnessLevel) : '',
             trainingGoals: normalizeTrainingGoals(data.trainingGoals),
+          });
+          initialDietFieldsRef.current = pickDietArchiveRelatedFields({
+            primaryDiagnosis: data.primaryDiagnosis,
+            diagnosticLabel: data.diagnosticLabel,
+            primaryHealthGoal: data.primaryHealthGoal,
+            dietaryPreferences: data.dietaryPreferences,
           });
         }
       } finally {
@@ -255,6 +278,33 @@ export default function ProfileEditPage() {
     }
   };
 
+  const requestRefreshMealDayByArchive = useCallback(() => {
+    Alert.alert(MEAL_REFRESH_BY_ARCHIVE_TITLE, MEAL_REFRESH_BY_ARCHIVE_MESSAGE, [
+      { text: '暂不更新', style: 'cancel' },
+      {
+        text: '立即更新',
+        onPress: () => {
+          void (async () => {
+            const loadingKey = Toast.loading('提交中…', 0);
+            try {
+              const res = await postRefreshMealDayByArchive();
+              if (!isResourceApiOk(res as { code?: number })) {
+                const r = res as { msg?: string; message?: string };
+                Toast.show(r.msg ?? r.message ?? '提交失败');
+                return;
+              }
+              Toast.info('食谱更新中，完成后将自动刷新');
+            } catch {
+              Toast.show('网络错误，请稍后重试');
+            } finally {
+              Toast.remove(loadingKey);
+            }
+          })();
+        },
+      },
+    ]);
+  }, []);
+
   const save = useCallback(async () => {
     if (!form.name.trim()) {
       Alert.alert('提示', '请输入姓名');
@@ -296,6 +346,12 @@ export default function ProfileEditPage() {
       return;
     }
 
+    const nextDietFields = pickDietArchiveRelatedFields(form);
+    const dietFieldsChanged = hasDietArchiveFieldsChanged(
+      initialDietFieldsRef.current,
+      nextDietFields,
+    );
+
     setLoading(true);
     try {
       const res = await updateUserBaseInfo({
@@ -330,13 +386,24 @@ export default function ProfileEditPage() {
       }
 
       await dispatch(fetchUserBaseInfo({ force: true }));
-      Toast.show('资料已保存');
+      initialDietFieldsRef.current = nextDietFields;
+
+      const canAskMealRefresh =
+        dietFieldsChanged
+        && hasMealRefreshRemainCount(mealRefreshRemainCountRef.current)
+        && (await hasInUseDietPatientRule());
+
+      if (canAskMealRefresh) {
+        requestRefreshMealDayByArchive();
+      } else {
+        Toast.show('资料已保存');
+      }
     } catch {
       Alert.alert('错误', '网络错误，请稍后重试');
     } finally {
       setLoading(false);
     }
-  }, [dispatch, form]);
+  }, [dispatch, form, requestRefreshMealDayByArchive]);
 
   if (initializing) {
     return (

@@ -16,6 +16,7 @@ import {
 } from '@/src/familyPage/profilePage/utils/familyBindInviteHelpers';
 import { parseMessageCreateTime } from './messageHelpers';
 import { getHistoryPlanExerciseParams } from '@/src/features/schedule/utils/scheduleHistoryNavHelpers';
+import { DIET_MEAL_DAY_ARCHIVE_REFRESH_TYPE } from '@/src/features/nutrition/components/utils/mealRefreshPeriodHelpers';
 
 export const MESSAGE_NOT_FOUND_TOAST = '信息不存在';
 
@@ -204,6 +205,17 @@ export async function resolveMessageNavigation(
 
   if (MEDICATION_TYPES.has(type)) {
     return { action: 'navigate', name: 'Medication', params: { tab: 'medication' } };
+  }
+
+  // 专属食谱异步更新完成 → 营养页「今日食谱」
+  if (type === DIET_MEAL_DAY_ARCHIVE_REFRESH_TYPE) {
+    const dietExists = await checkResourceExists(() => getInUseDietPatientRuleInfo());
+    if (dietExists === 'missing') return { action: 'missing' };
+    return {
+      action: 'navigate',
+      name: 'NutritionPage',
+      params: { tab: 'diet' },
+    };
   }
 
   if (MEAL_TYPES.has(type)) {

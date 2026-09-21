@@ -2,10 +2,13 @@ import moment from 'moment';
 import {
   getDietPatientRuleSnapshotByDate,
   getInUseDietPatientRuleInfo,
+  getListMealDay,
+  type DietMealDayItem,
   type DietPatientRuleInfo,
 } from '@/api/dietPatientRule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { isDietRuleActiveOnDate } from './dietMealHelpers';
+import { applyMealDayForDateToRule } from './mealRefreshPeriodHelpers';
 
 export type DietPatientRuleDateOptions = {
   patientUserId?: string | number | null;
@@ -17,6 +20,41 @@ function toRuleId(value?: string | number | null) {
   if (value == null) return undefined;
   const id = String(value).trim();
   return id || undefined;
+}
+
+/** 处方元信息用于展示目标热量等；推荐餐次一律来自 listMealDay */
+function ruleMetaWithoutWeeklyMeals(rule: DietPatientRuleInfo): DietPatientRuleInfo {
+  return { ...rule, mealList: [] };
+}
+
+/** 拉取指定日期的按日食谱作为推荐 mealList（无数据则空，不回退周模板） */
+export async function overlayMealDayForDate(
+  rule: DietPatientRuleInfo | null,
+  customerLocalDate: string,
+  options?: DietPatientRuleDateOptions,
+): Promise<DietPatientRuleInfo | null> {
+  if (!rule) return null;
+  const base = ruleMetaWithoutWeeklyMeals(rule);
+  const dietPatientRuleId = toRuleId(options?.dietPatientRuleId ?? rule.dietPatientRuleId);
+  if (!dietPatientRuleId) return base;
+
+  try {
+    const res = await getListMealDay(
+      {
+        dietPatientRuleId,
+        startDate: customerLocalDate,
+        endDate: customerLocalDate,
+      },
+      options,
+    );
+    if (!isResourceApiOk(res as unknown as { code?: number })) return base;
+    const list = apiResourceData(
+      res as unknown as { code?: number; data?: DietMealDayItem[] },
+    ) ?? [];
+    return applyMealDayForDateToRule(base, list, customerLocalDate);
+  } catch {
+    return base;
+  }
 }
 
 export async function fetchDietRuleForDate(
@@ -55,8 +93,9 @@ export async function fetchDietRuleForDate(
 }
 
 /**
- * 今天与未来：使用当前在用处方（或锁定的历史处方）；
- * 过去日期：按本地日期查询处方快照（必传 dietPatientRuleId 做数据隔离）。
+ * 今天与未来：使用当前在用处方元信息；
+ * 过去日期：按本地日期查询处方快照。
+ * 推荐餐次一律用 listMealDay 回显，不再使用老周模板 mealList。
  */
 export async function loadDietRuleForDate(
   customerLocalDate: string,
@@ -75,5 +114,8 @@ export async function loadDietRuleForDate(
         dietPatientRuleId,
       });
   if (!isDietRuleActiveOnDate(rule, customerLocalDate)) return null;
-  return rule;
+  return overlayMealDayForDate(rule, customerLocalDate, {
+    ...options,
+    dietPatientRuleId,
+  });
 }

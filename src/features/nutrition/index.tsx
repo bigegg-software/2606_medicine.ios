@@ -69,9 +69,15 @@ export default function NutritionPage() {
   }, [familyFromStore, familyUser?.name, readOnly, relationLabel, routeDisplayName]);
 
   useEffect(() => {
-    if (params?.tab !== 'prescription') return;
-    setActiveNav(1);
-    setMountedTabs(prev => (prev[1] ? prev : { ...prev, 1: true }));
+    if (params?.tab === 'prescription') {
+      setActiveNav(1);
+      setMountedTabs(prev => (prev[1] ? prev : { ...prev, 1: true }));
+      return;
+    }
+    if (params?.tab === 'diet') {
+      setActiveNav(0);
+      setMountedTabs(prev => (prev[0] ? prev : { ...prev, 0: true }));
+    }
   }, [params?.tab]);
 
   const loadDietRule = useCallback(async () => {

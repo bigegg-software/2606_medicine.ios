@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ScrollView, Alert, DeviceEventEmitter } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -16,19 +16,29 @@ import { getDayMealEatDots, loadMealEatMapByYear, type MealEatMap } from './util
 import DietProgressRing from './DietProgressRing';
 import DietDatePickerModal from './DietDatePickerModal';
 import DietCheckInSuccessModal from './DietCheckInSuccessModal';
+import MealRefreshPeriodPickerModal, {
+    type MealRefreshPeriodKey,
+} from './MealRefreshPeriodPickerModal';
 import {
     getAiMakeOneDayMealRemainCount,
-    getDietPatientRuleAiMakeOneDayMeal,
+    postAiMakeMealDayV2,
+    type DietMealDayItem,
     type DietPatientRuleInfo,
 } from '@/api/dietPatientRule';
 import {
-    buildRecommendedMealSections,
+    buildRecommendedMealSectionsFromDay,
     formatActualFoodMeta,
     formatMealApproxCalories,
     formatMealMacroGrams,
     type RecommendedMealSection,
 } from './utils/dietMealHelpers';
-import { fetchDietRuleForDate, loadDietRuleForDate } from './utils/dietRuleDateHelpers';
+import { loadDietRuleForDate } from './utils/dietRuleDateHelpers';
+import {
+    applyMealDayForDateToRule,
+    DIET_MEAL_DAY_ARCHIVE_REFRESH_EVENT,
+    isMealRefreshPeriodAsync,
+    resolveMealRefreshDateRange,
+} from './utils/mealRefreshPeriodHelpers';
 import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import { deleteMealDetail, getTodayMealDetailList, type MealDetailItem } from '@/api/mealDetail';
@@ -336,10 +346,13 @@ export default function DietPage({
     const dietPatientRuleId = dietRule?.dietPatientRuleId;
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
     const [mealDetailList, setMealDetailList] = useState<MealDetailItem[]>([]);
-    const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(dietRule);
+    const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(() =>
+        dietRule ? { ...dietRule, mealList: [] } : null,
+    );
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshRemainCount, setRefreshRemainCount] = useState<number | null>(null);
+    const [refreshPeriodVisible, setRefreshPeriodVisible] = useState(false);
     const [signing, setSigning] = useState(false);
     const [signInfo, setSignInfo] = useState<DietUserSignInfo | null>(null);
     const [historySigned, setHistorySigned] = useState(false);
@@ -347,6 +360,8 @@ export default function DietPage({
     const [eatMap, setEatMap] = useState<MealEatMap>({});
     const loadedEatYearsRef = useRef<Set<number>>(new Set());
     const loadingEatYearsRef = useRef<Set<number>>(new Set());
+    const waitingMealRefreshRef = useRef(false);
+    const mealRefreshRangeRef = useRef<{ startDate: string; endDate: string } | null>(null);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
     const prescriptionStartDate = dietRule?.startDate?.trim() || dayRule?.startDate?.trim() || '';
     const prescriptionEndDate = dietRule?.endDate?.trim() || dayRule?.endDate?.trim() || '';
@@ -355,8 +370,8 @@ export default function DietPage({
     const isTodaySelected = selectedDate === todayKey;
 
     const recommendedSections = useMemo(
-        () => buildRecommendedMealSections(dayRule?.mealList, selectedDate),
-        [dayRule?.mealList, selectedDate],
+        () => buildRecommendedMealSectionsFromDay(dayRule?.mealList),
+        [dayRule?.mealList],
     );
     const isBeforePrescriptionStart = useMemo(() => {
         if (!prescriptionStartDate) return false;
@@ -653,7 +668,7 @@ export default function DietPage({
         }
     }, [selectedDate, signInfo, signing]);
 
-    const onPressRefresh = useCallback(async () => {
+    const onPressRefresh = useCallback(() => {
         if (selectedDate !== moment().format('YYYY-MM-DD')) {
             Toast.info(selectedDate > moment().format('YYYY-MM-DD')
                 ? '未来日期不可换一换'
@@ -674,50 +689,126 @@ export default function DietPage({
             return;
         }
         if (refreshing) return;
-
-        setRefreshing(true);
-        const loadingKey = Toast.loading('正在生成…', 0);
-        try {
-            const day = moment(selectedDate).isoWeekday();
-            const res = await getDietPatientRuleAiMakeOneDayMeal({
-                dietPatientRuleId: String(ruleId),
-                day,
-            });
-            if (!isResourceApiOk(res as unknown as { code?: number })) {
-                const failRes = res as unknown as { msg?: string; message?: string };
-                Toast.show(failRes?.msg || failRes?.message || '换一换失败');
-                return;
-            }
-
-            const nextRule = await fetchDietRuleForDate(selectedDate, {
-                ...patientOpts,
-                dietPatientRuleId: ruleId,
-            });
-            if (!nextRule) {
-                Toast.show('获取处方失败');
-                return;
-            }
-            setDayRule(nextRule);
-            onDietRuleChange?.(nextRule);
-            void loadRefreshRemainCount();
-            Toast.success('已更新推荐餐食');
-        } catch {
-            Toast.show('换一换失败');
-        } finally {
-            Toast.remove(loadingKey);
-            setRefreshing(false);
-        }
+        setRefreshPeriodVisible(true);
     }, [
         dayRule?.dietPatientRuleId,
         dietRule?.dietPatientRuleId,
-        loadRefreshRemainCount,
-        onDietRuleChange,
         refreshing,
         refreshRemainCount,
         selectedDate,
         signInfo?.signedToday,
-        patientOpts,
     ]);
+
+    const applyMealDayListLocally = useCallback((mealDayList: DietMealDayItem[] | undefined) => {
+        if (!mealDayList?.length) return;
+        const base = dayRule ?? dietRule;
+        if (!base) return;
+        // 仅更新当日展示，不回写父级周模板 mealList
+        setDayRule(applyMealDayForDateToRule(base, mealDayList, selectedDate));
+    }, [dayRule, dietRule, selectedDate]);
+
+    const finishMealRefresh = useCallback(async (options?: { fromAsync?: boolean }) => {
+        await loadDayData(selectedDate, dietRule);
+        void loadRefreshRemainCount();
+        waitingMealRefreshRef.current = false;
+        mealRefreshRangeRef.current = null;
+        setRefreshing(false);
+        if (options?.fromAsync) {
+            Toast.success('食谱已更新');
+        }
+    }, [dietRule, loadDayData, loadRefreshRemainCount, selectedDate]);
+
+    const onConfirmRefreshPeriod = useCallback(async (period: MealRefreshPeriodKey) => {
+        setRefreshPeriodVisible(false);
+        const ruleId = String(dayRule?.dietPatientRuleId ?? dietRule?.dietPatientRuleId ?? '').trim();
+        if (!ruleId) {
+            Toast.show('暂无可用处方');
+            return;
+        }
+        if (refreshing) return;
+
+        const range = resolveMealRefreshDateRange(period, {
+            prescriptionEndDate: prescriptionEndDate || undefined,
+        });
+        mealRefreshRangeRef.current = range;
+        setRefreshing(true);
+        const loadingKey = Toast.loading('请稍后…', 0);
+        try {
+            const res = await postAiMakeMealDayV2(
+                {
+                    dietPatientRuleId: ruleId,
+                    startDate: range.startDate,
+                    endDate: range.endDate,
+                },
+                patientOpts,
+            );
+            if (!isResourceApiOk(res as unknown as { code?: number })) {
+                Toast.show(
+                    (res as { msg?: string; message?: string })?.msg
+                    ?? (res as { msg?: string; message?: string })?.message
+                    ?? '换一换失败',
+                );
+                waitingMealRefreshRef.current = false;
+                mealRefreshRangeRef.current = null;
+                setRefreshing(false);
+                return;
+            }
+            const data = apiResourceData(
+                res as unknown as {
+                    code?: number;
+                    data?: { async?: boolean; mealDayList?: DietMealDayItem[] };
+                },
+            );
+            // 仅「今天」同步；本周 / 本周及下周一律异步（不看日期是否退化为单日）
+            if (isMealRefreshPeriodAsync(period)) {
+                waitingMealRefreshRef.current = true;
+                void loadRefreshRemainCount();
+                setRefreshing(false);
+                Toast.info('食谱生成中，生成完成后将为您发送通知提醒');
+                return;
+            }
+            applyMealDayListLocally(data?.mealDayList);
+            void loadRefreshRemainCount();
+            waitingMealRefreshRef.current = false;
+            mealRefreshRangeRef.current = null;
+            setRefreshing(false);
+            Toast.success('已更新食谱');
+        } catch {
+            Toast.show('换一换失败');
+            waitingMealRefreshRef.current = false;
+            mealRefreshRangeRef.current = null;
+            setRefreshing(false);
+        } finally {
+            Toast.remove(loadingKey);
+        }
+    }, [
+        applyMealDayListLocally,
+        dayRule?.dietPatientRuleId,
+        dietRule?.dietPatientRuleId,
+        loadRefreshRemainCount,
+        patientOpts,
+        prescriptionEndDate,
+        refreshing,
+    ]);
+
+    useEffect(() => {
+        const sub = DeviceEventEmitter.addListener(DIET_MEAL_DAY_ARCHIVE_REFRESH_EVENT, () => {
+            if (!waitingMealRefreshRef.current) return;
+            void finishMealRefresh({ fromAsync: true });
+        });
+        return () => {
+            sub.remove();
+        };
+    }, [finishMealRefresh]);
+
+    useEffect(() => {
+        if (!refreshing || !waitingMealRefreshRef.current) return;
+        const timer = setTimeout(() => {
+            if (!waitingMealRefreshRef.current) return;
+            void finishMealRefresh({ fromAsync: true });
+        }, 120_000);
+        return () => clearTimeout(timer);
+    }, [finishMealRefresh, refreshing]);
 
     if (!dietRule) {
         return (
@@ -992,6 +1083,11 @@ export default function DietPage({
             <DietCheckInSuccessModal
                 visible={checkInSuccessVisible}
                 onClose={() => setCheckInSuccessVisible(false)}
+            />
+            <MealRefreshPeriodPickerModal
+                visible={refreshPeriodVisible}
+                onCancel={() => setRefreshPeriodVisible(false)}
+                onConfirm={onConfirmRefreshPeriod}
             />
         </View>
     );

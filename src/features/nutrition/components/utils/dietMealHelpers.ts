@@ -73,10 +73,11 @@ const MEAL_SECTION_META: Record<number, { title: string; icon: ImageSourcePropTy
     title: '晚餐',
     icon: require('@/assets/images/schedule/ws.png'),
   },
-  4: {
-    title: '加餐',
-    icon: require('@/assets/images/medication/icon.png'),
-  },
+};
+
+const DEFAULT_MEAL_SECTION_META: { title: string; icon: ImageSourcePropType } = {
+  title: '早餐',
+  icon: require('@/assets/images/schedule/zc.png'),
 };
 
 function toFiniteNumber(value?: number | null) {
@@ -183,7 +184,37 @@ export function mergeOneDayMeals(
   return [...others, ...nextDayMeals];
 }
 
-/** 按选中日期（周一=1…周日=7）筛选推荐餐次 */
+/** 按日食谱（listMealDay）回显推荐餐次：已是当日数据，不再按星期过滤；隐藏加餐 */
+export function buildRecommendedMealSectionsFromDay(
+  mealList: DietMealItem[] | undefined,
+): RecommendedMealSection[] {
+  return (mealList ?? [])
+    .filter(item => {
+      if (item.mealCategory == null || String(item.mealCategory).trim() === '') return false;
+      return Number(item.mealCategory) !== 4;
+    })
+    .sort((a, b) => Number(a.mealCategory) - Number(b.mealCategory))
+    .map((item, index) => {
+      const category = Number(item.mealCategory);
+      const meta = MEAL_SECTION_META[category] ?? DEFAULT_MEAL_SECTION_META;
+      const planCalories = Math.round(toFiniteNumber(item.calories));
+      const macros = resolveMealMacros(item);
+      return {
+        key: `${meta.title}-${category}-${index}`,
+        category,
+        title: meta.title,
+        icon: meta.icon,
+        planCalories,
+        planCaloriesText: formatPlanCalories(item.calories),
+        protein: macros.protein,
+        carbs: macros.carbs,
+        fat: macros.fat,
+        foods: buildFoodsFromMeal(item),
+      };
+    });
+}
+
+/** 按选中日期（周一=1…周日=7）筛选推荐餐次；隐藏加餐 */
 export function buildRecommendedMealSections(
   mealList: DietMealItem[] | undefined,
   date: string,
@@ -193,6 +224,7 @@ export function buildRecommendedMealSections(
   return (mealList ?? [])
     .filter(item => {
       if (item.mealCategory == null || String(item.mealCategory).trim() === '') return false;
+      if (Number(item.mealCategory) === 4) return false;
       const day = Number(item.day);
       if (!Number.isFinite(day) || day <= 0) return true;
       return day === weekday;
@@ -200,7 +232,7 @@ export function buildRecommendedMealSections(
     .sort((a, b) => Number(a.mealCategory) - Number(b.mealCategory))
     .map((item, index) => {
       const category = Number(item.mealCategory);
-      const meta = MEAL_SECTION_META[category] ?? MEAL_SECTION_META[1];
+      const meta = MEAL_SECTION_META[category] ?? DEFAULT_MEAL_SECTION_META;
       const planCalories = Math.round(toFiniteNumber(item.calories));
       const macros = resolveMealMacros(item);
       return {

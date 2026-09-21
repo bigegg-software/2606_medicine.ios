@@ -247,3 +247,67 @@ export const getAiMakeOneDayMealRemainCount = (
     request.get<ApiResult<number>>('/patient/dietPatientRule/getAiMakeOneDayMealRemainCount', {
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });
+
+/** 按日计划食谱（listMealDay / aiMakeMealDayV2） */
+export type DietMealDayItem = {
+    id?: number;
+    dietPatientRuleId?: number;
+    patientUserId?: number;
+    customerLocalDate?: string;
+    mealList?: DietMealItem[];
+    /** 来源：1开方提交 2定时任务 3档案刷新 4换一换 */
+    genSource?: number;
+};
+
+export type DietAiMakeMealDayV2Data = {
+    /** true=已投递 MQ，完成后 SSE；false=已同步生成并落库 */
+    async?: boolean;
+    mealDayList?: DietMealDayItem[];
+};
+
+export type DietAiMakeMealDayV2Result = ApiResult<DietAiMakeMealDayV2Data>;
+
+/** 换一换 V2：按所选周期强制重生按日食谱并落库 */
+export const postAiMakeMealDayV2 = (
+    payload: {
+        dietPatientRuleId: string;
+        startDate: string;
+        endDate: string;
+    },
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.post<DietAiMakeMealDayV2Result>('/patient/dietPatientRule/aiMakeMealDayV2', {
+        dietPatientRuleId: String(payload.dietPatientRuleId),
+        startDate: payload.startDate,
+        endDate: payload.endDate,
+    }, {
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
+
+/** 查询按日计划食谱 */
+export const getListMealDay = (
+    params: {
+        dietPatientRuleId: string;
+        startDate: string;
+        endDate: string;
+    },
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<ApiResult<DietMealDayItem[]>>('/patient/dietPatientRule/listMealDay', {
+        params: {
+            dietPatientRuleId: String(params.dietPatientRuleId),
+            startDate: params.startDate,
+            endDate: params.endDate,
+        },
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
+
+/** 健康档案更新后「立即更新食谱」（异步 MQ，完成后 SSE） */
+export const postRefreshMealDayByArchive = (
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.post<ApiResult<boolean>>(
+        '/patient/dietPatientRule/refreshMealDayByArchive',
+        {},
+        { headers: withPatientUserIdHeaders(options?.patientUserId) },
+    );
