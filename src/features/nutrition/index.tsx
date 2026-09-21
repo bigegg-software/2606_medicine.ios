@@ -7,6 +7,7 @@ import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-
 import styles from '@/css/nutrition';
 import DietPage from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
+import HealthPlanPage from './components/HealthPlanPage';
 import { getDietPatientRuleInfo, getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -20,6 +21,13 @@ import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnly
 import { getChildFamilyDisplayName, maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
 
 type Route = RouteProp<RootStackParamList, 'NutritionPage'>;
+
+type NutritionNavKey = 'todayExercise' | 'prescription' | 'healthPlan';
+
+function resolveNutritionNavKey(tab?: 'diet' | 'prescription'): NutritionNavKey {
+  if (tab === 'prescription') return 'prescription';
+  return 'todayExercise';
+}
 
 export default function NutritionPage() {
   const dispatch = useDispatch<AppDispatch>();
@@ -41,14 +49,14 @@ export default function NutritionPage() {
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const familyList = useSelector((s: RootState) => s.family.list);
   const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
-  const initialTab = params?.tab === 'prescription' ? 1 : 0;
-  const [activeNav, setActiveNav] = useState(initialTab);
+  const initialTab = resolveNutritionNavKey(params?.tab);
+  const [activeNav, setActiveNav] = useState<NutritionNavKey>(initialTab);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
-  const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({
+  const [mountedTabs, setMountedTabs] = useState<Partial<Record<NutritionNavKey, boolean>>>({
     [initialTab]: true,
-    0: true,
+    todayExercise: true,
   });
 
   const familyFromStore = useMemo(() => {
@@ -69,15 +77,10 @@ export default function NutritionPage() {
   }, [familyFromStore, familyUser?.name, readOnly, relationLabel, routeDisplayName]);
 
   useEffect(() => {
-    if (params?.tab === 'prescription') {
-      setActiveNav(1);
-      setMountedTabs(prev => (prev[1] ? prev : { ...prev, 1: true }));
-      return;
-    }
-    if (params?.tab === 'diet') {
-      setActiveNav(0);
-      setMountedTabs(prev => (prev[0] ? prev : { ...prev, 0: true }));
-    }
+    const next = resolveNutritionNavKey(params?.tab);
+    if (params?.tab !== 'prescription' && params?.tab !== 'diet') return;
+    setActiveNav(next);
+    setMountedTabs(prev => (prev[next] ? prev : { ...prev, [next]: true }));
   }, [params?.tab]);
 
   const loadDietRule = useCallback(async () => {
@@ -129,9 +132,9 @@ export default function NutritionPage() {
     void loadDietRule();
   }, [patientUserId, readOnly, loadDietRule]);
 
-  const onPressNav = useCallback((index: number) => {
-    setActiveNav(index);
-    setMountedTabs(prev => (prev[index] ? prev : { ...prev, [index]: true }));
+  const onPressNav = useCallback((key: NutritionNavKey) => {
+    setActiveNav(key);
+    setMountedTabs(prev => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
 
   const header = formatDietHeaderInfo(
@@ -143,14 +146,21 @@ export default function NutritionPage() {
       ? { forceDisplayName: familyDisplayName, forceUser: familyUser }
       : undefined,
   );
-  const pageList = [
+  const pageList: { key: NutritionNavKey; title: string; icon: number }[] = [
     {
-      title: '今日食谱',
+      key: 'todayExercise',
+      title: '今日营养食谱',
       icon: require('@/assets/images/nutrition/day.png'),
     },
+    // {
+    //   key: 'prescription',
+    //   title: '营养处方',
+    //   icon: require('@/assets/images/nutrition/cf.png'),
+    // },
     {
-      title: '营养处方',
-      icon: require('@/assets/images/nutrition/cf.png'),
+      key: 'healthPlan',
+      title: '专享健康计划',
+      icon: require('@/assets/images/nutrition/star.png'),
     },
   ];
 
@@ -207,15 +217,18 @@ export default function NutritionPage() {
         </View>
       </View>
       <Flex style={styles.navBox}>
-        {pageList.map((page, index) => (
+        {pageList.map(page => (
           <Flex
-            key={page.title}
-            style={[styles.navItem, activeNav === index && styles.activeNavItem]}
+            key={page.key}
+            style={[styles.navItem, activeNav === page.key && styles.activeNavItem]}
             justify="center"
-            onPress={() => onPressNav(index)}
+            onPress={() => onPressNav(page.key)}
           >
-            <Image style={styles.navIcon} source={page.icon} />
-            <Text style={[styles.navText, activeNav === index && styles.activeNavText]}>
+            {/* <Image style={styles.navIcon} source={page.icon} /> */}
+            <Text
+              style={[styles.navText, activeNav === page.key && styles.activeNavText]}
+              numberOfLines={1}
+            >
               {page.title}
             </Text>
           </Flex>
@@ -227,8 +240,8 @@ export default function NutritionPage() {
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {mountedTabs[0] ? (
-            <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
+          {mountedTabs.todayExercise ? (
+            <View style={{ flex: 1, display: activeNav === 'todayExercise' ? 'flex' : 'none' }}>
               <DietPage
                 key={patientUserId ?? 'self'}
                 dietRule={dietRule}
@@ -238,12 +251,22 @@ export default function NutritionPage() {
               />
             </View>
           ) : null}
-          {mountedTabs[1] ? (
-            <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
+          {mountedTabs.prescription ? (
+            <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
               <NutritionPrescriptionPage
                 key={patientUserId ?? 'self'}
                 dietRule={dietRule}
                 readOnly={readOnly}
+              />
+            </View>
+          ) : null}
+          {mountedTabs.healthPlan ? (
+            <View style={{ flex: 1, display: activeNav === 'healthPlan' ? 'flex' : 'none' }}>
+              <HealthPlanPage
+                key={patientUserId ?? 'self'}
+                dietRule={dietRule}
+                readOnly={readOnly}
+                patientUserId={patientUserId}
               />
             </View>
           ) : null}

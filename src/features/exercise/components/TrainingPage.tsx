@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, type ImageSourcePropType } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ImageBackground, ScrollView, type ImageSourcePropType } from 'react-native';
 import { Flex } from '@ant-design/react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -759,6 +760,54 @@ export default function TrainingPage({
                     />
                 </View>
 
+                {activePhase === 'main' ? (
+                    <View style={styles.autonomousTrainingBox}>
+                        <View style={styles.autonomousTrainingItem}>
+                            <Text style={styles.autonomousText}>今天，为身体留一点时间</Text>
+                            <Text style={styles.autonomousText2}>选择适合自己的方式，让训练成为生活的一部分</Text>
+                        </View>
+
+                        <ImageBackground
+                            source={require('@/assets/images/exercise/zzxl.png')}
+                            style={styles.autonomousTrainingBackground}
+                            imageStyle={styles.autonomousTrainingBackgroundImage}
+                        >
+                            <Flex justify="between" style={styles.autonomousContentTop}>
+                                <Flex>
+                                    <Image style={styles.autonomousContentTopIcon} source={require('@/assets/images/common/wc.png')} />
+                                    <Text style={styles.autonomousContentTopText}>可独立完成</Text>
+                                </Flex>
+                                <Text style={styles.autonomousContentTopText2}>已为你选择可在家安全完成的训练</Text>
+                            </Flex>
+                            <Text style={styles.autonomousTrainingText1}>居家自主训练</Text>
+                            <Text style={styles.autonomousTrainingText2}>舒展与核心激活</Text>
+                            <Text style={styles.autonomousTrainingText3}>约15分钟 · 5个动作</Text>
+                            <Flex style={{ marginTop: 18 }}>
+                                <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
+                                <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
+                            </Flex>
+
+                            <TouchableOpacity activeOpacity={0.85} onPress={() => { }}>
+                                <LinearGradient
+                                    colors={['#9BBD8E', '#6D925E']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.autonomousStartBtn}
+                                >
+                                    <Image
+                                        style={styles.autonomousStartBtnIcon}
+                                        source={require('@/assets/images/exercise/start.png')}
+                                    />
+                                    <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
+                                </LinearGradient>
+                            </TouchableOpacity>
+
+                            {/* <Text style={styles.autonomousTrainingText}>居家自主训练</Text> */}
+                        </ImageBackground>
+                    </View>
+                ) : null}
+
+
                 <View style={styles.trainingPhaseTabBox}>
                     {TRAINING_PHASE_TABS.map(tab => {
                         const isActive = activePhase === tab.key;
@@ -777,6 +826,7 @@ export default function TrainingPage({
                         );
                     })}
                 </View>
+
 
                 {activePhase === 'warmup' ? (
                     <WarmupPhase

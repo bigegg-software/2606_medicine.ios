@@ -14,8 +14,9 @@ import { formatExerciseUserInfoText, normalizeExPatientRuleInfo } from './utils/
 import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
 import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
+import InStoreRehabPage from './components/InStoreRehabPage';
 import type { InUseExPatientRule } from '@/api/schedule';
-import { getExPatientRuleSnapshotByDate, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
+import { getExPatientRuleInfo, getExPatientRuleSnapshotByDate, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
@@ -36,6 +37,8 @@ import {
   shouldShowPostponeThisWeekDialog,
   showPostponeThisWeekDialog,
 } from './utils/exercisePostponeHelpers';
+
+type ExerciseNavKey = 'homeTraining' | 'prescription' | 'inStoreRehab';
 
 type Route = RouteProp<RootStackParamList, 'ExercisePage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -76,11 +79,13 @@ export default function ExercisePage() {
     : getDisplayUserName(user, systemUser);
   const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
-  const [activeNav, setActiveNav] = useState(0);
+  const [activeNav, setActiveNav] = useState<ExerciseNavKey>('homeTraining');
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
-  const [mountedTabs, setMountedTabs] = useState<Record<number, boolean>>({ 0: true });
+  const [mountedTabs, setMountedTabs] = useState<Partial<Record<ExerciseNavKey, boolean>>>({
+    homeTraining: true,
+  });
   const infoText = formatExerciseUserInfoText(
     profileUser,
     readOnly && isFamilyView ? null : userExtr,
@@ -101,20 +106,39 @@ export default function ExercisePage() {
   const loadExerciseRule = useCallback(async (customerLocalDate?: string) => {
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
+      // 历史处方：按指定 id 拉详情。按今天查快照会落在周期外，接口无数据，页面会显示暂无处方
+      if (exPatientRuleId) {
+        const [ruleRes, baseRes] = await Promise.all([
+          getExPatientRuleInfo(exPatientRuleId, opts),
+          isFamilyView && patientUserId
+            ? getUserBaseInfo({ patientUserId }).catch(() => null)
+            : Promise.resolve(null),
+        ]);
+        if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
+          setExerciseRule(null);
+        } else {
+          const raw = apiResourceData<ExPatientRuleInfo>(ruleRes as unknown as never);
+          setExerciseRule(raw ? (normalizeExPatientRuleInfo(raw) as InUseExPatientRule) : null);
+        }
+        if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
+          setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
+        } else if (isFamilyView) {
+          setFamilyUser(null);
+        }
+        return;
+      }
+
       const snapshotDate = customerLocalDate?.trim() || moment().format('YYYY-MM-DD');
       const [ruleRes, baseRes] = await Promise.all([
         getExPatientRuleSnapshotByDate(
-          {
-            customerLocalDate: snapshotDate,
-            ...(exPatientRuleId ? { exPatientRuleId } : {}),
-          },
+          { customerLocalDate: snapshotDate },
           opts,
         ),
         isFamilyView && patientUserId
           ? getUserBaseInfo({ patientUserId }).catch(() => null)
           : Promise.resolve(null),
       ]);
-      console.log('ruleRes', ruleRes);
+
       if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setExerciseRule(null);
       } else {
@@ -241,18 +265,25 @@ export default function ExercisePage() {
     });
   }, [exPatientRuleId, navigation, pageTitle, isFamilyView, relationLabel]);
 
-  const onPressNav = useCallback((index: number) => {
-    setActiveNav(index);
-    setMountedTabs(prev => (prev[index] ? prev : { ...prev, [index]: true }));
+  const onPressNav = useCallback((key: ExerciseNavKey) => {
+    setActiveNav(key);
+    setMountedTabs(prev => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
 
-  const pageList = [
+  const pageList: { key: ExerciseNavKey; title: string; icon: number }[] = [
     {
-      title: '今日训练',
+      key: 'homeTraining',
+      title: '居家自主训练',
       icon: require('@/assets/images/exercise/model.png'),
     },
+    // {
+    //   key: 'prescription',
+    //   title: '运动处方',
+    //   icon: require('@/assets/images/exercise/sport.png'),
+    // },
     {
-      title: '运动处方',
+      key: 'inStoreRehab',
+      title: '到店专项康复',
       icon: require('@/assets/images/exercise/sport.png'),
     },
   ];
@@ -286,15 +317,18 @@ export default function ExercisePage() {
         </View>
       </View>
       <Flex style={styles.navBox}>
-        {pageList.map((page, index) => (
+        {pageList.map(page => (
           <Flex
-            key={page.title}
-            style={[styles.navItem, activeNav === index && styles.activeNavItem]}
+            key={page.key}
+            style={[styles.navItem, activeNav === page.key && styles.activeNavItem]}
             justify="center"
-            onPress={() => onPressNav(index)}
+            onPress={() => onPressNav(page.key)}
           >
-            <Image style={styles.navIcon} source={page.icon} />
-            <Text style={[styles.navText, activeNav === index && styles.activeNavText]}>
+            {/* <Image style={styles.navIcon} source={page.icon} /> */}
+            <Text
+              style={[styles.navText, activeNav === page.key && styles.activeNavText]}
+              numberOfLines={1}
+            >
               {page.title}
             </Text>
           </Flex>
@@ -323,8 +357,8 @@ export default function ExercisePage() {
         </View>
       ) : (
         <View style={{ flex: 1 }}>
-          {mountedTabs[0] ? (
-            <View style={{ flex: 1, display: activeNav === 0 ? 'flex' : 'none' }}>
+          {mountedTabs.homeTraining ? (
+            <View style={{ flex: 1, display: activeNav === 'homeTraining' ? 'flex' : 'none' }}>
               <TrainingPage
                 exerciseRule={exerciseRule}
                 forceReadOnly={readOnly}
@@ -333,15 +367,23 @@ export default function ExercisePage() {
               />
             </View>
           ) : null}
-          {mountedTabs[1] ? (
-            <View style={{ flex: 1, display: activeNav === 1 ? 'flex' : 'none' }}>
+          {mountedTabs.prescription ? (
+            <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
               <PrescriptionPage exerciseRule={exerciseRule} patientUserId={patientUserId} />
+            </View>
+          ) : null}
+          {mountedTabs.inStoreRehab ? (
+            <View style={{ flex: 1, display: activeNav === 'inStoreRehab' ? 'flex' : 'none' }}>
+              <InStoreRehabPage
+                exerciseRule={exerciseRule}
+                lockToRule={Boolean(exPatientRuleId)}
+              />
             </View>
           ) : null}
         </View>
       )}
 
-      {!readOnly && activeNav === 0 && exerciseRule ? (
+      {!readOnly && activeNav === 'homeTraining' && exerciseRule ? (
         <TouchableOpacity
           style={styles.checkInFab}
           activeOpacity={0.85}

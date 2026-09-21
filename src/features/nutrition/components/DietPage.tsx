@@ -169,9 +169,14 @@ function RecommendedMealCard({
 
     return (
         <View style={styles.calendarContent}>
-            <Flex align="center">
-                <Image style={styles.dietListImage} source={section.icon} />
-                <Text style={styles.calendarContentTitle}>{section.title}</Text>
+            <Flex justify='between' align='center'>
+                <Flex>
+                    <Image style={styles.dietListImage} source={section.icon} />
+                    <Text style={styles.calendarContentTitle}>{section.title}</Text>
+                </Flex>
+                <Text style={styles.mealMacroApprox} numberOfLines={1}>
+                    {formatMealApproxCalories(section.planCalories)}
+                </Text>
             </Flex>
             <Flex justify="between" align="center" style={styles.mealMacroRow}>
                 <Flex align="center" style={styles.mealMacroItem}>
@@ -201,40 +206,60 @@ function RecommendedMealCard({
                         脂肪{formatMealMacroGrams(section.fat)}g
                     </Text>
                 </Flex>
-                <Text style={styles.mealMacroApprox} numberOfLines={1}>
-                    {formatMealApproxCalories(section.planCalories)}
-                </Text>
+
             </Flex>
             <View style={styles.mealMacroDashWrap}>
                 <View style={styles.mealMacroDash} />
             </View>
 
-            {section.foods.map(food => (
-                <Flex key={food.key} style={styles.dietMapBox}>
+            {section.foods.length > 0 ? (
+                <Flex align="start" style={styles.dietMapBox}>
                     <Image style={styles.mapImg} source={require('@/assets/images/nutrition/default1.png')} />
                     <View style={styles.mapCenBox}>
-                        <Text style={styles.mapTitle}>{food.foodName}</Text>
-                        <Flex style={styles.mapCenBoxList}>
-                            <Flex>
-                                <View style={[styles.mapBor, { backgroundColor: '#0951AE' }]} />
-                                <Text style={styles.mapText}>{food.proteinText}</Text>
+                        {section.foods.map((food, index) => (
+                            <Flex
+                                key={food.key}
+                                justify="between"
+                                align="center"
+                                style={index > 0 ? styles.mapFoodRow : undefined}
+                            >
+                                <Flex align="center" style={styles.mapTitleRow}>
+                                    <View style={styles.mapBor} />
+                                    <Text style={styles.mapTitle} numberOfLines={1}>{food.foodName}</Text>
+                                </Flex>
+                                <Text style={styles.mapValue}>{food.amountText}</Text>
                             </Flex>
-                            <Flex>
-                                <View style={[styles.mapBor, { backgroundColor: '#72A1C5' }]} />
-                                <Text style={styles.mapText}>{food.carbsText}</Text>
-                            </Flex>
-                            <Flex>
-                                <View style={[styles.mapBor, { backgroundColor: '#FB4550' }]} />
-                                <Text style={styles.mapText}>{food.fatText}</Text>
-                            </Flex>
-                        </Flex>
+                        ))}
                     </View>
-                    <Flex direction="column" justify="between" align="end" style={{ height: '100%' }}>
-                        <Text style={styles.mapValue}>{food.amountText}</Text>
-                        <Text style={styles.mapValueText}>{food.caloriesText}</Text>
-                    </Flex>
                 </Flex>
-            ))}
+            ) : null}
+
+            <View style={styles.mealMacroDashWrap}>
+                <View style={styles.mealMacroDash} />
+            </View>
+
+            <Flex justify="end" style={styles.mealActionRow}>
+                <TouchableOpacity
+                    style={styles.mealActionRecipeBtn}
+                    activeOpacity={0.7}
+                    onPress={() => { }}
+                >
+                    <Text style={styles.mealActionRecipeText}>查看做法</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.mealActionRefreshBtn}
+                    activeOpacity={0.7}
+                    onPress={() => { }}
+                >
+                    <Flex justify="center" align="center">
+                        <Image
+                            style={styles.mealActionRefreshIcon}
+                            source={require('@/assets/images/nutrition/hyh.png')}
+                        />
+                        <Text style={styles.mealActionRefreshText}>换一换</Text>
+                    </Flex>
+                </TouchableOpacity>
+            </Flex>
 
             {actualFoods.length > 0 ? (
                 <View style={styles.actualEatBox}>
@@ -848,9 +873,7 @@ export default function DietPage({
                 contentContainerStyle={[
                     styles.scrollContent,
                     {
-                        paddingBottom: readOnly
-                            ? 24
-                            : 24 + 17 + 46 + Math.max(insets.bottom, 8),
+                        paddingBottom: 24
                     },
                 ]}
                 showsVerticalScrollIndicator={false}
@@ -923,7 +946,10 @@ export default function DietPage({
                     </TouchableOpacity>
                 </Flex>
 
-                <View style={styles.calendarContent}>
+                <Text style={styles.dayTitle}>今天这样吃，身体更轻松</Text>
+                <Text style={styles.daySubtitle}>控糖平衡 · 优质蛋白 · 高纤维主食</Text>
+
+                {/* <View style={styles.calendarContent}>
                     <Text style={styles.calendarContentTitle}>今日营养目标</Text>
                     <Flex style={styles.calendarContentProgress}>
                         <Flex direction="column" style={styles.valueBox}>
@@ -1002,7 +1028,7 @@ export default function DietPage({
                             </Text>
                         </View>
                     </Flex>
-                </View>
+                </View> */}
 
                 {recommendedSections.length > 0 ? (
                     recommendedSections.map(section => (
@@ -1025,6 +1051,19 @@ export default function DietPage({
                         </Text>
                     </View>
                 )}
+
+                <TouchableOpacity>
+                    <Flex justify='center' style={styles.mealActionCameraBox}>
+                        <Image style={styles.mealActionCameraIcon} source={require('@/assets/images/exercise/camara.png')} />
+                        <Text style={styles.mealActionCameraText}>拍照记录今日饮食</Text>
+                    </Flex>
+                </TouchableOpacity>
+
+                <Flex justify="center" align="center" style={styles.planListFooter}>
+                    <View style={styles.planListFooterLine} />
+                    <Text style={styles.planListFooterText}>选对适合自己的，是身体变好的开端</Text>
+                    <View style={styles.planListFooterLine} />
+                </Flex>
             </ScrollView>
 
             {!readOnly ? (

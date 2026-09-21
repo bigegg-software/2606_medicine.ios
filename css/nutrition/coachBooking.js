@@ -1,0 +1,266 @@
+import { StyleSheet } from 'react-native';
+import { AppTheme } from '@/common/theme';
+
+const styles = StyleSheet.create({
+    container: { flex: 1, backgroundColor: '#F7F7F9' },
+    scroll: { flex: 1 },
+    scrollContent: { paddingTop: 8, paddingBottom: 24 },
+    planItemBox: {
+        paddingHorizontal: 12,
+    },
+    planItemBrandIcon: {
+        width: 13,
+        height: 13,
+        marginRight: 4,
+    },
+    planItemBrandText: {
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#6D925E',
+    },
+    planItemCoachBtn: {
+        marginRight: 11,
+        paddingHorizontal: 11,
+        paddingVertical: 7,
+        backgroundColor: 'rgba(109,146,94,0.1)',
+        borderRadius: 35,
+    },
+    planItemCoachBtnIcon: {
+        width: 11,
+        height: 11,
+        marginRight: 4,
+    },
+    planItemCoachBtnText: {
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#6D925E',
+    },
+    planTopBox: {
+        marginTop: 13,
+        height: 291,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 13,
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.08,
+        shadowRadius: 1.41,
+        elevation: 2,
+    },
+    planTopBg: {
+        width: "100%",
+        height: 211,
+    },
+    planTopContent: {
+        padding: 16,
+    },
+    planTopTitle: {
+        fontWeight: "bold",
+        fontSize: 17,
+        color: "#333333",
+    },
+    planTopSubtitle: {
+        marginTop: 8,
+        fontWeight: "500",
+        fontSize: 14,
+        color: "#999999",
+    },
+    backImage1: { width: "100%", height: 50, marginTop: 12, borderTopLeftRadius: 12, borderTopRightRadius: 12, backgroundColor: '#F7F7F9' },
+    backImage1Text: { fontWeight: "bold", fontSize: 16, color: "#333333" },
+
+    planIntroBox: {
+        backgroundColor: '#F7F7F9',
+        paddingHorizontal: 13,
+    },
+    planIntroItem: {
+        padding: 16,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 13,
+    },
+    planIntroItemIcon: {
+        width: 19,
+        height: 19,
+        marginRight: 6,
+    },
+    planIntroItemTitleWrap: {
+        position: 'relative',
+        alignSelf: 'flex-start',
+    },
+    planIntroItemTitleUnderline: {
+        position: 'absolute',
+        left: 0,
+        right: 0,
+        bottom: 0,
+        height: 7,
+        borderRadius: 25,
+    },
+    planIntroItemTitle: {
+        fontWeight: 'bold',
+        fontSize: 17,
+        color: '#333333',
+    },
+    planIntroItemToggle: {
+        width: 16,
+        height: 16,
+    },
+    planIntroItemContent: {
+        marginTop: 16,
+        fontWeight: '500',
+        fontSize: 15,
+        color: '#333333',
+        lineHeight: 27,
+    },
+    serviceFlowItem: {
+        paddingVertical: 13,
+        paddingHorizontal: 16,
+        backgroundColor: '#F6F8FB',
+        borderRadius: 9,
+    },
+    serviceFlowIcon: {
+        width: 39,
+        height: 39,
+    },
+    serviceFlowContent: {
+        flex: 1,
+        marginLeft: 13,
+    },
+    serviceFlowTitle: {
+        fontWeight: 'bold',
+        fontSize: 15,
+        color: '#333333',
+        lineHeight: 20,
+    },
+    serviceFlowSubtitle: {
+        marginTop: 6,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#999999',
+    },
+    planDisclaimer: {
+        marginTop: 13,
+        marginHorizontal: 13,
+        padding: 13,
+        backgroundColor: 'rgba(109,146,94,0.06)',
+        borderRadius: 9,
+        borderWidth: 1,
+        borderColor: 'rgba(109,146,94,0.3)',
+    },
+    planDisclaimerIcon: {
+        width: 16,
+        height: 16,
+        marginRight: 5,
+        marginTop: 2,
+        flexShrink: 0,
+    },
+    planDisclaimerText: {
+        flexGrow: 1,
+        flexShrink: 1,
+        width: 0,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#666666',
+        lineHeight: 20,
+    },
+    coachRecommendItem: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 13,
+        padding: 16,
+    },
+    coachRecommendIcon: {
+        width: 54,
+        height: 54,
+        flexShrink: 0,
+    },
+    coachRecommendContent: {
+        flex: 1,
+        marginLeft: 13,
+    },
+    coachRecommendName: {
+        fontWeight: 'bold',
+        fontSize: 15,
+        color: '#333333',
+    },
+    coachRecommendTag: {
+        marginLeft: 6,
+        paddingHorizontal: 6,
+        paddingVertical: 4,
+        backgroundColor: 'rgba(109,146,94,0.1)',
+        borderRadius: 4,
+    },
+    coachRecommendTagText: {
+        fontWeight: '500',
+        fontSize: 12,
+        color: '#6D925E',
+    },
+    coachRecommendTime: {
+        marginTop: 8,
+        fontWeight: '500',
+        fontSize: 14,
+        color: '#999999',
+    },
+
+    planListFooter: {
+        marginTop: 16,
+        gap: 13,
+    },
+    planListFooterLine: {
+        width: 26,
+        height: 1,
+        backgroundColor: '#999999',
+        opacity: 0.4,
+    },
+    planListFooterText: {
+        fontWeight: '400',
+        fontSize: 13,
+        color: '#999999',
+    },
+    bottomBar: {
+        height: 118,
+        paddingHorizontal: 16,
+        paddingTop: 19,
+        backgroundColor: '#FFFFFF',
+        borderTopLeftRadius: 13,
+        borderTopRightRadius: 13,
+        shadowColor: '#000000',
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    bottomPrice: {
+        fontFamily: 'DIN',
+        fontWeight: 'bold',
+        fontSize: 27,
+        color: '#333333',
+    },
+    bottomPriceDesc: {
+        marginTop: 6,
+        fontWeight: '500',
+        fontSize: 15,
+        color: '#999999',
+    },
+    bottomBookBtn: {
+        width: 178,
+        height: 54,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#6D925E',
+        borderRadius: 13,
+    },
+    bottomBookIcon: {
+        width: 21,
+        height: 21,
+        marginRight: 4,
+    },
+    bottomBookText: {
+        fontWeight: '500',
+        fontSize: 17,
+        color: '#FFFFFF',
+    },
+
+})
+
+export default styles
