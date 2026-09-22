@@ -1,224 +1,338 @@
-import React, { useState } from 'react';
-import { View, ScrollView, Image, Text, ImageBackground, TouchableOpacity } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  ScrollView,
+  Image,
+  Text,
+  ImageBackground,
+  TouchableOpacity,
+  ActivityIndicator,
+  type LayoutChangeEvent,
+} from 'react-native';
+import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/nutrition/coachBooking';
-import { Flex } from '@ant-design/react-native';
-/** 预约教练：页面内容待定 */
+import { AppTheme } from '@/common/theme';
+import type { RootStackParamList } from '@/route/router';
+import { getSpecialPlanInfo, type SpecialPlanItem } from '@/api/specialPlan';
+import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+  buildSpecialPlanIntroItems,
+  buildSpecialPlanServiceFlowItems,
+  formatSpecialPlanPrice,
+  formatSpecialPlanSchemeName,
+  formatSpecialPlanSubtitle,
+  getSpecialPlanTopCoverSource,
+} from './components/utils/healthPlanHelpers';
+
+type Route = RouteProp<RootStackParamList, 'CoachBookingPage'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'CoachBookingPage'>;
+
+function ServiceFlowDashLine() {
+  const [height, setHeight] = useState(0);
+  const onLayout = (e: LayoutChangeEvent) => {
+    const next = Math.round(e.nativeEvent.layout.height);
+    if (next > 0 && next !== height) setHeight(next);
+  };
+
+  return (
+    <View style={styles.serviceFlowDashCol} pointerEvents="none" onLayout={onLayout}>
+      {height > 0 ? (
+        <Svg width={1} height={height}>
+          <Line
+            x1={0.5}
+            y1={0}
+            x2={0.5}
+            y2={height}
+            stroke="#6D925E"
+            strokeWidth={1}
+            strokeDasharray="3 3"
+          />
+        </Svg>
+      ) : null}
+    </View>
+  );
+}
+
+const COACH_RECOMMEND = [
+  {
+    avatar: require('@/assets/images/exercise/dtls.png'),
+    name: '李教练',
+    tag: '心代谢生活方式执行',
+    time: '可约：周二/周四/周六上午',
+  },
+  {
+    avatar: require('@/assets/images/exercise/dtls.png'),
+    name: '李教练',
+    tag: '心代谢生活方式执行',
+    time: '可约：周二/周四/周六上午',
+  },
+];
+
+/** 预约教练 / 专项计划详情 */
 export default function CoachBookingPage() {
+  const navigation = useNavigation<Nav>();
+  const route = useRoute<Route>();
+  const planId = route.params?.planId ? String(route.params.planId) : '';
+  const [plan, setPlan] = useState<SpecialPlanItem | null>(null);
+  const [loading, setLoading] = useState(Boolean(planId));
   const [expandedMap, setExpandedMap] = useState<Record<number, boolean>>({});
+
+  const loadPlan = useCallback(async () => {
+    if (!planId) {
+      setPlan(null);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await getSpecialPlanInfo(planId);
+      if (!isResourceApiOk(res)) {
+        setPlan(null);
+        return;
+      }
+      console.log(res)
+      setPlan(apiResourceData(res) ?? null);
+    } catch {
+      setPlan(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [planId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadPlan();
+    }, [loadPlan]),
+  );
 
   const toggleIntro = (index: number) => {
     setExpandedMap(prev => ({ ...prev, [index]: prev[index] === false }));
   };
 
-  const planIntro = [
-    {
-      icon: require('@/assets/images/exercise/icon1.png'),
-      title: '核心理念',
-      content: '科学的生活方式干预能显著降低胆固醇和甘油三酯，是最根本的"源头疗法”;根据个体代谢特点制定个体化降脂路径。',
-    },
-    {
-      icon: require('@/assets/images/exercise/icon2.png'),
-      title: '适合人群',
-      content: '总胆固醇/DL-C/甘油三酯异常者;有心血管家族史或动脉硬化风险者;合并代谢综合征者;已服他汀期望优化方案者;药物不耐受者。',
-    },
-    {
-      icon: require('@/assets/images/exercise/icon3.png'),
-      title: '干预内容',
-      content: '优脂饮食解构(植物甾醇+低糖+抗炎);支持肝脂代谢(n-3脂肪酸、低GI饮食);有氧+力量训练组合;体重与内脏脂肪管理;肠道菌群干预;药物优化支持;颈动脉斑块及动脉弹性评估反馈。',
-    },
-    {
-      icon: require('@/assets/images/exercise/icon4.png'),
-      title: '依据',
-      content: '相关研究表明强化生活方式干预使LDL平均下降约22-37%;每增加一定运动时长HDL相应提升。',
-    }
-  ]
+  const planIntro = useMemo(() => buildSpecialPlanIntroItems(plan), [plan]);
+  const serviceFlow = useMemo(() => buildSpecialPlanServiceFlowItems(plan), [plan]);
+  const schemeName = plan ? formatSpecialPlanSchemeName(plan) : '阜外 My Health 方案';
+  const planName = plan?.planName?.trim() || '--';
+  const planSubtitle = plan ? formatSpecialPlanSubtitle(plan) : '';
+  const priceText = plan ? formatSpecialPlanPrice(plan.price) : '--';
 
-  const serviceFlow = [
-    {
-      icon: require('@/assets/images/nutrition/num1.png'),
-      title: '选择适合你的康复教练',
-      subtitle: '与将来长期陪伴你的教练相识，先建立信任',
-    },
-    {
-      icon: require('@/assets/images/nutrition/num2.png'),
-      title: '99元专项健康体验课',
-      subtitle: '到店完成基础健康问询、习惯沟通与一次训练体验。',
-    },
-    {
-      icon: require('@/assets/images/nutrition/num3.png'),
-      title: '阜外医院医学评估',
-      subtitle: '由Life Medicine协调阜外医院健康管理中心完成医学体检与初始处方。',
-    },
-    {
-      icon: require('@/assets/images/nutrition/num4.png'),
-      title: '长期处方执行陪伴',
-      subtitle: '回到同一位教练，进入营养、训练与生活方式的每周执行。',
-    },
-  ]
-
-  const coachRecommend = [
-    {
-      avatar: require('@/assets/images/exercise/dtls.png'),
-      name: '李教练',
-      tag: '心代谢生活方式执行',
-      time: '可约：周二/周四/周六上午',
-    },
-    {
-      avatar: require('@/assets/images/exercise/dtls.png'),
-      name: '李教练',
-      tag: '心代谢生活方式执行',
-      time: '可约：周二/周四/周六上午',
-    },
-  ]
+  useEffect(() => {
+    if (!plan?.planName?.trim()) return;
+    navigation.setOptions({ title: plan.planName.trim() });
+  }, [navigation, plan?.planName]);
 
   return (
     <PageLayout style={styles.container} edges={[]}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.planItemBox}>
-          <Flex justify="between" >
-            <Flex align="center" style={{ marginLeft: 11 }}>
-              <Image style={styles.planItemBrandIcon} source={require('@/assets/images/exercise/fw.png')} />
-              <Text style={styles.planItemBrandText}>阜外 My Health 方案</Text>
-            </Flex>
-            <Flex style={styles.planItemCoachBtn} onPress={() => { }}>
-              <Image style={styles.planItemCoachBtnIcon} source={require('@/assets/images/common/wc.png')} />
-              <Text style={styles.planItemCoachBtnText}>专项健康计划</Text>
-            </Flex>
-          </Flex>
-          <View style={styles.planTopBox}>
-            <Image style={styles.planTopBg} source={require('@/assets/images/exercise/slt.png')} />
-            <View style={styles.planTopContent}>
-              <Text style={styles.planTopTitle}>高血脂生活方式治疗项目</Text>
-              <Text style={styles.planTopSubtitle}>低GI膳食·规律进餐·肌力与有氧·数据记录</Text>
-            </View>
-          </View>
+      {loading ? (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-
-        <ImageBackground
-          source={require('@/assets/images/schedule/calendarBack.png')}
-          style={styles.backImage1}>
-          <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
-            <Text style={styles.backImage1Text}>计划简介</Text>
-          </Flex>
-        </ImageBackground>
-
-        <View style={styles.planIntroBox}>
-          {
-            planIntro.map((item, index) => {
-              const expanded = expandedMap[index] !== false;
-              return (
-                <View key={index} style={[styles.planIntroItem, index > 0 && { marginTop: 13 }]}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={() => toggleIntro(index)}>
-                    <Flex justify="between" align="center">
-                      <Flex align="center" style={{ flex: 1 }}>
-                        <Image style={styles.planIntroItemIcon} source={item.icon} />
-                        <View style={styles.planIntroItemTitleWrap}>
-                          <LinearGradient
-                            colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
-                            start={{ x: 0, y: 0 }}
-                            end={{ x: 1, y: 0 }}
-                            style={styles.planIntroItemTitleUnderline}
-                          />
-                          <Text style={styles.planIntroItemTitle}>{item.title}</Text>
-                        </View>
-                      </Flex>
-                      <Image
-                        style={styles.planIntroItemToggle}
-                        source={
-                          expanded
-                            ? require('@/assets/images/nutrition/dk.png')
-                            : require('@/assets/images/nutrition/sq.png')
-                        }
-                      />
-                    </Flex>
-                  </TouchableOpacity>
-                  {expanded ? (
-                    <Text style={styles.planIntroItemContent}>{item.content}</Text>
+      ) : (
+        <>
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.planItemBox}>
+              <Flex justify="between">
+                <Flex align="center" style={{ marginLeft: 11 }}>
+                  <Image
+                    style={styles.planItemBrandIcon}
+                    source={require('@/assets/images/exercise/fw.png')}
+                  />
+                  <Text style={styles.planItemBrandText}>{schemeName}</Text>
+                </Flex>
+                <Flex style={styles.planItemCoachBtn} onPress={() => { }}>
+                  <Image
+                    style={styles.planItemCoachBtnIcon}
+                    source={require('@/assets/images/common/wc.png')}
+                  />
+                  <Text style={styles.planItemCoachBtnText}>专项健康计划</Text>
+                </Flex>
+              </Flex>
+              <View style={styles.planTopBox}>
+                <Image
+                  style={styles.planTopBg}
+                  source={
+                    plan
+                      ? getSpecialPlanTopCoverSource(plan)
+                      : require('@/assets/images/exercise/slt.png')
+                  }
+                />
+                <View style={styles.planTopContent}>
+                  <Text style={styles.planTopTitle}>{planName}</Text>
+                  {planSubtitle ? (
+                    <Text style={styles.planTopSubtitle}>{planSubtitle}</Text>
                   ) : null}
                 </View>
-              );
-            })
-          }
-        </View>
-        <ImageBackground
-          source={require('@/assets/images/schedule/calendarBack.png')}
-          style={styles.backImage1}>
-          <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
-            <Text style={styles.backImage1Text}>服务流程</Text>
-          </Flex>
-        </ImageBackground>
-        <View style={styles.planIntroBox}>
-          <View style={styles.planIntroItem}>
-            {serviceFlow.map((item, index) => (
-              <Flex
-                key={index}
-                align="start"
-                style={[styles.serviceFlowItem, index > 0 && { marginTop: 13 }]}
-              >
-                <Image style={styles.serviceFlowIcon} source={item.icon} />
-                <View style={styles.serviceFlowContent}>
-                  <Text style={styles.serviceFlowTitle}>{item.title}</Text>
-                  <Text style={styles.serviceFlowSubtitle}>{item.subtitle}</Text>
+              </View>
+            </View>
+
+            {planIntro.length > 0 ? (
+              <>
+                <ImageBackground
+                  source={require('@/assets/images/schedule/calendarBack.png')}
+                  style={styles.backImage1}
+                >
+                  <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
+                    <Text style={styles.backImage1Text}>计划简介</Text>
+                  </Flex>
+                </ImageBackground>
+
+                <View style={styles.planIntroBox}>
+                  {planIntro.map((item, index) => {
+                    const expanded = expandedMap[index] !== false;
+                    return (
+                      <View
+                        key={item.key}
+                        style={[styles.planIntroItem, index > 0 && { marginTop: 13 }]}
+                      >
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          onPress={() => toggleIntro(index)}
+                        >
+                          <Flex justify="between" align="center">
+                            <Flex align="center" style={{ flex: 1 }}>
+                              <Image style={styles.planIntroItemIcon} source={item.icon} />
+                              <View style={styles.planIntroItemTitleWrap}>
+                                <LinearGradient
+                                  colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
+                                  start={{ x: 0, y: 0 }}
+                                  end={{ x: 1, y: 0 }}
+                                  style={styles.planIntroItemTitleUnderline}
+                                />
+                                <Text style={styles.planIntroItemTitle}>{item.title}</Text>
+                              </View>
+                            </Flex>
+                            <Image
+                              style={styles.planIntroItemToggle}
+                              source={
+                                expanded
+                                  ? require('@/assets/images/nutrition/dk.png')
+                                  : require('@/assets/images/nutrition/sq.png')
+                              }
+                            />
+                          </Flex>
+                        </TouchableOpacity>
+                        {expanded ? (
+                          <Text style={styles.planIntroItemContent}>{item.content}</Text>
+                        ) : null}
+                      </View>
+                    );
+                  })}
                 </View>
-              </Flex>
-            ))}
-          </View>
-        </View>
-        <Flex align="start" style={styles.planDisclaimer}>
-          <Image style={styles.planDisclaimerIcon} source={require('@/assets/images/exercise/fw.png')} />
-          <Text style={styles.planDisclaimerText}>
-            医学评估 、诊断与医学处方由卓外医院健康管理中心完成; Life Medicine提供处方执行、训练陪伴与阶段反馈服务。
-          </Text>
-        </Flex>
-        <ImageBackground
-          source={require('@/assets/images/schedule/calendarBack.png')}
-          style={styles.backImage1}>
-          <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
-            <Text style={styles.backImage1Text}>为你推荐的健康陪伴教练</Text>
-          </Flex>
-        </ImageBackground>
-        <View style={styles.planIntroBox}>
-          {coachRecommend.map((item, index) => (
-            <Flex
-              key={index}
-              align="start"
-              style={[styles.coachRecommendItem, { marginTop: index === 0 ? 0 : 13 }]}
+              </>
+            ) : null}
+
+            {serviceFlow.length > 0 ? (
+              <>
+                <ImageBackground
+                  source={require('@/assets/images/schedule/calendarBack.png')}
+                  style={styles.backImage1}
+                >
+                  <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
+                    <Text style={styles.backImage1Text}>服务流程</Text>
+                  </Flex>
+                </ImageBackground>
+                <View style={styles.planIntroBox}>
+                  <View style={styles.planIntroItem}>
+                    {serviceFlow.map((item, index) => (
+                      <Flex
+                        key={item.key}
+                        align="start"
+                        style={index > 0 ? { marginTop: 13 } : undefined}
+                      >
+                        <View style={styles.serviceFlowIconCol}>
+                          <View style={styles.serviceFlowIcon}>
+                            <Text style={styles.serviceFlowIconText}>{item.stepNo}</Text>
+                          </View>
+                          {index < serviceFlow.length - 1 ? <ServiceFlowDashLine /> : null}
+                        </View>
+                        <View style={styles.serviceFlowItem}>
+                          <Text style={styles.serviceFlowTitle}>{item.title}</Text>
+                          {item.subtitle ? (
+                            <Text style={styles.serviceFlowSubtitle}>{item.subtitle}</Text>
+                          ) : null}
+                        </View>
+                      </Flex>
+                    ))}
+                  </View>
+                </View>
+              </>
+            ) : null}
+
+            <Flex align="start" style={styles.planDisclaimer}>
+              <Image
+                style={styles.planDisclaimerIcon}
+                source={require('@/assets/images/exercise/fw.png')}
+              />
+              <Text style={styles.planDisclaimerText}>
+                医学评估 、诊断与医学处方由卓外医院健康管理中心完成; Life
+                Medicine提供处方执行、训练陪伴与阶段反馈服务。
+              </Text>
+            </Flex>
+
+            <ImageBackground
+              source={require('@/assets/images/schedule/calendarBack.png')}
+              style={styles.backImage1}
             >
-              <Image style={styles.coachRecommendIcon} source={item.avatar} />
-              <View style={styles.coachRecommendContent}>
-                <Flex align="center" style={{ marginTop: 4 }}>
-                  <Text style={styles.coachRecommendName}>{item.name}</Text>
-                  <View style={styles.coachRecommendTag}>
-                    <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
+              <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
+                <Text style={styles.backImage1Text}>为你推荐的健康陪伴教练</Text>
+              </Flex>
+            </ImageBackground>
+            <View style={styles.planIntroBox}>
+              {COACH_RECOMMEND.map((item, index) => (
+                <Flex
+                  key={index}
+                  align="start"
+                  style={[styles.coachRecommendItem, { marginTop: index === 0 ? 0 : 13 }]}
+                >
+                  <Image style={styles.coachRecommendIcon} source={item.avatar} />
+                  <View style={styles.coachRecommendContent}>
+                    <Flex align="center" style={{ marginTop: 4 }}>
+                      <Text style={styles.coachRecommendName}>{item.name}</Text>
+                      <View style={styles.coachRecommendTag}>
+                        <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
+                      </View>
+                    </Flex>
+                    <Text style={styles.coachRecommendTime}>{item.time}</Text>
                   </View>
                 </Flex>
-                <Text style={styles.coachRecommendTime}>{item.time}</Text>
-              </View>
+              ))}
+            </View>
+
+            <Flex justify="center" align="center" style={styles.planListFooter}>
+              <View style={styles.planListFooterLine} />
+              <Text style={styles.planListFooterText}>寻得同行者，开启健康路</Text>
+              <View style={styles.planListFooterLine} />
             </Flex>
-          ))}
-        </View>
-        <Flex justify="center" align="center" style={styles.planListFooter}>
-          <View style={styles.planListFooterLine} />
-          <Text style={styles.planListFooterText}>寻得同行者，开启健康路</Text>
-          <View style={styles.planListFooterLine} />
-        </Flex>
-      </ScrollView>
-      <Flex justify="between" align="start" style={styles.bottomBar}>
-        <View>
-          <Text style={styles.bottomPrice}><Text style={{ fontSize: 18 }}>￥</Text>99</Text>
-          <Text style={styles.bottomPriceDesc}>专项健康体验课</Text>
-        </View>
-        <TouchableOpacity activeOpacity={0.8} style={styles.bottomBookBtn}>
-          <Image style={styles.bottomBookIcon} tintColor={"#FFFFFF"} source={require('@/assets/images/schedule/time.png')} />
-          <Text style={styles.bottomBookText}>预约教练</Text>
-        </TouchableOpacity>
-      </Flex>
+          </ScrollView>
+
+          <Flex justify="between" align="start" style={styles.bottomBar}>
+            <View>
+              <Text style={styles.bottomPrice}>
+                <Text style={{ fontSize: 18 }}>￥</Text>
+                {priceText}
+              </Text>
+              <Text style={styles.bottomPriceDesc}>专项健康体验课</Text>
+            </View>
+            <TouchableOpacity activeOpacity={0.8} style={styles.bottomBookBtn}>
+              <Image
+                style={styles.bottomBookIcon}
+                tintColor="#FFFFFF"
+                source={require('@/assets/images/schedule/time.png')}
+              />
+              <Text style={styles.bottomBookText}>预约教练</Text>
+            </TouchableOpacity>
+          </Flex>
+        </>
+      )}
     </PageLayout>
   );
 }

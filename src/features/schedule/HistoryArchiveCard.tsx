@@ -6,18 +6,21 @@ import type { ScheduleHistoryArchiveItem } from './scheduleHelpers';
 
 type Props = {
   item: ScheduleHistoryArchiveItem;
+  /** 完成情况：跳转现有详情 */
   onPress: () => void;
+  /** 处方详情：暂未实现 */
+  onPressPrescriptionDetail?: () => void;
 };
 
-export default function HistoryArchiveCard({ item, onPress }: Props) {
+export default function HistoryArchiveCard({
+  item,
+  onPress,
+  onPressPrescriptionDetail,
+}: Props) {
   const maxProgress = item.maxProgress;
 
   return (
-    <TouchableOpacity
-      style={styles.historyItem}
-      activeOpacity={0.85}
-      onPress={onPress}
-    >
+    <View style={styles.historyItem}>
       <Flex justify="between">
         <Text style={styles.historyItemTitle}>{item.title}</Text>
         <Flex style={[
@@ -87,6 +90,23 @@ export default function HistoryArchiveCard({ item, onPress }: Props) {
           <Text style={styles.historyInfoText}>{item.summaryText}</Text>
         </Flex>
       ) : null}
-    </TouchableOpacity>
+
+      <Flex justify="end" style={styles.historyActionRow}>
+        <TouchableOpacity
+          style={styles.historyActionPrimaryBtn}
+          activeOpacity={0.7}
+          onPress={() => onPressPrescriptionDetail?.()}
+        >
+          <Text style={styles.historyActionPrimaryText}>处方详情</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.historyActionSecondaryBtn}
+          activeOpacity={0.7}
+          onPress={onPress}
+        >
+          <Text style={styles.historyActionSecondaryText}>完成情况</Text>
+        </TouchableOpacity>
+      </Flex>
+    </View>
   );
 }

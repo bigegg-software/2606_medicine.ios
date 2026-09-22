@@ -326,7 +326,7 @@ export type RootStackParamList = {
   | { mode: 'image'; imageUri: string; text?: string; mealCategory?: number };
   FoodRecordingPage: undefined;
   DietHistoryPage: undefined;
-  CoachBookingPage: undefined;
+  CoachBookingPage: { planId?: string } | undefined;
   ManualCorrectionPage: {
     itemIndex: number;
     item: import('@/api/mealRecognition').FoodIdentifyItem;
@@ -363,7 +363,7 @@ export type RootStackParamList = {
     /** 上游已补充其他营养时跳过二次请求 */
     skipFillOthers?: boolean;
   } | undefined;
-  AssistantPage: { chatId?: string; startNew?: boolean } | undefined;
+  AssistantPage: { chatId?: string; startNew?: boolean; autoSendText?: string } | undefined;
   PolarDeviceTestPage: undefined;
   MyFamily: undefined;
   MyFamilyAdd: undefined;
@@ -618,7 +618,7 @@ export default function RootStack() {
       <Stack.Screen
         name="CoachBookingPage"
         component={CoachBookingPage}
-        options={{ title: '预约教练', headerBackgroundColor: '#F7F7F9' }}
+        options={{ title: '', headerBackgroundColor: '#F7F7F9' }}
       />
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />

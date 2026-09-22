@@ -103,6 +103,7 @@ export default function TrainingPhaseListPanel({
       setLoading(true);
       void buildTrainingPhaseCards(items, undefined, {
         defaultThumbKey: config.trainingPhase,
+        actionType: 'home',
       })
         .then(nextCards =>
           attachTrainingPhaseCompleteInfo(nextCards, {

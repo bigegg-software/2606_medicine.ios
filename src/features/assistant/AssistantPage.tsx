@@ -334,6 +334,7 @@ export default function AssistantPage() {
     initializing,
     displayItems,
     sendMessage,
+    sendTextMessage,
     stopMessage,
     sendAttachments,
     runMedicationReminder,
@@ -368,6 +369,21 @@ export default function AssistantPage() {
       };
     }, [refreshSettings, stopSpeech]),
   );
+
+  /** 外部带入的自动发送文案（如饮食「查看做法」） */
+  useEffect(() => {
+    const text = route.params?.autoSendText?.trim();
+    if (!text || initializing) return;
+    let cancelled = false;
+    void (async () => {
+      const ok = await sendTextMessage(text);
+      if (cancelled || !ok) return;
+      navigation.setParams({ autoSendText: undefined });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [initializing, navigation, route.params?.autoSendText, sendTextMessage]);
 
   useEffect(() => {
     const aiItems = displayItems.filter(

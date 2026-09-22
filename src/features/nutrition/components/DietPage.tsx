@@ -21,12 +21,15 @@ import MealRefreshPeriodPickerModal, {
 } from './MealRefreshPeriodPickerModal';
 import {
     getAiMakeOneDayMealRemainCount,
+    getAiMakeRemainCountByMealCategory,
     postAiMakeMealDayV2,
+    type AiMakeRemainCountByMealCategory,
     type DietMealDayItem,
     type DietPatientRuleInfo,
 } from '@/api/dietPatientRule';
 import {
     buildRecommendedMealSectionsFromDay,
+    buildMealRecipeQuestion,
     formatActualFoodMeta,
     formatMealApproxCalories,
     formatMealMacroGrams,
@@ -36,6 +39,7 @@ import { loadDietRuleForDate } from './utils/dietRuleDateHelpers';
 import {
     applyMealDayForDateToRule,
     DIET_MEAL_DAY_ARCHIVE_REFRESH_EVENT,
+    getMealCategoryRemainCount,
     isMealRefreshPeriodAsync,
     resolveMealRefreshDateRange,
 } from './utils/mealRefreshPeriodHelpers';
@@ -48,7 +52,9 @@ import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/util
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
 import {
     getFoodRecordsByCategory,
+    getCurrentMealKey,
     isWaterRecord,
+    MEAL_CATEGORY_BY_KEY,
     sumCalories,
     sumProtein,
     toNumber,
@@ -144,16 +150,22 @@ function RecommendedMealCard({
     actualCalories,
     actualFoods,
     onDeleteFood,
+    onRefreshMeal,
     showPhotoButton,
     showDeleteButton = true,
+    showMealRefreshButton = true,
+    mealRefreshDisabled = false,
     patientUserId,
 }: {
     section: RecommendedMealSection;
     actualCalories: number;
     actualFoods: MealDetailItem[];
     onDeleteFood: (item: MealDetailItem) => void;
+    onRefreshMeal?: (category: number) => void;
     showPhotoButton: boolean;
     showDeleteButton?: boolean;
+    showMealRefreshButton?: boolean;
+    mealRefreshDisabled?: boolean;
     patientUserId?: string;
 }) {
     const navigation = useNavigation<Nav>();
@@ -214,7 +226,7 @@ function RecommendedMealCard({
 
             {section.foods.length > 0 ? (
                 <Flex align="start" style={styles.dietMapBox}>
-                    <Image style={styles.mapImg} source={require('@/assets/images/nutrition/default1.png')} />
+                    <Image style={styles.mapImg} source={require('@/assets/images/nutrition/default2.png')} />
                     <View style={styles.mapCenBox}>
                         {section.foods.map((food, index) => (
                             <Flex
@@ -242,21 +254,42 @@ function RecommendedMealCard({
                 <TouchableOpacity
                     style={styles.mealActionRecipeBtn}
                     activeOpacity={0.7}
-                    onPress={() => { }}
+                    onPress={() => {
+                        const question = buildMealRecipeQuestion(section.foods);
+                        if (!question) {
+                            Toast.show('暂无推荐食物');
+                            return;
+                        }
+                        navigation.navigate('AssistantPage', { autoSendText: question });
+                    }}
                 >
                     <Text style={styles.mealActionRecipeText}>查看做法</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                    style={styles.mealActionRefreshBtn}
+                    style={[
+                        styles.mealActionRefreshBtn,
+                        (!showMealRefreshButton || mealRefreshDisabled) && styles.mealActionRefreshBtnDisabled,
+                    ]}
                     activeOpacity={0.7}
-                    onPress={() => { }}
+                    disabled={!showMealRefreshButton || mealRefreshDisabled}
+                    onPress={() => onRefreshMeal?.(section.category)}
                 >
                     <Flex justify="center" align="center">
                         <Image
-                            style={styles.mealActionRefreshIcon}
+                            style={[
+                                styles.mealActionRefreshIcon,
+                                mealRefreshDisabled && styles.mealActionRefreshIconDisabled,
+                            ]}
                             source={require('@/assets/images/nutrition/hyh.png')}
                         />
-                        <Text style={styles.mealActionRefreshText}>换一换</Text>
+                        <Text
+                            style={[
+                                styles.mealActionRefreshText,
+                                mealRefreshDisabled && styles.mealActionRefreshTextDisabled,
+                            ]}
+                        >
+                            换一换
+                        </Text>
                     </Flex>
                 </TouchableOpacity>
             </Flex>
@@ -334,7 +367,7 @@ function RecommendedMealCard({
                 </View>
             ) : null}
 
-            {showPhotoButton ? (
+            {/* {showPhotoButton ? (
                 <TouchableOpacity
                     style={styles.btnBox}
                     activeOpacity={0.8}
@@ -349,7 +382,7 @@ function RecommendedMealCard({
                         <Text style={styles.btnText}>拍照记录这一餐</Text>
                     </Flex>
                 </TouchableOpacity>
-            ) : null}
+            ) : null} */}
         </View>
     );
 }
@@ -377,6 +410,7 @@ export default function DietPage({
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
     const [refreshRemainCount, setRefreshRemainCount] = useState<number | null>(null);
+    const [mealRemainByCategory, setMealRemainByCategory] = useState<AiMakeRemainCountByMealCategory | null>(null);
     const [refreshPeriodVisible, setRefreshPeriodVisible] = useState(false);
     const [signing, setSigning] = useState(false);
     const [signInfo, setSignInfo] = useState<DietUserSignInfo | null>(null);
@@ -454,6 +488,23 @@ export default function DietPage({
             setRefreshRemainCount(Number.isFinite(count) ? Math.max(0, Math.floor(count)) : null);
         } catch {
             setRefreshRemainCount(null);
+        }
+    }, [patientOpts]);
+
+    const loadMealRemainByCategory = useCallback(async () => {
+        try {
+            const res = await getAiMakeRemainCountByMealCategory(patientOpts);
+            if (!isResourceApiOk(res as unknown as { code?: number })) {
+                setMealRemainByCategory(null);
+                return;
+            }
+            setMealRemainByCategory(
+                apiResourceData(
+                    res as unknown as { code?: number; data?: AiMakeRemainCountByMealCategory },
+                ) ?? null,
+            );
+        } catch {
+            setMealRemainByCategory(null);
         }
     }, [patientOpts]);
 
@@ -535,6 +586,7 @@ export default function DietPage({
             if (!readOnly) {
                 void loadSignInfo();
                 void loadRefreshRemainCount();
+                void loadMealRemainByCategory();
             }
             if (selectedDate < moment().format('YYYY-MM-DD')) {
                 void loadHistorySignStatus(selectedDate);
@@ -556,6 +608,7 @@ export default function DietPage({
             ensureEatYearLoaded,
             loadDayData,
             loadHistorySignStatus,
+            loadMealRemainByCategory,
             loadRefreshRemainCount,
             loadSignInfo,
             readOnly,
@@ -735,13 +788,14 @@ export default function DietPage({
     const finishMealRefresh = useCallback(async (options?: { fromAsync?: boolean }) => {
         await loadDayData(selectedDate, dietRule);
         void loadRefreshRemainCount();
+        void loadMealRemainByCategory();
         waitingMealRefreshRef.current = false;
         mealRefreshRangeRef.current = null;
         setRefreshing(false);
         if (options?.fromAsync) {
             Toast.success('食谱已更新');
         }
-    }, [dietRule, loadDayData, loadRefreshRemainCount, selectedDate]);
+    }, [dietRule, loadDayData, loadMealRemainByCategory, loadRefreshRemainCount, selectedDate]);
 
     const onConfirmRefreshPeriod = useCallback(async (period: MealRefreshPeriodKey) => {
         setRefreshPeriodVisible(false);
@@ -788,12 +842,14 @@ export default function DietPage({
             if (isMealRefreshPeriodAsync(period)) {
                 waitingMealRefreshRef.current = true;
                 void loadRefreshRemainCount();
+                void loadMealRemainByCategory();
                 setRefreshing(false);
                 Toast.info('食谱生成中，生成完成后将为您发送通知提醒');
                 return;
             }
             applyMealDayListLocally(data?.mealDayList);
             void loadRefreshRemainCount();
+            void loadMealRemainByCategory();
             waitingMealRefreshRef.current = false;
             mealRefreshRangeRef.current = null;
             setRefreshing(false);
@@ -810,10 +866,105 @@ export default function DietPage({
         applyMealDayListLocally,
         dayRule?.dietPatientRuleId,
         dietRule?.dietPatientRuleId,
+        loadMealRemainByCategory,
         loadRefreshRemainCount,
         patientOpts,
         prescriptionEndDate,
         refreshing,
+    ]);
+
+    /** 单餐换一换：仅当前选中日 + mealCategory */
+    const onRefreshMealCategory = useCallback(async (mealCategory: number) => {
+        if (selectedDate !== moment().format('YYYY-MM-DD')) {
+            Toast.info(selectedDate > moment().format('YYYY-MM-DD')
+                ? '未来日期不可换一换'
+                : '历史日期不可换一换');
+            return;
+        }
+        if (signInfo?.signedToday) {
+            Toast.info('今日已打卡，不可换一换');
+            return;
+        }
+        // 忽略加餐
+        if (mealCategory === 4) return;
+        const mealRemain = getMealCategoryRemainCount(mealRemainByCategory, mealCategory);
+        if (mealRemain != null && mealRemain <= 0) {
+            Toast.info('该餐次换一换次数已用完');
+            return;
+        }
+        const ruleId = String(dayRule?.dietPatientRuleId ?? dietRule?.dietPatientRuleId ?? '').trim();
+        if (!ruleId) {
+            Toast.show('暂无可用处方');
+            return;
+        }
+        if (refreshing) return;
+        if (mealCategory < 1 || mealCategory > 3) return;
+
+        const dateKey = selectedDate;
+        mealRefreshRangeRef.current = { startDate: dateKey, endDate: dateKey };
+        setRefreshing(true);
+        const loadingKey = Toast.loading('请稍后…', 0);
+        try {
+            const res = await postAiMakeMealDayV2(
+                {
+                    dietPatientRuleId: ruleId,
+                    startDate: dateKey,
+                    endDate: dateKey,
+                    mealCategory,
+                },
+                patientOpts,
+            );
+            if (!isResourceApiOk(res as unknown as { code?: number })) {
+                Toast.show(
+                    (res as { msg?: string; message?: string })?.msg
+                    ?? (res as { msg?: string; message?: string })?.message
+                    ?? '换一换失败',
+                );
+                waitingMealRefreshRef.current = false;
+                mealRefreshRangeRef.current = null;
+                setRefreshing(false);
+                return;
+            }
+            const data = apiResourceData(
+                res as unknown as {
+                    code?: number;
+                    data?: { async?: boolean; mealDayList?: DietMealDayItem[] };
+                },
+            );
+            if (data?.async) {
+                waitingMealRefreshRef.current = true;
+                void loadRefreshRemainCount();
+                void loadMealRemainByCategory();
+                setRefreshing(false);
+                Toast.info('食谱生成中，生成完成后将为您发送通知提醒');
+                return;
+            }
+            applyMealDayListLocally(data?.mealDayList);
+            void loadRefreshRemainCount();
+            void loadMealRemainByCategory();
+            waitingMealRefreshRef.current = false;
+            mealRefreshRangeRef.current = null;
+            setRefreshing(false);
+            Toast.success('已更新食谱');
+        } catch {
+            Toast.show('换一换失败');
+            waitingMealRefreshRef.current = false;
+            mealRefreshRangeRef.current = null;
+            setRefreshing(false);
+        } finally {
+            Toast.remove(loadingKey);
+        }
+    }, [
+        applyMealDayListLocally,
+        dayRule?.dietPatientRuleId,
+        dietRule?.dietPatientRuleId,
+        loadMealRemainByCategory,
+        loadRefreshRemainCount,
+        mealRemainByCategory,
+        patientOpts,
+        refreshing,
+        selectedDate,
+        signInfo?.signedToday,
     ]);
 
     useEffect(() => {
@@ -1031,18 +1182,31 @@ export default function DietPage({
                 </View> */}
 
                 {recommendedSections.length > 0 ? (
-                    recommendedSections.map(section => (
-                        <RecommendedMealCard
-                            key={section.key}
-                            section={section}
-                            actualCalories={actualCaloriesByCategory[section.category] ?? 0}
-                            actualFoods={actualFoodsByCategory[section.category] ?? []}
-                            onDeleteFood={onDeleteFood}
-                            showPhotoButton={!readOnly && isTodaySelected}
-                            showDeleteButton={!readOnly && isTodaySelected}
-                            patientUserId={patientUserId}
-                        />
-                    ))
+                    recommendedSections.map(section => {
+                        const mealRemain = getMealCategoryRemainCount(
+                            mealRemainByCategory,
+                            section.category,
+                        );
+                        const mealRefreshDisabled = !isTodaySelected
+                            || Boolean(signInfo?.signedToday)
+                            || refreshing
+                            || (mealRemain != null && mealRemain <= 0);
+                        return (
+                            <RecommendedMealCard
+                                key={section.key}
+                                section={section}
+                                actualCalories={actualCaloriesByCategory[section.category] ?? 0}
+                                actualFoods={actualFoodsByCategory[section.category] ?? []}
+                                onDeleteFood={onDeleteFood}
+                                onRefreshMeal={onRefreshMealCategory}
+                                showPhotoButton={!readOnly && isTodaySelected}
+                                showDeleteButton={!readOnly && isTodaySelected}
+                                showMealRefreshButton={!readOnly && section.category >= 1 && section.category <= 3}
+                                mealRefreshDisabled={mealRefreshDisabled}
+                                patientUserId={patientUserId}
+                            />
+                        );
+                    })
                 ) : (
                     <View style={styles.calendarContent}>
                         <Text style={styles.calendarContentTitle}>今日推荐</Text>
@@ -1052,16 +1216,28 @@ export default function DietPage({
                     </View>
                 )}
 
-                <TouchableOpacity>
-                    <Flex justify='center' style={styles.mealActionCameraBox}>
-                        <Image style={styles.mealActionCameraIcon} source={require('@/assets/images/exercise/camara.png')} />
-                        <Text style={styles.mealActionCameraText}>拍照记录今日饮食</Text>
-                    </Flex>
-                </TouchableOpacity>
+                {!readOnly && isTodaySelected ? (
+                    <TouchableOpacity
+                        activeOpacity={0.7}
+                        onPress={() =>
+                            navigation.navigate('MealRecognitionPage', {
+                                mealCategory: MEAL_CATEGORY_BY_KEY[getCurrentMealKey()],
+                            })
+                        }
+                    >
+                        <Flex justify="center" style={styles.mealActionCameraBox}>
+                            <Image
+                                style={styles.mealActionCameraIcon}
+                                source={require('@/assets/images/exercise/camara.png')}
+                            />
+                            <Text style={styles.mealActionCameraText}>拍照记录今日饮食</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                ) : null}
 
                 <Flex justify="center" align="center" style={styles.planListFooter}>
                     <View style={styles.planListFooterLine} />
-                    <Text style={styles.planListFooterText}>选对适合自己的，是身体变好的开端</Text>
+                    <Text style={styles.planListFooterText}>每一次适合自己的选择，都是身体慢慢变好的开始。</Text>
                     <View style={styles.planListFooterLine} />
                 </Flex>
             </ScrollView>

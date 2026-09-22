@@ -250,6 +250,15 @@ export function buildRecommendedMealSections(
     });
 }
 
+/** 查看做法：发给 AI 的提问文案，如「燕麦牛奶粥，煮鸡蛋，凉拌海带丝 做法」 */
+export function buildMealRecipeQuestion(foods: RecommendedFoodItem[]): string {
+  const names = foods
+    .map(food => food.foodName.trim())
+    .filter(name => name && name !== '--');
+  if (!names.length) return '';
+  return `${names.join('，')} 做法`;
+}
+
 /** 实际摄入列表：`100g · 116 kcal` */
 export function formatActualFoodMeta(item: MealDetailItem): string {
   const weight = Math.round(toNumber(item.weight));

@@ -1,5 +1,8 @@
 import request from '@/utils/axios';
 
+/** 动作类型：home.居家 in_store.到店 */
+export type ExVideoActionType = 'home' | 'in_store';
+
 export type ExVideoInfo = {
   exVideoId?: number | string;
   coverOssId?: number;
@@ -28,7 +31,13 @@ export type ExVideoInfo = {
   numberVal?: number;
   keepSecondVal?: number;
   restBetweenGroupSeconds?: number;
+  /** 适用人群（英文逗号分割） */
+  applicableCrowd?: string;
+  /** 禁忌人群（英文逗号分割） */
+  contraindicatedCrowd?: string;
   exerciseBodyParts?: string[];
+  /** 动作类型：home.居家 in_store.到店 */
+  actionType?: string;
   createTime?: string;
   updateTime?: string;
 };

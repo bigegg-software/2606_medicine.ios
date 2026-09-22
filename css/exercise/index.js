@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   navItem: { flex: 1, height: '100%', borderRadius: 25, paddingHorizontal: 4 },
   activeNavItem: { backgroundColor: '#FFF' },
   navIcon: { width: 18, height: 18, marginRight: 3 },
-  navText: { fontWeight: 500, fontSize: 13, color: AppTheme.textPrimary },
+  navText: { fontWeight: 500, fontSize: 15, color: AppTheme.textPrimary },
   activeNavText: { fontWeight: 'bold' },
   emptyPrescription: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
   emptyPrescriptionIcon: { marginTop: -60, width: 80, height: 80 },

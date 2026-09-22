@@ -159,7 +159,7 @@ export default function NutritionPage() {
     // },
     {
       key: 'healthPlan',
-      title: '专享健康计划',
+      title: '专项健康计划',
       icon: require('@/assets/images/nutrition/star.png'),
     },
   ];
@@ -267,6 +267,7 @@ export default function NutritionPage() {
                 dietRule={dietRule}
                 readOnly={readOnly}
                 patientUserId={patientUserId}
+                isActive={activeNav === 'healthPlan'}
               />
             </View>
           ) : null}

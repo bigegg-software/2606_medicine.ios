@@ -41,6 +41,7 @@ export type PendingAssistantNavigation = {
 };
 
 let pendingAssistantNavigation: PendingAssistantNavigation | null = null;
+let pendingAssistantAutoSendText: string | null = null;
 
 export function queueAssistantNavigation(action: PendingAssistantNavigation) {
   pendingAssistantNavigation = action;
@@ -50,6 +51,19 @@ export function consumePendingAssistantNavigation() {
   const action = pendingAssistantNavigation;
   pendingAssistantNavigation = null;
   return action;
+}
+
+/** 进入助手页后自动发送的文案（如饮食「查看做法」） */
+export function queueAssistantAutoSend(text: string) {
+  const trimmed = text.trim();
+  if (!trimmed) return;
+  pendingAssistantAutoSendText = trimmed;
+}
+
+function consumePendingAssistantAutoSend() {
+  const text = pendingAssistantAutoSendText;
+  pendingAssistantAutoSendText = null;
+  return text;
 }
 import {
   buildUploadFilePayloadFromAttachments,
@@ -656,6 +670,35 @@ export function useAssistantChat() {
     await sendStream(text, false, '', attachments);
   }, [input, sendStream]);
 
+  const handlePendingAutoSend = useCallback(async () => {
+    const text = consumePendingAssistantAutoSend();
+    if (!text) return;
+
+    if (!chatIdRef.current || loadingRef.current || actionLoadingRef.current || initializingRef.current) {
+      queueAssistantAutoSend(text);
+      return;
+    }
+
+    setLoading(true);
+    await sendStream(text, false);
+  }, [sendStream]);
+
+  /** 会话就绪后再冲刷自动发送，避免 init 完成瞬间 ref 未同步导致丢消息 */
+  useEffect(() => {
+    if (initializing || !chatId) return;
+    void handlePendingAutoSend();
+  }, [chatId, handlePendingAutoSend, initializing]);
+
+  const sendTextMessage = useCallback(async (raw: string) => {
+    const text = raw.replace(/^\s+|\s+$/g, '');
+    if (!text || loadingRef.current || actionLoadingRef.current || !chatIdRef.current) {
+      return false;
+    }
+    setLoading(true);
+    await sendStream(text, false);
+    return true;
+  }, [sendStream]);
+
   const handleCleanup = useCallback(async () => {
     if (loadingRef.current) {
       const last = messagesRef.current[messagesRef.current.length - 1];
@@ -678,16 +721,19 @@ export function useAssistantChat() {
       if (!hasInitializedRef.current) {
         hasInitializedRef.current = true;
         void initChatSession().finally(() => {
+          initializingRef.current = false;
           void handlePendingAttachments();
+          void handlePendingAutoSend();
         });
       } else {
         void handlePendingAttachments();
+        void handlePendingAutoSend();
       }
 
       return () => {
         void handleCleanup();
       };
-    }, [handleCleanup, handlePendingAttachments, initChatSession]),
+    }, [handleCleanup, handlePendingAttachments, handlePendingAutoSend, initChatSession]),
   );
 
   const runHealthStatusQuickAction = useCallback(async (question?: string) => {
@@ -943,6 +989,7 @@ export function useAssistantChat() {
     initializing,
     displayItems,
     sendMessage,
+    sendTextMessage,
     stopMessage,
     sendAttachments,
     runMedicationReminder,

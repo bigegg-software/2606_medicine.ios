@@ -200,6 +200,7 @@ async function resolveInWarmupPhase(options: {
   if (phaseBundle.isRest || phaseBundle.isPostponedAway || phaseBundle.hotList.length === 0) return null;
   const baseCards = await buildTrainingPhaseCards(phaseBundle.hotList, undefined, {
     defaultThumbKey: 'hot',
+    actionType: 'home',
   });
   const cards = await attachTrainingPhaseCompleteInfo(baseCards, {
     exPatientRuleId: dayRule.exPatientRuleId,
@@ -252,6 +253,7 @@ async function resolveInCooldownPhase(options: {
   if (phaseBundle.isRest || phaseBundle.isPostponedAway || phaseBundle.coldList.length === 0) return null;
   const baseCards = await buildTrainingPhaseCards(phaseBundle.coldList, undefined, {
     defaultThumbKey: 'cold',
+    actionType: 'home',
   });
   const cards = await attachTrainingPhaseCompleteInfo(baseCards, {
     exPatientRuleId: dayRule.exPatientRuleId,

@@ -269,6 +269,35 @@ const styles = StyleSheet.create({
     color: "#999999",
     marginLeft: 6,
   },
+  historyActionRow: {
+    marginTop: 16,
+    justifyContent: 'flex-end',
+    gap: 12,
+  },
+  historyActionPrimaryBtn: {
+    paddingHorizontal: 21,
+    paddingVertical: 10,
+    backgroundColor: 'rgba(109,146,94,0.2)',
+    borderRadius: 27,
+  },
+  historyActionPrimaryText: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#6D925E',
+  },
+  historyActionSecondaryBtn: {
+    paddingHorizontal: 21,
+    paddingVertical: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 27,
+    borderWidth: 1,
+    borderColor: '#6D925E',
+  },
+  historyActionSecondaryText: {
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#6D925E',
+  },
 
 
 

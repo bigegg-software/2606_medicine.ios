@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   navItem: { flex: 1, height: "100%", borderRadius: 25, paddingHorizontal: 4 },
   activeNavItem: { backgroundColor: "#FFF" },
   navIcon: { width: 16, height: 16, marginRight: 2 },
-  navText: { fontWeight: 500, fontSize: 12, color: AppTheme.textPrimary },
+  navText: { fontWeight: 500, fontSize: 15, color: AppTheme.textPrimary },
   activeNavText: { fontWeight: "bold" },
   emptyPrescription: {
     flex: 1,
@@ -160,6 +160,7 @@ const styles = StyleSheet.create({
   planItemIcon: {
     width: 86,
     height: 86,
+    borderRadius: 6,
     flexShrink: 0,
   },
   planItemContent: {
@@ -289,15 +290,25 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#6D925E',
   },
+  mealActionRefreshBtnDisabled: {
+    borderColor: 'rgba(109,146,94,0.35)',
+    opacity: 0.55,
+  },
   mealActionRefreshIcon: {
     width: 16,
     height: 16,
     marginRight: 4,
   },
+  mealActionRefreshIconDisabled: {
+    opacity: 0.45,
+  },
   mealActionRefreshText: {
     fontWeight: '500',
     fontSize: 14,
     color: '#6D925E',
+  },
+  mealActionRefreshTextDisabled: {
+    color: 'rgba(109,146,94,0.45)',
   },
   mealActionCameraBox: {
     marginTop: 13,

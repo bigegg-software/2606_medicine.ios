@@ -51,6 +51,8 @@ const styles = StyleSheet.create({
     },
     planTopBg: {
         width: "100%",
+        borderTopLeftRadius: 13,
+        borderTopRightRadius: 13,
         height: 211,
     },
     planTopContent: {
@@ -73,11 +75,13 @@ const styles = StyleSheet.create({
     planIntroBox: {
         backgroundColor: '#F7F7F9',
         paddingHorizontal: 13,
+        overflow: 'visible',
     },
     planIntroItem: {
         padding: 16,
         backgroundColor: '#FFFFFF',
         borderRadius: 13,
+        overflow: 'visible',
     },
     planIntroItemIcon: {
         width: 19,
@@ -112,19 +116,44 @@ const styles = StyleSheet.create({
         color: '#333333',
         lineHeight: 27,
     },
-    serviceFlowItem: {
-        paddingVertical: 13,
-        paddingHorizontal: 16,
-        backgroundColor: '#F6F8FB',
-        borderRadius: 9,
+    serviceFlowIconCol: {
+        width: 39,
+        alignItems: 'center',
+        alignSelf: 'stretch',
+        marginRight: 13,
+        overflow: 'visible',
+        zIndex: 2,
     },
     serviceFlowIcon: {
         width: 39,
         height: 39,
+        borderRadius: 19.5,
+        backgroundColor: '#6D925E',
+        alignItems: 'center',
+        justifyContent: 'center',
+        flexShrink: 0,
+        zIndex: 3,
     },
-    serviceFlowContent: {
+    serviceFlowIconText: {
+        fontWeight: 'bold',
+        fontSize: 14,
+        color: '#FFFFFF',
+    },
+    serviceFlowDashCol: {
+        position: 'absolute',
+        top: 39,
+        bottom: -13,
+        left: 19,
+        width: 1,
+        marginLeft: -0.5,
+        zIndex: 1,
+    },
+    serviceFlowItem: {
         flex: 1,
-        marginLeft: 13,
+        paddingVertical: 13,
+        paddingHorizontal: 16,
+        backgroundColor: '#F6F8FB',
+        borderRadius: 9,
     },
     serviceFlowTitle: {
         fontWeight: 'bold',

@@ -7,7 +7,8 @@ import {
   type DictDataItem,
 } from '@/api/dict';
 import type { ExRecordTrainingPhase } from '@/api/exRecord';
-import { getExVideoInfo, type ExVideoInfo } from '@/api/exVideo';
+import { getExVideoInfo, type ExVideoActionType, type ExVideoInfo } from '@/api/exVideo';
+
 import type {
   ExWeekTrainingItem,
   ExWeekTrainingMainBlock,
@@ -63,6 +64,8 @@ export type TrainingPhaseExerciseCard = {
   keepSecondVal: number;
   restBetweenGroupSeconds: number;
   bodyPartText: string;
+  /** 标签，英文逗号分割 */
+  labels: string;
   /** 当日已完成组号列表 */
   completedGroups: number[];
   /** 每组完成次数，下标 0 对应第 1 组 */
@@ -418,15 +421,25 @@ async function fetchVideoInfo(exVideoId: string): Promise<ExVideoInfo | null> {
   }
 }
 
+/** 未标注时按居家处理，兼容旧数据 */
+export function resolveExVideoActionType(actionType?: string | null): ExVideoActionType {
+  return String(actionType ?? '').trim() === 'in_store' ? 'in_store' : 'home';
+}
+
 export async function buildTrainingPhaseCards(
   items: ExWeekTrainingItem[] | undefined,
   bodyPartLabelMap?: Record<string, string>,
-  options?: { defaultThumbKey?: string | null },
+  options?: {
+    defaultThumbKey?: string | null;
+    /** 按视频 actionType 过滤；默认不过滤 */
+    actionType?: ExVideoActionType;
+  },
 ): Promise<TrainingPhaseExerciseCard[]> {
   const list = items ?? [];
   if (list.length === 0) return [];
 
   const defaultThumb = resolveDefaultTrainingThumb(options?.defaultThumbKey);
+  const actionFilter = options?.actionType;
 
   const [videos, labelMap] = await Promise.all([
     Promise.all(
@@ -440,13 +453,16 @@ export async function buildTrainingPhaseCards(
       : loadExerciseBodyPartLabelMap(),
   ]);
 
-  return list.map((item, index) => {
-    const exVideoId = item.exVideoId != null ? String(item.exVideoId) : `idx-${index}`;
+  return list.flatMap((item, index) => {
     const video = videos[index];
+    if (actionFilter && resolveExVideoActionType(video?.actionType) !== actionFilter) {
+      return [];
+    }
+    const exVideoId = item.exVideoId != null ? String(item.exVideoId) : `idx-${index}`;
     const coverUrl = video?.coverOssUrl?.trim();
     const bodyPartText = formatBodyPartText(video?.exerciseBodyParts, labelMap);
     const ruleText = formatTrainingItemRuleText(item);
-    return {
+    return [{
       key: `${exVideoId}-${index}`,
       exVideoId,
       title: video?.title?.trim() || '训练动作',
@@ -464,10 +480,11 @@ export async function buildTrainingPhaseCards(
         ? Math.round(Number(video?.restBetweenGroupSeconds))
         : 0,
       bodyPartText,
+      labels: video?.labels?.trim() || '',
       completedGroups: [],
       groupCounts: [],
       completedMinutes: 0,
-    };
+    }];
   });
 }
 
@@ -553,6 +570,14 @@ export async function attachTrainingPhaseCompleteInfo(
 
 export function sumTrainingPhaseMinutes(cards: TrainingPhaseExerciseCard[]) {
   return cards.reduce((sum, item) => sum + Math.max(0, item.durationMinutes), 0);
+}
+
+/** 居家自主训练摘要：主训练时长 + 动作数（一视频一动作） */
+export function formatMainTrainingSummaryText(cards: TrainingPhaseExerciseCard[]) {
+  const count = cards.length;
+  if (count <= 0) return '暂无训练动作';
+  const minutes = sumTrainingPhaseMinutes(cards);
+  return `约${minutes}分钟 · ${count}个动作`;
 }
 
 export function formatWarmupBannerTitle(totalMinutes: number) {
@@ -664,6 +689,7 @@ export async function buildMainTrainingModules(
     if (!items.length) continue;
     const baseCards = await buildTrainingPhaseCards(items, bodyPartLabelMap, {
       defaultThumbKey: typeKey,
+      actionType: 'home',
     });
     if (!baseCards.length) continue;
     const cards = await attachTrainingPhaseCompleteInfo(baseCards, {

@@ -248,6 +248,29 @@ export const getAiMakeOneDayMealRemainCount = (
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });
 
+/** 今日 AI 换一换按餐次剩余次数 */
+export type AiMakeRemainCountByMealCategory = {
+    /** 早餐剩余次数（mealCategory=1） */
+    breakfast?: number;
+    /** 午餐剩余次数（mealCategory=2） */
+    lunch?: number;
+    /** 晚餐剩余次数（mealCategory=3） */
+    dinner?: number;
+    /** 加餐剩余次数（mealCategory=4） */
+    snack?: number;
+};
+
+/** 获取今日 AI 换一换按餐次（早/中/晚/加餐）剩余推荐次数 */
+export const getAiMakeRemainCountByMealCategory = (
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<ApiResult<AiMakeRemainCountByMealCategory>>(
+        '/patient/dietPatientRule/getAiMakeRemainCountByMealCategory',
+        {
+            headers: withPatientUserIdHeaders(options?.patientUserId),
+        },
+    );
+
 /** 按日计划食谱（listMealDay / aiMakeMealDayV2） */
 export type DietMealDayItem = {
     id?: number;
@@ -273,6 +296,8 @@ export const postAiMakeMealDayV2 = (
         dietPatientRuleId: string;
         startDate: string;
         endDate: string;
+        /** 指定餐次：1早餐 2午餐 3晚餐 4加餐；单日时可仅换该餐 */
+        mealCategory?: number;
     },
     options?: { patientUserId?: string | number | null },
 ) =>
@@ -280,6 +305,7 @@ export const postAiMakeMealDayV2 = (
         dietPatientRuleId: String(payload.dietPatientRuleId),
         startDate: payload.startDate,
         endDate: payload.endDate,
+        ...(payload.mealCategory != null ? { mealCategory: Number(payload.mealCategory) } : {}),
     }, {
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });

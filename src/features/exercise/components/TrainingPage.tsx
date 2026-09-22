@@ -50,6 +50,7 @@ import {
     buildTrainingPhaseCards,
     findNextTrainingPhasePlayCard,
     flattenMainTrainingPlayCards,
+    formatMainTrainingSummaryText,
     formatTrainingPhaseSubtitle,
     getCooldownColdList,
     getWarmupHotList,
@@ -174,6 +175,10 @@ export default function TrainingPage({
         () => isTrainingPhaseAllPlayed(cooldownCards),
         [cooldownCards],
     );
+    const mainTrainingSummaryText = useMemo(
+        () => formatMainTrainingSummaryText(mainPlayCards),
+        [mainPlayCards],
+    );
 
     const exerciseDayRecordMarker = useMemo(() => ({
         color: EXERCISE_CHECK_IN_DOT_COLOR,
@@ -262,6 +267,7 @@ export default function TrainingPage({
             }
             const cards = await buildTrainingPhaseCards(hotList, undefined, {
                 defaultThumbKey: 'hot',
+                actionType: 'home',
             });
             const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
                 exPatientRuleId: rule?.exPatientRuleId,
@@ -287,6 +293,7 @@ export default function TrainingPage({
             }
             const cards = await buildTrainingPhaseCards(coldList, undefined, {
                 defaultThumbKey: 'cold',
+                actionType: 'home',
             });
             const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
                 exPatientRuleId: rule?.exPatientRuleId,
@@ -760,52 +767,59 @@ export default function TrainingPage({
                     />
                 </View>
 
-                {activePhase === 'main' ? (
-                    <View style={styles.autonomousTrainingBox}>
-                        <View style={styles.autonomousTrainingItem}>
-                            <Text style={styles.autonomousText}>今天，为身体留一点时间</Text>
-                            <Text style={styles.autonomousText2}>选择适合自己的方式，让训练成为生活的一部分</Text>
-                        </View>
-
-                        <ImageBackground
-                            source={require('@/assets/images/exercise/zzxl.png')}
-                            style={styles.autonomousTrainingBackground}
-                            imageStyle={styles.autonomousTrainingBackgroundImage}
-                        >
-                            <Flex justify="between" style={styles.autonomousContentTop}>
-                                <Flex>
-                                    <Image style={styles.autonomousContentTopIcon} source={require('@/assets/images/common/wc.png')} />
-                                    <Text style={styles.autonomousContentTopText}>可独立完成</Text>
-                                </Flex>
-                                <Text style={styles.autonomousContentTopText2}>已为你选择可在家安全完成的训练</Text>
-                            </Flex>
-                            <Text style={styles.autonomousTrainingText1}>居家自主训练</Text>
-                            <Text style={styles.autonomousTrainingText2}>舒展与核心激活</Text>
-                            <Text style={styles.autonomousTrainingText3}>约15分钟 · 5个动作</Text>
-                            <Flex style={{ marginTop: 18 }}>
-                                <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
-                                <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
-                            </Flex>
-
-                            <TouchableOpacity activeOpacity={0.85} onPress={() => { }}>
-                                <LinearGradient
-                                    colors={['#9BBD8E', '#6D925E']}
-                                    start={{ x: 0, y: 0 }}
-                                    end={{ x: 1, y: 0 }}
-                                    style={styles.autonomousStartBtn}
-                                >
-                                    <Image
-                                        style={styles.autonomousStartBtnIcon}
-                                        source={require('@/assets/images/exercise/start.png')}
-                                    />
-                                    <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
-                                </LinearGradient>
-                            </TouchableOpacity>
-
-                            {/* <Text style={styles.autonomousTrainingText}>居家自主训练</Text> */}
-                        </ImageBackground>
+                <View style={styles.autonomousTrainingBox}>
+                    <View style={styles.autonomousTrainingItem}>
+                        <Text style={styles.autonomousText}>今天，为身体留一点时间</Text>
+                        <Text style={styles.autonomousText2}>选择适合自己的方式，让训练成为生活的一部分</Text>
                     </View>
-                ) : null}
+
+                    <ImageBackground
+                        source={require('@/assets/images/exercise/zzxl.png')}
+                        style={styles.autonomousTrainingBackground}
+                        imageStyle={styles.autonomousTrainingBackgroundImage}
+                    >
+                        <Flex justify="between" style={styles.autonomousContentTop}>
+                            <Flex>
+                                <Image style={styles.autonomousContentTopIcon} source={require('@/assets/images/common/wc.png')} />
+                                <Text style={styles.autonomousContentTopText}>可独立完成</Text>
+                            </Flex>
+                            <Text style={styles.autonomousContentTopText2}>已为你选择可在家安全完成的训练</Text>
+                        </Flex>
+                        <Text style={styles.autonomousTrainingText1}>居家自主训练</Text>
+                        <Text style={styles.autonomousTrainingText2}>舒展与核心激活</Text>
+                        <Text style={styles.autonomousTrainingText3}>{mainTrainingSummaryText}</Text>
+                        <Flex style={{ marginTop: 18 }}>
+                            <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
+                            <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
+                        </Flex>
+
+                        <TouchableOpacity
+                            activeOpacity={0.85}
+                            disabled={!bottomAction || bottomAction.disabled}
+                            onPress={onPressBottomAction}
+                            style={
+                                !bottomAction || bottomAction.disabled || bottomAction.dimmed
+                                    ? { opacity: 0.5 }
+                                    : undefined
+                            }
+                        >
+                            <LinearGradient
+                                colors={['#9BBD8E', '#6D925E']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.autonomousStartBtn}
+                            >
+                                <Image
+                                    style={styles.autonomousStartBtnIcon}
+                                    source={require('@/assets/images/exercise/start.png')}
+                                />
+                                <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        {/* <Text style={styles.autonomousTrainingText}>居家自主训练</Text> */}
+                    </ImageBackground>
+                </View>
 
 
                 <View style={styles.trainingPhaseTabBox}>

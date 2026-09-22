@@ -1,5 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ScrollView, ImageBackground } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  Image,
+  ScrollView,
+  ImageBackground,
+  ActivityIndicator,
+} from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import moment from 'moment';
@@ -12,24 +20,31 @@ import {
   clampDateToPrescriptionRange,
   isCalendarDateInPrescriptionRange,
 } from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
-import { resolveLockedExerciseViewDate } from '../utils/exerciseRuleDateHelpers';
+import { loadExPatientRuleForDate, resolveLockedExerciseViewDate } from '../utils/exerciseRuleDateHelpers';
+import { buildInStoreRehabCards, formatInStoreRehabLabels } from '../utils/inStoreRehabHelpers';
+import { type TrainingPhaseExerciseCard } from '../utils/trainingPhaseHelpers';
 
 type Props = {
   exerciseRule?: InUseExPatientRule | null;
   /** 历史计划：日历默认落在处方周期内 */
   lockToRule?: boolean;
+  patientUserId?: string;
 };
 
-/** 到店专项康复：顶部日历与居家训练一致，具体功能与接口待定 */
+/** 到店专项康复：渲染当日 actionType=in_store 的视频 */
 export default function InStoreRehabPage({
   exerciseRule = null,
   lockToRule = false,
+  patientUserId,
 }: Props) {
   const [selectedDate, setSelectedDate] = useState(() =>
     lockToRule ? resolveLockedExerciseViewDate(exerciseRule) : moment().format('YYYY-MM-DD'),
   );
   const insets = useSafeAreaInsets();
   const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [dayRule, setDayRule] = useState<InUseExPatientRule | null>(exerciseRule ?? null);
+  const [cards, setCards] = useState<TrainingPhaseExerciseCard[]>([]);
+  const [loading, setLoading] = useState(false);
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const prescriptionStartDate = exerciseRule?.startDate?.trim() || '';
   const prescriptionEndDate = exerciseRule?.endDate?.trim() || '';
@@ -45,6 +60,32 @@ export default function InStoreRehabPage({
       clampDateToPrescriptionRange(prev, prescriptionStartDate, prescriptionEndDate),
     );
   }, [prescriptionEndDate, prescriptionStartDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    void (async () => {
+      try {
+        const rule = await loadExPatientRuleForDate(selectedDate, exerciseRule, {
+          patientUserId,
+        });
+        if (cancelled) return;
+        setDayRule(rule);
+        const result = await buildInStoreRehabCards(rule, selectedDate);
+        if (cancelled) return;
+        setCards(result.cards);
+      } catch {
+        if (cancelled) return;
+        setDayRule(null);
+        setCards([]);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [exerciseRule, patientUserId, selectedDate]);
 
   return (
     <View style={{ flex: 1 }}>
@@ -165,44 +206,38 @@ export default function InStoreRehabPage({
               <Text style={styles.mainTrainingModuleTitle}>相关专项训练</Text>
             </View>
           </Flex>
-          <Flex align="center" style={styles.mainTrainingActionRow}>
-            <Image style={styles.trainingExerciseThumb} source={require('@/assets/images/exercise/dtls.png')} />
-            <View style={styles.trainingExerciseInfo}>
-              <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
-                单腿平衡与动态控制
-              </Text>
-              <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                平衡进阶 · 需要保护与纠正
-              </Text>
+          {loading ? (
+            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+              <ActivityIndicator color="#6D925E" />
             </View>
-            <TouchableOpacity onPress={() => { }}>
-              <Flex align="center"
-                style={styles.mainTrainingActionTimer}>
-                <Image
-                  style={styles.mainTrainingActionTimerIcon}
-                  source={require('@/assets/images/exercise/sz.png')}
-                />
-                <Text style={styles.mainTrainingActionTimerText}>到店</Text>
+          ) : cards.length === 0 ? (
+            <Text style={[styles.trainingExerciseDuration, { marginTop: 12 }]}>
+              {dayRule ? '今日暂无到店专项训练' : '暂无到店专项训练'}
+            </Text>
+          ) : (
+            cards.map(card => (
+              <Flex key={card.key} align="center" style={styles.mainTrainingActionRow}>
+                <Image style={styles.trainingExerciseThumb} source={card.coverSource} />
+                <View style={styles.trainingExerciseInfo}>
+                  <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
+                    {card.title}
+                  </Text>
+                  <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
+                    {formatInStoreRehabLabels(card.labels)}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => { }} activeOpacity={0.7}>
+                  <Flex align="center" style={styles.mainTrainingActionTimer}>
+                    <Image
+                      style={styles.mainTrainingActionTimerIcon}
+                      source={require('@/assets/images/exercise/sz.png')}
+                    />
+                    <Text style={styles.mainTrainingActionTimerText}>到店</Text>
+                  </Flex>
+                </TouchableOpacity>
               </Flex>
-            </TouchableOpacity>
-          </Flex>
-          <Flex align="center" style={styles.mainTrainingActionRow}>
-            <Image style={styles.trainingExerciseThumb} source={require('@/assets/images/exercise/dtls.png')} />
-            <View style={styles.trainingExerciseInfo}>
-              <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
-                普拉提核心稳定训练
-              </Text>
-              <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                器械辅助 · 需要老师在场
-              </Text>
-            </View>
-            <TouchableOpacity onPress={() => { }}>
-              <Flex align="center"
-                style={styles.mainTrainingActionTimer}>
-                <Text style={styles.mainTrainingActionTimerText}>已预约</Text>
-              </Flex>
-            </TouchableOpacity>
-          </Flex>
+            ))
+          )}
         </View>
 
         <View style={styles.trainingExerciseCard}>
@@ -229,7 +264,7 @@ export default function InStoreRehabPage({
                 周六 10:00-11:00
               </Text>
               <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                李老师 · 崇文门Life Medicine
+                李老师 · 崇文门Life Medicine
               </Text>
             </View>
             <TouchableOpacity onPress={() => { }}>
@@ -250,7 +285,7 @@ export default function InStoreRehabPage({
                 周日 10:00-11:00
               </Text>
               <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                李老师 · 崇文门Life Medicine
+                李老师 · 崇文门Life Medicine
               </Text>
             </View>
             <TouchableOpacity onPress={() => { }}>
@@ -260,9 +295,6 @@ export default function InStoreRehabPage({
             </TouchableOpacity>
           </Flex>
         </View>
-
-
-
 
         <Flex justify="center" align="center" style={styles.planListFooter}>
           <View style={styles.planListFooterLine} />

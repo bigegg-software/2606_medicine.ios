@@ -1,5 +1,10 @@
 import moment from 'moment';
-import type { DietMealDayItem, DietMealItem, DietPatientRuleInfo } from '@/api/dietPatientRule';
+import type {
+  AiMakeRemainCountByMealCategory,
+  DietMealDayItem,
+  DietMealItem,
+  DietPatientRuleInfo,
+} from '@/api/dietPatientRule';
 
 export type MealRefreshPeriodKey = 'today' | 'thisWeek' | 'thisWeekAndNext';
 
@@ -11,6 +16,27 @@ export type MealRefreshDateRange = {
   startDate: string;
   endDate: string;
 };
+
+function normalizeRemainCount(raw: unknown): number | null {
+  const count = Number(raw);
+  if (!Number.isFinite(count)) return null;
+  return Math.max(0, Math.floor(count));
+}
+
+/**
+ * 按餐次取换一换剩余次数。
+ * mealCategory：1早餐 2午餐 3晚餐；加餐(4)忽略，返回 null。
+ */
+export function getMealCategoryRemainCount(
+  counts: AiMakeRemainCountByMealCategory | null | undefined,
+  mealCategory: number,
+): number | null {
+  if (!counts) return null;
+  if (mealCategory === 1) return normalizeRemainCount(counts.breakfast);
+  if (mealCategory === 2) return normalizeRemainCount(counts.lunch);
+  if (mealCategory === 3) return normalizeRemainCount(counts.dinner);
+  return null;
+}
 
 /** 按换一换周期计算 startDate / endDate（含），可裁剪至处方结束日 */
 export function resolveMealRefreshDateRange(
