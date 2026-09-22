@@ -23,7 +23,10 @@ import {
   type HistoryPlanFilter,
   type ScheduleHistoryArchiveItem,
 } from './scheduleHelpers';
-import { getHistoryPlanExerciseParams } from './utils/scheduleHistoryNavHelpers';
+import {
+  getHistoryPlanExerciseParams,
+  getHistoryPlanPrescriptionParams,
+} from './utils/scheduleHistoryNavHelpers';
 
 const PAGE_SIZE = 20;
 
@@ -177,6 +180,9 @@ export default function ScheduleHistoryPage() {
               item={item}
               onPress={() => {
                 navigation.navigate('ExercisePage', getHistoryPlanExerciseParams(item.id));
+              }}
+              onPressPrescriptionDetail={() => {
+                navigation.navigate('ExercisePage', getHistoryPlanPrescriptionParams(item.id));
               }}
             />
           ))

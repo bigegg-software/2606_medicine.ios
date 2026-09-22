@@ -42,6 +42,7 @@ export default function NutritionPage() {
   const dietPatientRuleId = params?.dietPatientRuleId != null
     ? String(params.dietPatientRuleId).trim()
     : '';
+  const prescriptionOnly = Boolean(params?.prescriptionOnly);
   const isFamilyView = Boolean(patientUserId);
   const readOnly = familyReadOnly || Boolean(dietPatientRuleId);
   const user = useSelector((s: RootState) => s.user.info);
@@ -49,14 +50,16 @@ export default function NutritionPage() {
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const familyList = useSelector((s: RootState) => s.family.list);
   const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
-  const initialTab = resolveNutritionNavKey(params?.tab);
+  const initialTab = prescriptionOnly
+    ? 'prescription'
+    : resolveNutritionNavKey(params?.tab);
   const [activeNav, setActiveNav] = useState<NutritionNavKey>(initialTab);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
   const [mountedTabs, setMountedTabs] = useState<Partial<Record<NutritionNavKey, boolean>>>({
     [initialTab]: true,
-    todayExercise: true,
+    ...(prescriptionOnly ? {} : { todayExercise: true }),
   });
 
   const familyFromStore = useMemo(() => {
@@ -216,27 +219,36 @@ export default function NutritionPage() {
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>
       </View>
-      <Flex style={styles.navBox}>
-        {pageList.map(page => (
-          <Flex
-            key={page.key}
-            style={[styles.navItem, activeNav === page.key && styles.activeNavItem]}
-            justify="center"
-            onPress={() => onPressNav(page.key)}
-          >
-            {/* <Image style={styles.navIcon} source={page.icon} /> */}
-            <Text
-              style={[styles.navText, activeNav === page.key && styles.activeNavText]}
-              numberOfLines={1}
+      {!prescriptionOnly ? (
+        <Flex style={styles.navBox}>
+          {pageList.map(page => (
+            <Flex
+              key={page.key}
+              style={[styles.navItem, activeNav === page.key && styles.activeNavItem]}
+              justify="center"
+              onPress={() => onPressNav(page.key)}
             >
-              {page.title}
-            </Text>
-          </Flex>
-        ))}
-      </Flex>
+              <Text
+                style={[styles.navText, activeNav === page.key && styles.activeNavText]}
+                numberOfLines={1}
+              >
+                {page.title}
+              </Text>
+            </Flex>
+          ))}
+        </Flex>
+      ) : null}
       {loading && !dietRule ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
+        </View>
+      ) : prescriptionOnly ? (
+        <View style={{ flex: 1 }}>
+          <NutritionPrescriptionPage
+            key={patientUserId ?? 'self'}
+            dietRule={dietRule}
+            readOnly={readOnly}
+          />
         </View>
       ) : (
         <View style={{ flex: 1 }}>

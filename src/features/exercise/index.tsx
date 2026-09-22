@@ -52,6 +52,7 @@ export default function ExercisePage() {
   const exPatientRuleId = route.params?.exPatientRuleId != null
     ? String(route.params.exPatientRuleId).trim()
     : '';
+  const prescriptionOnly = Boolean(route.params?.prescriptionOnly);
   const isFamilyView = Boolean(patientUserId);
   const readOnly = familyReadOnly || Boolean(exPatientRuleId);
   const user = useSelector((s: RootState) => s.user.info);
@@ -79,13 +80,15 @@ export default function ExercisePage() {
     : getDisplayUserName(user, systemUser);
   const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
-  const [activeNav, setActiveNav] = useState<ExerciseNavKey>('homeTraining');
+  const [activeNav, setActiveNav] = useState<ExerciseNavKey>(
+    prescriptionOnly ? 'prescription' : 'homeTraining',
+  );
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
-  const [mountedTabs, setMountedTabs] = useState<Partial<Record<ExerciseNavKey, boolean>>>({
-    homeTraining: true,
-  });
+  const [mountedTabs, setMountedTabs] = useState<Partial<Record<ExerciseNavKey, boolean>>>(
+    prescriptionOnly ? { prescription: true } : { homeTraining: true },
+  );
   const infoText = formatExerciseUserInfoText(
     profileUser,
     readOnly && isFamilyView ? null : userExtr,
@@ -316,24 +319,25 @@ export default function ExercisePage() {
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>
       </View>
-      <Flex style={styles.navBox}>
-        {pageList.map(page => (
-          <Flex
-            key={page.key}
-            style={[styles.navItem, activeNav === page.key && styles.activeNavItem]}
-            justify="center"
-            onPress={() => onPressNav(page.key)}
-          >
-            {/* <Image style={styles.navIcon} source={page.icon} /> */}
-            <Text
-              style={[styles.navText, activeNav === page.key && styles.activeNavText]}
-              numberOfLines={1}
+      {!prescriptionOnly ? (
+        <Flex style={styles.navBox}>
+          {pageList.map(page => (
+            <Flex
+              key={page.key}
+              style={[styles.navItem, activeNav === page.key && styles.activeNavItem]}
+              justify="center"
+              onPress={() => onPressNav(page.key)}
             >
-              {page.title}
-            </Text>
-          </Flex>
-        ))}
-      </Flex>
+              <Text
+                style={[styles.navText, activeNav === page.key && styles.activeNavText]}
+                numberOfLines={1}
+              >
+                {page.title}
+              </Text>
+            </Flex>
+          ))}
+        </Flex>
+      ) : null}
       {loading && !exerciseRule ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
@@ -354,6 +358,10 @@ export default function ExercisePage() {
               <CompleteProfileLink color="#6D925E" />
             </Flex>
           )}
+        </View>
+      ) : prescriptionOnly ? (
+        <View style={{ flex: 1 }}>
+          <PrescriptionPage exerciseRule={exerciseRule} patientUserId={patientUserId} />
         </View>
       ) : (
         <View style={{ flex: 1 }}>
@@ -384,7 +392,7 @@ export default function ExercisePage() {
         </View>
       )}
 
-      {!readOnly && activeNav === 'homeTraining' && exerciseRule ? (
+      {!prescriptionOnly && !readOnly && activeNav === 'homeTraining' && exerciseRule ? (
         <TouchableOpacity
           style={styles.checkInFab}
           activeOpacity={0.85}

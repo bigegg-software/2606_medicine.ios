@@ -194,3 +194,11 @@ export function getHistoryDietNutritionParams(dietPatientRuleId: string | number
     dietPatientRuleId: String(dietPatientRuleId),
   };
 }
+
+/** 历史营养「处方详情」：仅展示营养处方内容 */
+export function getHistoryDietPrescriptionParams(dietPatientRuleId: string | number) {
+  return {
+    dietPatientRuleId: String(dietPatientRuleId),
+    prescriptionOnly: true as const,
+  };
+}

@@ -5,3 +5,12 @@ export function getHistoryPlanExerciseParams(exPatientRuleId: string | number) {
     exPatientRuleId: String(exPatientRuleId),
   };
 }
+
+/** 历史计划「处方详情」：仅展示运动处方内容 */
+export function getHistoryPlanPrescriptionParams(exPatientRuleId: string | number) {
+  return {
+    readOnly: true as const,
+    exPatientRuleId: String(exPatientRuleId),
+    prescriptionOnly: true as const,
+  };
+}

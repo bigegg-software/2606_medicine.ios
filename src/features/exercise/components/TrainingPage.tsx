@@ -788,10 +788,16 @@ export default function TrainingPage({
                         <Text style={styles.autonomousTrainingText1}>居家自主训练</Text>
                         <Text style={styles.autonomousTrainingText2}>舒展与核心激活</Text>
                         <Text style={styles.autonomousTrainingText3}>{mainTrainingSummaryText}</Text>
-                        <Flex style={{ marginTop: 18 }}>
-                            <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
-                            <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
-                        </Flex>
+                        <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => navigation.navigate('AssistantPage')}
+                            style={{ marginTop: 18 }}
+                        >
+                            <Flex>
+                                <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
+                                <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
+                            </Flex>
+                        </TouchableOpacity>
 
                         <TouchableOpacity
                             activeOpacity={0.85}

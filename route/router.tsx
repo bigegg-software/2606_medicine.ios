@@ -174,6 +174,8 @@ export type RootStackParamList = {
     displayName?: string;
     /** 指定处方 id（历史计划只读查看） */
     exPatientRuleId?: string;
+    /** 仅展示运动处方内容，隐藏 tab */
+    prescriptionOnly?: boolean;
   } | undefined;
   NutritionPage: {
     tab?: 'diet' | 'prescription';
@@ -183,6 +185,8 @@ export type RootStackParamList = {
     displayName?: string;
     /** 指定营养处方 id（历史处方只读查看） */
     dietPatientRuleId?: string;
+    /** 仅展示营养处方内容，隐藏 tab */
+    prescriptionOnly?: boolean;
   } | undefined;
   ActivityDetail: { id: number | string };
   CourseDetail: { courseId: string };

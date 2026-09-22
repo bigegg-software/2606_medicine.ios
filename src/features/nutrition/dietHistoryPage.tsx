@@ -21,6 +21,7 @@ import {
   DIET_HISTORY_FILTER_OPTIONS,
   fetchDietHistoryArchivePage,
   getHistoryDietNutritionParams,
+  getHistoryDietPrescriptionParams,
   type DietHistoryArchiveItem,
   type DietHistoryPlanFilter,
 } from './components/utils/dietHistoryArchiveHelpers';
@@ -177,6 +178,9 @@ export default function DietHistoryPage() {
               item={item}
               onPress={() => {
                 navigation.navigate('NutritionPage', getHistoryDietNutritionParams(item.id));
+              }}
+              onPressPrescriptionDetail={() => {
+                navigation.navigate('NutritionPage', getHistoryDietPrescriptionParams(item.id));
               }}
             />
           ))

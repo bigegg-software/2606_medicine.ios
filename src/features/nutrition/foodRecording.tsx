@@ -53,6 +53,7 @@ import scheduleStyles from '@/css/schedule/schedule';
 import DietHistoryArchiveCard from './components/DietHistoryArchiveCard';
 import {
   getHistoryDietNutritionParams,
+  getHistoryDietPrescriptionParams,
   loadDietHistoryArchivePreview,
   type DietHistoryArchiveItem,
 } from './components/utils/dietHistoryArchiveHelpers';
@@ -447,6 +448,9 @@ export default function FoodRecordingPage() {
                   item={item}
                   onPress={() => {
                     navigation.navigate('NutritionPage', getHistoryDietNutritionParams(item.id));
+                  }}
+                  onPressPrescriptionDetail={() => {
+                    navigation.navigate('NutritionPage', getHistoryDietPrescriptionParams(item.id));
                   }}
                 />
               )) : (

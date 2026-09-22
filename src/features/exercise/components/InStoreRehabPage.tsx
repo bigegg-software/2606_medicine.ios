@@ -21,6 +21,10 @@ import {
   isCalendarDateInPrescriptionRange,
 } from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
 import { loadExPatientRuleForDate, resolveLockedExerciseViewDate } from '../utils/exerciseRuleDateHelpers';
+import {
+  EXERCISE_CHECK_IN_DOT_COLOR,
+  loadExerciseCheckInMapByYear,
+} from '../utils/exerciseCheckInHelpers';
 import { buildInStoreRehabCards, formatInStoreRehabLabels } from '../utils/inStoreRehabHelpers';
 import { type TrainingPhaseExerciseCard } from '../utils/trainingPhaseHelpers';
 
@@ -48,6 +52,11 @@ export default function InStoreRehabPage({
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const prescriptionStartDate = exerciseRule?.startDate?.trim() || '';
   const prescriptionEndDate = exerciseRule?.endDate?.trim() || '';
+  const exerciseDayRecordMarker = useMemo(() => ({
+    color: EXERCISE_CHECK_IN_DOT_COLOR,
+    loadByYear: (year: number) =>
+      loadExerciseCheckInMapByYear(year, patientUserId, exerciseRule?.exPatientRuleId),
+  }), [exerciseRule?.exPatientRuleId, patientUserId]);
 
   useEffect(() => {
     if (!lockToRule || !exerciseRule) return;
@@ -94,6 +103,7 @@ export default function InStoreRehabPage({
         selectedDate={selectedDate}
         onClose={() => setDatePickerVisible(false)}
         onSelect={setSelectedDate}
+        dayRecordMarker={exerciseDayRecordMarker}
         selectableStartDate={prescriptionStartDate || null}
         selectableEndDate={prescriptionEndDate || null}
       />

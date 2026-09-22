@@ -75,6 +75,20 @@ const MEAL_SECTION_META: Record<number, { title: string; icon: ImageSourcePropTy
   },
 };
 
+/** 1早餐 / 2午餐 / 3晚餐 推荐餐默认配图 */
+const MEAL_DEFAULT_FOOD_IMAGE: Record<number, ImageSourcePropType> = {
+  1: require('@/assets/images/nutrition/def1.png'),
+  2: require('@/assets/images/nutrition/def2.png'),
+  3: require('@/assets/images/nutrition/def3.png'),
+};
+
+const DEFAULT_MEAL_FOOD_IMAGE = MEAL_DEFAULT_FOOD_IMAGE[1];
+
+export function resolveMealDefaultFoodImage(category?: number | null): ImageSourcePropType {
+  const key = Number(category);
+  return MEAL_DEFAULT_FOOD_IMAGE[key] ?? DEFAULT_MEAL_FOOD_IMAGE;
+}
+
 const DEFAULT_MEAL_SECTION_META: { title: string; icon: ImageSourcePropType } = {
   title: '早餐',
   icon: require('@/assets/images/schedule/zc.png'),
