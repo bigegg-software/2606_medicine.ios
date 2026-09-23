@@ -182,7 +182,7 @@ export default function InStoreRehabPage({
           </View>
           <ImageBackground
             source={require('@/assets/images/exercise/zzxl1.png')}
-            style={[styles.autonomousTrainingBackground, { height: 220 }]}
+            style={styles.autonomousTrainingBackground}
             imageStyle={styles.autonomousTrainingBackgroundImage}
           >
             <Flex justify="between" style={styles.autonomousContentTop}>
@@ -192,7 +192,7 @@ export default function InStoreRehabPage({
               </Flex>
               <Text style={styles.autonomousContentTopText2}>{weeklyInStoreTip}</Text>
             </Flex>
-            <Text style={[styles.autonomousTrainingText2, { marginTop: 18 }]}>下肢稳定与核心控制</Text>
+            <Text style={[styles.autonomousTrainingText2, { marginTop: 16 }]}>下肢稳定与核心控制</Text>
             <Text style={styles.autonomousTrainingText5}>由老师结合你的运动处方安排训练</Text>
 
             <TouchableOpacity

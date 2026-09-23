@@ -120,6 +120,8 @@ export type DietPatientRuleInfo = {
     recommendedIntake?: DietRecommendedIntake[];
     restrictions?: DietRestriction[];
     mealList?: DietMealItem[];
+    /** 当日饮食标签（来自 listMealDay.dietTags） */
+    dietTags?: string;
     precautions?: string;
     primaryHealthGoal?: string;
     secondaryHealthGoal?: string;
@@ -278,6 +280,8 @@ export type DietMealDayItem = {
     patientUserId?: number;
     customerLocalDate?: string;
     mealList?: DietMealItem[];
+    /** 饮食标签，多个用、分割 */
+    dietTags?: string;
     /** 来源：1开方提交 2定时任务 3档案刷新 4换一换 */
     genSource?: number;
 };

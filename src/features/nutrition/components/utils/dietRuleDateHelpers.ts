@@ -24,7 +24,7 @@ function toRuleId(value?: string | number | null) {
 
 /** 处方元信息用于展示目标热量等；推荐餐次一律来自 listMealDay */
 function ruleMetaWithoutWeeklyMeals(rule: DietPatientRuleInfo): DietPatientRuleInfo {
-  return { ...rule, mealList: [] };
+  return { ...rule, mealList: [], dietTags: undefined };
 }
 
 /** 拉取指定日期的按日食谱作为推荐 mealList（无数据则空，不回退周模板） */

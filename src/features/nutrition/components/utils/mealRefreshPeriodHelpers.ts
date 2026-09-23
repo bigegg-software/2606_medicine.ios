@@ -69,27 +69,37 @@ export function isMealRefreshPeriodAsync(period: MealRefreshPeriodKey) {
   return period !== 'today';
 }
 
+/** 从 listMealDay 结果中取指定日期的餐次项 */
+export function pickMealDayItem(
+  mealDayList: DietMealDayItem[] | undefined,
+  customerLocalDate: string,
+): DietMealDayItem | undefined {
+  const date = customerLocalDate.trim();
+  if (!date || !mealDayList?.length) return undefined;
+  return (
+    mealDayList.find(item => item.customerLocalDate?.trim() === date)
+    ?? (mealDayList.length === 1 ? mealDayList[0] : undefined)
+  );
+}
+
 /** 从 listMealDay 结果中取指定日期的餐次（不再使用周模板 mealList） */
 export function pickMealListFromMealDayList(
   mealDayList: DietMealDayItem[] | undefined,
   customerLocalDate: string,
 ): DietMealItem[] {
-  const date = customerLocalDate.trim();
-  if (!date || !mealDayList?.length) return [];
-  const matched =
-    mealDayList.find(item => item.customerLocalDate?.trim() === date)
-    ?? (mealDayList.length === 1 ? mealDayList[0] : undefined);
-  return matched?.mealList ?? [];
+  return pickMealDayItem(mealDayList, customerLocalDate)?.mealList ?? [];
 }
 
-/** 用指定日期的按日食谱替换展示用 mealList（无数据则为空，不回退老周模板） */
+/** 用指定日期的按日食谱替换展示用 mealList / dietTags（无数据则为空，不回退老周模板） */
 export function applyMealDayForDateToRule(
   rule: DietPatientRuleInfo,
   mealDayList: DietMealDayItem[] | undefined,
   customerLocalDate: string,
 ): DietPatientRuleInfo {
+  const dayItem = pickMealDayItem(mealDayList, customerLocalDate);
   return {
     ...rule,
-    mealList: pickMealListFromMealDayList(mealDayList, customerLocalDate),
+    mealList: dayItem?.mealList ?? [],
+    dietTags: dayItem?.dietTags?.trim() || undefined,
   };
 }

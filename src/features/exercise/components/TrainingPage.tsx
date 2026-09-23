@@ -776,7 +776,11 @@ export default function TrainingPage({
                     </View>
 
                     <ImageBackground
-                        source={require('@/assets/images/exercise/zzxl.png')}
+                        source={
+                            patientUserId
+                                ? require('@/assets/images/exercise/zzxl1.png')
+                                : require('@/assets/images/exercise/zzxl.png')
+                        }
                         style={styles.autonomousTrainingBackground}
                         imageStyle={styles.autonomousTrainingBackgroundImage}
                     >
@@ -790,40 +794,44 @@ export default function TrainingPage({
                         <Text style={styles.autonomousTrainingText1}>居家自主训练</Text>
                         <Text style={styles.autonomousTrainingText2}>舒展与核心激活</Text>
                         <Text style={styles.autonomousTrainingText3}>{mainTrainingSummaryText}</Text>
-                        <TouchableOpacity
-                            activeOpacity={0.7}
-                            onPress={() => navigation.navigate('AssistantPage')}
-                            style={{ marginTop: 18 }}
-                        >
-                            <Flex>
-                                <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
-                                <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
-                            </Flex>
-                        </TouchableOpacity>
+                        {!forceReadOnly ? (
+                            <>
+                                <TouchableOpacity
+                                    activeOpacity={0.7}
+                                    onPress={() => navigation.navigate('AssistantPage')}
+                                    style={{ marginTop: 14 }}
+                                >
+                                    <Flex>
+                                        <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
+                                        <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
+                                    </Flex>
+                                </TouchableOpacity>
 
-                        <TouchableOpacity
-                            activeOpacity={0.85}
-                            disabled={!bottomAction || bottomAction.disabled}
-                            onPress={onPressBottomAction}
-                            style={
-                                !bottomAction || bottomAction.disabled || bottomAction.dimmed
-                                    ? { opacity: 0.5 }
-                                    : undefined
-                            }
-                        >
-                            <LinearGradient
-                                colors={['#9BBD8E', '#6D925E']}
-                                start={{ x: 0, y: 0 }}
-                                end={{ x: 1, y: 0 }}
-                                style={styles.autonomousStartBtn}
-                            >
-                                <Image
-                                    style={styles.autonomousStartBtnIcon}
-                                    source={require('@/assets/images/exercise/start.png')}
-                                />
-                                <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
-                            </LinearGradient>
-                        </TouchableOpacity>
+                                <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    disabled={!bottomAction || bottomAction.disabled}
+                                    onPress={onPressBottomAction}
+                                    style={
+                                        !bottomAction || bottomAction.disabled || bottomAction.dimmed
+                                            ? { opacity: 0.5 }
+                                            : undefined
+                                    }
+                                >
+                                    <LinearGradient
+                                        colors={['#9BBD8E', '#6D925E']}
+                                        start={{ x: 0, y: 0 }}
+                                        end={{ x: 1, y: 0 }}
+                                        style={styles.autonomousStartBtn}
+                                    >
+                                        <Image
+                                            style={styles.autonomousStartBtnIcon}
+                                            source={require('@/assets/images/exercise/start.png')}
+                                        />
+                                        <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
+                                    </LinearGradient>
+                                </TouchableOpacity>
+                            </>
+                        ) : null}
 
                         {/* <Text style={styles.autonomousTrainingText}>居家自主训练</Text> */}
                     </ImageBackground>

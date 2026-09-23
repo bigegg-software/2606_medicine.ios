@@ -118,10 +118,12 @@ export async function countWeeklyInStoreDays(
   }, 0);
 }
 
-/** 本周到店建议文案 */
+/** 本周到店建议文案：安排 N 次展示 (N-1)-N，最低 1-2 次 */
 export function formatWeeklyInStoreTip(count: number): string {
-  if (count <= 0) return '本周暂无到店安排';
-  return `建议每周到店${count}次`;
+  const safe = Number.isFinite(count) ? Math.max(0, Math.floor(count)) : 0;
+  const high = Math.max(2, safe);
+  const low = Math.max(1, high - 1);
+  return `建议每周到店${low}-${high}次`;
 }
 
 /** 当日到店专项视频列表（actionType=in_store） */

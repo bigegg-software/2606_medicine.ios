@@ -214,7 +214,9 @@ export default function NutritionPage() {
             <Flex style={styles.brBox}>
               <Text style={styles.brText}>{isFamilyView ? relationLabel : '本人'}</Text>
             </Flex>
-            <Text style={styles.topInfoText} numberOfLines={1}>{header.infoText}</Text>
+            <Text style={styles.topInfoText} numberOfLines={1} ellipsizeMode="tail">
+              {header.infoText}
+            </Text>
           </Flex>
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>

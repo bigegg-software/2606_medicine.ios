@@ -16,6 +16,7 @@ import { getDayMealEatDots, loadMealEatMapByYear, type MealEatMap } from './util
 import DietProgressRing from './DietProgressRing';
 import DietDatePickerModal from './DietDatePickerModal';
 import DietCheckInSuccessModal from './DietCheckInSuccessModal';
+import DietManualAddModal from './DietManualAddModal';
 import MealRefreshPeriodPickerModal, {
     type MealRefreshPeriodKey,
 } from './MealRefreshPeriodPickerModal';
@@ -31,6 +32,7 @@ import {
     buildRecommendedMealSectionsFromDay,
     buildMealRecipeQuestion,
     formatActualFoodMeta,
+    formatDietTagsSubtitle,
     formatMealApproxCalories,
     formatMealMacroGrams,
     resolveMealDefaultFoodImage,
@@ -185,7 +187,7 @@ function RecommendedMealCard({
 
     return (
         <View style={styles.calendarContent}>
-            <Flex justify='between' align='center'>
+            <Flex align='center'>
                 <Flex>
                     <Image style={styles.dietListImage} source={section.icon} />
                     <Text style={styles.calendarContentTitle}>{section.title}</Text>
@@ -249,59 +251,52 @@ function RecommendedMealCard({
                                 <Text style={styles.mapValue}>{food.amountText}</Text>
                             </Flex>
                         ))}
+                        {showMealActions ? (
+                            <Flex justify="between" style={styles.mealActionRow}>
+                                <TouchableOpacity
+                                    style={styles.mealActionRecipeBtn}
+                                    activeOpacity={0.7}
+                                    onPress={() => {
+                                        const question = buildMealRecipeQuestion(section.foods);
+                                        if (!question) {
+                                            Toast.show('暂无推荐食物');
+                                            return;
+                                        }
+                                        navigation.navigate('AssistantPage', { autoSendText: question });
+                                    }}
+                                >
+                                    <Text style={styles.mealActionRecipeText}>查看做法</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={[
+                                        styles.mealActionRefreshBtn,
+                                        (!showMealRefreshButton || mealRefreshDisabled) && styles.mealActionRefreshBtnDisabled,
+                                    ]}
+                                    activeOpacity={0.7}
+                                    disabled={!showMealRefreshButton || mealRefreshDisabled}
+                                    onPress={() => onRefreshMeal?.(section.category)}
+                                >
+                                    <Flex justify="center" align="center">
+                                        <Image
+                                            style={[
+                                                styles.mealActionRefreshIcon,
+                                                mealRefreshDisabled && styles.mealActionRefreshIconDisabled,
+                                            ]}
+                                            source={require('@/assets/images/nutrition/hyh.png')}
+                                        />
+                                        <Text
+                                            style={[
+                                                styles.mealActionRefreshText,
+                                                mealRefreshDisabled && styles.mealActionRefreshTextDisabled,
+                                            ]}
+                                        >
+                                            换一换
+                                        </Text>
+                                    </Flex>
+                                </TouchableOpacity>
+                            </Flex>
+                        ) : null}
                     </View>
-                </Flex>
-            ) : null}
-
-            {showMealActions ? (
-                <View style={styles.mealMacroDashWrap}>
-                    <View style={styles.mealMacroDash} />
-                </View>
-            ) : null}
-
-            {showMealActions ? (
-                <Flex justify="end" style={styles.mealActionRow}>
-                    <TouchableOpacity
-                        style={styles.mealActionRecipeBtn}
-                        activeOpacity={0.7}
-                        onPress={() => {
-                            const question = buildMealRecipeQuestion(section.foods);
-                            if (!question) {
-                                Toast.show('暂无推荐食物');
-                                return;
-                            }
-                            navigation.navigate('AssistantPage', { autoSendText: question });
-                        }}
-                    >
-                        <Text style={styles.mealActionRecipeText}>查看做法</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[
-                            styles.mealActionRefreshBtn,
-                            (!showMealRefreshButton || mealRefreshDisabled) && styles.mealActionRefreshBtnDisabled,
-                        ]}
-                        activeOpacity={0.7}
-                        disabled={!showMealRefreshButton || mealRefreshDisabled}
-                        onPress={() => onRefreshMeal?.(section.category)}
-                    >
-                        <Flex justify="center" align="center">
-                            <Image
-                                style={[
-                                    styles.mealActionRefreshIcon,
-                                    mealRefreshDisabled && styles.mealActionRefreshIconDisabled,
-                                ]}
-                                source={require('@/assets/images/nutrition/hyh.png')}
-                            />
-                            <Text
-                                style={[
-                                    styles.mealActionRefreshText,
-                                    mealRefreshDisabled && styles.mealActionRefreshTextDisabled,
-                                ]}
-                            >
-                                换一换
-                            </Text>
-                        </Flex>
-                    </TouchableOpacity>
                 </Flex>
             ) : null}
 
@@ -316,7 +311,7 @@ function RecommendedMealCard({
                             <Text style={styles.actualEatTitle}>实际吃了</Text>
                         </Flex>
                         <Text style={styles.actualEatValue}>
-                            {caloriesText}
+                            {caloriesText}{' '}
                             <Text style={styles.actualEatUnit}>kcal</Text>
                         </Text>
                     </Flex>
@@ -416,7 +411,7 @@ export default function DietPage({
     const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
     const [mealDetailList, setMealDetailList] = useState<MealDetailItem[]>([]);
     const [dayRule, setDayRule] = useState<DietPatientRuleInfo | null>(() =>
-        dietRule ? { ...dietRule, mealList: [] } : null,
+        dietRule ? { ...dietRule, mealList: [], dietTags: undefined } : null,
     );
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
@@ -428,11 +423,13 @@ export default function DietPage({
     const [historySigned, setHistorySigned] = useState(false);
     const [checkInSuccessVisible, setCheckInSuccessVisible] = useState(false);
     const [eatMap, setEatMap] = useState<MealEatMap>({});
+    const [manualAddVisible, setManualAddVisible] = useState(false);
     const loadedEatYearsRef = useRef<Set<number>>(new Set());
     const loadingEatYearsRef = useRef<Set<number>>(new Set());
     const waitingMealRefreshRef = useRef(false);
     const mealRefreshRangeRef = useRef<{ startDate: string; endDate: string } | null>(null);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
+    const currentMealCategory = MEAL_CATEGORY_BY_KEY[getCurrentMealKey()];
     const prescriptionStartDate = dietRule?.startDate?.trim() || dayRule?.startDate?.trim() || '';
     const prescriptionEndDate = dietRule?.endDate?.trim() || dayRule?.endDate?.trim() || '';
     const todayKey = moment().format('YYYY-MM-DD');
@@ -442,6 +439,10 @@ export default function DietPage({
     const recommendedSections = useMemo(
         () => buildRecommendedMealSectionsFromDay(dayRule?.mealList),
         [dayRule?.mealList],
+    );
+    const dayTagsSubtitle = useMemo(
+        () => formatDietTagsSubtitle(dayRule?.dietTags),
+        [dayRule?.dietTags],
     );
     const isBeforePrescriptionStart = useMemo(() => {
         if (!prescriptionStartDate) return false;
@@ -997,6 +998,15 @@ export default function DietPage({
         return () => clearTimeout(timer);
     }, [finishMealRefresh, refreshing]);
 
+    const handleManualAddSave = useCallback((text: string) => {
+        setManualAddVisible(false);
+        navigation.navigate('MealRecognizingPage', {
+            mode: 'text',
+            text,
+            mealCategory: currentMealCategory,
+        });
+    }, [currentMealCategory, navigation]);
+
     if (!dietRule) {
         return (
             <View style={styles.emptyPrescription}>
@@ -1109,7 +1119,9 @@ export default function DietPage({
                 </Flex>
 
                 <Text style={styles.dayTitle}>今天这样吃，身体更轻松</Text>
-                <Text style={styles.daySubtitle}>控糖平衡 · 优质蛋白 · 高纤维主食</Text>
+                {dayTagsSubtitle ? (
+                    <Text style={styles.daySubtitle}>{dayTagsSubtitle}</Text>
+                ) : null}
 
                 {/* <View style={styles.calendarContent}>
                     <Text style={styles.calendarContentTitle}>今日营养目标</Text>
@@ -1229,22 +1241,38 @@ export default function DietPage({
                 )}
 
                 {!readOnly && isTodaySelected ? (
-                    <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() =>
-                            navigation.navigate('MealRecognitionPage', {
-                                mealCategory: MEAL_CATEGORY_BY_KEY[getCurrentMealKey()],
-                            })
-                        }
-                    >
-                        <Flex justify="center" style={styles.mealActionCameraBox}>
-                            <Image
-                                style={styles.mealActionCameraIcon}
-                                source={require('@/assets/images/exercise/camara.png')}
-                            />
-                            <Text style={styles.mealActionCameraText}>拍照记录今日饮食</Text>
-                        </Flex>
-                    </TouchableOpacity>
+                    <Flex justify="center" align="center" style={styles.mealActionCameraBox}>
+                        <TouchableOpacity
+                            style={styles.mealActionCameraBtn}
+                            activeOpacity={0.7}
+                            onPress={() => setManualAddVisible(true)}
+                        >
+                            <Flex justify="center" align="center">
+                                <Image
+                                    style={styles.mealActionCameraIcon}
+                                    source={require('@/assets/images/exercise/edit.png')}
+                                />
+                                <Text style={styles.mealActionCameraText}>手动添加</Text>
+                            </Flex>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.mealActionCameraBtn}
+                            activeOpacity={0.7}
+                            onPress={() =>
+                                navigation.navigate('MealRecognitionPage', {
+                                    mealCategory: currentMealCategory,
+                                })
+                            }
+                        >
+                            <Flex justify="center" align="center">
+                                <Image
+                                    style={styles.mealActionCameraIcon}
+                                    source={require('@/assets/images/exercise/camara.png')}
+                                />
+                                <Text style={styles.mealActionCameraText}>拍照记录</Text>
+                            </Flex>
+                        </TouchableOpacity>
+                    </Flex>
                 ) : null}
 
                 <Flex justify="center" align="center" style={styles.planListFooter}>
@@ -1306,6 +1334,12 @@ export default function DietPage({
                     </TouchableOpacity>
                 </Flex>
             ) : null}
+
+            <DietManualAddModal
+                visible={manualAddVisible}
+                onClose={() => setManualAddVisible(false)}
+                onSave={handleManualAddSave}
+            />
 
             <DietCheckInSuccessModal
                 visible={checkInSuccessVisible}

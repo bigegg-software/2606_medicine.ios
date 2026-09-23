@@ -153,7 +153,7 @@ export function formatMealMacroGrams(value?: number | null) {
 
 export function formatMealApproxCalories(value?: number | null) {
   const num = Math.round(toFiniteNumber(value));
-  return num > 0 ? `≈${num}kcal` : '≈--kcal';
+  return num > 0 ? `约${num}kcal` : '约--kcal';
 }
 
 function mapFoodItem(food: DietMealFoodItem, index: number): RecommendedFoodItem {
@@ -343,3 +343,15 @@ export function formatDietHeaderInfo(
 
   return { name: name || '--', version, infoText };
 }
+
+/** listMealDay.dietTags（顿号等分隔）→ 副标题「A · B · C」 */
+export function formatDietTagsSubtitle(dietTags?: string | null): string {
+  const raw = dietTags?.trim() ?? '';
+  if (!raw) return '';
+  return raw
+    .split(/[、,，;；|/｜\n\r]+/)
+    .map(part => part.trim())
+    .filter(Boolean)
+    .join(' · ');
+}
+
