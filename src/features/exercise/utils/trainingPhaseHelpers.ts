@@ -66,6 +66,8 @@ export type TrainingPhaseExerciseCard = {
   bodyPartText: string;
   /** 标签，英文逗号分割 */
   labels: string;
+  /** 单次预计时长（秒）；group_number 估算用 */
+  estimatedSingleSeconds: number;
   /** 当日已完成组号列表 */
   completedGroups: number[];
   /** 每组完成次数，下标 0 对应第 1 组 */
@@ -258,13 +260,13 @@ export function isTrainingActionCompleted(card: TrainingPhaseExerciseCard) {
 }
 
 /**
- * 单项是否已有进度（半完成）：
- * - 计时：已锻炼分钟 > 0（如目标 12 分已练 2 分）
- * - 组别：任一组次数 > 0（如 1/10、6/10、8/10）
+ * 单项是否已有进度（半完成，可参与今日打卡）：
+ * - 时长：已锻炼分钟 > 0（如 1/15）
+ * - 时长×组 / 次×组 / 秒×组：任一组有进度（如 1/10、2/10）；全 0/10 不算
  */
 export function isTrainingActionProgressStarted(card: TrainingPhaseExerciseCard) {
   if (card.timerType === 'duration_min') {
-    return Math.max(0, Math.round(Number(card.completedMinutes) || 0)) > 0;
+    if (Math.max(0, Math.round(Number(card.completedMinutes) || 0)) > 0) return true;
   }
   if ((card.groupCounts ?? []).some(count => Math.max(0, Math.round(Number(count) || 0)) > 0)) {
     return true;
@@ -481,6 +483,9 @@ export async function buildTrainingPhaseCards(
         : 0,
       bodyPartText,
       labels: video?.labels?.trim() || '',
+      estimatedSingleSeconds: Number.isFinite(Number(video?.estimatedSingleSeconds))
+        ? Math.round(Number(video?.estimatedSingleSeconds))
+        : 0,
       completedGroups: [],
       groupCounts: [],
       completedMinutes: 0,
@@ -568,8 +573,33 @@ export async function attachTrainingPhaseCompleteInfo(
   });
 }
 
+/** 单动作预估分钟：duration_min 用时长；group_number 用单次秒×次数×组；keep_second 用秒×组 */
+export function resolveCardEstimatedMinutes(card: TrainingPhaseExerciseCard): number {
+  const timerType = card.timerType?.trim() || '';
+  const groupVal = Math.round(Number(card.groupVal) || 0);
+  const sets = groupVal > 0 ? groupVal : 1;
+
+  if (timerType === 'group_number') {
+    const perRep = Math.round(Number(card.estimatedSingleSeconds) || 0);
+    const times = Math.round(Number(card.numberVal) || 0);
+    if (perRep > 0 && times > 0) {
+      return (perRep * times * sets) / 60;
+    }
+    return 0;
+  }
+
+  if (timerType === 'keep_second_number') {
+    const seconds = Math.round(Number(card.keepSecondVal) || 0);
+    if (seconds > 0) return (seconds * sets) / 60;
+    return 0;
+  }
+
+  return Math.max(0, Number(card.durationMinutes) || 0);
+}
+
 export function sumTrainingPhaseMinutes(cards: TrainingPhaseExerciseCard[]) {
-  return cards.reduce((sum, item) => sum + Math.max(0, item.durationMinutes), 0);
+  const total = cards.reduce((sum, item) => sum + resolveCardEstimatedMinutes(item), 0);
+  return Math.max(0, Math.round(total));
 }
 
 /** 居家自主训练摘要：主训练时长 + 动作数（一视频一动作） */

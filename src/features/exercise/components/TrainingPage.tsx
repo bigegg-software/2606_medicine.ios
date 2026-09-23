@@ -381,6 +381,7 @@ export default function TrainingPage({
             mainAllProgressed,
             mainTotalCount: dayStat.mainTotalCount,
             mainCompleteCount: dayStat.mainCompleteCount,
+            preferLocalMainProgress: true,
         }),
         [
             dayStat.mainCompleteCount,
@@ -400,6 +401,7 @@ export default function TrainingPage({
                 mainAllProgressed,
                 mainTotalCount: dayStat.mainTotalCount,
                 mainCompleteCount: dayStat.mainCompleteCount,
+                preferLocalMainProgress: true,
             });
             if (!result.ok) return;
             setSignInfo(result.signInfo);

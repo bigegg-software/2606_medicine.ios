@@ -54,12 +54,14 @@ export function resolveVideoDurationSeconds(
 /**
  * 组训每组计时目标（秒）：
  * - keep_second_number（如 30秒 x 20组）→ keepSecondVal，到点自动切换
- * - group_number（如 30次 x 20组）→ 不按时间自动切换（返回 0）
+ * - group_number（如 2次 x 3组）→ estimatedSingleSeconds × 次数，到点自动切换
  * - duration_min 走分钟计时，不走本函数
  */
 export function resolveGroupSessionTargetSeconds(params: {
   timerType?: string | null;
   keepSecondVal?: number | null;
+  numberVal?: number | null;
+  estimatedSingleSeconds?: number | null;
   playerDuration?: number | null;
   apiDuration?: number | null;
 }) {
@@ -68,14 +70,18 @@ export function resolveGroupSessionTargetSeconds(params: {
     const keepSeconds = Math.round(Number(params.keepSecondVal) || 0);
     if (keepSeconds > 0) return keepSeconds;
   }
-  // 次数组及其他：不按视频时长自动切换
+  if (timerType === 'group_number') {
+    const perRep = Math.round(Number(params.estimatedSingleSeconds) || 0);
+    const times = Math.round(Number(params.numberVal) || 0);
+    if (perRep > 0 && times > 0) return perRep * times;
+  }
   return 0;
 }
 
-/** 是否按会话计时自动提交/切换（秒数组、分钟计时） */
+/** 是否按会话计时自动提交/切换（秒数组、次数组含预估时长、分钟计时） */
 export function shouldAutoAdvanceBySessionTimer(timerType?: string | null) {
   const type = timerType?.trim() || '';
-  return type === 'keep_second_number' || type === 'duration_min';
+  return type === 'keep_second_number' || type === 'group_number' || type === 'duration_min';
 }
 
 /** 按秒计进度条（组训：每组目标秒） */

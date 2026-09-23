@@ -25,7 +25,12 @@ import {
   EXERCISE_CHECK_IN_DOT_COLOR,
   loadExerciseCheckInMapByYear,
 } from '../utils/exerciseCheckInHelpers';
-import { buildInStoreRehabCards, formatInStoreRehabLabels } from '../utils/inStoreRehabHelpers';
+import {
+  buildInStoreRehabCards,
+  countWeeklyInStoreDays,
+  formatInStoreRehabLabels,
+  formatWeeklyInStoreTip,
+} from '../utils/inStoreRehabHelpers';
 import { type TrainingPhaseExerciseCard } from '../utils/trainingPhaseHelpers';
 
 type Props = {
@@ -49,6 +54,7 @@ export default function InStoreRehabPage({
   const [dayRule, setDayRule] = useState<InUseExPatientRule | null>(exerciseRule ?? null);
   const [cards, setCards] = useState<TrainingPhaseExerciseCard[]>([]);
   const [loading, setLoading] = useState(false);
+  const [weeklyInStoreTip, setWeeklyInStoreTip] = useState('建议每周到店1-2次');
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const prescriptionStartDate = exerciseRule?.startDate?.trim() || '';
   const prescriptionEndDate = exerciseRule?.endDate?.trim() || '';
@@ -80,13 +86,18 @@ export default function InStoreRehabPage({
         });
         if (cancelled) return;
         setDayRule(rule);
-        const result = await buildInStoreRehabCards(rule, selectedDate);
+        const [result, inStoreDayCount] = await Promise.all([
+          buildInStoreRehabCards(rule, selectedDate),
+          countWeeklyInStoreDays(rule),
+        ]);
         if (cancelled) return;
         setCards(result.cards);
+        setWeeklyInStoreTip(formatWeeklyInStoreTip(inStoreDayCount));
       } catch {
         if (cancelled) return;
         setDayRule(null);
         setCards([]);
+        setWeeklyInStoreTip(formatWeeklyInStoreTip(0));
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -179,7 +190,7 @@ export default function InStoreRehabPage({
                 <Image style={styles.autonomousContentTopIcon} source={require('@/assets/images/common/wc.png')} />
                 <Text style={styles.autonomousContentTopText}>本阶段到店训练重点</Text>
               </Flex>
-              <Text style={styles.autonomousContentTopText2}>建议每周到店1-2次</Text>
+              <Text style={styles.autonomousContentTopText2}>{weeklyInStoreTip}</Text>
             </Flex>
             <Text style={[styles.autonomousTrainingText2, { marginTop: 18 }]}>下肢稳定与核心控制</Text>
             <Text style={styles.autonomousTrainingText5}>由老师结合你的运动处方安排训练</Text>

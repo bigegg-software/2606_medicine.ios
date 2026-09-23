@@ -38,6 +38,8 @@ export type ExVideoInfo = {
   exerciseBodyParts?: string[];
   /** 动作类型：home.居家 in_store.到店 */
   actionType?: string;
+  /** 单次预计时长，单位秒（非必填）；group_number 时 × 次数作为每组计时 */
+  estimatedSingleSeconds?: number;
   createTime?: string;
   updateTime?: string;
 };

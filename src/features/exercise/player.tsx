@@ -221,10 +221,12 @@ export default function ExercisePlayerPage() {
     0,
     Math.round(Number(targetMinutes) || 0) - Math.round(Number(todayDuration.completedMinutes) || 0),
   );
-  // 次数组按秒不自动切；秒数组按 keepSecond；分钟计时按剩余处方分钟
+  // 次数组：estimatedSingleSeconds × 次数；秒数组：keepSecond；分钟计时：剩余处方分钟
   const groupSessionTargetSeconds = resolveGroupSessionTargetSeconds({
     timerType,
     keepSecondVal: scheduleRule.keepSecondVal,
+    numberVal: scheduleRule.numberVal,
+    estimatedSingleSeconds: video?.estimatedSingleSeconds,
     playerDuration: videoDurationSeconds,
     apiDuration: video?.duration,
   });
@@ -896,7 +898,7 @@ export default function ExercisePlayerPage() {
    * 自动提交：
    * - 计时（分钟）：剩余目标时长到点 → 提交 → 下一项
    * - 秒数组（keep_second_number）：按每组秒数到点 → 提交该组 → 下一组/下一项
-   * - 次数组（group_number）：不主动切换，需手动保存
+   * - 次数组（group_number）：有 estimatedSingleSeconds 时按「单次秒×次数」到点切组
    */
   useEffect(() => {
     if (
@@ -940,8 +942,8 @@ export default function ExercisePlayerPage() {
       return;
     }
 
-    // 仅秒数组自动按时间切组
-    if (timerType !== 'keep_second_number') return;
+    // 秒数组 / 次数组（有预估单次时长）按时间切组
+    if (timerType !== 'keep_second_number' && timerType !== 'group_number') return;
 
     const groupTotal = resolveDurationSaveGroupTotal(totalGroups, timerType);
     if (groupTotal <= 0) return;
@@ -1394,7 +1396,9 @@ export default function ExercisePlayerPage() {
                       ? '点击下方保存数据，将记录本次计时分钟'
                       : timerType === 'keep_second_number'
                         ? `按每组时长自动计时；组间休息${restBetweenGroupSeconds}秒`
-                        : `点击组别依次记录每组完成情况；组间休息${restBetweenGroupSeconds}秒`}
+                        : timerType === 'group_number' && groupSessionTargetSeconds > 0
+                          ? `按单次预估×次数自动计时；组间休息${restBetweenGroupSeconds}秒`
+                          : `点击组别依次记录每组完成情况；组间休息${restBetweenGroupSeconds}秒`}
                   </Text>
                 </Flex>
               ) : null}

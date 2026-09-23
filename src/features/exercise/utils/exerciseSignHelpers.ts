@@ -55,20 +55,25 @@ export function getExerciseSignBlockedMessage(
 ) {
   if (info?.signedToday) return '今日已打卡';
   if (options?.mainProgressed || isExerciseMainTrainingCompleted(info)) return null;
-  return '请先完成主训练后再打卡（每项有进度即可）';
+  return '请先参与今日全部主训练后再打卡';
 }
 
-/** 是否允许完成今日打卡（与训练页底部按钮一致） */
+/** 是否允许完成今日打卡：今日主训练每项至少半完成（有进度）即可 */
 export function resolveExerciseCanFinishSign(params: {
   signInfo?: ExUserSignInfo | null;
   mainAllProgressed?: boolean;
   mainTotalCount?: number;
   mainCompleteCount?: number;
+  /** 已拿到本地主训练进度时，仅以 mainAllProgressed 为准（任一项 0 进度则不可打卡） */
+  preferLocalMainProgress?: boolean;
 }) {
   const { signInfo } = params;
   if (signInfo?.signedToday) return false;
-  if (signInfo?.canSign) return true;
+  if (params.preferLocalMainProgress) {
+    return Boolean(params.mainAllProgressed);
+  }
   if (params.mainAllProgressed) return true;
+  if (signInfo?.canSign) return true;
   if (isExerciseMainTrainingCompleted(signInfo)) return true;
   const total = Math.max(0, Math.round(Number(params.mainTotalCount) || 0));
   const done = Math.max(0, Math.round(Number(params.mainCompleteCount) || 0));
@@ -92,6 +97,8 @@ export async function performExerciseDailySign(params: {
   mainCompleteCount?: number;
   /** 未传入资格字段时自行拉取今日数据 */
   autoLoadEligibility?: boolean;
+  /** 已拿到本地主训练进度时，仅以 mainAllProgressed 为准 */
+  preferLocalMainProgress?: boolean;
   exerciseRule?: InUseExPatientRule | null;
 }): Promise<ExerciseDailySignResult> {
   const isToday = params.isToday !== false;
@@ -103,6 +110,7 @@ export async function performExerciseDailySign(params: {
   let mainAllProgressed = Boolean(params.mainAllProgressed);
   let mainTotalCount = Math.max(0, Math.round(Number(params.mainTotalCount) || 0));
   let mainCompleteCount = Math.max(0, Math.round(Number(params.mainCompleteCount) || 0));
+  let preferLocalMainProgress = Boolean(params.preferLocalMainProgress);
 
   if (params.autoLoadEligibility) {
     const today = moment().format('YYYY-MM-DD');
@@ -125,6 +133,7 @@ export async function performExerciseDailySign(params: {
       mainCompleteCount = dayStat.mainCompleteCount;
       if (mainResult && !mainResult.isRest && !mainResult.isPostponedAway) {
         mainAllProgressed = isMainTrainingAllProgressStarted(mainResult.modules);
+        preferLocalMainProgress = true;
       }
     } catch {
       // 继续用已有字段校验
@@ -141,11 +150,12 @@ export async function performExerciseDailySign(params: {
     mainAllProgressed,
     mainTotalCount,
     mainCompleteCount,
+    preferLocalMainProgress,
   });
   if (!canFinish) {
     Toast.info(
       getExerciseSignBlockedMessage(signInfo, { mainProgressed: mainAllProgressed })
-      || '请先完成主训练后再打卡（每项有进度即可）',
+      || '请先参与今日全部主训练后再打卡',
     );
     return { ok: false, signInfo };
   }
