@@ -3,13 +3,15 @@ export type MainTabParamList = {
   Schedule: undefined;
   Assistant: undefined;
   Community: undefined;
+  Curriculum: undefined;
   Profile: undefined;
 };
 
 export const MAIN_TAB_TITLES: Record<keyof MainTabParamList, string> = {
   Home: '首页',
   Schedule: '里程碑',
-  Community: '社区服务',
+  Community: '社区',
+  Curriculum: '课程',
   Assistant: '首页',
   Profile: '我的',
 };

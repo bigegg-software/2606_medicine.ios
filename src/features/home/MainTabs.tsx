@@ -16,6 +16,7 @@ import HomeTab from '@/src/features/home/HomeTab';
 import SchedulePage from '@/src/features/schedule/SchedulePage';
 import CommunityPage from '@/src/features/community/CommunityPage';
 import ProfilePage from '@/src/features/profile/ProfilePage';
+import CurriculumPage from '@/src/features/curriculum/index';
 import AcceptAiPromptModal from '@/src/features/profile/settingPage/components/AcceptAiPromptModal';
 import { updateExtrInfo } from '@/api/user';
 import { AppTheme } from '@/common/theme';
@@ -38,6 +39,7 @@ export type { MainTabParamList };
 const HomeTabScreen = HomeTab;
 const ScheduleTabScreen = SchedulePage;
 const CommunityTabScreen = CommunityPage;
+const CurriculumTabScreen = CurriculumPage;
 const ProfileTabScreen = ProfilePage;
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -244,6 +246,17 @@ export default function MainTabs() {
         return;
       }
 
+      if (routeName === 'Curriculum') {
+        navigation.setOptions({
+          title: '',
+          headerTransparent: true,
+          headerStyle: { backgroundColor: 'transparent' },
+          headerTitle: () => null,
+          headerRight: () => null,
+        });
+        return;
+      }
+
       // headerRight 必须显式设为 () => null；undefined 不会清除已有按钮
       navigation.setOptions({
         title,
@@ -320,7 +333,7 @@ export default function MainTabs() {
             tabBarIconStyle: { marginTop: -2 },
           }}
         />
-        <Tab.Screen
+        {/* <Tab.Screen
           name="Community"
           component={CommunityTabScreen}
           options={{
@@ -330,6 +343,21 @@ export default function MainTabs() {
                 focused={focused}
                 source={require('@/assets/tabbar/community.png')}
                 activeSource={require('@/assets/tabbar/communityActive.png')}
+                focusedMarginLeft={-2}
+              />
+            ),
+          }}
+        /> */}
+        <Tab.Screen
+          name="Curriculum"
+          component={CurriculumTabScreen}
+          options={{
+            tabBarLabel: '课程',
+            tabBarIcon: ({ focused }) => (
+              <TabIcon
+                focused={focused}
+                source={require('@/assets/tabbar/yk.png')}
+                activeSource={require('@/assets/tabbar/ykActive.png')}
                 focusedMarginLeft={-2}
               />
             ),

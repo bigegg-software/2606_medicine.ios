@@ -63,6 +63,7 @@ import MealRecognizingPage from '@/src/features/nutrition/mealRecognizing';
 import FoodRecordingPage from '@/src/features/nutrition/foodRecording';
 import DietHistoryPage from '@/src/features/nutrition/dietHistoryPage';
 import CoachBookingPage from '@/src/features/nutrition/coachBookingPage';
+import MyBookingPage from '@/src/features/curriculum/MyBookingPage';
 
 
 // 用药记录
@@ -331,6 +332,7 @@ export type RootStackParamList = {
   FoodRecordingPage: undefined;
   DietHistoryPage: undefined;
   CoachBookingPage: { planId?: string } | undefined;
+  MyBookingPage: undefined;
   ManualCorrectionPage: {
     itemIndex: number;
     item: import('@/api/mealRecognition').FoodIdentifyItem;
@@ -624,6 +626,7 @@ export default function RootStack() {
         component={CoachBookingPage}
         options={{ title: '', headerBackgroundColor: '#F7F7F9' }}
       />
+      <Stack.Screen name="MyBookingPage" component={MyBookingPage} options={{ title: '我的预约' }} />
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />

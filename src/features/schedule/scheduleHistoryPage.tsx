@@ -56,7 +56,7 @@ export default function ScheduleHistoryPage() {
 
   filterRef.current = filter;
 
-  const loadPlans = useCallback(async (mode: 'initial' | 'refresh' | 'more' = 'initial') => {
+  const loadPlans = useCallback(async (mode: 'initial' | 'refresh' | 'more' | 'filter' = 'initial') => {
     const currentFilter = filterRef.current;
     const nextPageNum = mode === 'more' ? pageNumRef.current + 1 : 1;
 
@@ -66,7 +66,7 @@ export default function ScheduleHistoryPage() {
       setLoadingMore(true);
     } else if (mode === 'initial') {
       setLoading(true);
-    } else {
+    } else if (mode === 'refresh') {
       setRefreshing(true);
     }
 
@@ -77,21 +77,27 @@ export default function ScheduleHistoryPage() {
         PAGE_SIZE,
       );
 
+      // 筛选切换过程中若用户又点了别的筛选项，丢弃过期结果
+      if (currentFilter !== filterRef.current) return;
+
       setItems(prev => (mode === 'more' ? mergeArchiveItems(prev, rows) : rows));
       pageNumRef.current = nextPageNum;
       setHasMore(nextHasMore);
       hasMoreRef.current = nextHasMore;
     } catch {
+      if (currentFilter !== filterRef.current) return;
       if (mode !== 'more') {
         setItems([]);
       }
       setHasMore(false);
       hasMoreRef.current = false;
     } finally {
-      setLoading(false);
-      setRefreshing(false);
-      setLoadingMore(false);
-      loadingMoreRef.current = false;
+      if (currentFilter === filterRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
+      }
     }
   }, []);
 
@@ -101,7 +107,7 @@ export default function ScheduleHistoryPage() {
     setFilter(nextFilter);
     pageNumRef.current = 1;
     hasMoreRef.current = true;
-    void loadPlans('initial');
+    void loadPlans('filter');
   }, [loadPlans]);
 
   useFocusEffect(
@@ -120,15 +126,7 @@ export default function ScheduleHistoryPage() {
     }
   }, [loadPlans, loading, refreshing]);
 
-  if (loading && !refreshing && items.length === 0) {
-    return (
-      <PageLayout style={styles.container} contentStyle={styles.historyPageBody}>
-        <Flex justify="center" style={styles.center}>
-          <ActivityIndicator color="#6D925E" />
-        </Flex>
-      </PageLayout>
-    );
-  }
+  const showListLoading = loading && !refreshing && items.length === 0;
 
   return (
     <PageLayout style={styles.container} contentStyle={styles.historyPageBody}>
@@ -156,49 +154,55 @@ export default function ScheduleHistoryPage() {
         </ScrollView>
       </View>
 
-      <ScrollView
-        style={styles.historyListScroll}
-        contentContainerStyle={[
-          styles.historyListContent,
-          items.length === 0 && styles.historyListContentEmpty,
-        ]}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={() => loadPlans('refresh')}
-            colors={['#6D925E']}
-            tintColor="#6D925E"
-          />
-        }
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {items.length > 0 ? (
-          items.map(item => (
-            <HistoryArchiveCard
-              key={item.id}
-              item={item}
-              onPress={() => {
-                navigation.navigate('ExercisePage', getHistoryPlanExerciseParams(item.id));
-              }}
-              onPressPrescriptionDetail={() => {
-                navigation.navigate('ExercisePage', getHistoryPlanPrescriptionParams(item.id));
-              }}
+      {showListLoading ? (
+        <Flex justify="center" style={styles.center}>
+          <ActivityIndicator color="#6D925E" />
+        </Flex>
+      ) : (
+        <ScrollView
+          style={styles.historyListScroll}
+          contentContainerStyle={[
+            styles.historyListContent,
+            items.length === 0 && styles.historyListContentEmpty,
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadPlans('refresh')}
+              colors={['#6D925E']}
+              tintColor="#6D925E"
             />
-          ))
-        ) : (
-          <View style={styles.historyEmptyWrap}>
-            <EmptyRecord text="暂无历史干预计划" />
-          </View>
-        )}
+          }
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          {items.length > 0 ? (
+            items.map(item => (
+              <HistoryArchiveCard
+                key={item.id}
+                item={item}
+                onPress={() => {
+                  navigation.navigate('ExercisePage', getHistoryPlanExerciseParams(item.id));
+                }}
+                onPressPrescriptionDetail={() => {
+                  navigation.navigate('ExercisePage', getHistoryPlanPrescriptionParams(item.id));
+                }}
+              />
+            ))
+          ) : (
+            <View style={styles.historyEmptyWrap}>
+              <EmptyRecord text="暂无历史干预计划" />
+            </View>
+          )}
 
-        {loadingMore ? (
-          <ActivityIndicator color="#6D925E" style={{ marginTop: 16 }} />
-        ) : null}
-        {!loadingMore && items.length > 0 && !hasMore ? (
-          <Text style={styles.loadMoreText}>没有更多了</Text>
-        ) : null}
-      </ScrollView>
+          {loadingMore ? (
+            <ActivityIndicator color="#6D925E" style={{ marginTop: 16 }} />
+          ) : null}
+          {!loadingMore && items.length > 0 && !hasMore ? (
+            <Text style={styles.loadMoreText}>没有更多了</Text>
+          ) : null}
+        </ScrollView>
+      )}
     </PageLayout>
   );
 }

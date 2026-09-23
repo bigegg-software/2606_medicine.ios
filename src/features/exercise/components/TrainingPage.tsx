@@ -659,7 +659,7 @@ export default function TrainingPage({
                 selectableStartDate={prescriptionStartDate || null}
                 selectableEndDate={prescriptionEndDate || null}
             />
-            <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 12 }}>
+            <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 60 }}>
                 <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;
@@ -777,8 +777,8 @@ export default function TrainingPage({
 
                     <ImageBackground
                         source={
-                            patientUserId
-                                ? require('@/assets/images/exercise/zzxl1.png')
+                            patientUserId || lockToRule
+                                ? require('@/assets/images/exercise/zzxl_1.png')
                                 : require('@/assets/images/exercise/zzxl.png')
                         }
                         style={styles.autonomousTrainingBackground}

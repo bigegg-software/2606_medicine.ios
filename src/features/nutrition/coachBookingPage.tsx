@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -7,7 +7,6 @@ import {
   ImageBackground,
   TouchableOpacity,
   ActivityIndicator,
-  type LayoutChangeEvent,
 } from 'react-native';
 import Svg, { Line } from 'react-native-svg';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,32 +30,6 @@ import {
 
 type Route = RouteProp<RootStackParamList, 'CoachBookingPage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CoachBookingPage'>;
-
-function ServiceFlowDashLine() {
-  const [height, setHeight] = useState(0);
-  const onLayout = (e: LayoutChangeEvent) => {
-    const next = Math.round(e.nativeEvent.layout.height);
-    if (next > 0 && next !== height) setHeight(next);
-  };
-
-  return (
-    <View style={styles.serviceFlowDashCol} pointerEvents="none" onLayout={onLayout}>
-      {height > 0 ? (
-        <Svg width={1} height={height}>
-          <Line
-            x1={0.5}
-            y1={0}
-            x2={0.5}
-            y2={height}
-            stroke="#6D925E"
-            strokeWidth={1}
-            strokeDasharray="3 3"
-          />
-        </Svg>
-      ) : null}
-    </View>
-  );
-}
 
 const COACH_RECOMMEND = [
   {
@@ -95,7 +68,6 @@ export default function CoachBookingPage() {
         setPlan(null);
         return;
       }
-      console.log(res)
       setPlan(apiResourceData(res) ?? null);
     } catch {
       setPlan(null);
@@ -116,6 +88,42 @@ export default function CoachBookingPage() {
 
   const planIntro = useMemo(() => buildSpecialPlanIntroItems(plan), [plan]);
   const serviceFlow = useMemo(() => buildSpecialPlanServiceFlowItems(plan), [plan]);
+  const serviceFlowListRef = useRef<View>(null);
+  const serviceFlowIconRefs = useRef<Array<View | null>>([]);
+  const [serviceFlowDash, setServiceFlowDash] = useState<{
+    left: number;
+    top: number;
+    height: number;
+  } | null>(null);
+
+  const syncServiceFlowDash = useCallback(() => {
+    const lastIndex = serviceFlow.length - 1;
+    const container = serviceFlowListRef.current;
+    const first = serviceFlowIconRefs.current[0];
+    const last = serviceFlowIconRefs.current[lastIndex];
+    if (!container || !first || !last || lastIndex < 1) {
+      setServiceFlowDash(null);
+      return;
+    }
+    first.measureLayout(
+      container,
+      (_, y1, __, h1) => {
+        last.measureLayout(
+          container,
+          (x2, y2, w2, h2) => {
+            const top = y1 + h1 / 2;
+            const height = y2 + h2 / 2 - top;
+            setServiceFlowDash(
+              height > 0 ? { left: x2 + w2 / 2 - 0.5, top, height } : null,
+            );
+          },
+          () => { },
+        );
+      },
+      () => { },
+    );
+  }, [serviceFlow.length]);
+
   const schemeName = plan ? formatSpecialPlanSchemeName(plan) : '阜外 My Health 方案';
   const planName = plan?.planName?.trim() || '--';
   const planSubtitle = plan ? formatSpecialPlanSubtitle(plan) : '';
@@ -125,6 +133,10 @@ export default function CoachBookingPage() {
     if (!plan?.planName?.trim()) return;
     navigation.setOptions({ title: plan.planName.trim() });
   }, [navigation, plan?.planName]);
+
+  useEffect(() => {
+    syncServiceFlowDash();
+  }, [syncServiceFlowDash, serviceFlow]);
 
   return (
     <PageLayout style={styles.container} edges={[]}>
@@ -242,26 +254,55 @@ export default function CoachBookingPage() {
                 </ImageBackground>
                 <View style={styles.planIntroBox}>
                   <View style={styles.planIntroItem}>
-                    {serviceFlow.map((item, index) => (
-                      <Flex
-                        key={item.key}
-                        align="start"
-                        style={index > 0 ? { marginTop: 13 } : undefined}
-                      >
-                        <View style={styles.serviceFlowIconCol}>
-                          <View style={styles.serviceFlowIcon}>
-                            <Text style={styles.serviceFlowIconText}>{item.stepNo}</Text>
+                    <View
+                      ref={serviceFlowListRef}
+                      style={styles.serviceFlowList}
+                      onLayout={syncServiceFlowDash}
+                    >
+                      {serviceFlowDash ? (
+                        <View
+                          style={[styles.serviceFlowDashLine, serviceFlowDash]}
+                          pointerEvents="none"
+                        >
+                          <Svg width={1} height={serviceFlowDash.height}>
+                            <Line
+                              x1={0.5}
+                              y1={0}
+                              x2={0.5}
+                              y2={serviceFlowDash.height}
+                              stroke="#6D925E"
+                              strokeWidth={1}
+                              strokeDasharray="3 3"
+                            />
+                          </Svg>
+                        </View>
+                      ) : null}
+                      {serviceFlow.map((item, index) => (
+                        <Flex
+                          key={item.key}
+                          align="start"
+                          style={[styles.serviceFlowItem, index > 0 ? { marginTop: 13 } : undefined]}
+                        >
+                          <View style={styles.serviceFlowIconCol}>
+                            <View
+                              ref={node => {
+                                serviceFlowIconRefs.current[index] = node;
+                              }}
+                              onLayout={syncServiceFlowDash}
+                              style={styles.serviceFlowIcon}
+                            >
+                              <Text style={styles.serviceFlowIconText}>{item.stepNo}</Text>
+                            </View>
                           </View>
-                          {index < serviceFlow.length - 1 ? <ServiceFlowDashLine /> : null}
-                        </View>
-                        <View style={styles.serviceFlowItem}>
-                          <Text style={styles.serviceFlowTitle}>{item.title}</Text>
-                          {item.subtitle ? (
-                            <Text style={styles.serviceFlowSubtitle}>{item.subtitle}</Text>
-                          ) : null}
-                        </View>
-                      </Flex>
-                    ))}
+                          <View style={styles.serviceFlowContent}>
+                            <Text style={styles.serviceFlowTitle}>{item.title}</Text>
+                            {item.subtitle ? (
+                              <Text style={styles.serviceFlowSubtitle}>{item.subtitle}</Text>
+                            ) : null}
+                          </View>
+                        </Flex>
+                      ))}
+                    </View>
                   </View>
                 </View>
               </>

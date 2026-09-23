@@ -110,27 +110,22 @@ export default function HealthPlanPage({ isActive = true }: Props) {
                         {subtitle}
                       </Text>
                     ) : null}
+                    <Flex align="center" style={styles.planItemBrandRow}>
+                      <Image
+                        style={styles.planItemBrandIcon}
+                        source={require('@/assets/images/exercise/fw.png')}
+                      />
+                      <Text style={styles.planItemBrandText}>
+                        {formatSpecialPlanSchemeName(item)}
+                      </Text>
+                    </Flex>
+                    <Flex
+                      style={styles.planItemCoachBtn}
+                      onPress={() => openCoachBooking(item.planId)}
+                    >
+                      <Text style={styles.planItemCoachBtnText}>查看详情</Text>
+                    </Flex>
                   </View>
-                </Flex>
-                <View style={styles.planItemDashWrap}>
-                  <View style={styles.planItemDash} />
-                </View>
-                <Flex justify="between" align="center">
-                  <Flex align="center">
-                    <Image
-                      style={styles.planItemBrandIcon}
-                      source={require('@/assets/images/exercise/fw.png')}
-                    />
-                    <Text style={styles.planItemBrandText}>
-                      {formatSpecialPlanSchemeName(item)}
-                    </Text>
-                  </Flex>
-                  <Flex
-                    style={styles.planItemCoachBtn}
-                    onPress={() => openCoachBooking(item.planId)}
-                  >
-                    <Text style={styles.planItemCoachBtnText}>查看详情</Text>
-                  </Flex>
                 </Flex>
               </View>
             );

@@ -198,6 +198,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#999999"
   },
+  planItemBrandRow: {
+    marginTop: 6,
+  },
   planItemBrandIcon: {
     width: 13,
     height: 13,
@@ -209,8 +212,10 @@ const styles = StyleSheet.create({
     color: '#6D925E',
   },
   planItemCoachBtn: {
+    alignSelf: 'flex-end',
+    marginTop: 9,
     paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 27,
     borderWidth: 1,
     borderColor: '#6D925E',
