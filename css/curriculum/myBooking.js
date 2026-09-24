@@ -67,7 +67,7 @@ const styles = StyleSheet.create({
   followCover: {
     width: 86,
     height: 86,
-    borderRadius: 8,
+    borderRadius: 50,
     flexShrink: 0,
   },
   followInfo: {
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   bookingCoachAvatar: {
     width: 64,
     height: 64,
-    borderRadius: 8,
+    borderRadius: 50,
     flexShrink: 0,
   },
   bookingCoachInfo: {

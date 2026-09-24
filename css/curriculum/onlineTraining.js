@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
   liveAvatar: {
     width: 86,
     height: 86,
-    borderRadius: 8,
+    borderRadius: 50,
     flexShrink: 0,
   },
   liveInfo: {
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   practiceCover: {
     width: 54,
     height: 54,
-    borderRadius: 8,
+    borderRadius: 50,
     flexShrink: 0,
   },
   practiceInfo: {

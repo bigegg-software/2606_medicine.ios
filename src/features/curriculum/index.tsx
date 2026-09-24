@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TabPageLayout } from '@/src/components/PageLayout';
@@ -9,6 +9,8 @@ import type { RootStackParamList } from '@/route/router';
 import PrivateTrainingPage from './components/PrivateTrainingPage';
 import GroupTrainingPage from './components/GroupTrainingPage';
 import OnlineTrainingPage from './components/OnlineTrainingPage';
+import ServiceStationHeader from './components/ServiceStationHeader';
+import type { SelectedServiceStation } from './utils/serviceStationHelpers';
 
 const PAGE_LIST = [
   { key: 'private', title: '私教训练' },
@@ -21,6 +23,7 @@ type CurriculumNavKey = (typeof PAGE_LIST)[number]['key'];
 export default function CurriculumPage() {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [activeNav, setActiveNav] = useState<CurriculumNavKey>('private');
+  const [stationId, setStationId] = useState('');
   const [mountedTabs, setMountedTabs] = useState<Partial<Record<CurriculumNavKey, boolean>>>({
     private: true,
   });
@@ -28,6 +31,10 @@ export default function CurriculumPage() {
   const onPressNav = useCallback((key: CurriculumNavKey) => {
     setActiveNav(key);
     setMountedTabs(prev => (prev[key] ? prev : { ...prev, [key]: true }));
+  }, []);
+
+  const onStationChange = useCallback((station: SelectedServiceStation | null) => {
+    setStationId(station?.stationId?.trim() || '');
   }, []);
 
   useFocusEffect(
@@ -38,15 +45,6 @@ export default function CurriculumPage() {
         headerTransparent: true,
         headerStyle: { backgroundColor: 'transparent' },
         headerTitle: () => null,
-        headerLeft: () => (
-          <Flex align="center" style={styles.headerLeft}>
-            <Image
-              style={styles.headerLeftIcon}
-              source={require('@/assets/images/curriculum/address.png')}
-            />
-            <Text style={styles.headerLeftText}>崇文门 Life Medicine</Text>
-          </Flex>
-        ),
         headerRight: () => null,
       });
     }, [navigation]),
@@ -54,6 +52,8 @@ export default function CurriculumPage() {
 
   return (
     <TabPageLayout style={styles.container}>
+      <ServiceStationHeader onStationChange={onStationChange} />
+
       <Flex style={styles.navBox}>
         {PAGE_LIST.map(page => (
           <Flex
@@ -75,17 +75,17 @@ export default function CurriculumPage() {
       <View style={styles.pageContent}>
         {mountedTabs.private ? (
           <View style={{ flex: 1, display: activeNav === 'private' ? 'flex' : 'none' }}>
-            <PrivateTrainingPage />
+            <PrivateTrainingPage stationId={stationId} />
           </View>
         ) : null}
         {mountedTabs.group ? (
           <View style={{ flex: 1, display: activeNav === 'group' ? 'flex' : 'none' }}>
-            <GroupTrainingPage />
+            <GroupTrainingPage stationId={stationId} />
           </View>
         ) : null}
         {mountedTabs.online ? (
           <View style={{ flex: 1, display: activeNav === 'online' ? 'flex' : 'none' }}>
-            <OnlineTrainingPage />
+            <OnlineTrainingPage stationId={stationId} />
           </View>
         ) : null}
       </View>

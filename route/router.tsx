@@ -64,6 +64,9 @@ import FoodRecordingPage from '@/src/features/nutrition/foodRecording';
 import DietHistoryPage from '@/src/features/nutrition/dietHistoryPage';
 import CoachBookingPage from '@/src/features/nutrition/coachBookingPage';
 import MyBookingPage from '@/src/features/curriculum/MyBookingPage';
+import OnlineCourseDetailPage from '@/src/features/curriculum/OnlineCourseDetailPage';
+import PrivateCourseDetailPage from '@/src/features/curriculum/PrivateCourseDetailPage';
+import GroupCourseDetailPage from '@/src/features/curriculum/GroupCourseDetailPage';
 
 
 // 用药记录
@@ -333,6 +336,9 @@ export type RootStackParamList = {
   DietHistoryPage: undefined;
   CoachBookingPage: { planId?: string } | undefined;
   MyBookingPage: undefined;
+  OnlineCourseDetail: { sessionId: string };
+  PrivateCourseDetail: { sessionId: string };
+  GroupCourseDetail: { sessionId: string };
   ManualCorrectionPage: {
     itemIndex: number;
     item: import('@/api/mealRecognition').FoodIdentifyItem;
@@ -627,6 +633,21 @@ export default function RootStack() {
         options={{ title: '', headerBackgroundColor: '#F7F7F9' }}
       />
       <Stack.Screen name="MyBookingPage" component={MyBookingPage} options={{ title: '我的预约' }} />
+      <Stack.Screen
+        name="OnlineCourseDetail"
+        component={OnlineCourseDetailPage}
+        options={{ title: ' ' }}
+      />
+      <Stack.Screen
+        name="PrivateCourseDetail"
+        component={PrivateCourseDetailPage}
+        options={{ title: '课程详情' }}
+      />
+      <Stack.Screen
+        name="GroupCourseDetail"
+        component={GroupCourseDetailPage}
+        options={{ title: '课程详情' }}
+      />
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="ManualCorrectionPage" component={ManualCorrectionPage} options={{ title: '手动更正', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />

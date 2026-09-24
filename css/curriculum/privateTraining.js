@@ -153,7 +153,7 @@ const styles = StyleSheet.create({
   coachAvatar: {
     width: 86,
     height: 86,
-    borderRadius: 8,
+    borderRadius: 50,
     flexShrink: 0,
   },
   coachInfo: {

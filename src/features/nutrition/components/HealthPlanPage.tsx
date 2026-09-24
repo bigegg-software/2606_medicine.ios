@@ -28,10 +28,15 @@ type Props = {
   patientUserId?: string;
   /** 营养页内部 tab 激活时刷新（常驻挂载时 useFocusEffect 不会触发） */
   isActive?: boolean;
+  /** 历史处方 id；在用处方不传 */
+  dietPatientRuleId?: string;
 };
 
 /** 专享健康计划：推荐专项计划列表 */
-export default function HealthPlanPage({ isActive = true }: Props) {
+export default function HealthPlanPage({
+  isActive = true,
+  dietPatientRuleId,
+}: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { width } = useWindowDimensions();
   const planItemStyle = [styles.planItem, { width: width - 24 }];
@@ -41,7 +46,10 @@ export default function HealthPlanPage({ isActive = true }: Props) {
   const loadPlans = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getSpecialPlanList();
+      const ruleId = dietPatientRuleId != null ? String(dietPatientRuleId).trim() : '';
+      const res = await getSpecialPlanList(
+        ruleId ? { dietPatientRuleId: ruleId } : undefined,
+      );
       if (!isResourceApiOk(res)) {
         setPlans([]);
         return;
@@ -53,7 +61,7 @@ export default function HealthPlanPage({ isActive = true }: Props) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [dietPatientRuleId]);
 
   useEffect(() => {
     if (!isActive) return;

@@ -198,7 +198,7 @@ export default function NutritionPage() {
       <View style={styles.topBox}>
         <Flex>
           <Image style={styles.topBoxImage} source={require('@/assets/images/nutrition/model.png')} />
-          <Text style={styles.topBoxText}>阜外 My Nutrition 模型</Text>
+          <Text style={styles.topBoxText}>生活方式医学中心联盟</Text>
         </Flex>
         <View style={styles.topNameBox}>
           <Flex style={{ marginTop: 7 }}>
@@ -281,6 +281,7 @@ export default function NutritionPage() {
                 dietRule={dietRule}
                 readOnly={readOnly}
                 patientUserId={patientUserId}
+                dietPatientRuleId={dietPatientRuleId || undefined}
                 isActive={activeNav === 'healthPlan'}
               />
             </View>

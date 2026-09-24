@@ -128,6 +128,7 @@ export default function CoachBookingPage() {
   const planName = plan?.planName?.trim() || '--';
   const planSubtitle = plan ? formatSpecialPlanSubtitle(plan) : '';
   const priceText = plan ? formatSpecialPlanPrice(plan.price) : '--';
+  const complianceDeclaration = plan?.complianceDeclaration?.trim() || '';
 
   useEffect(() => {
     if (!plan?.planName?.trim()) return;
@@ -308,16 +309,15 @@ export default function CoachBookingPage() {
               </>
             ) : null}
 
-            <Flex align="start" style={styles.planDisclaimer}>
-              <Image
-                style={styles.planDisclaimerIcon}
-                source={require('@/assets/images/exercise/fw.png')}
-              />
-              <Text style={styles.planDisclaimerText}>
-                医学评估 、诊断与医学处方由卓外医院健康管理中心完成; Life
-                Medicine提供处方执行、训练陪伴与阶段反馈服务。
-              </Text>
-            </Flex>
+            {complianceDeclaration ? (
+              <Flex align="start" style={styles.planDisclaimer}>
+                <Image
+                  style={styles.planDisclaimerIcon}
+                  source={require('@/assets/images/exercise/fw.png')}
+                />
+                <Text style={styles.planDisclaimerText}>{complianceDeclaration}</Text>
+              </Flex>
+            ) : null}
 
             <ImageBackground
               source={require('@/assets/images/schedule/calendarBack.png')}

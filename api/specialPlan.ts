@@ -23,6 +23,8 @@ export type SpecialPlanItem = {
   /** 多个标签用英文逗号分割 */
   planTags?: string;
   applicableCrowd?: string;
+  /** 合规声明 */
+  complianceDeclaration?: string;
   planIntro?: SpecialPlanIntro;
   serviceProcess?: SpecialPlanServiceStep[];
   /** 0.下架 1.上架 */
@@ -40,9 +42,14 @@ export type SpecialPlanInfoResult = ApiResult & {
   data?: SpecialPlanItem;
 };
 
-/** 推荐专项计划列表 */
-export const getSpecialPlanList = () =>
-  request.get<SpecialPlanListResult>('/patient/specialPlan/list');
+/** 推荐专项计划列表（历史处方可传 dietPatientRuleId；在用处方不传） */
+export const getSpecialPlanList = (params?: { dietPatientRuleId?: string }) => {
+  const dietPatientRuleId =
+    params?.dietPatientRuleId != null ? String(params.dietPatientRuleId).trim() : '';
+  return request.get<SpecialPlanListResult>('/patient/specialPlan/list', {
+    params: dietPatientRuleId ? { dietPatientRuleId } : undefined,
+  });
+};
 
 /** 专项计划详情（下架、已删除也返回） */
 export const getSpecialPlanInfo = (planId: string) =>
