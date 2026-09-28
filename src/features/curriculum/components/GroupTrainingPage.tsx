@@ -19,6 +19,9 @@ import { buildDietWeekDays } from '@/src/features/exercise/utils/dietCalendarHel
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
 import CoachFilterPicker, { type CoachFilterValue } from './CoachFilterPicker';
+import CourseCategoryFilterPicker, {
+  type CourseCategoryFilterValue,
+} from './CourseCategoryFilterPicker';
 import TimeSlotFilterPicker from './TimeSlotFilterPicker';
 import type { TimeSlotValue } from '../utils/timeSlotHelpers';
 import {
@@ -41,6 +44,9 @@ export default function GroupTrainingPage({ stationId }: Props) {
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<CoachFilterValue | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<CourseCategoryFilterValue | null>(
+    null,
+  );
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<TimeSlotValue | null>(null);
   const [sessions, setSessions] = useState<GroupSessionCardView[]>([]);
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
@@ -49,10 +55,13 @@ export default function GroupTrainingPage({ stationId }: Props) {
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
 
   const coachFilterLabel = selectedCoach?.coachRealName?.trim() || '全部老师';
+  const categoryFilterLabel =
+    selectedCategory?.courseCategoryLabel?.trim() || '全部课程';
   const timeSlotFilterLabel = selectedTimeSlot?.label?.trim() || '全部时段';
 
   useEffect(() => {
     setSelectedCoach(null);
+    setSelectedCategory(null);
     setSelectedTimeSlot(null);
   }, [stationId]);
 
@@ -67,6 +76,7 @@ export default function GroupTrainingPage({ stationId }: Props) {
       const list = await fetchRecommendGroupSessions({
         stationId: id,
         coachUserId: selectedCoach?.coachUserId,
+        courseCategory: selectedCategory?.courseCategory,
         startDate: selectedDate,
         endDate: selectedDate,
         startTime: selectedTimeSlot?.startTime,
@@ -79,6 +89,7 @@ export default function GroupTrainingPage({ stationId }: Props) {
       setLoading(false);
     }
   }, [
+    selectedCategory?.courseCategory,
     selectedCoach?.coachUserId,
     selectedDate,
     selectedTimeSlot?.endTime,
@@ -112,6 +123,7 @@ export default function GroupTrainingPage({ stationId }: Props) {
         fetchRecommendGroupSessions({
           stationId: id,
           coachUserId: selectedCoach?.coachUserId,
+          courseCategory: selectedCategory?.courseCategory,
           startDate: selectedDate,
           endDate: selectedDate,
           startTime: selectedTimeSlot?.startTime,
@@ -125,6 +137,7 @@ export default function GroupTrainingPage({ stationId }: Props) {
       // 保持当前列表
     }
   }, [
+    selectedCategory?.courseCategory,
     selectedCoach?.coachUserId,
     selectedDate,
     selectedTimeSlot?.endTime,
@@ -247,15 +260,22 @@ export default function GroupTrainingPage({ stationId }: Props) {
 
         <Flex justify="between" align="center" style={styles.filterRow}>
           <Flex style={styles.filterChipRow}>
-            <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
-              <Flex align="center">
-                <Text style={styles.filterChipText}>我的课程</Text>
-                <Image
-                  style={styles.filterChipIcon}
-                  source={require('@/assets/images/curriculum/arrow_down.png')}
-                />
-              </Flex>
-            </TouchableOpacity>
+            <CourseCategoryFilterPicker
+              value={selectedCategory}
+              onChange={setSelectedCategory}
+            >
+              <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
+                <Flex align="center">
+                  <Text style={styles.filterChipText} numberOfLines={1}>
+                    {categoryFilterLabel}
+                  </Text>
+                  <Image
+                    style={styles.filterChipIcon}
+                    source={require('@/assets/images/curriculum/arrow_down.png')}
+                  />
+                </Flex>
+              </TouchableOpacity>
+            </CourseCategoryFilterPicker>
             <CoachFilterPicker
               stationId={stationId}
               courseType="group"

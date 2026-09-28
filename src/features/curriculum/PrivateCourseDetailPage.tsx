@@ -25,6 +25,7 @@ import {
   toSessionId,
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
+import AdjustTimeModal from './components/AdjustTimeModal';
 
 type Route = RouteProp<RootStackParamList, 'PrivateCourseDetail'>;
 
@@ -54,6 +55,7 @@ export default function PrivateCourseDetailPage() {
   const [detail, setDetail] = useState<OnlineCourseDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
+  const [adjustTimeVisible, setAdjustTimeVisible] = useState(false);
 
   const headerEnrollText = formatOnlineHeaderEnrollText(detail?.bookedCount, detail?.capacity);
 
@@ -191,9 +193,15 @@ export default function PrivateCourseDetailPage() {
   const avatarSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_AVATAR;
   const showReserveAction = detail.status !== 5 && detail.status !== 6;
   const introText = detail.introText.trim() || '';
+  const adjustInitialStartTime = detail.timeText.split('-')[0]?.trim() || '';
 
   return (
     <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
+      <AdjustTimeModal
+        visible={adjustTimeVisible}
+        onClose={() => setAdjustTimeVisible(false)}
+        initialStartTime={adjustInitialStartTime}
+      />
       <View style={styles.pageBody}>
         <ScrollView
           style={styles.scrollFlex}
@@ -273,30 +281,41 @@ export default function PrivateCourseDetailPage() {
 
         <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
           {showReserveAction ? (
-            <TouchableOpacity
-              style={[
-                styles.btn,
-                detail.bookedByMe && styles.btnCancel,
-                actionLoading && styles.btnDisabled,
-              ]}
-              activeOpacity={0.7}
-              disabled={actionLoading}
-              onPress={() => {
-                if (detail.bookedByMe) {
-                  handleCancel();
-                } else {
-                  handleBook();
-                }
-              }}
-            >
-              {actionLoading ? (
-                <ActivityIndicator color={detail.bookedByMe ? '#6D925E' : '#FFFFFF'} />
-              ) : (
-                <Text style={[styles.btnText, detail.bookedByMe && styles.btnCancelText]}>
-                  {detail.bookedByMe ? '取消预约' : '立即预约'}
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={styles.bottomBtnRow}>
+              <TouchableOpacity
+                style={[
+                  styles.btn,
+                  styles.btnFlex,
+                  detail.bookedByMe && styles.btnCancel,
+                  actionLoading && styles.btnDisabled,
+                ]}
+                activeOpacity={0.7}
+                disabled={actionLoading}
+                onPress={() => {
+                  if (detail.bookedByMe) {
+                    handleCancel();
+                  } else {
+                    handleBook();
+                  }
+                }}
+              >
+                {actionLoading ? (
+                  <ActivityIndicator color={detail.bookedByMe ? '#6D925E' : '#FFFFFF'} />
+                ) : (
+                  <Text style={[styles.btnText, detail.bookedByMe && styles.btnCancelText]}>
+                    {detail.bookedByMe ? '取消预约' : '立即预约'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.btn, styles.btnFlex, actionLoading && styles.btnDisabled]}
+                activeOpacity={0.7}
+                disabled={actionLoading}
+                onPress={() => setAdjustTimeVisible(true)}
+              >
+                <Text style={styles.btnText}>调整时间</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
             <View style={[styles.btn, styles.btnDisabled]}>
               <Text style={styles.btnText}>

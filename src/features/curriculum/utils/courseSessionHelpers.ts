@@ -16,6 +16,7 @@ const DEFAULT_PAGE_SIZE = 50;
 type SessionListQueryOptions = {
   stationId?: string;
   coachUserId?: string;
+  courseCategory?: string;
   startDate?: string;
   endDate?: string;
   startTime?: string;
@@ -37,6 +38,7 @@ async function fetchCourseSessionRows(
     pageNum: options.pageNum ?? 1,
     pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
     ...(options.coachUserId ? { coachUserId: options.coachUserId } : {}),
+    ...(options.courseCategory ? { courseCategory: options.courseCategory } : {}),
     ...(options.startDate ? { startDate: options.startDate } : {}),
     ...(options.endDate ? { endDate: options.endDate } : {}),
     ...(options.startTime ? { startTime: options.startTime } : {}),

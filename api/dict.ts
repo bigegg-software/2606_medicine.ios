@@ -33,6 +33,8 @@ export const DICT_TYPES = {
   /** 运动部位 */
   exerciseBodyPart: 'exercise_body_part',
   courseType: 'course_type',
+  /** 课程分类 */
+  courseCategory: 'course_category',
   liveType: 'live_type',
   livePlatform: 'live_platform',
   activityType: 'activity_type',

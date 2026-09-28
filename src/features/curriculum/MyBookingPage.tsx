@@ -15,6 +15,10 @@ import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/myBooking';
 import type { RootStackParamList } from '@/route/router';
+import CourseTypeFilterPicker, {
+  courseTypeFilterLabel,
+  type CourseTypeFilterValue,
+} from './components/CourseTypeFilterPicker';
 import {
   fetchCompletedBookings,
   fetchMyBookingUpcomingBundle,
@@ -45,6 +49,8 @@ export default function MyBookingPage() {
   const [followList, setFollowList] = useState<MyBookingFollowCardView[]>([]);
   const [recentCompleted, setRecentCompleted] = useState<MyBookingCompletedCardView[]>([]);
   const [completedList, setCompletedList] = useState<MyBookingCompletedCardView[]>([]);
+  const [completedTotal, setCompletedTotal] = useState(0);
+  const [completedCourseType, setCompletedCourseType] = useState<CourseTypeFilterValue>('');
 
   const openDetail = useCallback(
     (sessionId: string, courseType: string) => {
@@ -71,12 +77,16 @@ export default function MyBookingPage() {
 
   const loadCompleted = useCallback(async () => {
     try {
-      const rows = await fetchCompletedBookings();
-      setCompletedList(rows);
+      const data = await fetchCompletedBookings({
+        courseType: completedCourseType || undefined,
+      });
+      setCompletedList(data.rows);
+      setCompletedTotal(data.total);
     } catch {
       setCompletedList([]);
+      setCompletedTotal(0);
     }
-  }, []);
+  }, [completedCourseType]);
 
   useFocusEffect(
     useCallback(() => {
@@ -298,46 +308,74 @@ export default function MyBookingPage() {
               <EmptyRecord text="暂无即将开始的预约" />
             </View>
           )
-        ) : hasCompleted ? (
-          <View style={styles.contentBox}>
-            <Text style={[styles.weekOnlineTitle, { marginTop: 16 }]}>最近完成</Text>
-            {completedList.map(item => (
-              <TouchableOpacity
-                key={item.key}
-                activeOpacity={0.7}
-                onPress={() => {
-                  if (item.sessionId) openDetail(item.sessionId, item.courseType);
-                }}
-              >
-                <Flex justify="between" align="start" style={styles.completedCard}>
-                  <Image
-                    style={styles.completedDateIcon}
-                    source={require('@/assets/images/common/wc.png')}
-                  />
-                  <View style={styles.completedInfo}>
-                    <Text style={styles.completedDate}>{item.dateText}</Text>
-                    <Text style={styles.completedTitle} numberOfLines={1}>
-                      {item.title}
-                    </Text>
-                  </View>
-                  <View style={styles.completedStatusTag}>
-                    <Text style={styles.completedStatusText}>{item.statusLabel}</Text>
-                  </View>
-                </Flex>
-              </TouchableOpacity>
-            ))}
-          </View>
         ) : (
-          <View style={styles.emptyWrap}>
-            <EmptyRecord text="暂无已完成的预约" />
+          <View style={styles.contentBox}>
+            <Flex justify="between" align="center" style={styles.doneToolbar}>
+              <CourseTypeFilterPicker
+                value={completedCourseType}
+                onChange={setCompletedCourseType}
+              >
+                <TouchableOpacity activeOpacity={0.7} style={styles.doneFilterChip}>
+                  <Flex align="center">
+                    <Text style={styles.doneFilterChipText}>
+                      {courseTypeFilterLabel(completedCourseType)}
+                    </Text>
+                    <Image
+                      style={styles.doneFilterChipIcon}
+                      source={require('@/assets/images/curriculum/arrow_down.png')}
+                    />
+                  </Flex>
+                </TouchableOpacity>
+              </CourseTypeFilterPicker>
+              <Text style={styles.doneSummaryText}>已完成训练 {completedTotal} 课时</Text>
+            </Flex>
+
+            {hasCompleted ? (
+              completedList.map(item => (
+                <TouchableOpacity
+                  key={item.key}
+                  activeOpacity={0.7}
+                  style={styles.doneCard}
+                  onPress={() => {
+                    if (item.sessionId) openDetail(item.sessionId, item.courseType);
+                  }}
+                >
+                  <Flex align="start">
+                    <Image
+                      style={styles.doneCheckIcon}
+                      source={require('@/assets/images/common/wc.png')}
+                    />
+                    <Image
+                      style={styles.doneCover}
+                      source={item.coverUri ? { uri: item.coverUri } : DEFAULT_COVER}
+                    />
+                    <View style={styles.doneInfo}>
+                      <Text style={styles.doneDate}>{item.dateText}</Text>
+                      <Text style={styles.doneTitle} numberOfLines={2}>
+                        {item.title}
+                      </Text>
+                    </View>
+                    <View style={styles.completedStatusTag}>
+                      <Text style={styles.completedStatusText}>{item.statusLabel}</Text>
+                    </View>
+                  </Flex>
+                </TouchableOpacity>
+              ))
+            ) : (
+              <View style={styles.emptyWrap}>
+                <EmptyRecord text="暂无已完成的预约" />
+              </View>
+            )}
           </View>
         )}
 
-        <Flex justify="center" align="center" style={styles.planListFooter}>
-          <View style={styles.planListFooterLine} />
-          <Text style={styles.planListFooterText}>日复一日的规律，是身体最好的滋养</Text>
-          <View style={styles.planListFooterLine} />
-        </Flex>
+        {activeTab !== 'completed' ? (
+          <Flex justify="center" align="center" style={styles.planListFooter}>
+            <View style={styles.planListFooterLine} />
+            <Text style={styles.planListFooterText}>日复一日的规律，是身体最好的滋养</Text>
+            <View style={styles.planListFooterLine} />
+          </Flex>
+        ) : null}
       </ScrollView>
     </PageLayout>
   );

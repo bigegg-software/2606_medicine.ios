@@ -197,6 +197,12 @@ export type MyBookingFollowCardView = {
   coverUri?: string;
 };
 
+function courseTypeShortLabel(courseType: string) {
+  if (courseType === 'group') return '集体';
+  if (courseType === 'online') return '线上';
+  return '私教';
+}
+
 export type MyBookingCompletedCardView = {
   key: string;
   bookingId: string;
@@ -204,8 +210,31 @@ export type MyBookingCompletedCardView = {
   courseType: string;
   statusLabel: string;
   dateText: string;
+  /** 康复普拉提 · 私教 · 李教练 */
   title: string;
+  coverUri?: string;
 };
+
+export function mapCompletedBookingCard(
+  item: CourseSessionBookingItem,
+): MyBookingCompletedCardView | null {
+  const bookingId = resolveBookingId(item);
+  const sessionId = resolveSessionId(item);
+  if (!bookingId) return null;
+  const courseType = String(resolveCourseType(item) || 'private');
+  const coach = resolveCoachName(item);
+  const courseName = resolveCourseName(item);
+  return {
+    key: bookingId,
+    bookingId,
+    sessionId,
+    courseType,
+    statusLabel: bookingStatusLabel(item.status ?? 3),
+    dateText: formatCompletedDateText(item),
+    title: `${courseName} · ${courseTypeShortLabel(courseType)} · ${coach}`,
+    coverUri: resolveCoverUri(item),
+  };
+}
 
 export function mapNextBookingCard(
   item: CourseSessionBookingItem | null | undefined,
@@ -250,26 +279,6 @@ export function mapFollowBookingCard(
   };
 }
 
-export function mapCompletedBookingCard(
-  item: CourseSessionBookingItem,
-): MyBookingCompletedCardView | null {
-  const bookingId = resolveBookingId(item);
-  const sessionId = resolveSessionId(item);
-  if (!bookingId) return null;
-  const courseType = String(resolveCourseType(item) || 'private');
-  const coach = resolveCoachName(item);
-  const courseName = resolveCourseName(item);
-  return {
-    key: bookingId,
-    bookingId,
-    sessionId,
-    courseType,
-    statusLabel: bookingStatusLabel(item.status ?? 3),
-    dateText: formatCompletedDateText(item),
-    title: `${courseName} · ${coach}`,
-  };
-}
-
 /** 下一次待上课预约（不限课程类型） */
 export async function fetchMyBookingNext(): Promise<MyBookingNextCardView | null> {
   const res = await getMyBookingNext({
@@ -304,19 +313,25 @@ export async function fetchUpcomingBookings(options?: {
 
 /** 已完成预约（已核销） */
 export async function fetchCompletedBookings(options?: {
+  courseType?: string;
   pageNum?: number;
   pageSize?: number;
-}): Promise<MyBookingCompletedCardView[]> {
+}): Promise<{ rows: MyBookingCompletedCardView[]; total: number }> {
+  const courseType = options?.courseType?.trim() || '';
   const res = await getMyBookingPage({
     status: 3,
     sessionDateOrder: 'desc',
     startTimeOrder: 'desc',
     pageNum: options?.pageNum ?? 1,
     pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
+    ...(courseType ? { courseType } : {}),
   });
-  return getResourceRows<CourseSessionBookingItem>(res)
+  const rows = getResourceRows<CourseSessionBookingItem>(res)
     .map(mapCompletedBookingCard)
     .filter((row): row is MyBookingCompletedCardView => row != null);
+  const total =
+    isResourceApiOk(res) && typeof res.total === 'number' ? res.total : rows.length;
+  return { rows, total };
 }
 
 /** 即将开始页数据：下一次 + 后续安排 + 最近完成 */
@@ -326,11 +341,11 @@ export async function fetchMyBookingUpcomingBundle(): Promise<{
   recentCompleted: MyBookingCompletedCardView[];
 }> {
   const next = await fetchMyBookingNext();
-  const [followList, recentCompleted] = await Promise.all([
+  const [followList, completed] = await Promise.all([
     fetchUpcomingBookings({
       excludeBookingIds: next?.bookingId,
     }),
     fetchCompletedBookings({ pageSize: RECENT_COMPLETED_SIZE }),
   ]);
-  return { next, followList, recentCompleted };
+  return { next, followList, recentCompleted: completed.rows };
 }

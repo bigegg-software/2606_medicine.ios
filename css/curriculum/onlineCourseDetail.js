@@ -342,12 +342,19 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  bottomBtnRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   btn: {
     height: 48,
     borderRadius: 12,
     backgroundColor: '#6D925E',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  btnFlex: {
+    flex: 1,
   },
   btnCancel: {
     backgroundColor: '#FFFFFF',
