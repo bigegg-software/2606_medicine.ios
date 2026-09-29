@@ -17,6 +17,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333333',
   },
+  headerScanBtn: {
+    marginRight: 18,
+  },
+  headerScanIcon: {
+    width: 26,
+    height: 26,
+  },
   navBox: {
     marginHorizontal: 12,
     marginTop: 11,

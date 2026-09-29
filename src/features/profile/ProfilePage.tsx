@@ -77,12 +77,12 @@ const navList = [
   {
     img: require('@/assets/images/user/img6.png'),
     label: '运动处方',
-    route: 'ExercisePage' as const,
+    route: 'ScheduleHistoryPage' as const,
   },
   {
     img: require('@/assets/images/user/img5.png'),
     label: '营养处方',
-    route: 'NutritionPage' as const,
+    route: 'NutritionHistoryPage' as const,
   },
   {
     img: require('@/assets/images/user/img4.png'),
@@ -96,14 +96,14 @@ const navList = [
     route: 'RecordPointsPage' as const,
   },
   {
-    img: require('@/assets/images/user/img8.png'),
-    label: '我的收藏',
-    route: 'FavoritePage' as const,
-  },
-  {
     img: require('@/assets/images/user/img9.png'),
     label: '消息通知',
     route: 'MessagePage' as const,
+  },
+  {
+    img: require('@/assets/images/user/img10.png'),
+    label: '会员权益',
+    route: 'MemberBenefitsPage' as const,
   },
 ];
 
@@ -441,7 +441,7 @@ export default function ProfilePage() {
           style={[styles.bgImg, { marginTop: 20 }]}>
           <Flex align="start" style={styles.diamondsBox}>
             <View style={{ flex: 1 }}>
-              <Flex justify='between'>
+              <Flex justify="between">
                 <Flex>
                   <Image style={styles.diamondsImg} source={require('@/assets/images/user/diamonds.png')} />
                   <Text style={styles.diamondsTitle}>积分商城</Text>
@@ -454,7 +454,11 @@ export default function ProfilePage() {
                     <Text style={styles.diamondsSignInText}>
                       {buildSignButtonLabel(10, signedToday)}
                     </Text>
-                    <Image style={styles.diamondsSignInImg} tintColor={"#804A15"} source={require('@/assets/images/user/img1.png')} />
+                    <Image
+                      style={styles.diamondsSignInImg}
+                      tintColor="#804A15"
+                      source={require('@/assets/images/user/img1.png')}
+                    />
                   </Flex>
                 </TouchableOpacity>
               </Flex>
@@ -756,7 +760,7 @@ export default function ProfilePage() {
               </Text>
             </Flex>
             {/* {paidStatus.dateRangeText ? ( */}
-              <Text style={styles.qyStatusTime}>{paidStatus.dateRangeText|| '如需签约请联系工作人员'}</Text>
+            <Text style={styles.qyStatusTime}>{paidStatus.dateRangeText || '如需签约请联系工作人员'}</Text>
             {/* ) : null} */}
           </View>
         </ImageBackground>

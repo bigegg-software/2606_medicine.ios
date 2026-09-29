@@ -7,7 +7,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
-import { Flex, Modal, Toast } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
@@ -20,6 +20,17 @@ import { AppTheme } from '@/common/theme';
 import CoachFilterPicker, { type CoachFilterValue } from './CoachFilterPicker';
 import TimeSlotFilterPicker from './TimeSlotFilterPicker';
 import type { TimeSlotValue } from '../utils/timeSlotHelpers';
+import { resolveSessionAction } from '../utils/sessionActionHelpers';
+import {
+  showBookConfirmAlert,
+  showCancelConfirmAlert,
+  showInsufficientBenefitAlert,
+} from '../utils/bookingDialogHelpers';
+import {
+  fetchCourseSessionDateHasMapByYear,
+  fetchCourseSessionDateHasSet,
+  resolveWeekDateRange,
+} from '../utils/dateHasHelpers';
 import {
   bookPrivateSession,
   cancelPrivateBooking,
@@ -34,6 +45,24 @@ type Props = {
   stationId?: string;
 };
 
+function getCoachActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
+  switch (tone) {
+    case 'booked':
+      return { btn: styles.coachBookBtnBooked, text: styles.coachBookBtnBookedText };
+    case 'deadline':
+      return { btn: styles.coachBookBtnDeadline, text: styles.coachBookBtnDeadlineText };
+    case 'ongoing':
+      return { btn: styles.coachBookBtnOngoing, text: styles.coachBookBtnOngoingText };
+    case 'ended':
+      return { btn: styles.coachBookBtnEnded, text: styles.coachBookBtnEndedText };
+    case 'full':
+      return { btn: styles.coachBookBtnFull, text: styles.coachBookBtnFullText };
+    case 'book':
+    default:
+      return { btn: null, text: null };
+  }
+}
+
 /** 私教训练 */
 export default function PrivateTrainingPage({ stationId }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -45,7 +74,22 @@ export default function PrivateTrainingPage({ stationId }: Props) {
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
+  const [dateHasSet, setDateHasSet] = useState<Set<string>>(() => new Set());
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
+  const weekRange = useMemo(() => resolveWeekDateRange(selectedDate), [selectedDate]);
+
+  const sessionDayRecordMarker = useMemo(
+    () => ({
+      color: '#6D925E',
+      loadByYear: (year: number) =>
+        fetchCourseSessionDateHasMapByYear({
+          year,
+          courseType: 'private',
+          stationId,
+        }),
+    }),
+    [stationId],
+  );
 
   const coachFilterLabel = selectedCoach?.coachRealName?.trim() || '全部老师';
   const timeSlotFilterLabel = selectedTimeSlot?.label?.trim() || '全部时段';
@@ -99,6 +143,20 @@ export default function PrivateTrainingPage({ stationId }: Props) {
     }
   }, [stationId]);
 
+  const loadDateHas = useCallback(async () => {
+    try {
+      const set = await fetchCourseSessionDateHasSet({
+        courseType: 'private',
+        startDate: weekRange.startDate,
+        endDate: weekRange.endDate,
+        stationId,
+      });
+      setDateHasSet(set);
+    } catch {
+      setDateHasSet(new Set());
+    }
+  }, [stationId, weekRange.endDate, weekRange.startDate]);
+
   const refreshAfterBookingChange = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
     if (!id) {
@@ -120,10 +178,12 @@ export default function PrivateTrainingPage({ stationId }: Props) {
       ]);
       setSessions(list);
       setNextBooking(next);
+      void loadDateHas();
     } catch {
       // 保持当前列表，避免预约成功后闪空
     }
   }, [
+    loadDateHas,
     selectedCoach?.coachUserId,
     selectedDate,
     selectedTimeSlot?.endTime,
@@ -134,28 +194,34 @@ export default function PrivateTrainingPage({ stationId }: Props) {
   const handleBook = useCallback(
     (card: PrivateSessionCardView) => {
       if (actionSessionId) return;
-      Modal.alert('确认预约', '预约将冻结 1 次权益，是否继续？', [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确认预约',
-          onPress: () => {
-            void (async () => {
-              setActionSessionId(card.sessionId);
-              try {
-                const result = await bookPrivateSession(card.sessionId);
-                if (!result.ok) {
-                  Toast.show(result.msg || '预约失败', 1.5);
+      showBookConfirmAlert({
+        info: card.bookingInfo,
+        courseType: 'private',
+        onConfirm: () => {
+          void (async () => {
+            setActionSessionId(card.sessionId);
+            try {
+              const result = await bookPrivateSession(card.sessionId);
+              if (!result.ok) {
+                if (result.insufficientBenefit) {
+                  showInsufficientBenefitAlert({
+                    courseType: 'private',
+                    remainCount: result.remainCount ?? 0,
+                    needCount: result.needCount ?? 1,
+                  });
                   return;
                 }
-                Toast.show('预约成功', 1.5);
-                await refreshAfterBookingChange();
-              } finally {
-                setActionSessionId(null);
+                Toast.show(result.msg || '预约失败', 1.5);
+                return;
               }
-            })();
-          },
+              Toast.show('预约成功', 1.5);
+              await refreshAfterBookingChange();
+            } finally {
+              setActionSessionId(null);
+            }
+          })();
         },
-      ]);
+      });
     },
     [actionSessionId, refreshAfterBookingChange],
   );
@@ -168,28 +234,26 @@ export default function PrivateTrainingPage({ stationId }: Props) {
         Toast.show('请到我的预约中取消', 1.5);
         return;
       }
-      Modal.alert('取消预约', '开课前 24 小时可取消并释放权益，确认取消？', [
-        { text: '再想想', style: 'cancel' },
-        {
-          text: '确认取消',
-          onPress: () => {
-            void (async () => {
-              setActionSessionId(card.sessionId);
-              try {
-                const result = await cancelPrivateBooking(bookingId);
-                if (!result.ok) {
-                  Toast.show(result.msg || '取消失败', 1.5);
-                  return;
-                }
-                Toast.show('已取消预约', 1.5);
-                await refreshAfterBookingChange();
-              } finally {
-                setActionSessionId(null);
+      showCancelConfirmAlert({
+        info: card.bookingInfo,
+        courseType: 'private',
+        onConfirm: () => {
+          void (async () => {
+            setActionSessionId(card.sessionId);
+            try {
+              const result = await cancelPrivateBooking(bookingId);
+              if (!result.ok) {
+                Toast.show(result.msg || '取消失败', 1.5);
+                return;
               }
-            })();
-          },
+              Toast.show('已取消预约', 1.5);
+              await refreshAfterBookingChange();
+            } finally {
+              setActionSessionId(null);
+            }
+          })();
         },
-      ]);
+      });
     },
     [actionSessionId, nextBooking, refreshAfterBookingChange],
   );
@@ -202,6 +266,10 @@ export default function PrivateTrainingPage({ stationId }: Props) {
     void loadNextBooking();
   }, [loadNextBooking]);
 
+  useEffect(() => {
+    void loadDateHas();
+  }, [loadDateHas]);
+
   return (
     <View style={styles.tabPage}>
       <DietDatePickerModal
@@ -209,11 +277,13 @@ export default function PrivateTrainingPage({ stationId }: Props) {
         selectedDate={selectedDate}
         onClose={() => setDatePickerVisible(false)}
         onSelect={setSelectedDate}
+        dayRecordMarker={sessionDayRecordMarker}
       />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Flex justify="between" style={styles.calendarBox}>
           {weekDays.map(item => {
             const isActive = item.key === selectedDate;
+            const hasSession = dateHasSet.has(item.key);
             return (
               <TouchableOpacity
                 key={item.key}
@@ -227,7 +297,9 @@ export default function PrivateTrainingPage({ stationId }: Props) {
                 <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
                   {item.day}
                 </Text>
-                <View style={styles.calendarDotWrap} />
+                <View style={styles.calendarDotWrap}>
+                  {hasSession ? <View style={styles.calendarDot} /> : null}
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -305,80 +377,85 @@ export default function PrivateTrainingPage({ stationId }: Props) {
             <EmptyRecord text="暂无私教课" />
           </View>
         ) : (
-          sessions.map((card, index) => (
-            <TouchableOpacity
-              key={card.key}
-              activeOpacity={0.85}
-              style={[styles.coachCard, index === 0 ? styles.coachCardFirst : styles.coachCardRest]}
-              onPress={() =>
-                navigation.navigate('PrivateCourseDetail', {
-                  sessionId: card.sessionId,
-                })
-              }
-            >
-              <Flex align="start">
-                <Image
-                  style={styles.coachAvatar}
-                  source={
-                    card.avatarUri
-                      ? { uri: card.avatarUri }
-                      : require('@/assets/images/curriculum/ljl.png')
-                  }
-                />
-                <View style={styles.coachInfo}>
-                  <Flex align="center" style={styles.coachNameRow}>
-                    <Text style={styles.coachName}>{card.name}</Text>
-                    <View style={styles.coachTag}>
-                      <Text style={styles.coachTagText}>{card.tag}</Text>
-                    </View>
-                  </Flex>
-                  <Text style={styles.coachDesc} numberOfLines={2}>
-                    {card.desc}
-                  </Text>
-                  <Flex align="center" style={styles.coachBenefitRow}>
-                    <Image
-                      style={styles.coachBenefitIcon}
-                      source={require('@/assets/images/curriculum/qy.png')}
-                    />
-                    <Text style={styles.coachBenefitText}>{card.benefitText}</Text>
-                  </Flex>
-                </View>
-              </Flex>
-
-              <View style={styles.coachDashWrap}>
-                <View style={styles.coachDash} />
-              </View>
-
-              <Flex justify="between" align="center" style={styles.coachBottomRow}>
-                <View style={styles.coachSessionInfo}>
-                  <Text style={styles.coachTime}>{card.time}</Text>
-                  <Text style={styles.coachTopic} numberOfLines={1}>
-                    {card.topic}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  activeOpacity={0.7}
-                  style={styles.coachBookBtn}
-                  disabled={actionSessionId === card.sessionId}
-                  onPress={() => {
-                    if (card.bookedByMe) {
-                      handleCancel(card);
-                    } else {
-                      handleBook(card);
+          sessions.map((card, index) => {
+            const action = resolveSessionAction({
+              status: card.status,
+              bookedByMe: card.bookedByMe,
+            });
+            const actionStyles = getCoachActionStyles(action.tone);
+            const busy = actionSessionId === card.sessionId;
+            return (
+              <TouchableOpacity
+                key={card.key}
+                activeOpacity={0.85}
+                style={[styles.coachCard, index === 0 ? styles.coachCardFirst : styles.coachCardRest]}
+                onPress={() =>
+                  navigation.navigate('PrivateCourseDetail', {
+                    sessionId: card.sessionId,
+                  })
+                }
+              >
+                <Flex align="start">
+                  <Image
+                    style={styles.coachAvatar}
+                    source={
+                      card.avatarUri
+                        ? { uri: card.avatarUri }
+                        : require('@/assets/images/curriculum/ljl.png')
                     }
-                  }}
-                >
-                  <Text style={styles.coachBookBtnText}>
-                    {actionSessionId === card.sessionId
-                      ? '处理中...'
-                      : card.bookedByMe
-                        ? '取消预约'
-                        : '预约教练'}
-                  </Text>
-                </TouchableOpacity>
-              </Flex>
-            </TouchableOpacity>
-          ))
+                  />
+                  <View style={styles.coachInfo}>
+                    <Flex align="center" style={styles.coachNameRow}>
+                      <Text style={styles.coachName}>{card.name}</Text>
+                      <View style={styles.coachTag}>
+                        <Text style={styles.coachTagText}>{card.tag}</Text>
+                      </View>
+                    </Flex>
+                    <Text style={styles.coachDesc} numberOfLines={2}>
+                      {card.desc}
+                    </Text>
+                    <Flex align="center" style={styles.coachBenefitRow}>
+                      <Image
+                        style={styles.coachBenefitIcon}
+                        source={require('@/assets/images/curriculum/qy.png')}
+                      />
+                      <Text style={styles.coachBenefitText}>{card.benefitText}</Text>
+                    </Flex>
+                  </View>
+                </Flex>
+
+                <View style={styles.coachDashWrap}>
+                  <View style={styles.coachDash} />
+                </View>
+
+                <Flex justify="between" align="center" style={styles.coachBottomRow}>
+                  <View style={styles.coachSessionInfo}>
+                    <Text style={styles.coachTime}>{card.time}</Text>
+                    <Text style={styles.coachTopic} numberOfLines={1}>
+                      {card.topic}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    activeOpacity={0.7}
+                    style={[styles.coachBookBtn, actionStyles.btn]}
+                    disabled={busy || !action.pressable}
+                    onPress={() => {
+                      if (!action.pressable || busy) return;
+                      if (card.bookedByMe) {
+                        handleCancel(card);
+                      } else {
+                        handleBook(card);
+                      }
+                    }}
+                  >
+                    <Text style={[styles.coachBookBtnText, actionStyles.text]}>
+                      {busy ? '处理中...' : action.label}
+                    </Text>
+                  </TouchableOpacity>
+                </Flex>
+              </TouchableOpacity>
+            );
+          })
         )}
 
         {nextBooking ? (

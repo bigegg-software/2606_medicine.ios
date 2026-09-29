@@ -24,6 +24,7 @@ import {
   type ScheduleHistoryArchiveItem,
 } from './scheduleHelpers';
 import {
+  getHistoryPlanExecutionStatsParams,
   getHistoryPlanExerciseParams,
   getHistoryPlanPrescriptionParams,
 } from './utils/scheduleHistoryNavHelpers';
@@ -186,6 +187,12 @@ export default function ScheduleHistoryPage() {
                 }}
                 onPressPrescriptionDetail={() => {
                   navigation.navigate('ExercisePage', getHistoryPlanPrescriptionParams(item.id));
+                }}
+                onPressExecutionStats={() => {
+                  navigation.navigate(
+                    'ExerciseExecutionStatsPage',
+                    getHistoryPlanExecutionStatsParams(item.id),
+                  );
                 }}
               />
             ))

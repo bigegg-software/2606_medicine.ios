@@ -23,7 +23,11 @@ import {
   type ExMilestoneWeekStat,
 } from '@/api/exMilestone';
 import HistoryArchiveCard from './HistoryArchiveCard';
-import { getHistoryPlanExerciseParams } from './utils/scheduleHistoryNavHelpers';
+import {
+  getHistoryPlanExecutionStatsParams,
+  getHistoryPlanExerciseParams,
+  getHistoryPlanPrescriptionParams,
+} from './utils/scheduleHistoryNavHelpers';
 import {
   buildMilestoneWeekModuleRates,
   calcMilestoneWeekBarProgress,
@@ -835,6 +839,15 @@ export default function SchedulePage() {
                 item={item}
                 onPress={() => {
                   navigation.navigate('ExercisePage', getHistoryPlanExerciseParams(item.id));
+                }}
+                onPressPrescriptionDetail={() => {
+                  navigation.navigate('ExercisePage', getHistoryPlanPrescriptionParams(item.id));
+                }}
+                onPressExecutionStats={() => {
+                  navigation.navigate(
+                    'ExerciseExecutionStatsPage',
+                    getHistoryPlanExecutionStatsParams(item.id),
+                  );
                 }}
               />
             )) : (

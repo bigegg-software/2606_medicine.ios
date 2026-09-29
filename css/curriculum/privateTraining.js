@@ -60,6 +60,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  calendarDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: '#6D925E',
+  },
   calendarImage: {
     width: 22,
     height: 22,
@@ -236,12 +242,50 @@ const styles = StyleSheet.create({
     borderRadius: 27,
     borderWidth: 1,
     borderColor: '#6D925E',
+    backgroundColor: 'transparent',
     flexShrink: 0,
   },
   coachBookBtnText: {
     fontWeight: '500',
     fontSize: 13,
     color: '#6D925E',
+  },
+  coachBookBtnBooked: {
+    borderWidth: 0,
+    backgroundColor: 'rgba(109,146,94,0.2)',
+  },
+  coachBookBtnBookedText: {
+    color: '#6D925E',
+  },
+  coachBookBtnDeadline: {
+    borderWidth: 0,
+    backgroundColor: '#E4E5E7',
+  },
+  coachBookBtnDeadlineText: {
+    color: '#333333',
+  },
+  coachBookBtnOngoing: {
+    borderWidth: 0,
+    backgroundColor: '#6D925E',
+  },
+  coachBookBtnOngoingText: {
+    color: '#FFFFFF',
+  },
+  coachBookBtnEnded: {
+    borderWidth: 1,
+    borderColor: '#FB4550',
+    backgroundColor: '#FFFFFF',
+  },
+  coachBookBtnEndedText: {
+    color: '#FB4550',
+  },
+  coachBookBtnFull: {
+    borderWidth: 1,
+    borderColor: '#EE9C44',
+    backgroundColor: '#FFFFFF',
+  },
+  coachBookBtnFullText: {
+    color: '#EE9C44',
   },
   imgBackground: {
     marginTop: 19,

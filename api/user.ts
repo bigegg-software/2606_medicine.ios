@@ -43,12 +43,38 @@ export type SystemUser = {
   pcode?: string;
   deletedAccount?: number;
   tokens?: number;
+  /** 所属服务站id（sys_service_station.station_id） */
+  stationId?: number | string;
+  /** 所属服务站名称（关联查询填充） */
+  stationName?: string;
+  /** 所属教练用户id */
+  coachUserId?: number | string;
+  /** 所属教练姓名 */
+  coachUserRealName?: string;
   /** 是否付费 0.否 1.是 */
   isPaid?: number;
   /** 付费有效开始日期 yyyy-MM-dd */
   paidStartDate?: string;
   /** 付费有效结束日期 yyyy-MM-dd */
   paidEndDate?: string;
+  /** 权益生效日期 yyyy-MM-dd */
+  benefitStartDate?: string;
+  /** 权益截止日期 yyyy-MM-dd */
+  benefitEndDate?: string;
+  /** 私教总次数；-1 表示不限次数 */
+  privateCoachTotalCount?: number;
+  /** 私教每周上限；-1 表示不限次数 */
+  privateCoachWeeklyLimit?: number;
+  /** 团体课总次数；-1 表示不限次数 */
+  groupClassTotalCount?: number;
+  /** 团体课每周上限；-1 表示不限次数 */
+  groupClassWeeklyLimit?: number;
+  /** 线上课总次数；-1 表示不限次数 */
+  onlineClassTotalCount?: number;
+  /** 线上课每周上限；-1 表示不限次数 */
+  onlineClassWeeklyLimit?: number;
+  /** 权益备注（如计划名称、体验内容） */
+  benefitRemark?: string;
 };
 
 export type UserExtr = {

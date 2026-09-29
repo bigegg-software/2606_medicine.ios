@@ -20,6 +20,7 @@ import DietHistoryArchiveCard from './components/DietHistoryArchiveCard';
 import {
   DIET_HISTORY_FILTER_OPTIONS,
   fetchDietHistoryArchivePage,
+  getHistoryDietExecutionStatsParams,
   getHistoryDietNutritionParams,
   getHistoryDietPrescriptionParams,
   type DietHistoryArchiveItem,
@@ -181,6 +182,12 @@ export default function DietHistoryPage() {
               }}
               onPressPrescriptionDetail={() => {
                 navigation.navigate('NutritionPage', getHistoryDietPrescriptionParams(item.id));
+              }}
+              onPressExecutionStats={() => {
+                navigation.navigate(
+                  'NutritionExecutionStatsPage',
+                  getHistoryDietExecutionStatsParams(item.id),
+                );
               }}
             />
           ))

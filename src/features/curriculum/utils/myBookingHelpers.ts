@@ -11,13 +11,18 @@ const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周�
 const DEFAULT_PAGE_SIZE = 20;
 const RECENT_COMPLETED_SIZE = 3;
 
-/** 预约状态文案：1.已预约 2.已取消 3.已核销 4.已爽约 */
+/** 预约状态文案：1.已预约 2.已取消 3.已核销 4.已爽约/缺席 */
 export function bookingStatusLabel(status?: number) {
   if (status === 1) return '已预约';
   if (status === 2) return '已取消';
   if (status === 3) return '已完成';
-  if (status === 4) return '已爽约';
+  if (status === 4) return '缺席';
   return '已预约';
+}
+
+/** 是否缺席（已爽约） */
+export function isBookingAbsent(status?: number) {
+  return Number(status) === 4;
 }
 
 function formatHm(time?: string) {
@@ -81,6 +86,20 @@ function resolveStationName(item: CourseSessionBookingItem) {
     item.session?.template?.stationName?.trim() ||
     ''
   );
+}
+
+function resolveStationId(item: CourseSessionBookingItem) {
+  if (item.stationId != null && String(item.stationId).trim()) {
+    return String(item.stationId).trim();
+  }
+  const session = resolveSession(item);
+  if (session?.stationId != null && String(session.stationId).trim()) {
+    return String(session.stationId).trim();
+  }
+  if (session?.template?.stationId != null && String(session.template.stationId).trim()) {
+    return String(session.template.stationId).trim();
+  }
+  return '';
 }
 
 function resolveCoverUri(item: CourseSessionBookingItem) {
@@ -175,7 +194,12 @@ export type MyBookingNextCardView = {
   key: string;
   bookingId: string;
   sessionId: string;
+  stationId: string;
   courseType: string;
+  /** 上课日期 yyyy-MM-dd */
+  sessionDate: string;
+  /** 开课时间 HH:mm */
+  startTime: string;
   statusLabel: string;
   timeText: string;
   title: string;
@@ -208,7 +232,11 @@ export type MyBookingCompletedCardView = {
   bookingId: string;
   sessionId: string;
   courseType: string;
+  status: number;
   statusLabel: string;
+  /** 缺席（status=4） */
+  isAbsent: boolean;
+  sessionDate: string;
   dateText: string;
   /** 康复普拉提 · 私教 · 李教练 */
   title: string;
@@ -224,12 +252,16 @@ export function mapCompletedBookingCard(
   const courseType = String(resolveCourseType(item) || 'private');
   const coach = resolveCoachName(item);
   const courseName = resolveCourseName(item);
+  const status = Number(item.status ?? 3);
   return {
     key: bookingId,
     bookingId,
     sessionId,
     courseType,
-    statusLabel: bookingStatusLabel(item.status ?? 3),
+    status,
+    statusLabel: bookingStatusLabel(status),
+    isAbsent: isBookingAbsent(status),
+    sessionDate: resolveSessionDate(item),
     dateText: formatCompletedDateText(item),
     title: `${courseName} · ${courseTypeShortLabel(courseType)} · ${coach}`,
     coverUri: resolveCoverUri(item),
@@ -248,7 +280,10 @@ export function mapNextBookingCard(
     key: bookingId,
     bookingId,
     sessionId,
+    stationId: resolveStationId(item),
     courseType,
+    sessionDate: resolveSessionDate(item),
+    startTime: resolveStartTime(item),
     statusLabel: bookingStatusLabel(item.status),
     timeText: formatNextBookingTimeText(item),
     title: resolveCourseName(item),
@@ -311,19 +346,28 @@ export async function fetchUpcomingBookings(options?: {
     .filter((row): row is MyBookingFollowCardView => row != null);
 }
 
-/** 已完成预约（已核销） */
-export async function fetchCompletedBookings(options?: {
+function sortCompletedCards(rows: MyBookingCompletedCardView[]) {
+  return [...rows].sort((a, b) => {
+    const ta = moment(a.sessionDate, 'YYYY-MM-DD');
+    const tb = moment(b.sessionDate, 'YYYY-MM-DD');
+    if (ta.isValid() && tb.isValid()) return tb.valueOf() - ta.valueOf();
+    return String(b.sessionDate).localeCompare(String(a.sessionDate));
+  });
+}
+
+async function fetchCompletedBookingsByStatus(options: {
+  status: number;
   courseType?: string;
   pageNum?: number;
   pageSize?: number;
 }): Promise<{ rows: MyBookingCompletedCardView[]; total: number }> {
-  const courseType = options?.courseType?.trim() || '';
+  const courseType = options.courseType?.trim() || '';
   const res = await getMyBookingPage({
-    status: 3,
+    status: options.status,
     sessionDateOrder: 'desc',
     startTimeOrder: 'desc',
-    pageNum: options?.pageNum ?? 1,
-    pageSize: options?.pageSize ?? DEFAULT_PAGE_SIZE,
+    pageNum: options.pageNum ?? 1,
+    pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
     ...(courseType ? { courseType } : {}),
   });
   const rows = getResourceRows<CourseSessionBookingItem>(res)
@@ -332,6 +376,43 @@ export async function fetchCompletedBookings(options?: {
   const total =
     isResourceApiOk(res) && typeof res.total === 'number' ? res.total : rows.length;
   return { rows, total };
+}
+
+/**
+ * 已完成列表：默认含已核销(3)+缺席(4)；可按状态筛选
+ * status：'' | 3 | 4
+ */
+export async function fetchCompletedBookings(options?: {
+  courseType?: string;
+  /** 空=全部状态（已完成+缺席） */
+  status?: number | string;
+  pageNum?: number;
+  pageSize?: number;
+}): Promise<{ rows: MyBookingCompletedCardView[]; total: number }> {
+  const courseType = options?.courseType?.trim() || '';
+  const pageNum = options?.pageNum ?? 1;
+  const pageSize = options?.pageSize ?? DEFAULT_PAGE_SIZE;
+  const statusRaw = options?.status;
+  const statusNum =
+    statusRaw != null && String(statusRaw).trim() !== ''
+      ? Number(statusRaw)
+      : NaN;
+
+  if (statusNum === 3 || statusNum === 4) {
+    return fetchCompletedBookingsByStatus({
+      status: statusNum,
+      courseType,
+      pageNum,
+      pageSize,
+    });
+  }
+
+  const [done, absent] = await Promise.all([
+    fetchCompletedBookingsByStatus({ status: 3, courseType, pageNum, pageSize }),
+    fetchCompletedBookingsByStatus({ status: 4, courseType, pageNum, pageSize }),
+  ]);
+  const merged = sortCompletedCards([...done.rows, ...absent.rows]).slice(0, pageSize);
+  return { rows: merged, total: done.total + absent.total };
 }
 
 /** 即将开始页数据：下一次 + 后续安排 + 最近完成 */

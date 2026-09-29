@@ -62,11 +62,15 @@ import NutritionPage from '@/src/features/nutrition';
 import MealRecognizingPage from '@/src/features/nutrition/mealRecognizing';
 import FoodRecordingPage from '@/src/features/nutrition/foodRecording';
 import DietHistoryPage from '@/src/features/nutrition/dietHistoryPage';
+import NutritionHistoryPage from '@/src/features/nutrition/nutritionHistoryPage';
+import NutritionExecutionStatsPage from '@/src/features/nutrition/nutritionExecutionStatsPage';
+import ExerciseExecutionStatsPage from '@/src/features/exercise/exerciseExecutionStatsPage';
 import CoachBookingPage from '@/src/features/nutrition/coachBookingPage';
 import MyBookingPage from '@/src/features/curriculum/MyBookingPage';
 import OnlineCourseDetailPage from '@/src/features/curriculum/OnlineCourseDetailPage';
 import PrivateCourseDetailPage from '@/src/features/curriculum/PrivateCourseDetailPage';
 import GroupCourseDetailPage from '@/src/features/curriculum/GroupCourseDetailPage';
+import ScanCodePage from '@/src/features/curriculum/ScanCodePage';
 
 
 // 用药记录
@@ -137,6 +141,7 @@ import FeedbackPage from '@/src/features/feedback/index';
 
 // 积分记录
 import RecordPointsPage from '@/src/features/profile/recordPoints';
+import MemberBenefitsPage from '@/src/features/profile/MemberBenefitsPage';
 import FavoritePage from '@/src/features/profile/favorites';
 // 家人
 import MyFamily from '@/src/features/profile/myFamily';
@@ -230,6 +235,8 @@ export type RootStackParamList = {
   IdCardCameraPage: { side: 'front' | 'back' };
   MessagePage: undefined;
   FavoritePage: undefined;
+  MemberBenefitsPage: undefined;
+  RecordPointsPage: undefined;
   EquipmentListPage: undefined;
   EquipmentSearchPage: undefined;
   EquipmentDetailPage: {
@@ -332,10 +339,14 @@ export type RootStackParamList = {
   MealRecognizingPage:
   | { mode: 'text'; text: string; mealCategory?: number }
   | { mode: 'image'; imageUri: string; text?: string; mealCategory?: number };
-  FoodRecordingPage: undefined;
+  FoodRecordingPage: { dietPatientRuleId?: string } | undefined;
   DietHistoryPage: undefined;
+  NutritionHistoryPage: undefined;
+  NutritionExecutionStatsPage: { dietPatientRuleId: string };
+  ExerciseExecutionStatsPage: { exPatientRuleId: string };
   CoachBookingPage: { planId?: string } | undefined;
   MyBookingPage: undefined;
+  ScanCodePage: undefined;
   OnlineCourseDetail: { sessionId: string };
   PrivateCourseDetail: { sessionId: string };
   GroupCourseDetail: { sessionId: string };
@@ -628,11 +639,31 @@ export default function RootStack() {
       <Stack.Screen name="FoodRecordingPage" component={FoodRecordingPage} options={{ title: '饮食记录', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="DietHistoryPage" component={DietHistoryPage} options={{ title: '历史营养处方' }} />
       <Stack.Screen
+        name="NutritionHistoryPage"
+        component={NutritionHistoryPage}
+        options={{ title: '营养处方历史', showHeaderBackground: false }}
+      />
+      <Stack.Screen
+        name="NutritionExecutionStatsPage"
+        component={NutritionExecutionStatsPage}
+        options={{ title: '执行统计', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }}
+      />
+      <Stack.Screen
+        name="ExerciseExecutionStatsPage"
+        component={ExerciseExecutionStatsPage}
+        options={{ title: '执行统计', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }}
+      />
+      <Stack.Screen
         name="CoachBookingPage"
         component={CoachBookingPage}
         options={{ title: '', headerBackgroundColor: '#F7F7F9' }}
       />
       <Stack.Screen name="MyBookingPage" component={MyBookingPage} options={{ title: '我的预约' }} />
+      <Stack.Screen
+        name="ScanCodePage"
+        component={ScanCodePage}
+        options={{ title: '扫码', headerShown: false, statusBarStyle: 'light' }}
+      />
       <Stack.Screen
         name="OnlineCourseDetail"
         component={OnlineCourseDetailPage}
@@ -692,6 +723,7 @@ export default function RootStack() {
       <Stack.Screen name="MessagePage" component={MessagePage} options={{ title: "消息" }} />
       <Stack.Screen name="FavoritePage" component={FavoritePage} options={{ title: "我的收藏" }} />
       <Stack.Screen name="RecordPointsPage" component={RecordPointsPage} options={{ title: "积分记录" }} />
+      <Stack.Screen name="MemberBenefitsPage" component={MemberBenefitsPage} options={{ title: '会员权益' }} />
       <Stack.Screen name="EquipmentListPage" component={EquipmentListPage} options={{ title: "我的设备" }} />
       <Stack.Screen name="EquipmentSearchPage" component={EquipmentSearchPage} options={{ title: "搜索设备" }} />
       <Stack.Screen name="EquipmentDetailPage" component={EquipmentDetailPage} options={{ title: "设备详情" }} />

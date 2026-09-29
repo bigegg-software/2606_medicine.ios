@@ -8,13 +8,18 @@ import {
   ImageBackground,
   TouchableOpacity,
 } from 'react-native';
-import { Flex, Modal, Toast } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/curriculum/onlineTraining';
 import type { RootStackParamList } from '@/route/router';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
+import {
+  showBookConfirmAlert,
+  showCancelConfirmAlert,
+  showInsufficientBenefitAlert,
+} from '../utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
   cancelPrivateBooking,
@@ -90,28 +95,34 @@ export default function OnlineTrainingPage({ stationId }: Props) {
   const handleBook = useCallback(
     (card: OnlineSessionCardView) => {
       if (actionSessionId) return;
-      Modal.alert('确认预约', '预约将冻结 1 次权益，是否继续？', [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确认预约',
-          onPress: () => {
-            void (async () => {
-              setActionSessionId(card.sessionId);
-              try {
-                const result = await bookPrivateSession(card.sessionId);
-                if (!result.ok) {
-                  Toast.show(result.msg || '预约失败', 1.5);
+      showBookConfirmAlert({
+        info: card.bookingInfo,
+        courseType: 'online',
+        onConfirm: () => {
+          void (async () => {
+            setActionSessionId(card.sessionId);
+            try {
+              const result = await bookPrivateSession(card.sessionId);
+              if (!result.ok) {
+                if (result.insufficientBenefit) {
+                  showInsufficientBenefitAlert({
+                    courseType: 'online',
+                    remainCount: result.remainCount ?? 0,
+                    needCount: result.needCount ?? 1,
+                  });
                   return;
                 }
-                Toast.show('预约成功', 1.5);
-                await refreshAfterBookingChange();
-              } finally {
-                setActionSessionId(null);
+                Toast.show(result.msg || '预约失败', 1.5);
+                return;
               }
-            })();
-          },
+              Toast.show('预约成功', 1.5);
+              await refreshAfterBookingChange();
+            } finally {
+              setActionSessionId(null);
+            }
+          })();
         },
-      ]);
+      });
     },
     [actionSessionId, refreshAfterBookingChange],
   );
@@ -124,28 +135,26 @@ export default function OnlineTrainingPage({ stationId }: Props) {
         Toast.show('请到我的预约中取消', 1.5);
         return;
       }
-      Modal.alert('取消预约', '开课前 24 小时可取消并释放权益，确认取消？', [
-        { text: '再想想', style: 'cancel' },
-        {
-          text: '确认取消',
-          onPress: () => {
-            void (async () => {
-              setActionSessionId(card.sessionId);
-              try {
-                const result = await cancelPrivateBooking(bookingId);
-                if (!result.ok) {
-                  Toast.show(result.msg || '取消失败', 1.5);
-                  return;
-                }
-                Toast.show('已取消预约', 1.5);
-                await refreshAfterBookingChange();
-              } finally {
-                setActionSessionId(null);
+      showCancelConfirmAlert({
+        info: card.bookingInfo,
+        courseType: 'online',
+        onConfirm: () => {
+          void (async () => {
+            setActionSessionId(card.sessionId);
+            try {
+              const result = await cancelPrivateBooking(bookingId);
+              if (!result.ok) {
+                Toast.show(result.msg || '取消失败', 1.5);
+                return;
               }
-            })();
-          },
+              Toast.show('已取消预约', 1.5);
+              await refreshAfterBookingChange();
+            } finally {
+              setActionSessionId(null);
+            }
+          })();
         },
-      ]);
+      });
     },
     [actionSessionId, nextBooking, refreshAfterBookingChange],
   );

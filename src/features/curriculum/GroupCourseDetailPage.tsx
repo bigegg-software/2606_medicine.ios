@@ -10,13 +10,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Flex, Modal, Toast } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/onlineCourseDetail';
 import type { RootStackParamList } from '@/route/router';
+import {
+  bookingInfoFromDetail,
+  showBookConfirmAlert,
+  showCancelConfirmAlert,
+  showInsufficientBenefitAlert,
+} from './utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
   cancelPrivateBooking,
@@ -95,28 +101,34 @@ export default function GroupCourseDetailPage() {
 
   const handleBook = useCallback(() => {
     if (!detail || actionLoading) return;
-    Modal.alert('确认预约', '预约将冻结 1 次权益，是否继续？', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '确认预约',
-        onPress: () => {
-          void (async () => {
-            setActionLoading(true);
-            try {
-              const result = await bookPrivateSession(detail.sessionId);
-              if (!result.ok) {
-                Toast.show(result.msg || '预约失败', 1.5);
+    showBookConfirmAlert({
+      info: bookingInfoFromDetail(detail),
+      courseType: 'group',
+      onConfirm: () => {
+        void (async () => {
+          setActionLoading(true);
+          try {
+            const result = await bookPrivateSession(detail.sessionId);
+            if (!result.ok) {
+              if (result.insufficientBenefit) {
+                showInsufficientBenefitAlert({
+                  courseType: 'group',
+                  remainCount: result.remainCount ?? 0,
+                  needCount: result.needCount ?? 1,
+                });
                 return;
               }
-              Toast.show('预约成功', 1.5);
-              await loadDetail();
-            } finally {
-              setActionLoading(false);
+              Toast.show(result.msg || '预约失败', 1.5);
+              return;
             }
-          })();
-        },
+            Toast.show('预约成功', 1.5);
+            await loadDetail();
+          } finally {
+            setActionLoading(false);
+          }
+        })();
       },
-    ]);
+    });
   }, [actionLoading, detail, loadDetail]);
 
   const handleCancel = useCallback(() => {
@@ -126,28 +138,26 @@ export default function GroupCourseDetailPage() {
       Toast.show('请到我的预约中取消', 1.5);
       return;
     }
-    Modal.alert('取消预约', '开课前 24 小时可取消并释放权益，确认取消？', [
-      { text: '再想想', style: 'cancel' },
-      {
-        text: '确认取消',
-        onPress: () => {
-          void (async () => {
-            setActionLoading(true);
-            try {
-              const result = await cancelPrivateBooking(bookingId);
-              if (!result.ok) {
-                Toast.show(result.msg || '取消失败', 1.5);
-                return;
-              }
-              Toast.show('已取消预约', 1.5);
-              await loadDetail();
-            } finally {
-              setActionLoading(false);
+    showCancelConfirmAlert({
+      info: bookingInfoFromDetail(detail),
+      courseType: 'group',
+      onConfirm: () => {
+        void (async () => {
+          setActionLoading(true);
+          try {
+            const result = await cancelPrivateBooking(bookingId);
+            if (!result.ok) {
+              Toast.show(result.msg || '取消失败', 1.5);
+              return;
             }
-          })();
-        },
+            Toast.show('已取消预约', 1.5);
+            await loadDetail();
+          } finally {
+            setActionLoading(false);
+          }
+        })();
       },
-    ]);
+    });
   }, [actionLoading, detail, loadDetail]);
 
   const openMap = useCallback((location: string) => {

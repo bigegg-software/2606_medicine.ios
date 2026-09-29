@@ -14,3 +14,10 @@ export function getHistoryPlanPrescriptionParams(exPatientRuleId: string | numbe
     prescriptionOnly: true as const,
   };
 }
+
+/** 历史计划「执行统计」 */
+export function getHistoryPlanExecutionStatsParams(exPatientRuleId: string | number) {
+  return {
+    exPatientRuleId: String(exPatientRuleId),
+  };
+}

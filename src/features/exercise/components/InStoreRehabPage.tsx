@@ -34,6 +34,11 @@ import {
   formatInStoreRehabLabels,
   formatWeeklyInStoreTip,
 } from '../utils/inStoreRehabHelpers';
+import {
+  loadInStoreRecommendCards,
+  type InStoreRecommendCardView,
+} from '../utils/inStoreRecommendHelpers';
+import { loadCoachTrainingRecordByRuleAndDate } from '../utils/coachTrainingRecordHelpers';
 import { type TrainingPhaseExerciseCard } from '../utils/trainingPhaseHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -61,9 +66,14 @@ export default function InStoreRehabPage({
   const [cards, setCards] = useState<TrainingPhaseExerciseCard[]>([]);
   const [loading, setLoading] = useState(false);
   const [weeklyInStoreTip, setWeeklyInStoreTip] = useState('建议每周到店1-2次');
+  const [recommendCards, setRecommendCards] = useState<InStoreRecommendCardView[]>([]);
+  /** 当日是否已有教练到店训练日志 */
+  const [inStoreDone, setInStoreDone] = useState(false);
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const prescriptionStartDate = exerciseRule?.startDate?.trim() || '';
   const prescriptionEndDate = exerciseRule?.endDate?.trim() || '';
+  const isToday = moment(selectedDate).isSame(moment(), 'day');
+  const showInStoreDoneTip = isToday && inStoreDone;
   const exerciseDayRecordMarker = useMemo(() => ({
     color: EXERCISE_CHECK_IN_DOT_COLOR,
     loadByYear: (year: number) =>
@@ -92,18 +102,26 @@ export default function InStoreRehabPage({
         });
         if (cancelled) return;
         setDayRule(rule);
-        const [result, inStoreDayCount] = await Promise.all([
+        const exPatientRuleId = rule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId;
+        const [result, inStoreDayCount, coachRecord] = await Promise.all([
           buildInStoreRehabCards(rule, selectedDate),
           countWeeklyInStoreDays(rule),
+          loadCoachTrainingRecordByRuleAndDate({
+            exPatientRuleId,
+            customerLocalDate: selectedDate,
+            patientUserId,
+          }),
         ]);
         if (cancelled) return;
         setCards(result.cards);
         setWeeklyInStoreTip(formatWeeklyInStoreTip(inStoreDayCount));
+        setInStoreDone(Boolean(coachRecord));
       } catch {
         if (cancelled) return;
         setDayRule(null);
         setCards([]);
         setWeeklyInStoreTip(formatWeeklyInStoreTip(0));
+        setInStoreDone(false);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -112,6 +130,42 @@ export default function InStoreRehabPage({
       cancelled = true;
     };
   }, [exerciseRule, patientUserId, selectedDate]);
+
+  useEffect(() => {
+    if (lockToRule) {
+      setRecommendCards([]);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      const list = await loadInStoreRecommendCards();
+      if (!cancelled) setRecommendCards(list);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [lockToRule]);
+
+  const goCurriculum = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'MainTabs', params: { screen: 'Curriculum' } }],
+    });
+  };
+
+  const openRecommendSession = (card: InStoreRecommendCardView) => {
+    const sessionId = card.sessionId;
+    if (!sessionId) return;
+    if (card.courseType === 'group') {
+      navigation.navigate('GroupCourseDetail', { sessionId });
+      return;
+    }
+    if (card.courseType === 'online') {
+      navigation.navigate('OnlineCourseDetail', { sessionId });
+      return;
+    }
+    navigation.navigate('PrivateCourseDetail', { sessionId });
+  };
 
   return (
     <View style={{ flex: 1 }}>
@@ -222,6 +276,18 @@ export default function InStoreRehabPage({
           </ImageBackground>
         </View>
 
+        {showInStoreDoneTip ? (
+          <Flex align="center" style={styles.inStoreDoneTip}>
+            <Image
+              style={styles.inStoreDoneTipIcon}
+              source={require('@/assets/images/exercise/fw.png')}
+            />
+            <Text style={styles.inStoreDoneTipText}>
+              今日训练已到店完成，训练进度已记录
+            </Text>
+          </Flex>
+        ) : null}
+
         <View style={styles.trainingExerciseCard}>
           <Flex align="center">
             <Image
@@ -260,22 +326,28 @@ export default function InStoreRehabPage({
                   </Text>
                 </View>
                 {!lockToRule ? (
-                  <TouchableOpacity onPress={() => { }} activeOpacity={0.7}>
+                  <View>
                     <Flex align="center" style={styles.mainTrainingActionTimer}>
                       <Image
                         style={styles.mainTrainingActionTimerIcon}
-                        source={require('@/assets/images/exercise/sz.png')}
+                        source={
+                          inStoreDone
+                            ? require('@/assets/images/exercise/icon_wc.png')
+                            : require('@/assets/images/exercise/sz.png')
+                        }
                       />
-                      <Text style={styles.mainTrainingActionTimerText}>到店</Text>
+                      <Text style={styles.mainTrainingActionTimerText}>
+                        {inStoreDone ? '完成' : '到店'}
+                      </Text>
                     </Flex>
-                  </TouchableOpacity>
+                  </View>
                 ) : null}
               </Flex>
             ))
           )}
         </View>
 
-        {!lockToRule ? (
+        {!lockToRule && recommendCards.length > 0 ? (
           <View style={styles.trainingExerciseCard}>
             <Flex align="center">
               <Image
@@ -293,49 +365,39 @@ export default function InStoreRehabPage({
                 <Text style={styles.mainTrainingModuleTitle}>为你推荐的到店训练</Text>
               </View>
             </Flex>
-            <Flex align="center" style={styles.mainTrainingActionRow}>
-              <Image style={styles.trainingExerciseThumb} source={require('@/assets/images/exercise/dtls.png')} />
-              <View style={styles.trainingExerciseInfo}>
-                <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
-                  周六 10:00-11:00
-                </Text>
-                <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                  李老师 · 崇文门Life Medicine
-                </Text>
-              </View>
-              <TouchableOpacity onPress={() => { }}>
-                <Flex align="center" style={styles.mainTrainingActionTimer}>
-                  <Image
-                    style={styles.mainTrainingActionTimerIcon}
-                    source={require('@/assets/images/exercise/sz.png')}
-                  />
-                  <Text style={styles.mainTrainingActionTimerText}>到店</Text>
-                </Flex>
-              </TouchableOpacity>
-            </Flex>
-            <Flex align="center" style={styles.mainTrainingActionRow}>
-              <Image style={styles.trainingExerciseThumb} source={require('@/assets/images/exercise/dtls.png')} />
-              <View style={styles.trainingExerciseInfo}>
-                <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
-                  周日 10:00-11:00
-                </Text>
-                <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                  李老师 · 崇文门Life Medicine
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() =>
-                  navigation.reset({
-                    index: 0,
-                    routes: [{ name: 'MainTabs', params: { screen: 'Curriculum' } }],
-                  })
-                }
-              >
-                <Flex align="center" style={styles.inStoreBookBtn}>
-                  <Text style={styles.inStoreBookBtnText}>去约课</Text>
-                </Flex>
-              </TouchableOpacity>
-            </Flex>
+            {recommendCards.map(card => (
+              <Flex key={card.key} align="center" style={styles.mainTrainingActionRow}>
+                <Image
+                  style={styles.trainingExerciseThumb}
+                  source={
+                    card.avatarUri
+                      ? { uri: card.avatarUri }
+                      : require('@/assets/images/exercise/dtls.png')
+                  }
+                />
+                <View style={styles.trainingExerciseInfo}>
+                  <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
+                    {card.title}
+                  </Text>
+                  <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
+                    {card.subtitle}
+                  </Text>
+                </View>
+                {card.bookedByMe ? (
+                  <TouchableOpacity onPress={() => openRecommendSession(card)} activeOpacity={0.7}>
+                    <Flex align="center" style={styles.mainTrainingActionTimer}>
+                      <Text style={styles.mainTrainingActionTimerText}>已预约</Text>
+                    </Flex>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={() => openRecommendSession(card)} activeOpacity={0.7}>
+                    <Flex align="center" style={styles.inStoreBookBtn}>
+                      <Text style={styles.inStoreBookBtnText}>去约课</Text>
+                    </Flex>
+                  </TouchableOpacity>
+                )}
+              </Flex>
+            ))}
           </View>
         ) : null}
 
@@ -355,12 +417,7 @@ export default function InStoreRehabPage({
           <TouchableOpacity
             style={styles.bottomBarButtonLeft}
             activeOpacity={0.7}
-            onPress={() =>
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'MainTabs', params: { screen: 'Curriculum' } }],
-              })
-            }
+            onPress={goCurriculum}
           >
             <Flex justify="center" align="center" style={{ flex: 1 }}>
               <Image

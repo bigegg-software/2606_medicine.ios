@@ -75,6 +75,26 @@ const styles = StyleSheet.create({
   trainingStatLabel: { marginTop: 4, fontWeight: '500', fontSize: 12, color: '#999999' },
   trainingProgressTrack: { marginTop: 12, height: 8, backgroundColor: '#FFFFFF', borderRadius: 25, overflow: 'hidden' },
   trainingProgressFill: { height: 8, backgroundColor: '#6D925E', borderRadius: 25 },
+  inStoreDoneTip: {
+    marginTop: 16,
+    padding: 13,
+    backgroundColor: 'rgba(109,146,94,0.06)',
+    borderRadius: 9,
+    borderWidth: 1,
+    borderColor: 'rgba(109,146,94,0.3)',
+  },
+  inStoreDoneTipIcon: {
+    width: 16,
+    height: 16,
+    flexShrink: 0,
+  },
+  inStoreDoneTipText: {
+    marginLeft: 5,
+    fontWeight: '400',
+    fontSize: 14,
+    color: '#666666',
+    flexShrink: 1,
+  },
   trainingPhaseTabBox: {
     marginTop: 19,
     height: 40,

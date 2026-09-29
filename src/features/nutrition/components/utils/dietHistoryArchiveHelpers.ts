@@ -202,3 +202,10 @@ export function getHistoryDietPrescriptionParams(dietPatientRuleId: string | num
     prescriptionOnly: true as const,
   };
 }
+
+/** 历史营养「执行统计」 */
+export function getHistoryDietExecutionStatsParams(dietPatientRuleId: string | number) {
+  return {
+    dietPatientRuleId: String(dietPatientRuleId),
+  };
+}

@@ -10,12 +10,15 @@ type Props = {
   onPress: () => void;
   /** 处方详情：暂未实现 */
   onPressPrescriptionDetail?: () => void;
+  /** 执行统计 */
+  onPressExecutionStats?: () => void;
 };
 
 export default function HistoryArchiveCard({
   item,
   onPress,
   onPressPrescriptionDetail,
+  onPressExecutionStats,
 }: Props) {
   const maxProgress = item.maxProgress;
 
@@ -91,7 +94,7 @@ export default function HistoryArchiveCard({
         </Flex>
       ) : null}
 
-      <Flex justify="end" style={styles.historyActionRow}>
+      <Flex justify="end" wrap="wrap" style={styles.historyActionRow}>
         <TouchableOpacity
           style={styles.historyActionPrimaryBtn}
           activeOpacity={0.7}
@@ -105,6 +108,13 @@ export default function HistoryArchiveCard({
           onPress={onPress}
         >
           <Text style={styles.historyActionSecondaryText}>完成情况</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={styles.historyActionSecondaryBtn}
+          activeOpacity={0.7}
+          onPress={() => onPressExecutionStats?.()}
+        >
+          <Text style={styles.historyActionSecondaryText}>执行统计</Text>
         </TouchableOpacity>
       </Flex>
     </View>

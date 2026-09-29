@@ -13,14 +13,18 @@ import {
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/nutrition/foodRecording';
 import NutritionTrendChart, {
   NUTRITION_TREND_SERIES,
   type NutritionTrendItem,
 } from './components/NutritionTrendChart';
-import { getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
+import {
+  getDietPatientRuleInfo,
+  getInUseDietPatientRuleInfo,
+  type DietPatientRuleInfo,
+} from '@/api/dietPatientRule';
 import {
   getMealAllRecords,
   getMealExecutionStatistics,
@@ -49,18 +53,11 @@ import {
 import EmptyRecord from '@/src/components/EmptyRecord';
 import type { RootStackParamList } from '@/route/router';
 import { AppTheme } from '@/common/theme';
-import scheduleStyles from '@/css/schedule/schedule';
-import DietHistoryArchiveCard from './components/DietHistoryArchiveCard';
-import {
-  getHistoryDietNutritionParams,
-  getHistoryDietPrescriptionParams,
-  loadDietHistoryArchivePreview,
-  type DietHistoryArchiveItem,
-} from './components/utils/dietHistoryArchiveHelpers';
 
 const PAGE_SIZE = 20;
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type Route = RouteProp<RootStackParamList, 'FoodRecordingPage'>;
 
 const RATE_TAG_STYLE: Record<FoodRecordingRateTone, { box: object; text: object }> = {
   ok: { box: styles.rateTagOk, text: styles.rateTagTextOk },
@@ -70,6 +67,10 @@ const RATE_TAG_STYLE: Record<FoodRecordingRateTone, { box: object; text: object 
 
 export default function FoodRecordingPage() {
   const navigation = useNavigation<Nav>();
+  const { params } = useRoute<Route>();
+  const lockedRuleId = params?.dietPatientRuleId != null
+    ? String(params.dietPatientRuleId).trim()
+    : '';
   const [activeNav, setActiveNav] = useState(0);
   const [trendRange, setTrendRange] = useState<7 | 30>(7);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
@@ -80,7 +81,6 @@ export default function FoodRecordingPage() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const [expandedMonths, setExpandedMonths] = useState<Record<string, boolean>>({});
-  const [historyArchiveItems, setHistoryArchiveItems] = useState<DietHistoryArchiveItem[]>([]);
 
   const hasMoreRef = useRef(true);
   const hasLoadedDetailRef = useRef(false);
@@ -89,11 +89,11 @@ export default function FoodRecordingPage() {
 
   const pageList = [
     {
-      title: '趋势',
+      title: '执行统计',
       icon: require('@/assets/images/nutrition/icon_qs.png'),
     },
     {
-      title: '明细',
+      title: '饮食记录',
       icon: require('@/assets/images/nutrition/icon_mx.png'),
     },
   ];
@@ -113,7 +113,9 @@ export default function FoodRecordingPage() {
 
   const loadDietRule = useCallback(async () => {
     try {
-      const res = await getInUseDietPatientRuleInfo();
+      const res = lockedRuleId
+        ? await getDietPatientRuleInfo(lockedRuleId)
+        : await getInUseDietPatientRuleInfo();
       if (!isResourceApiOk(res as unknown as { code?: number })) {
         setDietRule(null);
         return null;
@@ -127,7 +129,7 @@ export default function FoodRecordingPage() {
       setDietRule(null);
       return null;
     }
-  }, []);
+  }, [lockedRuleId]);
 
   const loadOverallStatistics = useCallback(async (rule?: DietPatientRuleInfo | null) => {
     const { startDate, endDate } = resolveFoodRecordingOverallRange(rule);
@@ -242,25 +244,13 @@ export default function FoodRecordingPage() {
     );
   }, [dietRule, loadDietRule, loadRecords]);
 
-  const loadHistoryArchive = useCallback(async () => {
-    try {
-      const items = await loadDietHistoryArchivePreview();
-      setHistoryArchiveItems(items);
-    } catch {
-      setHistoryArchiveItems([]);
-    }
-  }, []);
-
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       const run = async () => {
         const rule = await loadDietRule();
         if (cancelled) return;
-        await Promise.all([
-          loadOverallStatistics(rule),
-          loadHistoryArchive(),
-        ]);
+        await loadOverallStatistics(rule);
         if (!hasLoadedDetailRef.current) {
           await loadRecords(
             'initial',
@@ -277,7 +267,7 @@ export default function FoodRecordingPage() {
       return () => {
         cancelled = true;
       };
-    }, [loadDietRule, loadHistoryArchive, loadOverallStatistics, loadRecords]),
+    }, [loadDietRule, loadOverallStatistics, loadRecords]),
   );
 
   useEffect(() => {
@@ -421,50 +411,6 @@ export default function FoodRecordingPage() {
                 </Flex>
               ))}
             </Flex>
-
-            <ImageBackground
-              source={require('@/assets/images/schedule/calendarBack.png')}
-              style={[styles.backImage1, { marginTop: 15 }]}
-            >
-              <Flex justify="between"  style={{ flex: 1, paddingHorizontal: 20 }}>
-                <Text style={styles.backImage1Text}>历史处方</Text>
-
-                {historyArchiveItems.length > 0 ? (
-                  <TouchableOpacity
-                    style={styles.rightIconBox}
-                    activeOpacity={0.7}
-                    onPress={() => navigation.navigate('DietHistoryPage')}
-                  >
-                    <Image source={require('@/assets/images/schedule/right.png')} style={styles.rightIcon} />
-                  </TouchableOpacity>
-                ) : null}
-              </Flex>
-            </ImageBackground>
-
-            <View style={[scheduleStyles.historyBox, { paddingHorizontal: 12,marginTop:-12 }]}>
-              {historyArchiveItems.length > 0 ? historyArchiveItems.map(item => (
-                <DietHistoryArchiveCard
-                  key={item.id}
-                  item={item}
-                  onPress={() => {
-                    navigation.navigate('NutritionPage', getHistoryDietNutritionParams(item.id));
-                  }}
-                  onPressPrescriptionDetail={() => {
-                    navigation.navigate('NutritionPage', getHistoryDietPrescriptionParams(item.id));
-                  }}
-                />
-              )) : (
-                <View style={scheduleStyles.historyEmptyInline}>
-                  <Image
-                    source={require('@/assets/images/common/zwjl.png')}
-                    style={scheduleStyles.historyEmptyIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={scheduleStyles.historyEmptyText}>暂无历史营养处方</Text>
-                </View>
-              )}
-            </View>
-
           </>
         ) : loadingDetail && flatDays.length === 0 ? (
           <View style={styles.trendEmpty}>

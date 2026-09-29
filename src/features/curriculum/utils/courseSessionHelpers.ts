@@ -7,9 +7,15 @@ import {
   getCourseSessionInfo,
   getCourseSessionPage,
   getMyBookingNext,
+  rescheduleMyBooking,
 } from '@/api/courseSession';
 import { apiResourceData, getResourceRows, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
 import { fetchCoachUserDetail } from './coachUserHelpers';
+import {
+  isInsufficientBenefitMsg,
+  parseRemainCountFromMsg,
+  type BookingDialogInfo,
+} from './bookingDialogHelpers';
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -58,8 +64,11 @@ export type PrivateSessionCardView = {
   time: string;
   topic: string;
   avatarUri?: string;
+  /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
+  status?: number;
   bookedByMe: boolean;
   bookingId?: string;
+  bookingInfo: BookingDialogInfo;
 };
 
 export type NextBookingView = {
@@ -71,6 +80,10 @@ export type NextBookingView = {
 export type CourseSessionActionResult = {
   ok: boolean;
   msg?: string;
+  /** 权益/次数不足 */
+  insufficientBenefit?: boolean;
+  remainCount?: number;
+  needCount?: number;
 };
 
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
@@ -85,6 +98,18 @@ function formatHm(time?: string) {
   const raw = time?.trim() || '';
   if (!raw) return '';
   return raw.length >= 5 ? raw.slice(0, 5) : raw;
+}
+
+function mapBookingDialogInfo(item: CourseSessionItem): BookingDialogInfo {
+  return {
+    courseName: item.template?.courseName?.trim() || '课程',
+    coachName: item.coachRealName?.trim() || '教练',
+    sessionDate: item.sessionDate?.trim() || '',
+    startTime: formatHm(item.startTime),
+    endTime: formatHm(item.endTime),
+    stationName:
+      item.stationName?.trim() || item.template?.stationName?.trim() || '门店',
+  };
 }
 
 function actionFailMsg(res: ApiResult | null | undefined, fallback: string) {
@@ -165,7 +190,9 @@ export function mapPrivateSessionToCard(item: CourseSessionItem): PrivateSession
     time: formatSessionTime(item.startTime, item.endTime),
     topic: courseName || item.template?.coursePoints?.trim() || '--',
     avatarUri,
+    status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
+    bookingInfo: mapBookingDialogInfo(item),
     ...(bookingId ? { bookingId } : {}),
   };
 }
@@ -189,8 +216,10 @@ export type GroupSessionCardView = {
   time: string;
   benefitText: string;
   coverUri?: string;
+  status?: number;
   bookedByMe: boolean;
   bookingId?: string;
+  bookingInfo: BookingDialogInfo;
 };
 
 function formatGroupCoachMeta(item: CourseSessionItem) {
@@ -223,9 +252,11 @@ export function mapGroupSessionToCard(item: CourseSessionItem): GroupSessionCard
     coachMeta: formatGroupCoachMeta(item),
     enrollText: formatGroupEnrollText(item),
     time: formatSessionTime(item.startTime, item.endTime),
-    benefitText: '使用小班训练权益 1 节',
+    benefitText: '使用集体训练权益 1 节',
     coverUri,
+    status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
+    bookingInfo: mapBookingDialogInfo(item),
     ...(bookingId ? { bookingId } : {}),
   };
 }
@@ -265,8 +296,10 @@ export type OnlineSessionCardView = {
   timeText: string;
   benefitText: string;
   avatarUri?: string;
+  status?: number;
   bookedByMe: boolean;
   bookingId?: string;
+  bookingInfo: BookingDialogInfo;
 };
 
 function formatOnlineWeekdayTime(item: CourseSessionItem) {
@@ -295,7 +328,15 @@ export function mapOnlineSessionToCard(item: CourseSessionItem): OnlineSessionCa
     timeText: formatOnlineWeekdayTime(item),
     benefitText: formatCapacityText(item),
     avatarUri: item.coachAvatarUrl?.trim() || undefined,
+    status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
+    bookingInfo: mapBookingDialogInfo({
+      ...item,
+      template: {
+        ...item.template,
+        courseName: courseName,
+      },
+    }),
     ...(bookingId ? { bookingId } : {}),
   };
 }
@@ -333,7 +374,17 @@ export async function bookPrivateSession(sessionId: string): Promise<CourseSessi
   try {
     const res = await bookCourseSession({ sessionId: id });
     if (!isResourceApiOk(res)) {
-      return { ok: false, msg: actionFailMsg(res, '预约失败，请稍后重试') };
+      const msg = actionFailMsg(res, '预约失败，请稍后重试');
+      if (isInsufficientBenefitMsg(msg)) {
+        return {
+          ok: false,
+          msg,
+          insufficientBenefit: true,
+          remainCount: parseRemainCountFromMsg(msg, 0),
+          needCount: 1,
+        };
+      }
+      return { ok: false, msg };
     }
     return { ok: true };
   } catch {
@@ -349,6 +400,26 @@ export async function cancelPrivateBooking(bookingId: string): Promise<CourseSes
     const res = await cancelMyBooking({ bookingId: id });
     if (!isResourceApiOk(res)) {
       return { ok: false, msg: actionFailMsg(res, '取消失败，请稍后重试') };
+    }
+    return { ok: true };
+  } catch {
+    return { ok: false, msg: '网络错误，请稍后重试' };
+  }
+}
+
+/** 调整预约到新场次（同类型；不扣不退权益） */
+export async function reschedulePrivateBooking(options: {
+  oldBookingId: string;
+  newSessionId: string;
+}): Promise<CourseSessionActionResult> {
+  const oldBookingId = String(options.oldBookingId ?? '').trim();
+  const newSessionId = String(options.newSessionId ?? '').trim();
+  if (!oldBookingId) return { ok: false, msg: '预约无效' };
+  if (!newSessionId) return { ok: false, msg: '请选择新时段' };
+  try {
+    const res = await rescheduleMyBooking({ oldBookingId, newSessionId });
+    if (!isResourceApiOk(res)) {
+      return { ok: false, msg: actionFailMsg(res, '调整失败，请稍后重试') };
     }
     return { ok: true };
   } catch {
@@ -396,6 +467,8 @@ export async function fetchCourseSessionDetail(
 
 export type OnlineCourseDetailView = {
   sessionId: string;
+  /** 服务站 id */
+  stationId: string;
   title: string;
   coachName: string;
   stationName: string;
@@ -406,6 +479,10 @@ export type OnlineCourseDetailView = {
   enrollText: string;
   /** 信息栏时间，如：10:15-11:15 */
   timeText: string;
+  /** 上课日期 yyyy-MM-dd */
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
   platformLabel: string;
   /** 适合人群正文 */
   suitText: string;
@@ -524,6 +601,12 @@ function mapCourseSessionDetail(
   const sessionId = toSessionId(item.sessionId);
   if (!sessionId) return null;
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
+  const stationId =
+    item.stationId != null && String(item.stationId).trim()
+      ? String(item.stationId).trim()
+      : item.template?.stationId != null && String(item.template.stationId).trim()
+        ? String(item.template.stationId).trim()
+        : '';
   const courseName = item.template?.courseName?.trim() || options.titleFallback;
   const coachName = item.coachRealName?.trim() || '教练待定';
   const stationName =
@@ -539,6 +622,7 @@ function mapCourseSessionDetail(
       : 0;
   return {
     sessionId,
+    stationId,
     title: courseName,
     coachName,
     stationName,
@@ -546,6 +630,9 @@ function mapCourseSessionDetail(
     categoryLabel,
     enrollText: formatCapacityText(item),
     timeText: formatOnlineDetailTime(item),
+    sessionDate: item.sessionDate?.trim() || '',
+    startTime: formatHm(item.startTime),
+    endTime: formatHm(item.endTime),
     platformLabel,
     suitText: crowd,
     prepareText: equipment ? `准备：${equipment}` : '',

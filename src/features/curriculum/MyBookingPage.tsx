@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Flex } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PageLayout from '@/src/components/PageLayout';
@@ -15,6 +15,11 @@ import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/myBooking';
 import type { RootStackParamList } from '@/route/router';
+import AdjustTimeModal from './components/AdjustTimeModal';
+import BookingStatusFilterPicker, {
+  bookingStatusFilterLabel,
+  type BookingStatusFilterValue,
+} from './components/BookingStatusFilterPicker';
 import CourseTypeFilterPicker, {
   courseTypeFilterLabel,
   type CourseTypeFilterValue,
@@ -27,6 +32,9 @@ import {
   type MyBookingFollowCardView,
   type MyBookingNextCardView,
 } from './utils/myBookingHelpers';
+
+const DONE_ICON = require('@/assets/images/common/wc.png');
+const ABSENT_ICON = require('@/assets/images/curriculum/jy.png');
 
 const TAB_LIST = [
   { key: 'upcoming', title: '即将开始' },
@@ -51,6 +59,8 @@ export default function MyBookingPage() {
   const [completedList, setCompletedList] = useState<MyBookingCompletedCardView[]>([]);
   const [completedTotal, setCompletedTotal] = useState(0);
   const [completedCourseType, setCompletedCourseType] = useState<CourseTypeFilterValue>('');
+  const [completedStatus, setCompletedStatus] = useState<BookingStatusFilterValue>('');
+  const [adjustTimeVisible, setAdjustTimeVisible] = useState(false);
 
   const openDetail = useCallback(
     (sessionId: string, courseType: string) => {
@@ -61,6 +71,19 @@ export default function MyBookingPage() {
     },
     [navigation],
   );
+
+  const openAdjustTime = useCallback(() => {
+    if (!nextBooking) return;
+    if (!nextBooking.bookingId?.trim()) {
+      Toast.show('暂无法调整时间', 1.5);
+      return;
+    }
+    if (!nextBooking.stationId?.trim()) {
+      Toast.show('暂无法调整时间', 1.5);
+      return;
+    }
+    setAdjustTimeVisible(true);
+  }, [nextBooking]);
 
   const loadUpcoming = useCallback(async () => {
     try {
@@ -79,6 +102,7 @@ export default function MyBookingPage() {
     try {
       const data = await fetchCompletedBookings({
         courseType: completedCourseType || undefined,
+        status: completedStatus || undefined,
       });
       setCompletedList(data.rows);
       setCompletedTotal(data.total);
@@ -86,7 +110,7 @@ export default function MyBookingPage() {
       setCompletedList([]);
       setCompletedTotal(0);
     }
-  }, [completedCourseType]);
+  }, [completedCourseType, completedStatus]);
 
   useFocusEffect(
     useCallback(() => {
@@ -109,11 +133,27 @@ export default function MyBookingPage() {
     }, [activeTab, loadUpcoming, loadCompleted]),
   );
 
-  const hasUpcoming = Boolean(nextBooking) || followList.length > 0;
+  const hasUpcoming =
+    Boolean(nextBooking) || followList.length > 0 || recentCompleted.length > 0;
   const hasCompleted = completedList.length > 0;
 
   return (
     <PageLayout style={styles.container} contentStyle={styles.content}>
+      {nextBooking ? (
+        <AdjustTimeModal
+          visible={adjustTimeVisible}
+          onClose={() => setAdjustTimeVisible(false)}
+          bookingId={nextBooking.bookingId}
+          stationId={nextBooking.stationId}
+          courseType={nextBooking.courseType || 'private'}
+          excludeSessionId={nextBooking.sessionId}
+          initialDate={nextBooking.sessionDate}
+          initialStartTime={nextBooking.startTime}
+          onSuccess={() => {
+            void loadUpcoming();
+          }}
+        />
+      ) : null}
       <Flex style={styles.navBox}>
         {TAB_LIST.map(tab => {
           const active = activeTab === tab.key;
@@ -190,9 +230,7 @@ export default function MyBookingPage() {
                       <TouchableOpacity
                         activeOpacity={0.7}
                         style={styles.bookingAdjustBtn}
-                        onPress={() =>
-                          openDetail(nextBooking.sessionId, nextBooking.courseType)
-                        }
+                        onPress={openAdjustTime}
                       >
                         <Flex style={{ flex: 1 }} justify="center">
                           <Image
@@ -285,7 +323,7 @@ export default function MyBookingPage() {
                         <Flex justify="between" align="start" style={styles.completedCard}>
                           <Image
                             style={styles.completedDateIcon}
-                            source={require('@/assets/images/common/wc.png')}
+                            source={item.isAbsent ? ABSENT_ICON : DONE_ICON}
                           />
                           <View style={styles.completedInfo}>
                             <Text style={styles.completedDate}>{item.dateText}</Text>
@@ -293,8 +331,20 @@ export default function MyBookingPage() {
                               {item.title}
                             </Text>
                           </View>
-                          <View style={styles.completedStatusTag}>
-                            <Text style={styles.completedStatusText}>{item.statusLabel}</Text>
+                          <View
+                            style={[
+                              styles.completedStatusTag,
+                              item.isAbsent ? styles.completedStatusTagAbsent : null,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.completedStatusText,
+                                item.isAbsent ? styles.completedStatusTextAbsent : null,
+                              ]}
+                            >
+                              {item.statusLabel}
+                            </Text>
                           </View>
                         </Flex>
                       </TouchableOpacity>
@@ -311,22 +361,40 @@ export default function MyBookingPage() {
         ) : (
           <View style={styles.contentBox}>
             <Flex justify="between" align="center" style={styles.doneToolbar}>
-              <CourseTypeFilterPicker
-                value={completedCourseType}
-                onChange={setCompletedCourseType}
-              >
-                <TouchableOpacity activeOpacity={0.7} style={styles.doneFilterChip}>
-                  <Flex align="center">
-                    <Text style={styles.doneFilterChipText}>
-                      {courseTypeFilterLabel(completedCourseType)}
-                    </Text>
-                    <Image
-                      style={styles.doneFilterChipIcon}
-                      source={require('@/assets/images/curriculum/arrow_down.png')}
-                    />
-                  </Flex>
-                </TouchableOpacity>
-              </CourseTypeFilterPicker>
+              <Flex align="center" style={styles.doneFilterRow}>
+                <CourseTypeFilterPicker
+                  value={completedCourseType}
+                  onChange={setCompletedCourseType}
+                >
+                  <TouchableOpacity activeOpacity={0.7} style={styles.doneFilterChip}>
+                    <Flex align="center">
+                      <Text style={styles.doneFilterChipText}>
+                        {courseTypeFilterLabel(completedCourseType)}
+                      </Text>
+                      <Image
+                        style={styles.doneFilterChipIcon}
+                        source={require('@/assets/images/curriculum/arrow_down.png')}
+                      />
+                    </Flex>
+                  </TouchableOpacity>
+                </CourseTypeFilterPicker>
+                <BookingStatusFilterPicker
+                  value={completedStatus}
+                  onChange={setCompletedStatus}
+                >
+                  <TouchableOpacity activeOpacity={0.7} style={styles.doneFilterChip}>
+                    <Flex align="center">
+                      <Text style={styles.doneFilterChipText}>
+                        {bookingStatusFilterLabel(completedStatus)}
+                      </Text>
+                      <Image
+                        style={styles.doneFilterChipIcon}
+                        source={require('@/assets/images/curriculum/arrow_down.png')}
+                      />
+                    </Flex>
+                  </TouchableOpacity>
+                </BookingStatusFilterPicker>
+              </Flex>
               <Text style={styles.doneSummaryText}>已完成训练 {completedTotal} 课时</Text>
             </Flex>
 
@@ -343,7 +411,7 @@ export default function MyBookingPage() {
                   <Flex align="start">
                     <Image
                       style={styles.doneCheckIcon}
-                      source={require('@/assets/images/common/wc.png')}
+                      source={item.isAbsent ? ABSENT_ICON : DONE_ICON}
                     />
                     <Image
                       style={styles.doneCover}
@@ -355,8 +423,20 @@ export default function MyBookingPage() {
                         {item.title}
                       </Text>
                     </View>
-                    <View style={styles.completedStatusTag}>
-                      <Text style={styles.completedStatusText}>{item.statusLabel}</Text>
+                    <View
+                      style={[
+                        styles.completedStatusTag,
+                        item.isAbsent ? styles.completedStatusTagAbsent : null,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.completedStatusText,
+                          item.isAbsent ? styles.completedStatusTextAbsent : null,
+                        ]}
+                      >
+                        {item.statusLabel}
+                      </Text>
                     </View>
                   </Flex>
                 </TouchableOpacity>

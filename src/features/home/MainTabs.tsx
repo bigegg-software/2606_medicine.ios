@@ -252,7 +252,20 @@ export default function MainTabs() {
           headerTransparent: true,
           headerStyle: { backgroundColor: 'transparent' },
           headerTitle: () => null,
-          headerRight: () => null,
+          headerRight: () => (
+            <TouchableOpacity
+              style={{ marginRight: 18 }}
+              activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={() => navigation.navigate('ScanCodePage')}
+            >
+              <Image
+                source={require('@/assets/images/curriculum/scanCode.png')}
+                style={{ width: 26, height: 26 }}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          ),
         });
         return;
       }

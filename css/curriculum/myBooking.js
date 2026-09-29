@@ -142,14 +142,26 @@ const styles = StyleSheet.create({
     borderColor: '#6D925E',
     flexShrink: 0,
   },
+  completedStatusTagAbsent: {
+    borderColor: '#FB4550',
+  },
   completedStatusText: {
     fontWeight: 'bold',
     fontSize: 12,
     color: '#6D925E',
   },
+  completedStatusTextAbsent: {
+    color: '#FB4550',
+  },
   doneToolbar: {
     marginTop: 16,
     marginBottom: 3,
+  },
+  doneFilterRow: {
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
+    gap: 8,
   },
   doneFilterChip: {
     paddingHorizontal: 12,
@@ -176,6 +188,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 15,
     color: '#6D925E',
+    flexShrink: 0,
   },
   doneCard: {
     marginTop: 13,

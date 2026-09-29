@@ -243,19 +243,26 @@ export default function ExercisePage() {
   const pageTitle = exerciseRule?.prescriptionName?.trim() || '运动处方';
 
   useEffect(() => {
-    const showHistoryEntry = !isFamilyView && !exPatientRuleId;
+    const currentRuleId = exerciseRule?.exPatientRuleId != null
+      ? String(exerciseRule.exPatientRuleId).trim()
+      : '';
+    const showStatsEntry = !isFamilyView && !exPatientRuleId && Boolean(currentRuleId);
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
       headerRight: isFamilyView
         ? () => <FamilyRelationHeaderBadge label={relationLabel} />
-        : showHistoryEntry
+        : showStatsEntry
           ? () => (
             <TouchableOpacity
               style={styles.headerHistoryBtn}
               activeOpacity={0.8}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              onPress={() => navigation.navigate('ScheduleHistoryPage')}
+              onPress={() => {
+                navigation.navigate('ExerciseExecutionStatsPage', {
+                  exPatientRuleId: currentRuleId,
+                });
+              }}
             >
               <Image
                 source={require('@/assets/images/exercise/icon_history.png')}
@@ -266,7 +273,7 @@ export default function ExercisePage() {
           )
           : () => null,
     });
-  }, [exPatientRuleId, navigation, pageTitle, isFamilyView, relationLabel]);
+  }, [exPatientRuleId, exerciseRule?.exPatientRuleId, navigation, pageTitle, isFamilyView, relationLabel]);
 
   const onPressNav = useCallback((key: ExerciseNavKey) => {
     setActiveNav(key);

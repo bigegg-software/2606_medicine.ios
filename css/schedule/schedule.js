@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   weekProgressBarSelected: { backgroundColor: '#6D925E' },
   weekProgressBarDone: { backgroundColor: '#6D925E' },
   weekRateText: { fontWeight: 500, fontSize: 13, color: "#999999" },
-  weekRateTextNum: { fontWeight: "bold",width:40, textAlign:"right", fontSize: 14, color: "#333333" },
+  weekRateTextNum: { fontWeight: "bold", width: 40, textAlign: "right", fontSize: 14, color: "#333333" },
   weekRateList: { marginTop: 13 },
   weekRateItem: { gap: 12, height: 19, marginTop: 12 },
   weekRateItemTitle: { fontWeight: 500, fontSize: 14, color: "#333333" },
@@ -275,8 +275,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   historyActionPrimaryBtn: {
-    paddingHorizontal: 21,
+    flex: 1,
     paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: 'rgba(109,146,94,0.2)',
     borderRadius: 27,
   },
@@ -284,10 +286,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 14,
     color: '#6D925E',
+    textAlign: 'center',
   },
   historyActionSecondaryBtn: {
-    paddingHorizontal: 21,
+    flex: 1,
     paddingVertical: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
     backgroundColor: '#FFFFFF',
     borderRadius: 27,
     borderWidth: 1,
@@ -297,6 +302,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 14,
     color: '#6D925E',
+    textAlign: 'center',
   },
 
 

@@ -217,6 +217,45 @@ export const getExPatientRuleModuleCompleteRate = (
     },
   );
 
+/** 指定运动处方在起止日期内主训练四大模块的每日完成率 */
+export type ExPatientRuleModuleDayCompleteRateItem = {
+  date?: string;
+  /** 当日主训练完成率 0-100；休息日为 null */
+  mainCompleteRate?: number | null;
+  cardioCompleteRate?: number | null;
+  strengthCompleteRate?: number | null;
+  flexibilityCompleteRate?: number | null;
+  balanceCompleteRate?: number | null;
+  /** 达标基线 0-100（exImpRate）；未配置时为 null */
+  meetBaseline?: number | null;
+};
+
+export type ExPatientRuleModuleDayCompleteRateResult = {
+  code?: number;
+  msg?: string;
+  data?: ExPatientRuleModuleDayCompleteRateItem[];
+};
+
+export const getExPatientRuleModuleDayCompleteRate = (
+  params: {
+    exPatientRuleId: string;
+    startDate: string;
+    endDate: string;
+  },
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<ExPatientRuleModuleDayCompleteRateResult>(
+    '/patient/exPatientRule/moduleDayCompleteRate',
+    {
+      params: {
+        exPatientRuleId: String(params.exPatientRuleId),
+        startDate: params.startDate,
+        endDate: params.endDate,
+      },
+      headers: withPatientUserIdHeaders(options?.patientUserId),
+    },
+  );
+
 /** 指定日期主训练完成率及四模块完成率（0-100）；当日无该模块安排时对应字段为 null */
 export type ExPatientRuleDayCompleteRate = {
   date?: string;

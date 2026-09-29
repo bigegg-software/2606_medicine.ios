@@ -10,13 +10,19 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Flex, Modal, Toast } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/onlineCourseDetail';
 import type { RootStackParamList } from '@/route/router';
+import {
+  bookingInfoFromDetail,
+  showBookConfirmAlert,
+  showCancelConfirmAlert,
+  showInsufficientBenefitAlert,
+} from './utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
   cancelPrivateBooking,
@@ -96,28 +102,34 @@ export default function PrivateCourseDetailPage() {
 
   const handleBook = useCallback(() => {
     if (!detail || actionLoading) return;
-    Modal.alert('确认预约', '预约将冻结 1 次权益，是否继续？', [
-      { text: '取消', style: 'cancel' },
-      {
-        text: '确认预约',
-        onPress: () => {
-          void (async () => {
-            setActionLoading(true);
-            try {
-              const result = await bookPrivateSession(detail.sessionId);
-              if (!result.ok) {
-                Toast.show(result.msg || '预约失败', 1.5);
+    showBookConfirmAlert({
+      info: bookingInfoFromDetail(detail),
+      courseType: 'private',
+      onConfirm: () => {
+        void (async () => {
+          setActionLoading(true);
+          try {
+            const result = await bookPrivateSession(detail.sessionId);
+            if (!result.ok) {
+              if (result.insufficientBenefit) {
+                showInsufficientBenefitAlert({
+                  courseType: 'private',
+                  remainCount: result.remainCount ?? 0,
+                  needCount: result.needCount ?? 1,
+                });
                 return;
               }
-              Toast.show('预约成功', 1.5);
-              await loadDetail();
-            } finally {
-              setActionLoading(false);
+              Toast.show(result.msg || '预约失败', 1.5);
+              return;
             }
-          })();
-        },
+            Toast.show('预约成功', 1.5);
+            await loadDetail();
+          } finally {
+            setActionLoading(false);
+          }
+        })();
       },
-    ]);
+    });
   }, [actionLoading, detail, loadDetail]);
 
   const handleCancel = useCallback(() => {
@@ -127,28 +139,26 @@ export default function PrivateCourseDetailPage() {
       Toast.show('请到我的预约中取消', 1.5);
       return;
     }
-    Modal.alert('取消预约', '开课前 24 小时可取消并释放权益，确认取消？', [
-      { text: '再想想', style: 'cancel' },
-      {
-        text: '确认取消',
-        onPress: () => {
-          void (async () => {
-            setActionLoading(true);
-            try {
-              const result = await cancelPrivateBooking(bookingId);
-              if (!result.ok) {
-                Toast.show(result.msg || '取消失败', 1.5);
-                return;
-              }
-              Toast.show('已取消预约', 1.5);
-              await loadDetail();
-            } finally {
-              setActionLoading(false);
+    showCancelConfirmAlert({
+      info: bookingInfoFromDetail(detail),
+      courseType: 'private',
+      onConfirm: () => {
+        void (async () => {
+          setActionLoading(true);
+          try {
+            const result = await cancelPrivateBooking(bookingId);
+            if (!result.ok) {
+              Toast.show(result.msg || '取消失败', 1.5);
+              return;
             }
-          })();
-        },
+            Toast.show('已取消预约', 1.5);
+            await loadDetail();
+          } finally {
+            setActionLoading(false);
+          }
+        })();
       },
-    ]);
+    });
   }, [actionLoading, detail, loadDetail]);
 
   const openMap = useCallback((location: string) => {
@@ -193,14 +203,27 @@ export default function PrivateCourseDetailPage() {
   const avatarSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_AVATAR;
   const showReserveAction = detail.status !== 5 && detail.status !== 6;
   const introText = detail.introText.trim() || '';
-  const adjustInitialStartTime = detail.timeText.split('-')[0]?.trim() || '';
+  const adjustInitialStartTime = detail.startTime || detail.timeText.split('-')[0]?.trim() || '';
 
   return (
     <PageLayout style={styles.container} edges={[]} showHeaderBackground={false}>
       <AdjustTimeModal
         visible={adjustTimeVisible}
         onClose={() => setAdjustTimeVisible(false)}
+        bookingId={detail.bookingId}
+        stationId={detail.stationId}
+        courseType="private"
+        excludeSessionId={detail.sessionId}
+        initialDate={detail.sessionDate}
         initialStartTime={adjustInitialStartTime}
+        onSuccess={newSessionId => {
+          const id = String(newSessionId ?? '').trim();
+          if (id && id !== detail.sessionId) {
+            navigation.replace('PrivateCourseDetail', { sessionId: id });
+            return;
+          }
+          void loadDetail();
+        }}
       />
       <View style={styles.pageBody}>
         <ScrollView
@@ -307,14 +330,26 @@ export default function PrivateCourseDetailPage() {
                   </Text>
                 )}
               </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btn, styles.btnFlex, actionLoading && styles.btnDisabled]}
-                activeOpacity={0.7}
-                disabled={actionLoading}
-                onPress={() => setAdjustTimeVisible(true)}
-              >
-                <Text style={styles.btnText}>调整时间</Text>
-              </TouchableOpacity>
+              {detail.bookedByMe ? (
+                <TouchableOpacity
+                  style={[styles.btn, styles.btnFlex, actionLoading && styles.btnDisabled]}
+                  activeOpacity={0.7}
+                  disabled={actionLoading}
+                  onPress={() => {
+                    if (!detail.bookingId?.trim()) {
+                      Toast.show('请到我的预约中调整', 1.5);
+                      return;
+                    }
+                    if (!detail.stationId?.trim()) {
+                      Toast.show('暂无法调整时间', 1.5);
+                      return;
+                    }
+                    setAdjustTimeVisible(true);
+                  }}
+                >
+                  <Text style={styles.btnText}>调整时间</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
           ) : (
             <View style={[styles.btn, styles.btnDisabled]}>

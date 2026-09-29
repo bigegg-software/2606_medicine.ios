@@ -8,7 +8,7 @@ import {
   ScrollView,
   ImageBackground,
 } from 'react-native';
-import { Flex, Modal, Toast } from '@ant-design/react-native';
+import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
@@ -24,6 +24,16 @@ import CourseCategoryFilterPicker, {
 } from './CourseCategoryFilterPicker';
 import TimeSlotFilterPicker from './TimeSlotFilterPicker';
 import type { TimeSlotValue } from '../utils/timeSlotHelpers';
+import {
+  showBookConfirmAlert,
+  showCancelConfirmAlert,
+  showInsufficientBenefitAlert,
+} from '../utils/bookingDialogHelpers';
+import {
+  fetchCourseSessionDateHasMapByYear,
+  fetchCourseSessionDateHasSet,
+  resolveWeekDateRange,
+} from '../utils/dateHasHelpers';
 import {
   bookPrivateSession,
   cancelPrivateBooking,
@@ -52,7 +62,22 @@ export default function GroupTrainingPage({ stationId }: Props) {
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
+  const [dateHasSet, setDateHasSet] = useState<Set<string>>(() => new Set());
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
+  const weekRange = useMemo(() => resolveWeekDateRange(selectedDate), [selectedDate]);
+
+  const sessionDayRecordMarker = useMemo(
+    () => ({
+      color: '#6D925E',
+      loadByYear: (year: number) =>
+        fetchCourseSessionDateHasMapByYear({
+          year,
+          courseType: 'group',
+          stationId,
+        }),
+    }),
+    [stationId],
+  );
 
   const coachFilterLabel = selectedCoach?.coachRealName?.trim() || '全部老师';
   const categoryFilterLabel =
@@ -111,6 +136,20 @@ export default function GroupTrainingPage({ stationId }: Props) {
     }
   }, [stationId]);
 
+  const loadDateHas = useCallback(async () => {
+    try {
+      const set = await fetchCourseSessionDateHasSet({
+        courseType: 'group',
+        startDate: weekRange.startDate,
+        endDate: weekRange.endDate,
+        stationId,
+      });
+      setDateHasSet(set);
+    } catch {
+      setDateHasSet(new Set());
+    }
+  }, [stationId, weekRange.endDate, weekRange.startDate]);
+
   const refreshAfterBookingChange = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
     if (!id) {
@@ -133,10 +172,12 @@ export default function GroupTrainingPage({ stationId }: Props) {
       ]);
       setSessions(list);
       setNextBooking(next);
+      void loadDateHas();
     } catch {
       // 保持当前列表
     }
   }, [
+    loadDateHas,
     selectedCategory?.courseCategory,
     selectedCoach?.coachUserId,
     selectedDate,
@@ -148,28 +189,34 @@ export default function GroupTrainingPage({ stationId }: Props) {
   const handleBook = useCallback(
     (card: GroupSessionCardView) => {
       if (actionSessionId) return;
-      Modal.alert('确认预约', '预约将冻结 1 次权益，是否继续？', [
-        { text: '取消', style: 'cancel' },
-        {
-          text: '确认预约',
-          onPress: () => {
-            void (async () => {
-              setActionSessionId(card.sessionId);
-              try {
-                const result = await bookPrivateSession(card.sessionId);
-                if (!result.ok) {
-                  Toast.show(result.msg || '预约失败', 1.5);
+      showBookConfirmAlert({
+        info: card.bookingInfo,
+        courseType: 'group',
+        onConfirm: () => {
+          void (async () => {
+            setActionSessionId(card.sessionId);
+            try {
+              const result = await bookPrivateSession(card.sessionId);
+              if (!result.ok) {
+                if (result.insufficientBenefit) {
+                  showInsufficientBenefitAlert({
+                    courseType: 'group',
+                    remainCount: result.remainCount ?? 0,
+                    needCount: result.needCount ?? 1,
+                  });
                   return;
                 }
-                Toast.show('预约成功', 1.5);
-                await refreshAfterBookingChange();
-              } finally {
-                setActionSessionId(null);
+                Toast.show(result.msg || '预约失败', 1.5);
+                return;
               }
-            })();
-          },
+              Toast.show('预约成功', 1.5);
+              await refreshAfterBookingChange();
+            } finally {
+              setActionSessionId(null);
+            }
+          })();
         },
-      ]);
+      });
     },
     [actionSessionId, refreshAfterBookingChange],
   );
@@ -182,28 +229,26 @@ export default function GroupTrainingPage({ stationId }: Props) {
         Toast.show('请到我的预约中取消', 1.5);
         return;
       }
-      Modal.alert('取消预约', '开课前 24 小时可取消并释放权益，确认取消？', [
-        { text: '再想想', style: 'cancel' },
-        {
-          text: '确认取消',
-          onPress: () => {
-            void (async () => {
-              setActionSessionId(card.sessionId);
-              try {
-                const result = await cancelPrivateBooking(bookingId);
-                if (!result.ok) {
-                  Toast.show(result.msg || '取消失败', 1.5);
-                  return;
-                }
-                Toast.show('已取消预约', 1.5);
-                await refreshAfterBookingChange();
-              } finally {
-                setActionSessionId(null);
+      showCancelConfirmAlert({
+        info: card.bookingInfo,
+        courseType: 'group',
+        onConfirm: () => {
+          void (async () => {
+            setActionSessionId(card.sessionId);
+            try {
+              const result = await cancelPrivateBooking(bookingId);
+              if (!result.ok) {
+                Toast.show(result.msg || '取消失败', 1.5);
+                return;
               }
-            })();
-          },
+              Toast.show('已取消预约', 1.5);
+              await refreshAfterBookingChange();
+            } finally {
+              setActionSessionId(null);
+            }
+          })();
         },
-      ]);
+      });
     },
     [actionSessionId, nextBooking, refreshAfterBookingChange],
   );
@@ -216,6 +261,10 @@ export default function GroupTrainingPage({ stationId }: Props) {
     void loadNextBooking();
   }, [loadNextBooking]);
 
+  useEffect(() => {
+    void loadDateHas();
+  }, [loadDateHas]);
+
   return (
     <View style={styles.tabPage}>
       <DietDatePickerModal
@@ -223,11 +272,13 @@ export default function GroupTrainingPage({ stationId }: Props) {
         selectedDate={selectedDate}
         onClose={() => setDatePickerVisible(false)}
         onSelect={setSelectedDate}
+        dayRecordMarker={sessionDayRecordMarker}
       />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
         <Flex justify="between" style={styles.calendarBox}>
           {weekDays.map(item => {
             const isActive = item.key === selectedDate;
+            const hasSession = dateHasSet.has(item.key);
             return (
               <TouchableOpacity
                 key={item.key}
@@ -241,7 +292,9 @@ export default function GroupTrainingPage({ stationId }: Props) {
                 <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
                   {item.day}
                 </Text>
-                <View style={styles.calendarDotWrap} />
+                <View style={styles.calendarDotWrap}>
+                  {hasSession ? <View style={styles.calendarDot} /> : null}
+                </View>
               </TouchableOpacity>
             );
           })}

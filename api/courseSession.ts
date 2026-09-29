@@ -193,10 +193,63 @@ export type CourseSessionInfoResult = ApiResult & {
   data?: CourseSessionItem;
 };
 
+/** 按日起止与课程类型查询每日是否有场次 */
+export type CourseSessionDateHasItem = {
+  /** 上课日期 yyyy-MM-dd */
+  date?: string;
+  /** 该日是否有场次 */
+  hasCourseSession?: boolean;
+};
+
+export type CourseSessionDateHasListParams = {
+  /** 所属服务站id（可选） */
+  stationId?: string;
+  /** 上课日期起（含）yyyy-MM-dd */
+  startDate: string;
+  /** 上课日期止（含）yyyy-MM-dd */
+  endDate: string;
+  /** 课程类型：private / group / online */
+  courseType: CourseSessionType | string;
+};
+
+export type CourseSessionDateHasListResult = ApiResult & {
+  data?: CourseSessionDateHasItem[];
+};
+
+function buildDateHasListParams(params: CourseSessionDateHasListParams) {
+  return {
+    startDate: String(params.startDate).trim(),
+    endDate: String(params.endDate).trim(),
+    courseType: String(params.courseType).trim(),
+    ...(params.stationId != null && String(params.stationId).trim()
+      ? { stationId: String(params.stationId).trim() }
+      : {}),
+  };
+}
+
 /** 排期场次详情（回填模板、已约人数、当前用户是否已预约及 bookingId） */
 export const getCourseSessionInfo = (sessionId: string) =>
   request.get<CourseSessionInfoResult>('/patient/courseSession/getInfo', {
     params: { sessionId: String(sessionId) },
+  });
+
+export type CourseSessionRecommendInStoreResult = ApiResult & {
+  data?: CourseSessionItem[];
+};
+
+/**
+ * 推荐到店训练（首页卡片）：已预约未上课优先；再按处方匹配教练；不足则随机；最多 2 条
+ * stationId 必填
+ */
+export const getRecommendInStoreCourseSessions = (params: CourseSessionQueryParams) =>
+  request.get<CourseSessionRecommendInStoreResult>('/patient/courseSession/recommend/inStore', {
+    params: buildCourseSessionParams(params),
+  });
+
+/** 按日起止与课程类型查询每日是否有场次（status=1～5） */
+export const getCourseSessionDateHasList = (params: CourseSessionDateHasListParams) =>
+  request.get<CourseSessionDateHasListResult>('/patient/courseSession/dateHasList', {
+    params: buildDateHasListParams(params),
   });
 
 /** 下一次待上课预约（已预约且场次未结束） */
@@ -221,4 +274,24 @@ export const bookCourseSession = (data: { sessionId: string }) =>
 export const cancelMyBooking = (data: { bookingId: string }) =>
   request.put<ApiResult>('/patient/courseSession/myBooking/cancel', {
     bookingId: String(data.bookingId),
+  });
+
+/**
+ * 用户调整预约：原场次开课前 ≥24h 可改；不扣不退权益；须同课程类型且新场次可约
+ */
+export const rescheduleMyBooking = (data: {
+  oldBookingId: string;
+  newSessionId: string;
+}) =>
+  request.put<ApiResult>('/patient/courseSession/myBooking/reschedule', {
+    oldBookingId: String(data.oldBookingId),
+    newSessionId: String(data.newSessionId),
+  });
+
+/**
+ * 按签到码签到：核销本人该场次已预约记录（核销方式=学员签到；仅上课当日可操作）
+ */
+export const checkInMyBooking = (data: { checkInCode: string }) =>
+  request.put<ApiResult>('/patient/courseSession/myBooking/checkIn', {
+    checkInCode: String(data.checkInCode),
   });

@@ -221,7 +221,8 @@ export default function NutritionPage() {
           <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
         </View>
       </View>
-      {!prescriptionOnly ? (
+      {/* 历史处方（完成情况 / 处方详情）不展示底部 tab */}
+      {!prescriptionOnly && !dietPatientRuleId ? (
         <Flex style={styles.navBox}>
           {pageList.map(page => (
             <Flex

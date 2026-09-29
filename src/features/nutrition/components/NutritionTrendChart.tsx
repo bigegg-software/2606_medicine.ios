@@ -49,14 +49,20 @@ export type NutritionTrendItem = {
   fatRate?: number;
 };
 
-export const NUTRITION_TREND_SERIES = [
-  { key: 'caloriesRate' as const, label: '热量', color: '#6D925E' },
-  { key: 'proteinRate' as const, label: '蛋白质', color: '#0951AE' },
-  { key: 'carbsRate' as const, label: '碳水', color: '#72A1C5' },
-  { key: 'fatRate' as const, label: '脂肪', color: '#FB4550' },
-];
+export type NutritionTrendSeriesKey = keyof Omit<NutritionTrendItem, 'date'>;
 
-const SERIES = NUTRITION_TREND_SERIES;
+export type NutritionTrendSeriesItem = {
+  key: NutritionTrendSeriesKey;
+  label: string;
+  color: string;
+};
+
+export const NUTRITION_TREND_SERIES: NutritionTrendSeriesItem[] = [
+  { key: 'caloriesRate', label: '热量', color: '#6D925E' },
+  { key: 'proteinRate', label: '蛋白质', color: '#0951AE' },
+  { key: 'carbsRate', label: '碳水', color: '#72A1C5' },
+  { key: 'fatRate', label: '脂肪', color: '#FB4550' },
+];
 
 echarts.use([SkiaRenderer, LineChart, ScatterChart, GridComponent, TooltipComponent, MarkLineComponent]);
 
@@ -121,9 +127,11 @@ function getSelectionCardLeft(pixelX: number | null) {
 function SelectionTipCard({
   item,
   pixelX,
+  seriesList,
 }: {
   item: NutritionTrendItem;
   pixelX: number | null;
+  seriesList: NutritionTrendSeriesItem[];
 }) {
   return (
     <View
@@ -137,7 +145,7 @@ function SelectionTipCard({
       ]}
     >
       <Text style={styles.selectionCardTitle}>{formatFoodRecordingDayTitle(item.date)}</Text>
-      {SERIES.map(series => (
+      {seriesList.map(series => (
         <Flex key={series.key} align="center" justify="between" style={styles.selectionCardRow}>
           <Flex align="center">
             <View style={[styles.selectionCardDot, { backgroundColor: series.color }]} />
@@ -208,7 +216,11 @@ function ChartSelectionSlider({
   );
 }
 
-function buildOption(trendList: NutritionTrendItem[], selectedIndex: number | null) {
+function buildOption(
+  trendList: NutritionTrendItem[],
+  selectedIndex: number | null,
+  seriesList: NutritionTrendSeriesItem[],
+) {
   const dates = trendList.map(item => item.date);
   const labelIndices = new Set(getChartLabelIndices(trendList.length));
   const markLineData: Array<Record<string, unknown>> = [{
@@ -239,7 +251,7 @@ function buildOption(trendList: NutritionTrendItem[], selectedIndex: number | nu
     z: 1,
   };
 
-  const lineSeries = SERIES.map((series, index) => ({
+  const lineSeries = seriesList.map((series, index) => ({
     name: series.label,
     type: 'line' as const,
     smooth: true,
@@ -252,7 +264,7 @@ function buildOption(trendList: NutritionTrendItem[], selectedIndex: number | nu
     z: 5,
   }));
 
-  const pointSeries = SERIES.flatMap(series => {
+  const pointSeries = seriesList.flatMap(series => {
     const scatterData = trendList
       .map((item, dataIndex) => {
         const value = normalizeRate(item[series.key]);
@@ -339,9 +351,14 @@ function buildOption(trendList: NutritionTrendItem[], selectedIndex: number | nu
 
 type Props = {
   trendList?: NutritionTrendItem[];
+  /** 折线系列；默认营养四项 */
+  series?: NutritionTrendSeriesItem[];
 };
 
-export default function NutritionTrendChart({ trendList = [] }: Props) {
+export default function NutritionTrendChart({
+  trendList = [],
+  series = NUTRITION_TREND_SERIES,
+}: Props) {
   const skiaRef = useRef<any>(null);
   const chartRef = useRef<ReturnType<typeof echarts.init> | null>(null);
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
@@ -364,8 +381,8 @@ export default function NutritionTrendChart({ trendList = [] }: Props) {
     return trendList[selectedIndex] ?? null;
   }, [selectedIndex, trendList]);
   const option = useMemo(
-    () => buildOption(trendList, selectedIndex),
-    [selectedIndex, trendList],
+    () => buildOption(trendList, selectedIndex, series),
+    [selectedIndex, series, trendList],
   );
 
   const selectAtChartX = useCallback((chartX: number) => {
@@ -455,7 +472,11 @@ export default function NutritionTrendChart({ trendList = [] }: Props) {
           onSelectAtX={selectAtChartX}
         />
         {selectedItem ? (
-          <SelectionTipCard item={selectedItem} pixelX={displayPixelX} />
+          <SelectionTipCard
+            item={selectedItem}
+            pixelX={displayPixelX}
+            seriesList={series}
+          />
         ) : null}
       </View>
     </View>

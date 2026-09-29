@@ -60,6 +60,7 @@ import {
     type TrainingPhaseExerciseCard,
 } from '../utils/trainingPhaseHelpers';
 import { consumePendingTrainingPhaseTab } from '../utils/trainingPhaseTabSync';
+import { loadCoachTrainingRecordByRuleAndDate } from '../utils/coachTrainingRecordHelpers';
 import WarmupPhase from './training/WarmupPhase';
 import MainTrainingPhase from './training/MainTrainingPhase';
 import CooldownPhase from './training/CooldownPhase';
@@ -137,6 +138,8 @@ export default function TrainingPage({
     const [warmupCards, setWarmupCards] = useState<TrainingPhaseExerciseCard[]>([]);
     /** 冷身列表（含完成进度），用于底部「开始冷身 / 完成今日打卡」 */
     const [cooldownCards, setCooldownCards] = useState<TrainingPhaseExerciseCard[]>([]);
+    /** 当日是否已有教练到店训练日志 */
+    const [inStoreDone, setInStoreDone] = useState(false);
     const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
     const prescriptionStartDate = exerciseRule?.startDate?.trim() || dayRule?.startDate?.trim() || '';
     const prescriptionEndDate = exerciseRule?.endDate?.trim() || dayRule?.endDate?.trim() || '';
@@ -324,6 +327,19 @@ export default function TrainingPage({
         }
     }, []);
 
+    const loadInStoreDone = useCallback(async (
+        date: string,
+        rule?: InUseExPatientRule | null,
+    ) => {
+        const exPatientRuleId = rule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId;
+        const record = await loadCoachTrainingRecordByRuleAndDate({
+            exPatientRuleId,
+            customerLocalDate: date,
+            patientUserId,
+        });
+        setInStoreDone(Boolean(record));
+    }, [exerciseRule?.exPatientRuleId, patientUserId]);
+
     useFocusEffect(
         useCallback(() => {
             const pendingTab = consumePendingTrainingPhaseTab();
@@ -340,6 +356,7 @@ export default function TrainingPage({
                 void loadMainProgress(selectedDate, rule);
                 void loadWarmupProgress(selectedDate, rule);
                 void loadCooldownProgress(selectedDate, rule);
+                void loadInStoreDone(selectedDate, rule);
                 if (!moment(selectedDate).isBefore(moment(), 'day')) {
                     void loadSignInfo();
                 }
@@ -354,6 +371,7 @@ export default function TrainingPage({
             loadMainProgress,
             loadWarmupProgress,
             loadCooldownProgress,
+            loadInStoreDone,
             loadSignInfo,
             loadWeekCheckIn,
             patientUserId,
@@ -837,6 +855,17 @@ export default function TrainingPage({
                     </ImageBackground>
                 </View>
 
+                {isToday && inStoreDone ? (
+                    <Flex align="center" style={styles.inStoreDoneTip}>
+                        <Image
+                            style={styles.inStoreDoneTipIcon}
+                            source={require('@/assets/images/exercise/fw.png')}
+                        />
+                        <Text style={styles.inStoreDoneTipText}>
+                            今日训练已到店完成，训练进度已记录
+                        </Text>
+                    </Flex>
+                ) : null}
 
                 <View style={styles.trainingPhaseTabBox}>
                     {TRAINING_PHASE_TABS.map(tab => {

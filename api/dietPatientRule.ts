@@ -182,6 +182,42 @@ export const getDietPatientRuleInfo = (
         headers: withPatientUserIdHeaders(options?.patientUserId),
     });
 
+/** 指定用餐处方在起止日期内每日营养达标率及基线 */
+export type DietDayComplianceRateItem = {
+    date?: string;
+    calorieRate?: number;
+    proteinRate?: number;
+    carbsRate?: number;
+    fatRate?: number;
+    calorieBaseline?: number | null;
+    proteinBaseline?: number | null;
+    carbsBaseline?: number | null;
+    fatBaseline?: number | null;
+};
+
+export type DietDayComplianceRateResult = {
+    code?: number;
+    msg?: string;
+    data?: DietDayComplianceRateItem[];
+};
+
+export const getDietPatientRuleDayComplianceRate = (
+    params: {
+        dietPatientRuleId: string;
+        startDate: string;
+        endDate: string;
+    },
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<DietDayComplianceRateResult>('/patient/dietPatientRule/dayComplianceRate', {
+        params: {
+            dietPatientRuleId: String(params.dietPatientRuleId),
+            startDate: params.startDate,
+            endDate: params.endDate,
+        },
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
+
 /** 按指定日期查询用餐处方快照（dietPatientRuleId 数据隔离） */
 export const getDietPatientRuleSnapshotByDate = (
     params: { customerLocalDate: string; dietPatientRuleId: string },

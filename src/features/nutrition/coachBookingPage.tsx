@@ -13,12 +13,18 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Flex } from '@ant-design/react-native';
+import { useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import styles from '@/css/nutrition/coachBooking';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import { getSpecialPlanInfo, type SpecialPlanItem } from '@/api/specialPlan';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import {
+  loadInStoreRecommendCards,
+  type InStoreRecommendCardView,
+} from '@/src/features/exercise/utils/inStoreRecommendHelpers';
 import {
   buildSpecialPlanIntroItems,
   buildSpecialPlanServiceFlowItems,
@@ -31,29 +37,29 @@ import {
 type Route = RouteProp<RootStackParamList, 'CoachBookingPage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CoachBookingPage'>;
 
-const COACH_RECOMMEND = [
-  {
-    avatar: require('@/assets/images/exercise/dtls.png'),
-    name: '李教练',
-    tag: '心代谢生活方式执行',
-    time: '可约：周二/周四/周六上午',
-  },
-  {
-    avatar: require('@/assets/images/exercise/dtls.png'),
-    name: '李教练',
-    tag: '心代谢生活方式执行',
-    time: '可约：周二/周四/周六上午',
-  },
-];
+const DEFAULT_COACH_AVATAR = require('@/assets/images/exercise/dtls.png');
+
+function resolveRecommendDetailRoute(
+  courseType?: string,
+): 'PrivateCourseDetail' | 'GroupCourseDetail' | 'OnlineCourseDetail' {
+  if (courseType === 'group') return 'GroupCourseDetail';
+  if (courseType === 'online') return 'OnlineCourseDetail';
+  return 'PrivateCourseDetail';
+}
 
 /** 预约教练 / 专项计划详情 */
 export default function CoachBookingPage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const planId = route.params?.planId ? String(route.params.planId) : '';
+  const stationId = useSelector((state: RootState) => {
+    const id = state.user.systemUser?.stationId;
+    return id != null ? String(id).trim() : '';
+  });
   const [plan, setPlan] = useState<SpecialPlanItem | null>(null);
   const [loading, setLoading] = useState(Boolean(planId));
   const [expandedMap, setExpandedMap] = useState<Record<number, boolean>>({});
+  const [recommendCards, setRecommendCards] = useState<InStoreRecommendCardView[]>([]);
 
   const loadPlan = useCallback(async () => {
     if (!planId) {
@@ -76,10 +82,24 @@ export default function CoachBookingPage() {
     }
   }, [planId]);
 
+  const loadRecommend = useCallback(async () => {
+    if (!stationId) {
+      setRecommendCards([]);
+      return;
+    }
+    try {
+      const list = await loadInStoreRecommendCards({ stationId });
+      setRecommendCards(list);
+    } catch {
+      setRecommendCards([]);
+    }
+  }, [stationId]);
+
   useFocusEffect(
     useCallback(() => {
       void loadPlan();
-    }, [loadPlan]),
+      void loadRecommend();
+    }, [loadPlan, loadRecommend]),
   );
 
   const toggleIntro = (index: number) => {
@@ -319,34 +339,59 @@ export default function CoachBookingPage() {
               </Flex>
             ) : null}
 
-            <ImageBackground
-              source={require('@/assets/images/schedule/calendarBack.png')}
-              style={styles.backImage1}
-            >
-              <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
-                <Text style={styles.backImage1Text}>为你推荐的健康陪伴教练</Text>
-              </Flex>
-            </ImageBackground>
-            <View style={styles.planIntroBox}>
-              {COACH_RECOMMEND.map((item, index) => (
-                <Flex
-                  key={index}
-                  align="start"
-                  style={[styles.coachRecommendItem, { marginTop: index === 0 ? 0 : 13 }]}
+            {recommendCards.length > 0 ? (
+              <>
+                <ImageBackground
+                  source={require('@/assets/images/schedule/calendarBack.png')}
+                  style={styles.backImage1}
                 >
-                  <Image style={styles.coachRecommendIcon} source={item.avatar} />
-                  <View style={styles.coachRecommendContent}>
-                    <Flex align="center" style={{ marginTop: 4 }}>
-                      <Text style={styles.coachRecommendName}>{item.name}</Text>
-                      <View style={styles.coachRecommendTag}>
-                        <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
-                      </View>
-                    </Flex>
-                    <Text style={styles.coachRecommendTime}>{item.time}</Text>
-                  </View>
-                </Flex>
-              ))}
-            </View>
+                  <Flex align="center" style={{ flex: 1, paddingHorizontal: 21 }}>
+                    <Text style={styles.backImage1Text}>为你推荐的健康陪伴教练</Text>
+                  </Flex>
+                </ImageBackground>
+                <View style={styles.planIntroBox}>
+                  {recommendCards.map((item, index) => (
+                    <TouchableOpacity
+                      key={item.key}
+                      activeOpacity={0.7}
+                      onPress={() => {
+                        const id = item.sessionId?.trim() || '';
+                        if (!id) return;
+                        navigation.navigate(resolveRecommendDetailRoute(item.courseType), {
+                          sessionId: id,
+                        });
+                      }}
+                    >
+                      <Flex
+                        align="start"
+                        style={[
+                          styles.coachRecommendItem,
+                          { marginTop: index === 0 ? 0 : 13 },
+                        ]}
+                      >
+                        <Image
+                          style={styles.coachRecommendIcon}
+                          source={
+                            item.avatarUri ? { uri: item.avatarUri } : DEFAULT_COACH_AVATAR
+                          }
+                        />
+                        <View style={styles.coachRecommendContent}>
+                          <Flex align="center" style={{ marginTop: 4 }}>
+                            <Text style={styles.coachRecommendName}>{item.coachName}</Text>
+                            {item.tag ? (
+                              <View style={styles.coachRecommendTag}>
+                                <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
+                              </View>
+                            ) : null}
+                          </Flex>
+                          <Text style={styles.coachRecommendTime}>{item.availableText}</Text>
+                        </View>
+                      </Flex>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : null}
 
             <Flex justify="center" align="center" style={styles.planListFooter}>
               <View style={styles.planListFooterLine} />

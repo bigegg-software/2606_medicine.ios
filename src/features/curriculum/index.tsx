@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, Image, TouchableOpacity } from 'react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { TabPageLayout } from '@/src/components/PageLayout';
@@ -45,7 +45,20 @@ export default function CurriculumPage() {
         headerTransparent: true,
         headerStyle: { backgroundColor: 'transparent' },
         headerTitle: () => null,
-        headerRight: () => null,
+        headerRight: () => (
+          <TouchableOpacity
+            style={styles.headerScanBtn}
+            activeOpacity={0.8}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            onPress={() => navigation.navigate('ScanCodePage')}
+          >
+            <Image
+              source={require('@/assets/images/curriculum/scanCode.png')}
+              style={styles.headerScanIcon}
+              resizeMode="contain"
+            />
+          </TouchableOpacity>
+        ),
       });
     }, [navigation]),
   );
