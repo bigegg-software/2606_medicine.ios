@@ -325,6 +325,20 @@ export default function NutritionPage() {
     </TouchableOpacity>
   ) : null;
 
+  const noRuleDietEmptyCenter = showStatusTip ? (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      style={[styles.emptyPrescription, { flex: 1 }]}
+      onPress={openStatusTipDetail}
+    >
+      <Image
+        source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+        style={styles.emptyPrescriptionIcon}
+      />
+      {statusTipText}
+    </TouchableOpacity>
+  ) : undefined;
+
   return (
     <PageLayout style={styles.container} edges={[]}>
       <View style={styles.topBox}>
@@ -378,22 +392,66 @@ export default function NutritionPage() {
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
       ) : !dietRule ? (
-        emptyStatusTipNode ?? (
-          <View style={styles.emptyPrescription}>
-            <Image
-              source={require('@/assets/images/nutrition/icon_yy_empty.png')}
-              style={styles.emptyPrescriptionIcon}
-            />
-            {profileComplete ? (
-              <Text style={styles.emptyPrescriptionText}>
-                {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
-              </Text>
-            ) : (
-              <Flex style={styles.emptyPrescriptionTextRow}>
-                <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
-                <CompleteProfileLink color="#6D925E" />
-              </Flex>
-            )}
+        prescriptionOnly ? (
+          emptyStatusTipNode ?? (
+            <View style={styles.emptyPrescription}>
+              <Image
+                source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+                style={styles.emptyPrescriptionIcon}
+              />
+              {profileComplete ? (
+                <Text style={styles.emptyPrescriptionText}>
+                  {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
+                </Text>
+              ) : (
+                <Flex style={styles.emptyPrescriptionTextRow}>
+                  <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
+                  <CompleteProfileLink color="#6D925E" />
+                </Flex>
+              )}
+            </View>
+          )
+        ) : (
+          <View style={{ flex: 1 }}>
+            {mountedTabs.todayExercise ? (
+              <View style={{ flex: 1, display: activeNav === 'todayExercise' ? 'flex' : 'none' }}>
+                <DietPage
+                  key={patientUserId ?? 'self'}
+                  dietRule={null}
+                  onDietRuleChange={setDietRule}
+                  readOnly={readOnly}
+                  patientUserId={patientUserId}
+                  emptyCenter={noRuleDietEmptyCenter}
+                />
+              </View>
+            ) : null}
+            {mountedTabs.prescription ? (
+              <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
+                {emptyStatusTipNode ?? (
+                  <View style={styles.emptyPrescription}>
+                    <Image
+                      source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+                      style={styles.emptyPrescriptionIcon}
+                    />
+                    <Text style={styles.emptyPrescriptionText}>
+                      {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            ) : null}
+            {mountedTabs.healthPlan ? (
+              <View style={{ flex: 1, display: activeNav === 'healthPlan' ? 'flex' : 'none' }}>
+                <DietPage
+                  key={`health-empty-${patientUserId ?? 'self'}`}
+                  dietRule={null}
+                  onDietRuleChange={setDietRule}
+                  readOnly={readOnly}
+                  patientUserId={patientUserId}
+                  emptyCenter={noRuleDietEmptyCenter}
+                />
+              </View>
+            ) : null}
           </View>
         )
       ) : (

@@ -41,7 +41,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#999999',
     textAlign: 'center',
-    lineHeight:24,
+    lineHeight: 24,
   },
   emptyPrescriptionTextRow: {
     marginTop: 25,
@@ -357,8 +357,7 @@ const styles = StyleSheet.create({
   },
   mealActionCameraBtn: {
     flex: 1,
-    paddingVertical: 11,
-    paddingHorizontal: 13,
+    paddingVertical: 17,
     backgroundColor: '#FFFFFF',
     borderRadius: 13,
     shadowColor: '#EAEAEA',

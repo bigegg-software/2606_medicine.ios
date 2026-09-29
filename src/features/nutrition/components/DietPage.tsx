@@ -81,6 +81,8 @@ type Props = {
     onDietRuleChange?: (rule: DietPatientRuleInfo | null) => void;
     readOnly?: boolean;
     patientUserId?: string;
+    /** 无处方时自定义空态（如暂停/已完成提示），不传则用默认「暂无营养处方」 */
+    emptyCenter?: React.ReactNode;
 };
 
 const CATEGORY_TO_MEAL_KEY: Record<number, string> = {
@@ -398,6 +400,7 @@ export default function DietPage({
     onDietRuleChange,
     readOnly = false,
     patientUserId,
+    emptyCenter,
 }: Props) {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<Nav>();
@@ -1007,23 +1010,78 @@ export default function DietPage({
         });
     }, [currentMealCategory, navigation]);
 
+    const renderMealActionCamera = (boxStyle?: object) =>
+        !readOnly ? (
+            <Flex style={[styles.mealActionCameraBox, boxStyle]}>
+                <TouchableOpacity
+                    style={styles.mealActionCameraBtn}
+                    activeOpacity={0.7}
+                    onPress={() => setManualAddVisible(true)}
+                >
+                    <Flex justify="center" align="center">
+                        <Image
+                            style={styles.mealActionCameraIcon}
+                            source={require('@/assets/images/exercise/edit.png')}
+                        />
+                        <Text style={styles.mealActionCameraText}>手动添加</Text>
+                    </Flex>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    style={styles.mealActionCameraBtn}
+                    activeOpacity={0.7}
+                    onPress={() =>
+                        navigation.navigate('MealRecognitionPage', {
+                            mealCategory: currentMealCategory,
+                        })
+                    }
+                >
+                    <Flex justify="center" align="center">
+                        <Image
+                            style={styles.mealActionCameraIcon}
+                            source={require('@/assets/images/exercise/camara.png')}
+                        />
+                        <Text style={styles.mealActionCameraText}>拍照记录</Text>
+                    </Flex>
+                </TouchableOpacity>
+            </Flex>
+        ) : null;
+
     if (!dietRule) {
         return (
-            <View style={styles.emptyPrescription}>
-                <Image
-                    source={require('@/assets/images/nutrition/icon_yy_empty.png')}
-                    style={styles.emptyPrescriptionIcon}
-                />
-                {readOnly || profileComplete ? (
-                    <Text style={styles.emptyPrescriptionText}>
-                        {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
-                    </Text>
-                ) : (
-                    <Flex style={styles.emptyPrescriptionTextRow}>
-                        <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
-                        <CompleteProfileLink color='#6D925E' textStyle={styles.emptyPrescriptionTextInline} />
-                    </Flex>
+            <View style={{ flex: 1 }}>
+                {emptyCenter ?? (
+                    <View style={[styles.emptyPrescription, { flex: 1 }]}>
+                        <Image
+                            source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+                            style={styles.emptyPrescriptionIcon}
+                        />
+                        {readOnly || profileComplete ? (
+                            <Text style={styles.emptyPrescriptionText}>
+                                {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
+                            </Text>
+                        ) : (
+                            <Flex style={styles.emptyPrescriptionTextRow}>
+                                <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
+                                <CompleteProfileLink color='#6D925E' textStyle={styles.emptyPrescriptionTextInline} />
+                            </Flex>
+                        )}
+                    </View>
                 )}
+                {!readOnly ? (
+                    <View
+                        style={{
+                            marginHorizontal: 12,
+                            marginBottom: Math.max(insets.bottom, 12),
+                        }}
+                    >
+                        {renderMealActionCamera({ marginTop: 0 })}
+                    </View>
+                ) : null}
+                <DietManualAddModal
+                    visible={manualAddVisible}
+                    onClose={() => setManualAddVisible(false)}
+                    onSave={handleManualAddSave}
+                />
             </View>
         );
     }
@@ -1240,40 +1298,7 @@ export default function DietPage({
                     </View>
                 )}
 
-                {!readOnly && isTodaySelected ? (
-                    <Flex style={styles.mealActionCameraBox}>
-                        <TouchableOpacity
-                            style={styles.mealActionCameraBtn}
-                            activeOpacity={0.7}
-                            onPress={() => setManualAddVisible(true)}
-                        >
-                            <Flex justify="center" align="center">
-                                <Image
-                                    style={styles.mealActionCameraIcon}
-                                    source={require('@/assets/images/exercise/edit.png')}
-                                />
-                                <Text style={styles.mealActionCameraText}>手动添加</Text>
-                            </Flex>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={styles.mealActionCameraBtn}
-                            activeOpacity={0.7}
-                            onPress={() =>
-                                navigation.navigate('MealRecognitionPage', {
-                                    mealCategory: currentMealCategory,
-                                })
-                            }
-                        >
-                            <Flex justify="center" align="center">
-                                <Image
-                                    style={styles.mealActionCameraIcon}
-                                    source={require('@/assets/images/exercise/camara.png')}
-                                />
-                                <Text style={styles.mealActionCameraText}>拍照记录</Text>
-                            </Flex>
-                        </TouchableOpacity>
-                    </Flex>
-                ) : null}
+                {!readOnly && isTodaySelected ? renderMealActionCamera() : null}
 
                 <Flex justify="center" align="center" style={styles.planListFooter}>
                     <View style={styles.planListFooterLine} />
