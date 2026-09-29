@@ -11,14 +11,18 @@ import {
 import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import styles from '@/css/curriculum/onlineTraining';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
 import {
+  resolveCourseBenefitRemainCount,
   showBookConfirmAlert,
   showCancelConfirmAlert,
   showInsufficientBenefitAlert,
+  tryShowInsufficientBenefitAlert,
 } from '../utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
@@ -56,6 +60,8 @@ function getLiveActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone
 /** 线上训练 */
 export default function OnlineTrainingPage({ stationId }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const systemUser = useSelector((state: RootState) => state.user.systemUser);
+  const onlineRemainCount = resolveCourseBenefitRemainCount(systemUser, 'online');
   const [sessions, setSessions] = useState<OnlineSessionCardView[]>([]);
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,6 +120,17 @@ export default function OnlineTrainingPage({ stationId }: Props) {
   const handleBook = useCallback(
     (card: OnlineSessionCardView) => {
       if (actionSessionId) return;
+      const openBenefits = () => navigation.navigate('MemberBenefitsPage');
+      if (
+        tryShowInsufficientBenefitAlert({
+          courseType: 'online',
+          remainCount: onlineRemainCount,
+          needCount: 1,
+          onViewBenefit: openBenefits,
+        })
+      ) {
+        return;
+      }
       showBookConfirmAlert({
         info: card.bookingInfo,
         courseType: 'online',
@@ -128,6 +145,7 @@ export default function OnlineTrainingPage({ stationId }: Props) {
                     courseType: 'online',
                     remainCount: result.remainCount ?? 0,
                     needCount: result.needCount ?? 1,
+                    onViewBenefit: openBenefits,
                   });
                   return;
                 }
@@ -143,7 +161,7 @@ export default function OnlineTrainingPage({ stationId }: Props) {
         },
       });
     },
-    [actionSessionId, refreshAfterBookingChange],
+    [actionSessionId, navigation, onlineRemainCount, refreshAfterBookingChange],
   );
 
   const handleCancel = useCallback(

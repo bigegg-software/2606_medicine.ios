@@ -11,9 +11,11 @@ import {
 import { Flex, Toast } from '@ant-design/react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import moment from 'moment';
 import styles from '@/css/curriculum/groupTraining';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import { buildDietWeekDays } from '@/src/features/exercise/utils/dietCalendarHelpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
@@ -25,9 +27,11 @@ import CourseCategoryFilterPicker, {
 import TimeSlotFilterPicker from './TimeSlotFilterPicker';
 import type { TimeSlotValue } from '../utils/timeSlotHelpers';
 import {
+  resolveCourseBenefitRemainCount,
   showBookConfirmAlert,
   showCancelConfirmAlert,
   showInsufficientBenefitAlert,
+  tryShowInsufficientBenefitAlert,
 } from '../utils/bookingDialogHelpers';
 import {
   fetchCourseSessionDateHasMapByYear,
@@ -70,6 +74,8 @@ function getClassActionStyles(tone: ReturnType<typeof resolveSessionAction>['ton
 /** 集体训练 */
 export default function GroupTrainingPage({ stationId }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const systemUser = useSelector((state: RootState) => state.user.systemUser);
+  const groupRemainCount = resolveCourseBenefitRemainCount(systemUser, 'group');
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<CoachFilterValue | null>(null);
@@ -208,6 +214,17 @@ export default function GroupTrainingPage({ stationId }: Props) {
   const handleBook = useCallback(
     (card: GroupSessionCardView) => {
       if (actionSessionId) return;
+      const openBenefits = () => navigation.navigate('MemberBenefitsPage');
+      if (
+        tryShowInsufficientBenefitAlert({
+          courseType: 'group',
+          remainCount: groupRemainCount,
+          needCount: 1,
+          onViewBenefit: openBenefits,
+        })
+      ) {
+        return;
+      }
       showBookConfirmAlert({
         info: card.bookingInfo,
         courseType: 'group',
@@ -222,6 +239,7 @@ export default function GroupTrainingPage({ stationId }: Props) {
                     courseType: 'group',
                     remainCount: result.remainCount ?? 0,
                     needCount: result.needCount ?? 1,
+                    onViewBenefit: openBenefits,
                   });
                   return;
                 }
@@ -237,7 +255,7 @@ export default function GroupTrainingPage({ stationId }: Props) {
         },
       });
     },
-    [actionSessionId, refreshAfterBookingChange],
+    [actionSessionId, groupRemainCount, navigation, refreshAfterBookingChange],
   );
 
   const handleCancel = useCallback(

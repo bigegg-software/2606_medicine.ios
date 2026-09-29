@@ -156,8 +156,8 @@ function resolveCoverUri(item: CourseSessionBookingItem) {
 function formatCapacityMeta(item: CourseSessionBookingItem) {
   const capacity = item.session?.capacity ?? item.session?.template?.capacity;
   if (capacity == null) return '';
-  if (capacity < 0) return '不限人数小班';
-  return `${capacity}人小班`;
+  if (capacity < 0) return '不限人数';
+  return `${capacity}人班`;
 }
 
 function formatCoachMeta(item: CourseSessionBookingItem) {

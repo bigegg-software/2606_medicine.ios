@@ -12,16 +12,21 @@ import {
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/onlineCourseDetail';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import {
   bookingInfoFromDetail,
+  resolveCourseBenefitRemainCount,
   showBookConfirmAlert,
   showCancelConfirmAlert,
   showInsufficientBenefitAlert,
+  tryShowInsufficientBenefitAlert,
 } from './utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
@@ -34,6 +39,7 @@ import {
 import AdjustTimeModal from './components/AdjustTimeModal';
 
 type Route = RouteProp<RootStackParamList, 'PrivateCourseDetail'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const DEFAULT_AVATAR = require('@/assets/images/curriculum/ljl.png');
 
@@ -54,10 +60,13 @@ function MetaParts({ parts }: { parts: string[] }) {
 
 /** 私教课程详情（布局同集体课；头图 129×129；仅个人简介） */
 export default function PrivateCourseDetailPage() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { params } = useRoute<Route>();
   const sessionId = toSessionId(params.sessionId);
+  const privateRemainCount = useSelector((state: RootState) =>
+    resolveCourseBenefitRemainCount(state.user.systemUser, 'private'),
+  );
   const [detail, setDetail] = useState<OnlineCourseDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -102,6 +111,17 @@ export default function PrivateCourseDetailPage() {
 
   const handleBook = useCallback(() => {
     if (!detail || actionLoading) return;
+    const openBenefits = () => navigation.navigate('MemberBenefitsPage');
+    if (
+      tryShowInsufficientBenefitAlert({
+        courseType: 'private',
+        remainCount: privateRemainCount,
+        needCount: 1,
+        onViewBenefit: openBenefits,
+      })
+    ) {
+      return;
+    }
     showBookConfirmAlert({
       info: bookingInfoFromDetail(detail),
       courseType: 'private',
@@ -116,6 +136,7 @@ export default function PrivateCourseDetailPage() {
                   courseType: 'private',
                   remainCount: result.remainCount ?? 0,
                   needCount: result.needCount ?? 1,
+                  onViewBenefit: openBenefits,
                 });
                 return;
               }
@@ -130,7 +151,7 @@ export default function PrivateCourseDetailPage() {
         })();
       },
     });
-  }, [actionLoading, detail, loadDetail]);
+  }, [actionLoading, detail, loadDetail, navigation, privateRemainCount]);
 
   const handleCancel = useCallback(() => {
     if (!detail || actionLoading) return;

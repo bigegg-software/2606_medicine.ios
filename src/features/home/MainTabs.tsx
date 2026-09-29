@@ -365,7 +365,7 @@ export default function MainTabs() {
           name="Curriculum"
           component={CurriculumTabScreen}
           options={{
-            tabBarLabel: '课程',
+            tabBarLabel: '约课',
             tabBarIcon: ({ focused }) => (
               <TabIcon
                 focused={focused}

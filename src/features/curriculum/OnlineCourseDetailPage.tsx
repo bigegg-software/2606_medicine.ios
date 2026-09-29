@@ -12,16 +12,21 @@ import {
 import { Flex, Toast } from '@ant-design/react-native';
 import * as Clipboard from 'expo-clipboard';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/onlineCourseDetail';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import {
   bookingInfoFromDetail,
+  resolveCourseBenefitRemainCount,
   showBookConfirmAlert,
   showCancelConfirmAlert,
   showInsufficientBenefitAlert,
+  tryShowInsufficientBenefitAlert,
 } from './utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
@@ -35,6 +40,7 @@ import {
 } from './utils/courseSessionHelpers';
 
 type Route = RouteProp<RootStackParamList, 'OnlineCourseDetail'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const DEFAULT_COVER = require('@/assets/images/curriculum/xb1.png');
 
@@ -55,10 +61,13 @@ function MetaParts({ parts }: { parts: string[] }) {
 
 /** 线上课程详情（布局参考直播详情） */
 export default function OnlineCourseDetailPage() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { params } = useRoute<Route>();
   const sessionId = toSessionId(params.sessionId);
+  const onlineRemainCount = useSelector((state: RootState) =>
+    resolveCourseBenefitRemainCount(state.user.systemUser, 'online'),
+  );
   const [detail, setDetail] = useState<OnlineCourseDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -102,6 +111,17 @@ export default function OnlineCourseDetailPage() {
 
   const handleBook = useCallback(() => {
     if (!detail || actionLoading) return;
+    const openBenefits = () => navigation.navigate('MemberBenefitsPage');
+    if (
+      tryShowInsufficientBenefitAlert({
+        courseType: 'online',
+        remainCount: onlineRemainCount,
+        needCount: 1,
+        onViewBenefit: openBenefits,
+      })
+    ) {
+      return;
+    }
     showBookConfirmAlert({
       info: bookingInfoFromDetail(detail),
       courseType: 'online',
@@ -116,6 +136,7 @@ export default function OnlineCourseDetailPage() {
                   courseType: 'online',
                   remainCount: result.remainCount ?? 0,
                   needCount: result.needCount ?? 1,
+                  onViewBenefit: openBenefits,
                 });
                 return;
               }
@@ -130,7 +151,7 @@ export default function OnlineCourseDetailPage() {
         })();
       },
     });
-  }, [actionLoading, detail, loadDetail]);
+  }, [actionLoading, detail, loadDetail, navigation, onlineRemainCount]);
 
   const handleCancel = useCallback(() => {
     if (!detail || actionLoading) return;

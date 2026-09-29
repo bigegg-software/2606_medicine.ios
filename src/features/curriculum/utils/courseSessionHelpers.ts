@@ -63,6 +63,8 @@ export type PrivateSessionCardView = {
   benefitText: string;
   time: string;
   topic: string;
+  /** 课程封面优先；无封面时用教练头像 */
+  coverUri?: string;
   avatarUri?: string;
   /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
   status?: number;
@@ -173,11 +175,35 @@ function formatCapacityText(item: CourseSessionItem) {
   return `已预约 ${booked}/${capacity} 人`;
 }
 
-export function mapPrivateSessionToCard(item: CourseSessionItem): PrivateSessionCardView | null {
+function formatSessionTags(raw?: string | null): string {
+  if (!raw?.trim()) return '';
+  return raw
+    .split(/[,，、]/)
+    .map(tag => tag.trim())
+    .filter(Boolean)
+    .join(' · ');
+}
+
+/** 私教列表权益文案：私教权益 剩余X节 */
+export function formatPrivateBenefitRemainText(remain?: number | null): string {
+  if (remain == null || Number.isNaN(Number(remain))) {
+    return '私教权益 剩余--节';
+  }
+  const n = Number(remain);
+  if (n === -1) return '私教权益 不限次数';
+  return `私教权益 剩余${Math.max(0, Math.floor(n))}节`;
+}
+
+export function mapPrivateSessionToCard(
+  item: CourseSessionItem,
+  options?: { privateRemainCount?: number | null },
+): PrivateSessionCardView | null {
   const sessionId = item.sessionId != null ? String(item.sessionId).trim() : '';
   if (!sessionId) return null;
   const specialty = item.coachSpecialtyDirection?.trim() || '';
   const courseName = item.template?.courseName?.trim() || '';
+  const courseTags = formatSessionTags(item.template?.courseTags);
+  const coverUri = item.template?.coverOssUrl?.trim() || undefined;
   const avatarUri = item.coachAvatarUrl?.trim() || undefined;
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
   return {
@@ -185,10 +211,12 @@ export function mapPrivateSessionToCard(item: CourseSessionItem): PrivateSession
     sessionId,
     name: item.coachRealName?.trim() || '教练',
     tag: '处方推荐',
-    desc: specialty || item.template?.courseIntro?.trim() || '专业私教陪伴',
-    benefitText: formatCapacityText(item),
+    // 已关联课程 → 课程标签；未关联 → 教练擅长方向
+    desc: courseName ? courseTags : formatSessionTags(specialty),
+    benefitText: formatPrivateBenefitRemainText(options?.privateRemainCount),
     time: formatSessionTime(item.startTime, item.endTime),
-    topic: courseName || item.template?.coursePoints?.trim() || '--',
+    topic: courseName || '一对一私教训练',
+    coverUri,
     avatarUri,
     status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
@@ -199,11 +227,11 @@ export function mapPrivateSessionToCard(item: CourseSessionItem): PrivateSession
 
 /** 拉取私教排期列表 */
 export async function fetchRecommendPrivateSessions(
-  options: SessionListQueryOptions,
+  options: SessionListQueryOptions & { privateRemainCount?: number | null },
 ): Promise<PrivateSessionCardView[]> {
   const list = await fetchCourseSessionRows('private', options);
   return list
-    .map(mapPrivateSessionToCard)
+    .map(item => mapPrivateSessionToCard(item, { privateRemainCount: options.privateRemainCount }))
     .filter((item): item is PrivateSessionCardView => item != null);
 }
 
@@ -560,7 +588,7 @@ export function mapPrivateCourseDetail(item: CourseSessionItem): OnlineCourseDet
     certificateText: certificate,
     specialtyText: specialty,
     introText: courseIntro,
-    coverUri: item.coachAvatarUrl?.trim() || item.template?.coverOssUrl?.trim() || undefined,
+    coverUri: item.template?.coverOssUrl?.trim() || item.coachAvatarUrl?.trim() || undefined,
   };
 }
 
@@ -580,7 +608,8 @@ export function applyCoachUserToPrivateDetail(
     certificateText: certificate || detail.certificateText,
     specialtyText: specialty || detail.specialtyText,
     introText: introduction || detail.introText,
-    coverUri: avatarUri || detail.coverUri,
+    // 已有封面不覆盖；无封面时用教练头像兜底
+    coverUri: detail.coverUri || avatarUri || undefined,
     coachName: realName || detail.coachName,
   };
 }
@@ -643,7 +672,8 @@ function mapCourseSessionDetail(
     pointsText: item.template?.coursePoints?.trim() || '',
     certificateText: item.coachCertificate?.trim() || '',
     specialtyText: item.coachSpecialtyDirection?.trim() || '',
-    coverUri: item.template?.coverOssUrl?.trim() || item.coachAvatarUrl?.trim() || undefined,
+    coverUri: item.template?.coverOssUrl?.trim() || undefined,
+    avatarUri: item.coachAvatarUrl?.trim() || undefined,
     liveLink: item.liveLink?.trim() || undefined,
     status: item.status,
     bookedCount,

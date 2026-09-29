@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -8,11 +8,15 @@ import {
   ScrollView,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useDispatch, useSelector } from 'react-redux';
 import moment from 'moment';
 import styles from '@/css/curriculum/privateTraining';
 import type { RootStackParamList } from '@/route/router';
+import type { AppDispatch, RootState } from '@/store/store';
+import store from '@/store/store';
+import { fetchUserInfo } from '@/store/actions/user';
 import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
 import { buildDietWeekDays } from '@/src/features/exercise/utils/dietCalendarHelpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
@@ -25,6 +29,7 @@ import {
   showBookConfirmAlert,
   showCancelConfirmAlert,
   showInsufficientBenefitAlert,
+  tryShowInsufficientBenefitAlert,
 } from '../utils/bookingDialogHelpers';
 import {
   fetchCourseSessionDateHasMapByYear,
@@ -66,6 +71,10 @@ function getCoachActionStyles(tone: ReturnType<typeof resolveSessionAction>['ton
 /** 私教训练 */
 export default function PrivateTrainingPage({ stationId }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const dispatch = useDispatch<AppDispatch>();
+  const privateRemainCount = useSelector(
+    (state: RootState) => state.user.systemUser?.privateCoachTotalCount,
+  );
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
   const [datePickerVisible, setDatePickerVisible] = useState(false);
   const [selectedCoach, setSelectedCoach] = useState<CoachFilterValue | null>(null);
@@ -114,6 +123,7 @@ export default function PrivateTrainingPage({ stationId }: Props) {
         endDate: selectedDate,
         startTime: selectedTimeSlot?.startTime,
         endTime: selectedTimeSlot?.endTime,
+        privateRemainCount,
       });
       setSessions(list);
     } catch {
@@ -122,6 +132,7 @@ export default function PrivateTrainingPage({ stationId }: Props) {
       setLoading(false);
     }
   }, [
+    privateRemainCount,
     selectedCoach?.coachUserId,
     selectedDate,
     selectedTimeSlot?.endTime,
@@ -165,6 +176,9 @@ export default function PrivateTrainingPage({ stationId }: Props) {
       return;
     }
     try {
+      await dispatch(fetchUserInfo());
+      const remain =
+        store.getState().user.systemUser?.privateCoachTotalCount ?? privateRemainCount;
       const [list, next] = await Promise.all([
         fetchRecommendPrivateSessions({
           stationId: id,
@@ -173,6 +187,7 @@ export default function PrivateTrainingPage({ stationId }: Props) {
           endDate: selectedDate,
           startTime: selectedTimeSlot?.startTime,
           endTime: selectedTimeSlot?.endTime,
+          privateRemainCount: remain,
         }),
         fetchNextPrivateBooking({ stationId: id }),
       ]);
@@ -183,7 +198,9 @@ export default function PrivateTrainingPage({ stationId }: Props) {
       // 保持当前列表，避免预约成功后闪空
     }
   }, [
+    dispatch,
     loadDateHas,
+    privateRemainCount,
     selectedCoach?.coachUserId,
     selectedDate,
     selectedTimeSlot?.endTime,
@@ -194,6 +211,17 @@ export default function PrivateTrainingPage({ stationId }: Props) {
   const handleBook = useCallback(
     (card: PrivateSessionCardView) => {
       if (actionSessionId) return;
+      const openBenefits = () => navigation.navigate('MemberBenefitsPage');
+      if (
+        tryShowInsufficientBenefitAlert({
+          courseType: 'private',
+          remainCount: privateRemainCount,
+          needCount: 1,
+          onViewBenefit: openBenefits,
+        })
+      ) {
+        return;
+      }
       showBookConfirmAlert({
         info: card.bookingInfo,
         courseType: 'private',
@@ -208,6 +236,7 @@ export default function PrivateTrainingPage({ stationId }: Props) {
                     courseType: 'private',
                     remainCount: result.remainCount ?? 0,
                     needCount: result.needCount ?? 1,
+                    onViewBenefit: openBenefits,
                   });
                   return;
                 }
@@ -223,7 +252,7 @@ export default function PrivateTrainingPage({ stationId }: Props) {
         },
       });
     },
-    [actionSessionId, refreshAfterBookingChange],
+    [actionSessionId, navigation, privateRemainCount, refreshAfterBookingChange],
   );
 
   const handleCancel = useCallback(
@@ -269,6 +298,18 @@ export default function PrivateTrainingPage({ stationId }: Props) {
   useEffect(() => {
     void loadDateHas();
   }, [loadDateHas]);
+
+  /** 从详情预约/取消返回时刷新列表与权益（首屏由上方 effect 负责，避免重复请求） */
+  const skipFocusRefreshRef = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (skipFocusRefreshRef.current) {
+        skipFocusRefreshRef.current = false;
+        return;
+      }
+      void refreshAfterBookingChange();
+    }, [refreshAfterBookingChange]),
+  );
 
   return (
     <View style={styles.tabPage}>
@@ -384,6 +425,7 @@ export default function PrivateTrainingPage({ stationId }: Props) {
             });
             const actionStyles = getCoachActionStyles(action.tone);
             const busy = actionSessionId === card.sessionId;
+            const imageUri = card.coverUri || card.avatarUri;
             return (
               <TouchableOpacity
                 key={card.key}
@@ -399,8 +441,8 @@ export default function PrivateTrainingPage({ stationId }: Props) {
                   <Image
                     style={styles.coachAvatar}
                     source={
-                      card.avatarUri
-                        ? { uri: card.avatarUri }
+                      imageUri
+                        ? { uri: imageUri }
                         : require('@/assets/images/curriculum/ljl.png')
                     }
                   />

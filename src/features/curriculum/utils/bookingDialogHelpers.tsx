@@ -3,6 +3,7 @@ import { Text } from 'react-native';
 import { Modal, Toast } from '@ant-design/react-native';
 import moment from 'moment';
 import type { CourseSessionType } from '@/api/courseSession';
+import type { SystemUser } from '@/api/user';
 
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -44,6 +45,31 @@ export function courseTypeBenefitLabel(courseType: CourseSessionType | string) {
   if (courseType === 'group') return '集体课';
   if (courseType === 'online') return '线上课';
   return '私教课';
+}
+
+/** 读取对应课型剩余次数；-1 不限；缺省 null */
+export function resolveCourseBenefitRemainCount(
+  user: SystemUser | null | undefined,
+  courseType: CourseSessionType | string,
+): number | null {
+  const raw =
+    courseType === 'group'
+      ? user?.groupClassTotalCount
+      : courseType === 'online'
+        ? user?.onlineClassTotalCount
+        : user?.privateCoachTotalCount;
+  if (raw == null || Number.isNaN(Number(raw))) return null;
+  return Number(raw);
+}
+
+/** 已知剩余次数且不足时拦截预约（null / -1 不拦截，交给接口） */
+export function shouldBlockBookForInsufficientBenefit(
+  remain: number | null | undefined,
+  needCount = 1,
+): boolean {
+  if (remain == null || Number.isNaN(Number(remain))) return false;
+  if (remain === -1) return false;
+  return remain < needCount;
 }
 
 /** 9月25日（周五）19:00–20:00 */
@@ -174,6 +200,7 @@ export function showInsufficientBenefitAlert(options: {
   courseType: CourseSessionType | string;
   remainCount?: number;
   needCount?: number;
+  /** 点击「查看权益」；默认 Toast 提示 */
   onViewBenefit?: () => void;
 }) {
   Modal.alert(
@@ -199,4 +226,24 @@ export function showInsufficientBenefitAlert(options: {
       },
     ],
   );
+}
+
+/** 次数不足时弹窗并返回 true；足够或未知则返回 false */
+export function tryShowInsufficientBenefitAlert(options: {
+  courseType: CourseSessionType | string;
+  remainCount?: number | null;
+  needCount?: number;
+  onViewBenefit: () => void;
+}): boolean {
+  const needCount = options.needCount ?? 1;
+  if (!shouldBlockBookForInsufficientBenefit(options.remainCount, needCount)) {
+    return false;
+  }
+  showInsufficientBenefitAlert({
+    courseType: options.courseType,
+    remainCount: Math.max(0, Math.floor(Number(options.remainCount))),
+    needCount,
+    onViewBenefit: options.onViewBenefit,
+  });
+  return true;
 }

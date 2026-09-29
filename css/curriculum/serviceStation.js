@@ -3,7 +3,7 @@ import { AppTheme } from '@/common/theme';
 
 const styles = StyleSheet.create({
   headerLeft: {
-    marginLeft: 18,
+    marginLeft: 4,
     alignItems: 'center',
     maxWidth: 220,
   },

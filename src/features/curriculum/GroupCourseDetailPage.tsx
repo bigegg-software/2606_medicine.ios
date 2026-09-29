@@ -12,16 +12,21 @@ import {
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import PageLayout from '@/src/components/PageLayout';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/curriculum/onlineCourseDetail';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import {
   bookingInfoFromDetail,
+  resolveCourseBenefitRemainCount,
   showBookConfirmAlert,
   showCancelConfirmAlert,
   showInsufficientBenefitAlert,
+  tryShowInsufficientBenefitAlert,
 } from './utils/bookingDialogHelpers';
 import {
   bookPrivateSession,
@@ -34,6 +39,7 @@ import {
 } from './utils/courseSessionHelpers';
 
 type Route = RouteProp<RootStackParamList, 'GroupCourseDetail'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const DEFAULT_COVER = require('@/assets/images/curriculum/xb1.png');
 
@@ -54,10 +60,13 @@ function MetaParts({ parts }: { parts: string[] }) {
 
 /** 集体课程详情（顶部参考线上详情，无 URL 模块） */
 export default function GroupCourseDetailPage() {
-  const navigation = useNavigation();
+  const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
   const { params } = useRoute<Route>();
   const sessionId = toSessionId(params.sessionId);
+  const groupRemainCount = useSelector((state: RootState) =>
+    resolveCourseBenefitRemainCount(state.user.systemUser, 'group'),
+  );
   const [detail, setDetail] = useState<OnlineCourseDetailView | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
@@ -101,6 +110,17 @@ export default function GroupCourseDetailPage() {
 
   const handleBook = useCallback(() => {
     if (!detail || actionLoading) return;
+    const openBenefits = () => navigation.navigate('MemberBenefitsPage');
+    if (
+      tryShowInsufficientBenefitAlert({
+        courseType: 'group',
+        remainCount: groupRemainCount,
+        needCount: 1,
+        onViewBenefit: openBenefits,
+      })
+    ) {
+      return;
+    }
     showBookConfirmAlert({
       info: bookingInfoFromDetail(detail),
       courseType: 'group',
@@ -115,6 +135,7 @@ export default function GroupCourseDetailPage() {
                   courseType: 'group',
                   remainCount: result.remainCount ?? 0,
                   needCount: result.needCount ?? 1,
+                  onViewBenefit: openBenefits,
                 });
                 return;
               }
@@ -129,7 +150,7 @@ export default function GroupCourseDetailPage() {
         })();
       },
     });
-  }, [actionLoading, detail, loadDetail]);
+  }, [actionLoading, detail, groupRemainCount, loadDetail, navigation]);
 
   const handleCancel = useCallback(() => {
     if (!detail || actionLoading) return;
