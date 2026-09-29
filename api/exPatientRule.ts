@@ -167,8 +167,14 @@ export type ExPatientRuleListResult = {
   rows?: ExPatientRuleInfo[];
 };
 
-export const getExPatientRuleList = (params: ExPatientRuleListParams) =>
-  request.get<ExPatientRuleListResult>('/patient/exPatientRule/list', { params });
+export const getExPatientRuleList = (
+  params: ExPatientRuleListParams,
+  options?: { patientUserId?: string | number | null },
+) =>
+  request.get<ExPatientRuleListResult>('/patient/exPatientRule/list', {
+    params,
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 /** 按处方查询调整原因记录（版本号、调整原因、调整时间） */
 export type ExPatientRuleAdjustItem = {
@@ -217,11 +223,15 @@ export const getExPatientRuleModuleCompleteRate = (
     },
   );
 
-/** 指定运动处方在起止日期内主训练四大模块的每日完成率 */
+/** 指定运动处方在起止日期内每日完成率（主训练、热身/冷身及四大模块） */
 export type ExPatientRuleModuleDayCompleteRateItem = {
   date?: string;
   /** 当日主训练完成率 0-100；休息日为 null */
   mainCompleteRate?: number | null;
+  /** 热身完成率 0-100；无安排或休息日为 null */
+  hotCompleteRate?: number | null;
+  /** 冷身完成率 0-100；无安排或休息日为 null */
+  coldCompleteRate?: number | null;
   cardioCompleteRate?: number | null;
   strengthCompleteRate?: number | null;
   flexibilityCompleteRate?: number | null;

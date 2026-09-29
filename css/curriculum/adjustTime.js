@@ -172,6 +172,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F0F0',
     borderWidth: 0,
   },
+  /** 已满员 / 已截止 */
+  slotCellStatus: {
+    backgroundColor: '#F6F8FB',
+    borderWidth: 0,
+  },
+  slotStatusRow: {
+    marginTop: 6,
+  },
+  slotStatusIcon: {
+    width: 11,
+    height: 11,
+    marginRight: 4,
+    tintColor: 'rgba(51,51,51,0.3)',
+  },
+  slotStatusText: {
+    fontWeight: '500',
+    fontSize: 12,
+    color: 'rgba(51,51,51,0.3)',
+  },
   slotCellPlaceholder: {
     flex: 1,
     paddingHorizontal: 12,
@@ -190,6 +209,9 @@ const styles = StyleSheet.create({
   },
   slotTextDisabled: {
     color: '#BBBBBB',
+  },
+  slotTextStatus: {
+    color: 'rgba(51,51,51,0.3)',
   },
   panelBody: {
     minHeight: 340,
@@ -264,11 +286,14 @@ const styles = StyleSheet.create({
   calendarDayTextDisabled: {
     color: '#BBBBBB',
   },
-  confirmBtn: {
+  confirmBtnWrap: {
     marginTop: 24,
+    borderRadius: 27,
+    overflow: 'hidden',
+  },
+  confirmBtn: {
     height: 48,
-    borderRadius: 12,
-    backgroundColor: '#6D925E',
+    borderRadius: 27,
     alignItems: 'center',
     justifyContent: 'center',
   },

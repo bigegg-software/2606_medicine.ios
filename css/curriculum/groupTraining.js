@@ -75,12 +75,21 @@ const styles = StyleSheet.create({
   filterRow: {
     marginTop: 19,
     alignItems: 'center',
+    width: '100%',
   },
   filterChipRow: {
+    flex: 1,
+    minWidth: 0,
     gap: 8,
+    marginRight: 8,
+  },
+  filterChipWrap: {
+    flex: 1,
+    minWidth: 0,
   },
   filterChip: {
-    paddingHorizontal: 12,
+    width: '100%',
+    paddingHorizontal: 8,
     paddingVertical: 9,
     backgroundColor: '#FFFFFF',
     borderRadius: 4,
@@ -90,7 +99,13 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 2,
   },
+  filterChipInner: {
+    width: '100%',
+  },
   filterChipText: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
     fontWeight: '500',
     fontSize: 14,
     color: '#333333',
@@ -98,7 +113,12 @@ const styles = StyleSheet.create({
   filterChipIcon: {
     width: 9,
     height: 4,
-    marginLeft: 5,
+    marginLeft: 4,
+    flexShrink: 0,
+  },
+  myBookingBtn: {
+    marginLeft: 8,
+    flexShrink: 0,
   },
   myBookingIcon: {
     width: 8,
@@ -294,6 +314,41 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 14,
     color: '#6D925E',
+  },
+  classBookBtnBooked: {
+    borderColor: '#6D925E',
+    backgroundColor: 'rgba(109,146,94,0.12)',
+  },
+  classBookBtnBookedText: {
+    color: '#6D925E',
+  },
+  classBookBtnDeadline: {
+    borderColor: '#EE9C44',
+    backgroundColor: '#FFFFFF',
+  },
+  classBookBtnDeadlineText: {
+    color: '#EE9C44',
+  },
+  classBookBtnOngoing: {
+    borderWidth: 0,
+    backgroundColor: '#6D925E',
+  },
+  classBookBtnOngoingText: {
+    color: '#FFFFFF',
+  },
+  classBookBtnEnded: {
+    borderColor: '#FB4550',
+    backgroundColor: '#FFFFFF',
+  },
+  classBookBtnEndedText: {
+    color: '#FB4550',
+  },
+  classBookBtnFull: {
+    borderColor: '#EE9C44',
+    backgroundColor: '#FFFFFF',
+  },
+  classBookBtnFullText: {
+    color: '#EE9C44',
   },
   planListFooter: {
     marginTop: 19,

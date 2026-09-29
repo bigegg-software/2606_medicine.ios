@@ -84,6 +84,7 @@ export type ScheduleHistoryArchiveItem = {
   maxProgress: ScheduleHistoryArchiveMaxProgress | null;
   summaryText: string;
   isInProgress: boolean;
+  isPaused: boolean;
   isDone: boolean;
 };
 
@@ -1220,7 +1221,12 @@ export function toScheduleHistoryArchiveItem(
 
   const maxProgress = resolveMaxHealthGoalProgressField(healthGoalProgress?.maxProcess);
   const isInProgress = info.status === 0;
-  const summary = info.completeSummary?.trim() || info.adjustReason?.trim() || '';
+  const isPaused = info.status === 1;
+  const stopReason = info.stopReason?.trim() || '';
+  // 已暂停：展示暂停原因；其余用完成总结 / 调整原因
+  const summary = isPaused
+    ? (stopReason ? `暂停原因：${stopReason}` : '')
+    : (info.completeSummary?.trim() || info.adjustReason?.trim() || '');
 
   return {
     id,
@@ -1237,6 +1243,7 @@ export function toScheduleHistoryArchiveItem(
     maxProgress,
     summaryText: summary,
     isInProgress,
+    isPaused,
     isDone: info.status === 2,
   };
 }

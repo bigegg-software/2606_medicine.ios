@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/nutrition';
 import DietPage from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
@@ -19,8 +20,18 @@ import type { RootStackParamList } from '@/route/router';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import { getChildFamilyDisplayName, maskFamilyDisplayName } from '@/src/familyPage/utils/familyProfileHelpers';
+import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
+import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
+import {
+  fetchLatestHistoryDietTip,
+  formatDietCompletedTipPrefix,
+  formatDietPauseTipPrefix,
+  isDietRulePaused,
+  type DietHistoryTip,
+} from './components/utils/dietPauseTipHelpers';
 
 type Route = RouteProp<RootStackParamList, 'NutritionPage'>;
+type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 type NutritionNavKey = 'todayExercise' | 'prescription' | 'healthPlan';
 
@@ -31,7 +42,7 @@ function resolveNutritionNavKey(tab?: 'diet' | 'prescription'): NutritionNavKey 
 
 export default function NutritionPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const navigation: any = useNavigation();
+  const navigation = useNavigation<Nav>();
   const { params } = useRoute<Route>();
   const {
     readOnly: familyReadOnly,
@@ -55,12 +66,15 @@ export default function NutritionPage() {
     : resolveNutritionNavKey(params?.tab);
   const [activeNav, setActiveNav] = useState<NutritionNavKey>(initialTab);
   const [dietRule, setDietRule] = useState<DietPatientRuleInfo | null>(null);
+  /** 无进行中处方时，历史列表第一条（暂停/已完成）用于顶部提示 */
+  const [historyTip, setHistoryTip] = useState<DietHistoryTip | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
   const [mountedTabs, setMountedTabs] = useState<Partial<Record<NutritionNavKey, boolean>>>({
     [initialTab]: true,
     ...(prescriptionOnly ? {} : { todayExercise: true }),
   });
+  const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
   const familyFromStore = useMemo(() => {
     if (!patientUserId) return null;
@@ -86,6 +100,60 @@ export default function NutritionPage() {
     setMountedTabs(prev => (prev[next] ? prev : { ...prev, [next]: true }));
   }, [params?.tab]);
 
+  const inUsePaused = Boolean(dietRule && isDietRulePaused(dietRule.status));
+  const tipKind: DietHistoryTip['kind'] | null = prescriptionOnly
+    ? null
+    : inUsePaused
+      ? 'paused'
+      : !dietRule
+        ? (historyTip?.kind ?? null)
+        : null;
+  const showStatusTip = tipKind != null;
+  const pauseTipPrefix = tipKind === 'paused'
+    ? formatDietPauseTipPrefix(
+      inUsePaused ? dietRule?.stopReason : historyTip?.stopReason,
+    )
+    : tipKind === 'completed'
+      ? formatDietCompletedTipPrefix()
+      : '';
+  const statusTipLinkText = tipKind === 'completed' ? '点击查看处方执行情况' : '查看详情';
+  /** 暂停/已完成提示对应的处方 id（右上角执行统计、提示跳转共用） */
+  const statusTipRuleId = inUsePaused
+    ? (dietRule?.dietPatientRuleId != null ? String(dietRule.dietPatientRuleId).trim() : '')
+    : (historyTip?.dietPatientRuleId ?? '');
+
+  const openStatusTipDetail = useCallback(() => {
+    if (!statusTipRuleId) return;
+    if (tipKind === 'completed') {
+      navigation.push('NutritionExecutionStatsPage', { dietPatientRuleId: statusTipRuleId });
+      return;
+    }
+    navigation.push('NutritionPage', {
+      dietPatientRuleId: statusTipRuleId,
+      prescriptionOnly: true,
+      readOnly: true,
+      ...(patientUserId
+        ? {
+          patientUserId,
+          relationLabel,
+          displayName: routeDisplayName,
+        }
+        : {}),
+    });
+  }, [
+    navigation,
+    patientUserId,
+    relationLabel,
+    routeDisplayName,
+    statusTipRuleId,
+    tipKind,
+  ]);
+
+  const openStatusTipExecutionStats = useCallback(() => {
+    if (!statusTipRuleId) return;
+    navigation.push('NutritionExecutionStatsPage', { dietPatientRuleId: statusTipRuleId });
+  }, [navigation, statusTipRuleId]);
+
   const loadDietRule = useCallback(async () => {
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
@@ -99,10 +167,19 @@ export default function NutritionPage() {
       ]);
       if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setDietRule(null);
+        if (!dietPatientRuleId) {
+          setHistoryTip(await fetchLatestHistoryDietTip(patientUserId));
+        } else {
+          setHistoryTip(null);
+        }
       } else {
-        setDietRule(
-          apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as never) ?? null,
-        );
+        const raw = apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as never) ?? null;
+        setDietRule(raw);
+        if (!dietPatientRuleId && !raw) {
+          setHistoryTip(await fetchLatestHistoryDietTip(patientUserId));
+        } else {
+          setHistoryTip(null);
+        }
       }
       if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
         setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
@@ -111,6 +188,7 @@ export default function NutritionPage() {
       }
     } catch {
       setDietRule(null);
+      setHistoryTip(null);
       if (readOnly) setFamilyUser(null);
     } finally {
       setLoading(false);
@@ -170,6 +248,7 @@ export default function NutritionPage() {
   const pageTitle = dietRule?.prescriptionName?.trim() || '营养处方';
 
   useEffect(() => {
+    const showPausedOrCompletedStats = showStatusTip && Boolean(statusTipRuleId);
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
@@ -182,6 +261,10 @@ export default function NutritionPage() {
             <TouchableOpacity
               style={{ marginRight: 18 }}
               onPress={() => {
+                if (showPausedOrCompletedStats) {
+                  openStatusTipExecutionStats();
+                  return;
+                }
                 navigation.navigate('FoodRecordingPage');
               }}>
               <Image
@@ -191,7 +274,56 @@ export default function NutritionPage() {
             </TouchableOpacity>
           ),
     });
-  }, [dietPatientRuleId, isFamilyView, navigation, pageTitle, relationLabel]);
+  }, [
+    dietPatientRuleId,
+    isFamilyView,
+    navigation,
+    openStatusTipExecutionStats,
+    pageTitle,
+    relationLabel,
+    showStatusTip,
+    statusTipRuleId,
+  ]);
+
+  const statusTipText = showStatusTip ? (
+    <Text style={styles.emptyPrescriptionText}>
+      {pauseTipPrefix}
+      <Text style={styles.pauseTipLink}>{statusTipLinkText}</Text>
+    </Text>
+  ) : null;
+
+  const emptyStatusTipNode = showStatusTip ? (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      style={styles.emptyPrescription}
+      onPress={openStatusTipDetail}
+    >
+      <Image
+        source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+        style={styles.emptyPrescriptionIcon}
+      />
+      {statusTipText}
+    </TouchableOpacity>
+  ) : null;
+
+  const compactStatusTipNode = showStatusTip ? (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      style={styles.pauseTipBox}
+      onPress={openStatusTipDetail}
+    >
+      <Flex align="start">
+        <Image
+          source={require('@/assets/images/home/icon_warn.png')}
+          style={styles.pauseTipIcon}
+        />
+        <Text style={styles.pauseTipText}>
+          {pauseTipPrefix}
+          <Text style={styles.pauseTipLink}>{statusTipLinkText}</Text>
+        </Text>
+      </Flex>
+    </TouchableOpacity>
+  ) : null;
 
   return (
     <PageLayout style={styles.container} edges={[]}>
@@ -245,48 +377,72 @@ export default function NutritionPage() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
-      ) : prescriptionOnly ? (
-        <View style={{ flex: 1 }}>
-          <NutritionPrescriptionPage
-            key={patientUserId ?? 'self'}
-            dietRule={dietRule}
-            readOnly={readOnly}
-          />
-        </View>
+      ) : !dietRule ? (
+        emptyStatusTipNode ?? (
+          <View style={styles.emptyPrescription}>
+            <Image
+              source={require('@/assets/images/nutrition/icon_yy_empty.png')}
+              style={styles.emptyPrescriptionIcon}
+            />
+            {profileComplete ? (
+              <Text style={styles.emptyPrescriptionText}>
+                {readOnly ? '暂无营养处方' : '暂无营养处方，如需开方，请联系工作人员'}
+              </Text>
+            ) : (
+              <Flex style={styles.emptyPrescriptionTextRow}>
+                <Text style={styles.emptyPrescriptionTextInline}>暂无营养处方，请先</Text>
+                <CompleteProfileLink color="#6D925E" />
+              </Flex>
+            )}
+          </View>
+        )
       ) : (
         <View style={{ flex: 1 }}>
-          {mountedTabs.todayExercise ? (
-            <View style={{ flex: 1, display: activeNav === 'todayExercise' ? 'flex' : 'none' }}>
-              <DietPage
-                key={patientUserId ?? 'self'}
-                dietRule={dietRule}
-                onDietRuleChange={setDietRule}
-                readOnly={readOnly}
-                patientUserId={patientUserId}
-              />
-            </View>
-          ) : null}
-          {mountedTabs.prescription ? (
-            <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
+          {compactStatusTipNode}
+          {prescriptionOnly ? (
+            <View style={{ flex: 1 }}>
               <NutritionPrescriptionPage
                 key={patientUserId ?? 'self'}
                 dietRule={dietRule}
                 readOnly={readOnly}
               />
             </View>
-          ) : null}
-          {mountedTabs.healthPlan ? (
-            <View style={{ flex: 1, display: activeNav === 'healthPlan' ? 'flex' : 'none' }}>
-              <HealthPlanPage
-                key={patientUserId ?? 'self'}
-                dietRule={dietRule}
-                readOnly={readOnly}
-                patientUserId={patientUserId}
-                dietPatientRuleId={dietPatientRuleId || undefined}
-                isActive={activeNav === 'healthPlan'}
-              />
+          ) : (
+            <View style={{ flex: 1 }}>
+              {mountedTabs.todayExercise ? (
+                <View style={{ flex: 1, display: activeNav === 'todayExercise' ? 'flex' : 'none' }}>
+                  <DietPage
+                    key={patientUserId ?? 'self'}
+                    dietRule={dietRule}
+                    onDietRuleChange={setDietRule}
+                    readOnly={readOnly}
+                    patientUserId={patientUserId}
+                  />
+                </View>
+              ) : null}
+              {mountedTabs.prescription ? (
+                <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
+                  <NutritionPrescriptionPage
+                    key={patientUserId ?? 'self'}
+                    dietRule={dietRule}
+                    readOnly={readOnly}
+                  />
+                </View>
+              ) : null}
+              {mountedTabs.healthPlan ? (
+                <View style={{ flex: 1, display: activeNav === 'healthPlan' ? 'flex' : 'none' }}>
+                  <HealthPlanPage
+                    key={patientUserId ?? 'self'}
+                    dietRule={dietRule}
+                    readOnly={readOnly}
+                    patientUserId={patientUserId}
+                    dietPatientRuleId={dietPatientRuleId || undefined}
+                    isActive={activeNav === 'healthPlan'}
+                  />
+                </View>
+              ) : null}
             </View>
-          ) : null}
+          )}
         </View>
       )}
     </PageLayout>

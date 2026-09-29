@@ -244,6 +244,13 @@ const styles = StyleSheet.create({
         fontSize: 12,
         lineHeight: 16,
     },
+    cfEmptyTipLink: {
+        fontWeight: '500',
+        fontSize: 12,
+        lineHeight: 18,
+        color: '#6D925E',
+        textDecorationLine: 'underline',
+    },
     cfItem: { alignItems: 'center' },
     cfValue: { textAlign: 'center', fontWeight: "bold", fontSize: 18, color: '#333333', },
     cfText: { textAlign: 'center', marginTop: 8, fontWeight: 500, fontSize: 12, color: "#666666" },
@@ -276,23 +283,26 @@ const styles = StyleSheet.create({
     },
     yyEmptyTip: {
         margin: 12,
-        height: 39,
+        minHeight: 39,
         backgroundColor: 'rgba(254,248,225,0.2)',
         borderRadius: 8,
         borderWidth: 1,
         borderColor: 'rgba(238,156,68,0.3)',
         paddingHorizontal: 12,
+        paddingVertical: 8,
     },
     yyEmptyTipIcon: {
         width: 15,
         height: 15,
         marginRight: 6,
+        marginTop: 1,
     },
     yyEmptyTipText: {
         flex: 1,
         flexShrink: 1,
         fontWeight: '500',
         fontSize: 12,
+        lineHeight: 18,
         color: '#C98A41',
     },
     yyEmptyTipTextRow: {
@@ -310,6 +320,13 @@ const styles = StyleSheet.create({
     yyEmptyTipLink: {
         fontSize: 12,
         lineHeight: 16,
+    },
+    yyEmptyTipActionLink: {
+        fontWeight: '500',
+        fontSize: 12,
+        lineHeight: 18,
+        color: '#C98A41',
+        textDecorationLine: 'underline',
     },
     yyItem: {
         width: '33.33%',

@@ -41,6 +41,9 @@ export type InUseExPatientRule = {
   firstAdvanceWeeks?: string;
   progress?: number;
   status?: number;
+  /** 暂停原因（status=1 时回填） */
+  stopReason?: string;
+  stopTime?: string;
   /** 处方版本号，如 1.1、1.2 */
   version?: number | string;
   ruleRatioList?: ExPatientRuleRatio[];

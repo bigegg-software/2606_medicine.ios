@@ -143,6 +143,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6D925E',
   },
+  liveBookBtnBooked: {
+    borderColor: '#6D925E',
+    backgroundColor: 'rgba(109,146,94,0.12)',
+  },
+  liveBookBtnBookedText: {
+    color: '#6D925E',
+  },
+  liveBookBtnDeadline: {
+    borderColor: '#EE9C44',
+    backgroundColor: '#FFFFFF',
+  },
+  liveBookBtnDeadlineText: {
+    color: '#EE9C44',
+  },
+  liveBookBtnOngoing: {
+    borderWidth: 0,
+    backgroundColor: '#6D925E',
+  },
+  liveBookBtnOngoingText: {
+    color: '#FFFFFF',
+  },
+  liveBookBtnEnded: {
+    borderColor: '#FB4550',
+    backgroundColor: '#FFFFFF',
+  },
+  liveBookBtnEndedText: {
+    color: '#FB4550',
+  },
+  liveBookBtnFull: {
+    borderColor: '#EE9C44',
+    backgroundColor: '#FFFFFF',
+  },
+  liveBookBtnFullText: {
+    color: '#EE9C44',
+  },
   practiceScroll: {
     marginTop: 13,
   },

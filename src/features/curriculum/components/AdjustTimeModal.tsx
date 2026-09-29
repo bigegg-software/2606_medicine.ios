@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import moment from 'moment';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { CourseSessionType } from '@/api/courseSession';
@@ -222,11 +223,11 @@ export default function AdjustTimeModal({
         const start = initialStartTime?.trim() || '';
         const matchedSelectable = start
           ? list.find(
-              item =>
-                !item.disabled &&
-                (item.startTime === start ||
-                  item.startTime.slice(0, 5) === start.slice(0, 5)),
-            )
+            item =>
+              !item.disabled &&
+              (item.startTime === start ||
+                item.startTime.slice(0, 5) === start.slice(0, 5)),
+          )
           : undefined;
         const currentSlot = currentSessionId
           ? list.find(item => item.sessionId === currentSessionId)
@@ -293,6 +294,8 @@ export default function AdjustTimeModal({
         showSheetToast('当前已预约时段，请选择其他时间');
       } else if (slot.isFull) {
         showSheetToast('该时段已满员');
+      } else if (slot.isDeadline) {
+        showSheetToast('该时段已截止报名');
       } else {
         showSheetToast('该时段不可选');
       }
@@ -445,6 +448,17 @@ export default function AdjustTimeModal({
                 {row.map(slot => {
                   const active = !slot.disabled && slot.key === selectedSlotKey;
                   const disabled = Boolean(slot.disabled);
+                  const isStatusSlot = Boolean(slot.isFull || slot.isDeadline);
+                  const statusText = slot.isFull
+                    ? '已满员'
+                    : slot.isDeadline
+                      ? '已截止'
+                      : '';
+                  const statusIcon = slot.isFull
+                    ? require('@/assets/images/curriculum/bm.png')
+                    : slot.isDeadline
+                      ? require('@/assets/images/curriculum/time.png')
+                      : null;
                   return (
                     <TouchableOpacity
                       key={slot.key}
@@ -453,25 +467,33 @@ export default function AdjustTimeModal({
                       style={[
                         styles.slotCell,
                         active && styles.slotCellActive,
-                        disabled && styles.slotCellDisabled,
+                        disabled && !isStatusSlot && styles.slotCellDisabled,
+                        isStatusSlot && styles.slotCellStatus,
                       ]}
                       onPress={() => handleSelectSlot(slot)}
                     >
                       <Text
                         style={[
                           active ? styles.slotTextActive : styles.slotText,
-                          disabled && styles.slotTextDisabled,
+                          disabled && !isStatusSlot && styles.slotTextDisabled,
+                          isStatusSlot && styles.slotTextStatus,
                         ]}
                       >
                         {slot.label}
                       </Text>
+                      {statusText && statusIcon ? (
+                        <Flex align="center" style={styles.slotStatusRow}>
+                          <Image style={styles.slotStatusIcon} source={statusIcon} />
+                          <Text style={styles.slotStatusText}>{statusText}</Text>
+                        </Flex>
+                      ) : null}
                     </TouchableOpacity>
                   );
                 })}
                 {row.length < 3
                   ? Array.from({ length: 3 - row.length }).map((_, i) => (
-                      <View key={`pad-${rowIndex}-${i}`} style={styles.slotCellPlaceholder} />
-                    ))
+                    <View key={`pad-${rowIndex}-${i}`} style={styles.slotCellPlaceholder} />
+                  ))
                   : null}
               </View>
             ))}
@@ -494,15 +516,22 @@ export default function AdjustTimeModal({
 
       <TouchableOpacity
         activeOpacity={0.7}
-        style={[styles.confirmBtn, submitting && styles.confirmBtnDisabled]}
+        style={[styles.confirmBtnWrap, submitting && styles.confirmBtnDisabled]}
         disabled={submitting || slotsLoading}
         onPress={handleConfirm}
       >
-        {submitting ? (
-          <ActivityIndicator color="#FFFFFF" />
-        ) : (
-          <Text style={styles.confirmBtnText}>确定</Text>
-        )}
+        <LinearGradient
+          colors={['#9BBD8E', '#6D925E']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.confirmBtn}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.confirmBtnText}>确定</Text>
+          )}
+        </LinearGradient>
       </TouchableOpacity>
     </>
   );

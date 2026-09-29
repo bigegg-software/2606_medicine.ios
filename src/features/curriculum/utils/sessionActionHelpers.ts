@@ -1,5 +1,11 @@
 /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
 
+/** 进行中 / 已结束 / 已取消：不可取消预约、不可调整时间 */
+export function canCancelOrAdjustSession(status?: number | null) {
+  const s = Number(status);
+  return s !== 4 && s !== 5 && s !== 6;
+}
+
 export type SessionActionTone =
   | 'book'
   | 'booked'
@@ -15,22 +21,32 @@ export type SessionActionView = {
   pressable: boolean;
 };
 
-/** 列表卡片右侧操作态（私教等） */
+/** 列表卡片右侧操作态（私教 / 集体 / 线上） */
 export function resolveSessionAction(params: {
   status?: number;
   bookedByMe?: boolean;
+  /** 可预约时文案，默认「预约教练」 */
+  bookLabel?: string;
+  /** 已预约可取消时文案，默认「已预约」 */
+  bookedLabel?: string;
 }): SessionActionView {
-  const status = params.status;
+  const status = Number(params.status);
   const bookedByMe = Boolean(params.bookedByMe);
+  const bookLabel = params.bookLabel?.trim() || '预约教练';
+  const bookedLabel = params.bookedLabel?.trim() || '已预约';
 
-  if (status === 5 || status === 6) {
-    return { tone: 'ended', label: '已结束', pressable: false };
+  // 已结束 → 已过期（不可再约）
+  if (status === 5) {
+    return { tone: 'ended', label: '已过期', pressable: false };
+  }
+  if (status === 6) {
+    return { tone: 'ended', label: '已取消', pressable: false };
   }
   if (status === 4) {
     return { tone: 'ongoing', label: '进行中', pressable: false };
   }
   if (bookedByMe) {
-    return { tone: 'booked', label: '已预约', pressable: true };
+    return { tone: 'booked', label: bookedLabel, pressable: true };
   }
   if (status === 3) {
     return { tone: 'deadline', label: '报名截止', pressable: false };
@@ -38,5 +54,5 @@ export function resolveSessionAction(params: {
   if (status === 2) {
     return { tone: 'full', label: '已满员', pressable: false };
   }
-  return { tone: 'book', label: '预约教练', pressable: true };
+  return { tone: 'book', label: bookLabel, pressable: true };
 }

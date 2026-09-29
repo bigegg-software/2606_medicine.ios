@@ -38,6 +38,7 @@ export type DietHistoryArchiveItem = {
   proteinRateText: string;
   summaryText: string;
   isInProgress: boolean;
+  isPaused: boolean;
   isDone: boolean;
 };
 
@@ -106,6 +107,12 @@ export function toDietHistoryArchiveItem(
   const rawId = info.dietPatientRuleId != null ? String(info.dietPatientRuleId).trim() : '';
   const id = rawId
     || `${info.startDate ?? ''}-${info.endDate ?? ''}-${info.prescriptionName ?? ''}`;
+  const isPaused = info.status === 1;
+  const stopReason = info.stopReason?.trim() || '';
+  // 已暂停：展示暂停原因；其余用完成总结 / 调整原因
+  const summaryText = isPaused
+    ? (stopReason ? `暂停原因：${stopReason}` : '')
+    : (info.completeSummary?.trim() || info.adjustReason?.trim() || '');
 
   return {
     id,
@@ -116,8 +123,9 @@ export function toDietHistoryArchiveItem(
     executionRateText: formatArchiveRateValue(statistics?.executionRate),
     calorieRateText: formatArchiveRateValue(statistics?.calorieComplianceRate),
     proteinRateText: formatArchiveRateValue(statistics?.proteinComplianceRate),
-    summaryText: info.completeSummary?.trim() || info.adjustReason?.trim() || '',
+    summaryText,
     isInProgress: info.status === 0,
+    isPaused,
     isDone: info.status === 2,
   };
 }

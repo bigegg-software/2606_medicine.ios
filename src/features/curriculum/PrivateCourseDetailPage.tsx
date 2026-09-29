@@ -201,7 +201,17 @@ export default function PrivateCourseDetailPage() {
   }
 
   const avatarSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_AVATAR;
-  const showReserveAction = detail.status !== 5 && detail.status !== 6;
+  // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消、调整时间
+  const showReserveAction =
+    detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+  const disabledActionLabel =
+    detail.status === 4
+      ? '进行中'
+      : detail.status === 5
+        ? '已过期'
+        : detail.status === 6
+          ? '已取消'
+          : '不可预约';
   const introText = detail.introText.trim() || '';
   const adjustInitialStartTime = detail.startTime || detail.timeText.split('-')[0]?.trim() || '';
 
@@ -353,9 +363,7 @@ export default function PrivateCourseDetailPage() {
             </View>
           ) : (
             <View style={[styles.btn, styles.btnDisabled]}>
-              <Text style={styles.btnText}>
-                {detail.status === 5 ? '已结束' : detail.status === 6 ? '已取消' : '不可预约'}
-              </Text>
+              <Text style={styles.btnText}>{disabledActionLabel}</Text>
             </View>
           )}
         </View>

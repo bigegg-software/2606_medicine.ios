@@ -1241,7 +1241,7 @@ export default function DietPage({
                 )}
 
                 {!readOnly && isTodaySelected ? (
-                    <Flex justify="center" align="center" style={styles.mealActionCameraBox}>
+                    <Flex style={styles.mealActionCameraBox}>
                         <TouchableOpacity
                             style={styles.mealActionCameraBtn}
                             activeOpacity={0.7}

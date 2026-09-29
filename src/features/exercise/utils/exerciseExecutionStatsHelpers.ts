@@ -1,10 +1,8 @@
 import moment from 'moment';
 import {
   getExPatientRuleInfo,
-  getExPatientRuleModuleCompleteRate,
   getExPatientRuleModuleDayCompleteRate,
   type ExPatientRuleInfo,
-  type ExPatientRuleModuleCompleteRate,
   type ExPatientRuleModuleDayCompleteRateItem,
 } from '@/api/exPatientRule';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
@@ -43,17 +41,47 @@ function buildRateCard(
   };
 }
 
+function averagePositiveRates(values: Array<number | null | undefined>) {
+  const list = values
+    .map(value => {
+      if (value == null || !Number.isFinite(Number(value))) return null;
+      const n = Number(value);
+      return n > 0 ? n : null;
+    })
+    .filter((value): value is number => value != null);
+  if (list.length === 0) return null;
+  return list.reduce((sum, value) => sum + value, 0) / list.length;
+}
+
+/** 按日完成率汇总总体达标率（含热身/冷身） */
+export function summarizeModuleDayCompleteRates(
+  rows: ExPatientRuleModuleDayCompleteRateItem[],
+) {
+  return {
+    mainCompleteRate: averagePositiveRates(rows.map(item => item.mainCompleteRate)),
+    cardioCompleteRate: averagePositiveRates(rows.map(item => item.cardioCompleteRate)),
+    strengthCompleteRate: averagePositiveRates(rows.map(item => item.strengthCompleteRate)),
+    flexibilityCompleteRate: averagePositiveRates(
+      rows.map(item => item.flexibilityCompleteRate),
+    ),
+    balanceCompleteRate: averagePositiveRates(rows.map(item => item.balanceCompleteRate)),
+    hotCompleteRate: averagePositiveRates(rows.map(item => item.hotCompleteRate)),
+    coldCompleteRate: averagePositiveRates(rows.map(item => item.coldCompleteRate)),
+  };
+}
+
 /** 总体达标率卡片：有氧/抗阻/柔韧/平衡/热身/冷身 */
 export function buildExerciseExecutionStatsRateCards(
-  data?: ExPatientRuleModuleCompleteRate | null,
+  rows: ExPatientRuleModuleDayCompleteRateItem[],
 ): FoodRecordingRateCard[] {
+  const summary = summarizeModuleDayCompleteRates(rows);
   return [
-    buildRateCard('cardio', '有氧心肺', data?.cardioCompleteRate),
-    buildRateCard('strength', '抗阻增肌', data?.strengthCompleteRate),
-    buildRateCard('flexibility', '柔韧拉伸', data?.flexibilityCompleteRate),
-    buildRateCard('balance', '平衡控制', data?.balanceCompleteRate),
-    buildRateCard('hot', '热身', data?.hotCompleteRate),
-    buildRateCard('cold', '冷身', data?.coldCompleteRate),
+    buildRateCard('cardio', '有氧心肺', summary.cardioCompleteRate),
+    buildRateCard('strength', '抗阻增肌', summary.strengthCompleteRate),
+    buildRateCard('flexibility', '柔韧拉伸', summary.flexibilityCompleteRate),
+    buildRateCard('balance', '平衡控制', summary.balanceCompleteRate),
+    buildRateCard('hot', '热身', summary.hotCompleteRate),
+    buildRateCard('cold', '冷身', summary.coldCompleteRate),
   ];
 }
 
@@ -85,26 +113,7 @@ export async function loadExerciseRuleForExecutionStats(
   }
 }
 
-/** 整体模块完成率（含热身/冷身） */
-export async function loadExerciseModuleCompleteRate(
-  exPatientRuleId: string,
-): Promise<ExPatientRuleModuleCompleteRate | null> {
-  const id = String(exPatientRuleId ?? '').trim();
-  if (!id) return null;
-  try {
-    const res = await getExPatientRuleModuleCompleteRate(id);
-    if (!isResourceApiOk(res as { code?: number })) return null;
-    return (
-      apiResourceData<ExPatientRuleModuleCompleteRate>(
-        res as { code?: number; data?: ExPatientRuleModuleCompleteRate },
-      ) ?? null
-    );
-  } catch {
-    return null;
-  }
-}
-
-/** 每日四大模块完成率 */
+/** 每日完成率（主训练、热身/冷身及四大模块） */
 export async function loadExerciseModuleDayCompleteRateList(options: {
   exPatientRuleId: string;
   startDate: string;

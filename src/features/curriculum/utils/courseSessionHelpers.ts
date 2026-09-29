@@ -295,6 +295,8 @@ export type OnlineSessionCardView = {
   prepareText: string;
   timeText: string;
   benefitText: string;
+  /** 课程封面 */
+  coverUri?: string;
   avatarUri?: string;
   status?: number;
   bookedByMe: boolean;
@@ -327,6 +329,7 @@ export function mapOnlineSessionToCard(item: CourseSessionItem): OnlineSessionCa
     prepareText: equipment ? `准备：${equipment}` : '准备：按课程说明备妥器材',
     timeText: formatOnlineWeekdayTime(item),
     benefitText: formatCapacityText(item),
+    coverUri: item.template?.coverOssUrl?.trim() || undefined,
     avatarUri: item.coachAvatarUrl?.trim() || undefined,
     status: item.status,
     bookedByMe: Boolean(item.bookedByMe),

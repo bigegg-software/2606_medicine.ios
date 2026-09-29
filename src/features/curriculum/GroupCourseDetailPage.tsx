@@ -200,7 +200,17 @@ export default function GroupCourseDetailPage() {
   }
 
   const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
-  const showReserveAction = detail.status !== 5 && detail.status !== 6;
+  // 进行中(4) / 已结束(5) / 已取消(6) 不可预约
+  const showReserveAction =
+    detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+  const disabledActionLabel =
+    detail.status === 4
+      ? '进行中'
+      : detail.status === 5
+        ? '已过期'
+        : detail.status === 6
+          ? '已取消'
+          : '不可预约';
   const introText = detail.introText.trim() || '';
   const pointsText = detail.pointsText.trim() || '';
   const suitText = detail.suitText.trim() || '';
@@ -299,9 +309,7 @@ export default function GroupCourseDetailPage() {
             </TouchableOpacity>
           ) : (
             <View style={[styles.btn, styles.btnDisabled]}>
-              <Text style={styles.btnText}>
-                {detail.status === 5 ? '已结束' : detail.status === 6 ? '已取消' : '不可预约'}
-              </Text>
+              <Text style={styles.btnText}>{disabledActionLabel}</Text>
             </View>
           )}
         </View>

@@ -331,6 +331,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(109,146,94,0.3)',
   },
+  bookingAdjustBtnDisabled: {
+    backgroundColor: '#F5F5F5',
+    borderColor: '#DDDDDD',
+  },
   bookingAdjustBtnIcon: {
     width: 16,
     height: 16,
@@ -340,6 +344,9 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontSize: 15,
     color: '#6D925E',
+  },
+  bookingAdjustBtnTextDisabled: {
+    color: '#999999',
   },
   bookingDetailBtn: {
     flex: 1,

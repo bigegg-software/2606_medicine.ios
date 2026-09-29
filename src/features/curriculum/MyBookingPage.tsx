@@ -74,6 +74,13 @@ export default function MyBookingPage() {
 
   const openAdjustTime = useCallback(() => {
     if (!nextBooking) return;
+    if (!nextBooking.canAdjustTime) {
+      Toast.show(
+        nextBooking.sessionStatus === 4 ? '课程进行中，暂无法调整时间' : '暂无法调整时间',
+        1.5,
+      );
+      return;
+    }
     if (!nextBooking.bookingId?.trim()) {
       Toast.show('暂无法调整时间', 1.5);
       return;
@@ -228,17 +235,27 @@ export default function MyBookingPage() {
 
                     <Flex style={styles.bookingActionRow}>
                       <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.bookingAdjustBtn}
+                        activeOpacity={nextBooking.canAdjustTime ? 0.7 : 1}
+                        style={[
+                          styles.bookingAdjustBtn,
+                          !nextBooking.canAdjustTime && styles.bookingAdjustBtnDisabled,
+                        ]}
                         onPress={openAdjustTime}
                       >
                         <Flex style={{ flex: 1 }} justify="center">
                           <Image
                             style={styles.bookingAdjustBtnIcon}
-                            tintColor="#6D925E"
+                            tintColor={nextBooking.canAdjustTime ? '#6D925E' : '#999999'}
                             source={require('@/assets/images/curriculum/time.png')}
                           />
-                          <Text style={styles.bookingAdjustBtnText}>调整时间</Text>
+                          <Text
+                            style={[
+                              styles.bookingAdjustBtnText,
+                              !nextBooking.canAdjustTime && styles.bookingAdjustBtnTextDisabled,
+                            ]}
+                          >
+                            调整时间
+                          </Text>
                         </Flex>
                       </TouchableOpacity>
                       <TouchableOpacity

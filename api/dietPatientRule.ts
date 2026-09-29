@@ -169,8 +169,14 @@ export const getInUseDietPatientRuleInfo = (
     });
 
 /** 查询历史营养处方列表 */
-export const getDietPatientRuleList = (params: DietPatientRuleListParams) =>
-    request.get<DietPatientRuleListResult>('/patient/dietPatientRule/list', { params });
+export const getDietPatientRuleList = (
+    params: DietPatientRuleListParams,
+    options?: { patientUserId?: string | number | null },
+) =>
+    request.get<DietPatientRuleListResult>('/patient/dietPatientRule/list', {
+        params,
+        headers: withPatientUserIdHeaders(options?.patientUserId),
+    });
 
 /** 历史处方详情（指定 dietPatientRuleId） */
 export const getDietPatientRuleInfo = (

@@ -154,6 +154,8 @@ export type AdjustTimeSlotItem = {
   isCurrent?: boolean;
   /** 场次已满员（status=2） */
   isFull?: boolean;
+  /** 截止报名（status=3） */
+  isDeadline?: boolean;
 };
 
 function formatHm(time?: string) {
@@ -189,8 +191,8 @@ export function buildAdjustTimeSlots(
 /**
  * 将接口返回的场次全部映射为时段列表（不做状态过滤）：
  * - status=1 可约
- * - status=2 已满员：标注 (满)
- * - 其余状态文案后续按需补充；当前已预约 / 非可约置灰
+ * - status=2 已满员 / status=3 截止报名：时间下方展示状态
+ * - 当前已预约 / 非可约置灰
  */
 export function mapSessionsToAdjustSlots(
   rows: CourseSessionItem[],
@@ -205,12 +207,12 @@ export function mapSessionsToAdjustSlots(
       const isCurrent = Boolean(currentId && sessionId === currentId);
       const status = Number(item.status);
       const isFull = status === 2;
+      const isDeadline = status === 3;
       const startTime = formatHm(item.startTime);
       const endTime = formatHm(item.endTime);
       if (!startTime) return null;
-      const timeLabel =
+      const label =
         startTime && endTime ? `${startTime}-${endTime}` : startTime;
-      const label = isFull ? `${timeLabel}(满)` : timeLabel;
       return {
         key: sessionId,
         sessionId,
@@ -222,6 +224,7 @@ export function mapSessionsToAdjustSlots(
         disabled: isCurrent || status !== 1,
         isCurrent,
         isFull,
+        isDeadline,
       } satisfies AdjustTimeSlotItem;
     })
     .filter((row): row is AdjustTimeSlotItem => row != null)

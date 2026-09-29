@@ -214,7 +214,9 @@ export default function OnlineCourseDetailPage() {
 
   const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
   const watchUrl = detail.liveLink?.trim() || '';
-  const showReserveAction = detail.status !== 5 && detail.status !== 6;
+  // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消预约
+  const showReserveAction =
+    detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
   const introText = detail.introText.trim() || '';
   const pointsText = detail.pointsText.trim() || '';
   const suitText = detail.suitText.trim() || '';

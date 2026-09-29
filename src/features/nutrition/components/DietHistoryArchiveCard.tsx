@@ -28,11 +28,13 @@ export default function DietHistoryArchiveCard({
           styles.historyItemStatus,
           item.isDone && styles.historyItemStatusDone,
           item.isInProgress && styles.historyItemStatusActive,
+          item.isPaused && styles.historyItemStatusPaused,
         ]}>
           <Text style={[
             styles.historyItemStatusText,
             item.isDone && styles.historyItemStatusTextDone,
             item.isInProgress && styles.historyItemStatusTextActive,
+            item.isPaused && styles.historyItemStatusTextPaused,
           ]}>
             {item.statusLabel}
           </Text>

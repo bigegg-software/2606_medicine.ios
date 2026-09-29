@@ -81,6 +81,19 @@ import {
 } from '@/src/features/home/utils/homeBlurVitalHelpers';
 import { matchPersonalizedDynamicIndicator } from '@/api/personalizedDynamicIndicator';
 import { fetchInUsePrescription } from '@/store/actions/prescription';
+import {
+  fetchLatestHistoryExerciseTip,
+  formatExerciseCompletedTipPrefix,
+  formatExercisePauseTipPrefix,
+  isExerciseRulePaused,
+  type ExerciseHistoryTip,
+} from '@/src/features/exercise/utils/exercisePauseTipHelpers';
+import {
+  fetchLatestHistoryDietTip,
+  formatDietPauseTipPrefix,
+  isDietRulePaused,
+  type DietHistoryTip,
+} from '@/src/features/nutrition/components/utils/dietPauseTipHelpers';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -230,6 +243,10 @@ export default function HomeTab() {
   const [exerciseDictMaps, setExerciseDictMaps] = useState<ScheduleDictMaps | null>(null);
   const [exerciseProgressMap, setExerciseProgressMap] = useState<Record<string, number>>({});
   const [homePrescriptionGoal, setHomePrescriptionGoal] = useState<HomePrescriptionGoalDisplay | null>(null);
+  /** 无进行中处方时：历史暂停/已完成提示 */
+  const [exerciseHistoryTip, setExerciseHistoryTip] = useState<ExerciseHistoryTip | null>(null);
+  /** 无进行中营养处方时：历史暂停提示 */
+  const [dietHistoryTip, setDietHistoryTip] = useState<DietHistoryTip | null>(null);
   const [vitalInfoKey, setVitalInfoKey] = useState<string | null>(null);
   const [scrollEnabled, setScrollEnabled] = useState(false);
   const [showTopMask, setShowTopMask] = useState(false);
@@ -243,6 +260,64 @@ export default function HomeTab() {
   const userId = useSelector(
     (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
   );
+  const inUseExercisePaused = Boolean(
+    exercisePrescription && isExerciseRulePaused(exercisePrescription.status),
+  );
+  const exerciseTipKind: ExerciseHistoryTip['kind'] | null = inUseExercisePaused
+    ? 'paused'
+    : !exercisePrescription
+      ? (exerciseHistoryTip?.kind ?? null)
+      : null;
+  const showExerciseStatusTip = exerciseTipKind != null;
+  const exerciseTipPrefix = exerciseTipKind === 'paused'
+    ? formatExercisePauseTipPrefix(
+      inUseExercisePaused ? exercisePrescription?.stopReason : exerciseHistoryTip?.stopReason,
+    )
+    : exerciseTipKind === 'completed'
+      ? formatExerciseCompletedTipPrefix()
+      : '';
+  const exerciseTipLinkText = exerciseTipKind === 'completed'
+    ? '点击查看处方执行情况'
+    : '查看详情';
+  const exerciseTipRuleId = inUseExercisePaused
+    ? (exercisePrescription?.exPatientRuleId != null
+      ? String(exercisePrescription.exPatientRuleId).trim()
+      : '')
+    : (exerciseHistoryTip?.exPatientRuleId ?? '');
+
+  const openExerciseStatusTipDetail = useCallback(() => {
+    if (!exerciseTipRuleId) return;
+    if (exerciseTipKind === 'completed') {
+      navigation.navigate('ExerciseExecutionStatsPage', { exPatientRuleId: exerciseTipRuleId });
+      return;
+    }
+    navigation.navigate('ExercisePage', {
+      exPatientRuleId: exerciseTipRuleId,
+      prescriptionOnly: true,
+      readOnly: true,
+    });
+  }, [exerciseTipKind, exerciseTipRuleId, navigation]);
+
+  const inUseDietPaused = Boolean(dietRule && isDietRulePaused(dietRule.status));
+  const showDietPauseTip = inUseDietPaused
+    || (!dietRule && dietHistoryTip?.kind === 'paused');
+  const dietPauseTipPrefix = showDietPauseTip
+    ? formatDietPauseTipPrefix(
+      inUseDietPaused ? dietRule?.stopReason : dietHistoryTip?.stopReason,
+    )
+    : '';
+  const dietPauseTipRuleId = inUseDietPaused
+    ? (dietRule?.dietPatientRuleId != null ? String(dietRule.dietPatientRuleId).trim() : '')
+    : (dietHistoryTip?.kind === 'paused' ? dietHistoryTip.dietPatientRuleId : '');
+
+  const openDietPauseTipDetail = useCallback(() => {
+    if (!dietPauseTipRuleId) return;
+    navigation.navigate('NutritionPage', {
+      dietPatientRuleId: dietPauseTipRuleId,
+      prescriptionOnly: true,
+      readOnly: true,
+    });
+  }, [dietPauseTipRuleId, navigation]);
 
   const exercisePrescriptionMetrics = useMemo(
     () => buildExercisePrescriptionMetrics(
@@ -337,13 +412,23 @@ export default function HomeTab() {
         getInUseDietPatientRuleInfo(),
         getTodayMealDetailList(),
       ]);
-      setDietRule(apiResourceData<DietPatientRuleInfo>(ruleRes as unknown as ApiResult<DietPatientRuleInfo>) ?? null);
+      const rule = apiResourceData<DietPatientRuleInfo>(
+        ruleRes as unknown as ApiResult<DietPatientRuleInfo>,
+      ) ?? null;
+      setDietRule(rule);
       setTodayMealList(
         apiResourceData<MealDetailItem[]>(todayRes as unknown as ApiResult<MealDetailItem[]>) ?? [],
       );
+      if (!rule) {
+        const tip = await fetchLatestHistoryDietTip();
+        setDietHistoryTip(tip?.kind === 'paused' ? tip : null);
+      } else {
+        setDietHistoryTip(null);
+      }
     } catch {
       setDietRule(null);
       setTodayMealList([]);
+      setDietHistoryTip(null);
     }
   }, []);
 
@@ -430,6 +515,14 @@ export default function HomeTab() {
       if (!prescription) {
         setExerciseProgressMap({});
         setHomePrescriptionGoal(null);
+        setExerciseHistoryTip(await fetchLatestHistoryExerciseTip());
+        return;
+      }
+
+      setExerciseHistoryTip(null);
+      if (isExerciseRulePaused(prescription.status)) {
+        setExerciseProgressMap({});
+        setHomePrescriptionGoal(null);
         return;
       }
 
@@ -442,6 +535,7 @@ export default function HomeTab() {
     } catch {
       setExerciseProgressMap({});
       setHomePrescriptionGoal(null);
+      setExerciseHistoryTip(null);
     }
   }, [dispatch, userId]);
 
@@ -647,21 +741,38 @@ export default function HomeTab() {
                   </Flex>
                 </TouchableOpacity>
               </Flex>
-              {!exercisePrescription ? (
-                <View style={styles.cfEmpty}>
-                  <Image
-                    source={require('@/assets/images/home/icon_yd_empty.png')}
-                    style={styles.cfEmptyIcon}
-                  />
-                  {profileComplete ? (
-                    <Text style={styles.cfEmptyText}>暂无运动处方，如需开方，请联系工作人员</Text>
-                  ) : (
-                    <View style={styles.cfEmptyTextRow}>
-                      <Text style={styles.cfEmptyTextInline}>暂无运动处方，请先</Text>
-                      <CompleteProfileLink color='#6D925E' textStyle={styles.cfEmptyLink} />
-                    </View>
-                  )}
-                </View>
+              {!exercisePrescription || inUseExercisePaused ? (
+                showExerciseStatusTip ? (
+                  <TouchableOpacity
+                    activeOpacity={0.75}
+                    style={styles.cfEmpty}
+                    onPress={openExerciseStatusTipDetail}
+                  >
+                    <Image
+                      source={require('@/assets/images/home/icon_yd_empty.png')}
+                      style={styles.cfEmptyIcon}
+                    />
+                    <Text style={styles.cfEmptyText}>
+                      {exerciseTipPrefix}
+                      <Text style={styles.cfEmptyTipLink}>{exerciseTipLinkText}</Text>
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.cfEmpty}>
+                    <Image
+                      source={require('@/assets/images/home/icon_yd_empty.png')}
+                      style={styles.cfEmptyIcon}
+                    />
+                    {profileComplete ? (
+                      <Text style={styles.cfEmptyText}>暂无运动处方，如需开方，请联系工作人员</Text>
+                    ) : (
+                      <View style={styles.cfEmptyTextRow}>
+                        <Text style={styles.cfEmptyTextInline}>暂无运动处方，请先</Text>
+                        <CompleteProfileLink color='#6D925E' textStyle={styles.cfEmptyLink} />
+                      </View>
+                    )}
+                  </View>
+                )
               ) : (
                 <>
                   <Flex justify='between' style={styles.cfContent}>
@@ -864,21 +975,36 @@ export default function HomeTab() {
                   : `建议热量${formatNutritionInteger(displayCalories)}千卡`}
               </Text>
             </Flex>
-            {!dietRule ? (
-              <Flex style={styles.yyEmptyTip} align="center">
-                <Image
-                  source={require('@/assets/images/home/icon_warn.png')}
-                  style={styles.yyEmptyTipIcon}
-                />
-                {profileComplete ? (
-                  <Text style={styles.yyEmptyTipText}>暂无营养处方，如需开方，请联系工作人员</Text>
-                ) : (
-                  <View style={styles.yyEmptyTipTextRow}>
-                    <Text style={styles.yyEmptyTipTextInline}>暂无营养处方，请先</Text>
-                    <CompleteProfileLink color='#C98A41' textStyle={styles.yyEmptyTipLink} />
-                  </View>
-                )}
-              </Flex>
+            {!dietRule || inUseDietPaused ? (
+              showDietPauseTip ? (
+                <TouchableOpacity activeOpacity={0.75} onPress={openDietPauseTipDetail}>
+                  <Flex style={styles.yyEmptyTip} align="start">
+                    <Image
+                      source={require('@/assets/images/home/icon_warn.png')}
+                      style={styles.yyEmptyTipIcon}
+                    />
+                    <Text style={styles.yyEmptyTipText}>
+                      {dietPauseTipPrefix}
+                      <Text style={styles.yyEmptyTipActionLink}>查看详情</Text>
+                    </Text>
+                  </Flex>
+                </TouchableOpacity>
+              ) : !dietRule ? (
+                <Flex style={styles.yyEmptyTip} align="center">
+                  <Image
+                    source={require('@/assets/images/home/icon_warn.png')}
+                    style={styles.yyEmptyTipIcon}
+                  />
+                  {profileComplete ? (
+                    <Text style={styles.yyEmptyTipText}>暂无营养处方，如需开方，请联系工作人员</Text>
+                  ) : (
+                    <View style={styles.yyEmptyTipTextRow}>
+                      <Text style={styles.yyEmptyTipTextInline}>暂无营养处方，请先</Text>
+                      <CompleteProfileLink color='#C98A41' textStyle={styles.yyEmptyTipLink} />
+                    </View>
+                  )}
+                </Flex>
+              ) : null
             ) : null}
           </View>
         </Pressable>

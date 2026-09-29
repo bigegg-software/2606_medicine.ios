@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -16,7 +15,7 @@ import TrainingPage from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
 import InStoreRehabPage from './components/InStoreRehabPage';
 import type { InUseExPatientRule } from '@/api/schedule';
-import { getExPatientRuleInfo, getExPatientRuleSnapshotByDate, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
+import { getExPatientRuleInfo, getInUseExPatientRuleInfo, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import { AppTheme } from '@/common/theme';
@@ -37,6 +36,13 @@ import {
   shouldShowPostponeThisWeekDialog,
   showPostponeThisWeekDialog,
 } from './utils/exercisePostponeHelpers';
+import {
+  fetchLatestHistoryExerciseTip,
+  formatExerciseCompletedTipPrefix,
+  formatExercisePauseTipPrefix,
+  isExerciseRulePaused,
+  type ExerciseHistoryTip,
+} from './utils/exercisePauseTipHelpers';
 
 type ExerciseNavKey = 'homeTraining' | 'prescription' | 'inStoreRehab';
 
@@ -84,6 +90,8 @@ export default function ExercisePage() {
     prescriptionOnly ? 'prescription' : 'homeTraining',
   );
   const [exerciseRule, setExerciseRule] = useState<InUseExPatientRule | null>(null);
+  /** 无进行中处方时，历史列表第一条（暂停/已完成）用于顶部提示 */
+  const [historyTip, setHistoryTip] = useState<ExerciseHistoryTip | null>(null);
   const [loading, setLoading] = useState(true);
   /** 已访问过的 tab 保持挂载，避免切换时重复请求 */
   const [mountedTabs, setMountedTabs] = useState<Partial<Record<ExerciseNavKey, boolean>>>(
@@ -106,37 +114,64 @@ export default function ExercisePage() {
     return `处方V${raw}`;
   })();
 
-  const loadExerciseRule = useCallback(async (customerLocalDate?: string) => {
+  const inUsePaused = Boolean(exerciseRule && isExerciseRulePaused(exerciseRule.status));
+  const tipKind: ExerciseHistoryTip['kind'] | null = prescriptionOnly
+    ? null
+    : inUsePaused
+      ? 'paused'
+      : !exerciseRule
+        ? (historyTip?.kind ?? null)
+        : null;
+  const showStatusTip = tipKind != null;
+  const pauseTipPrefix = tipKind === 'paused'
+    ? formatExercisePauseTipPrefix(
+      inUsePaused ? exerciseRule?.stopReason : historyTip?.stopReason,
+    )
+    : tipKind === 'completed'
+      ? formatExerciseCompletedTipPrefix()
+      : '';
+
+  const openStatusTipDetail = useCallback(() => {
+    const ruleId = inUsePaused
+      ? (exerciseRule?.exPatientRuleId != null ? String(exerciseRule.exPatientRuleId).trim() : '')
+      : (historyTip?.exPatientRuleId ?? '');
+    if (!ruleId) return;
+    if (tipKind === 'completed') {
+      navigation.push('ExerciseExecutionStatsPage', { exPatientRuleId: ruleId });
+      return;
+    }
+    // 当前已在 ExercisePage，需 push 才能打开新页
+    navigation.push('ExercisePage', {
+      exPatientRuleId: ruleId,
+      prescriptionOnly: true,
+      readOnly: true,
+      ...(patientUserId
+        ? {
+          patientUserId,
+          relationLabel,
+          displayName: routeDisplayName,
+        }
+        : {}),
+    });
+  }, [
+    exerciseRule?.exPatientRuleId,
+    historyTip?.exPatientRuleId,
+    inUsePaused,
+    navigation,
+    patientUserId,
+    relationLabel,
+    routeDisplayName,
+    tipKind,
+  ]);
+
+  const loadExerciseRule = useCallback(async () => {
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
-      // 历史处方：按指定 id 拉详情。按今天查快照会落在周期外，接口无数据，页面会显示暂无处方
-      if (exPatientRuleId) {
-        const [ruleRes, baseRes] = await Promise.all([
-          getExPatientRuleInfo(exPatientRuleId, opts),
-          isFamilyView && patientUserId
-            ? getUserBaseInfo({ patientUserId }).catch(() => null)
-            : Promise.resolve(null),
-        ]);
-        if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
-          setExerciseRule(null);
-        } else {
-          const raw = apiResourceData<ExPatientRuleInfo>(ruleRes as unknown as never);
-          setExerciseRule(raw ? (normalizeExPatientRuleInfo(raw) as InUseExPatientRule) : null);
-        }
-        if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
-          setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
-        } else if (isFamilyView) {
-          setFamilyUser(null);
-        }
-        return;
-      }
-
-      const snapshotDate = customerLocalDate?.trim() || moment().format('YYYY-MM-DD');
+      // 历史处方：按指定 id 拉详情；当前处方（含暂停 status/stopReason）走 getInUseInfo
       const [ruleRes, baseRes] = await Promise.all([
-        getExPatientRuleSnapshotByDate(
-          { customerLocalDate: snapshotDate },
-          opts,
-        ),
+        exPatientRuleId
+          ? getExPatientRuleInfo(exPatientRuleId, opts)
+          : getInUseExPatientRuleInfo(opts),
         isFamilyView && patientUserId
           ? getUserBaseInfo({ patientUserId }).catch(() => null)
           : Promise.resolve(null),
@@ -144,9 +179,20 @@ export default function ExercisePage() {
 
       if (!isResourceApiOk(ruleRes as unknown as { code?: number })) {
         setExerciseRule(null);
+        if (!exPatientRuleId) {
+          setHistoryTip(await fetchLatestHistoryExerciseTip(patientUserId));
+        } else {
+          setHistoryTip(null);
+        }
       } else {
         const raw = apiResourceData<ExPatientRuleInfo>(ruleRes as unknown as never);
-        setExerciseRule(raw ? (normalizeExPatientRuleInfo(raw) as InUseExPatientRule) : null);
+        const normalized = raw ? (normalizeExPatientRuleInfo(raw) as InUseExPatientRule) : null;
+        setExerciseRule(normalized);
+        if (!exPatientRuleId && !normalized) {
+          setHistoryTip(await fetchLatestHistoryExerciseTip(patientUserId));
+        } else {
+          setHistoryTip(null);
+        }
       }
       if (baseRes && isResourceApiOk(baseRes as unknown as { code?: number })) {
         setFamilyUser(apiResourceData<UserBaseInfo>(baseRes as unknown as never) ?? null);
@@ -155,6 +201,7 @@ export default function ExercisePage() {
       }
     } catch {
       setExerciseRule(null);
+      setHistoryTip(null);
       if (isFamilyView) setFamilyUser(null);
     } finally {
       setLoading(false);
@@ -298,6 +345,47 @@ export default function ExercisePage() {
     },
   ];
 
+  const statusTipLinkText = tipKind === 'completed' ? '点击查看处方执行情况' : '查看详情';
+  const statusTipText = showStatusTip ? (
+    <Text style={styles.emptyPrescriptionText}>
+      {pauseTipPrefix}
+      <Text style={styles.pauseTipLink}>{statusTipLinkText}</Text>
+    </Text>
+  ) : null;
+  /** 无处方时：与空状态同一套 icon + 文案结构 */
+  const emptyStatusTipNode = showStatusTip ? (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      style={styles.emptyPrescription}
+      onPress={openStatusTipDetail}
+    >
+      <Image
+        source={require('@/assets/images/exercise/icon_yd_empty.png')}
+        style={styles.emptyPrescriptionIcon}
+      />
+      {statusTipText}
+    </TouchableOpacity>
+  ) : null;
+  /** 有处方但暂停时：顶部紧凑提示 */
+  const compactStatusTipNode = showStatusTip ? (
+    <TouchableOpacity
+      activeOpacity={0.75}
+      style={styles.pauseTipBox}
+      onPress={openStatusTipDetail}
+    >
+      <Flex align="start">
+        <Image
+          source={require('@/assets/images/exercise/icon_warn.png')}
+          style={styles.inStoreDoneTipIcon}
+        />
+        <Text style={[styles.pauseTipText, { marginLeft: 5 }]}>
+          {pauseTipPrefix}
+          <Text style={styles.pauseTipLink}>{statusTipLinkText}</Text>
+        </Text>
+      </Flex>
+    </TouchableOpacity>
+  ) : null;
+
   return (
     <PageLayout style={styles.container} edges={[]}>
       <View style={styles.topBox}>
@@ -350,56 +438,63 @@ export default function ExercisePage() {
           <ActivityIndicator color={AppTheme.primaryColor} />
         </View>
       ) : !exerciseRule ? (
-        <View style={styles.emptyPrescription}>
-          <Image
-            source={require('@/assets/images/exercise/icon_yd_empty.png')}
-            style={styles.emptyPrescriptionIcon}
-          />
-          {profileComplete ? (
-            <Text style={styles.emptyPrescriptionText}>
-              {readOnly ? '暂无运动处方' : '暂无运动处方，如需开方，请联系工作人员'}
-            </Text>
-          ) : (
-            <Flex style={styles.emptyPrescriptionTextRow}>
-              <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
-              <CompleteProfileLink color="#6D925E" />
-            </Flex>
-          )}
-        </View>
-      ) : prescriptionOnly ? (
-        <View style={{ flex: 1 }}>
-          <PrescriptionPage exerciseRule={exerciseRule} patientUserId={patientUserId} />
-        </View>
+        emptyStatusTipNode ?? (
+          <View style={styles.emptyPrescription}>
+            <Image
+              source={require('@/assets/images/exercise/icon_yd_empty.png')}
+              style={styles.emptyPrescriptionIcon}
+            />
+            {profileComplete ? (
+              <Text style={styles.emptyPrescriptionText}>
+                {readOnly ? '暂无运动处方' : '暂无运动处方，如需开方，请联系工作人员'}
+              </Text>
+            ) : (
+              <Flex style={styles.emptyPrescriptionTextRow}>
+                <Text style={styles.emptyPrescriptionTextInline}>暂无运动处方，请先</Text>
+                <CompleteProfileLink color="#6D925E" />
+              </Flex>
+            )}
+          </View>
+        )
       ) : (
         <View style={{ flex: 1 }}>
-          {mountedTabs.homeTraining ? (
-            <View style={{ flex: 1, display: activeNav === 'homeTraining' ? 'flex' : 'none' }}>
-              <TrainingPage
-                exerciseRule={exerciseRule}
-                forceReadOnly={readOnly}
-                lockToRule={Boolean(exPatientRuleId)}
-                patientUserId={patientUserId}
-              />
-            </View>
-          ) : null}
-          {mountedTabs.prescription ? (
-            <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
+          {compactStatusTipNode}
+          {prescriptionOnly ? (
+            <View style={{ flex: 1 }}>
               <PrescriptionPage exerciseRule={exerciseRule} patientUserId={patientUserId} />
             </View>
-          ) : null}
-          {mountedTabs.inStoreRehab ? (
-            <View style={{ flex: 1, display: activeNav === 'inStoreRehab' ? 'flex' : 'none' }}>
-              <InStoreRehabPage
-                exerciseRule={exerciseRule}
-                lockToRule={Boolean(exPatientRuleId)}
-                patientUserId={patientUserId}
-              />
+          ) : (
+            <View style={{ flex: 1 }}>
+              {mountedTabs.homeTraining ? (
+                <View style={{ flex: 1, display: activeNav === 'homeTraining' ? 'flex' : 'none' }}>
+                  <TrainingPage
+                    exerciseRule={exerciseRule}
+                    forceReadOnly={readOnly}
+                    lockToRule={Boolean(exPatientRuleId)}
+                    patientUserId={patientUserId}
+                  />
+                </View>
+              ) : null}
+              {mountedTabs.prescription ? (
+                <View style={{ flex: 1, display: activeNav === 'prescription' ? 'flex' : 'none' }}>
+                  <PrescriptionPage exerciseRule={exerciseRule} patientUserId={patientUserId} />
+                </View>
+              ) : null}
+              {mountedTabs.inStoreRehab ? (
+                <View style={{ flex: 1, display: activeNav === 'inStoreRehab' ? 'flex' : 'none' }}>
+                  <InStoreRehabPage
+                    exerciseRule={exerciseRule}
+                    lockToRule={Boolean(exPatientRuleId)}
+                    patientUserId={patientUserId}
+                  />
+                </View>
+              ) : null}
             </View>
-          ) : null}
+          )}
         </View>
       )}
 
-      {!prescriptionOnly && !readOnly && activeNav === 'homeTraining' && exerciseRule ? (
+      {!prescriptionOnly && !readOnly && !showStatusTip && activeNav === 'homeTraining' && exerciseRule ? (
         <TouchableOpacity
           style={styles.checkInFab}
           activeOpacity={0.85}

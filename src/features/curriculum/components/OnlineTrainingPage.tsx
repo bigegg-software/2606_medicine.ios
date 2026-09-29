@@ -29,10 +29,29 @@ import {
   type NextBookingView,
   type OnlineSessionCardView,
 } from '../utils/courseSessionHelpers';
+import { resolveSessionAction } from '../utils/sessionActionHelpers';
 
 type Props = {
   stationId?: string;
 };
+
+function getLiveActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
+  switch (tone) {
+    case 'booked':
+      return { btn: styles.liveBookBtnBooked, text: styles.liveBookBtnBookedText };
+    case 'deadline':
+      return { btn: styles.liveBookBtnDeadline, text: styles.liveBookBtnDeadlineText };
+    case 'ongoing':
+      return { btn: styles.liveBookBtnOngoing, text: styles.liveBookBtnOngoingText };
+    case 'ended':
+      return { btn: styles.liveBookBtnEnded, text: styles.liveBookBtnEndedText };
+    case 'full':
+      return { btn: styles.liveBookBtnFull, text: styles.liveBookBtnFullText };
+    case 'book':
+    default:
+      return { btn: null, text: null };
+  }
+}
 
 /** 线上训练 */
 export default function OnlineTrainingPage({ stationId }: Props) {
@@ -197,84 +216,92 @@ export default function OnlineTrainingPage({ stationId }: Props) {
               <EmptyRecord text="暂无线上课" />
             </View>
           ) : (
-            sessions.map(card => (
-              <TouchableOpacity
-                key={card.key}
-                activeOpacity={0.85}
-                style={styles.liveCard}
-                onPress={() =>
-                  navigation.navigate('OnlineCourseDetail', {
-                    sessionId: card.sessionId,
-                  })
-                }
-              >
-                <Flex align="start">
-                  <Image
-                    style={styles.liveAvatar}
-                    source={
-                      card.avatarUri
-                        ? { uri: card.avatarUri }
-                        : require('@/assets/images/curriculum/ljl.png')
-                    }
-                  />
-                  <View style={styles.liveInfo}>
-                    <View style={styles.liveTag}>
-                      <Text style={styles.liveTagText}>直播·推荐</Text>
-                    </View>
-                    <Text style={styles.liveTitle} numberOfLines={2}>
-                      {card.title}
-                    </Text>
-                    <Text style={styles.liveSuit} numberOfLines={2}>
-                      {card.suitText}
-                    </Text>
-                  </View>
-                </Flex>
-
-                <Flex style={styles.livePrepareBox}>
-                  <Image
-                    style={styles.livePrepareIcon}
-                    source={require('@/assets/images/curriculum/zb.png')}
-                  />
-                  <Text style={styles.livePrepareText} numberOfLines={2}>
-                    {card.prepareText}
-                  </Text>
-                </Flex>
-
-                <Flex justify="between" align="center" style={styles.liveBottomRow}>
-                  <View style={styles.liveBottomLeft}>
-                    <Text style={styles.liveTime}>{card.timeText}</Text>
-                    <View style={styles.liveBenefitRow}>
-                      <Image
-                        style={styles.liveBenefitIcon}
-                        tintColor="#000000"
-                        source={require('@/assets/images/curriculum/bm.png')}
-                      />
-                      <Text style={styles.liveBenefitText}>{card.benefitText}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={styles.liveBookBtn}
-                    disabled={actionSessionId === card.sessionId}
-                    onPress={() => {
-                      if (card.bookedByMe) {
-                        handleCancel(card);
-                      } else {
-                        handleBook(card);
+            sessions.map(card => {
+              const action = resolveSessionAction({
+                status: card.status,
+                bookedByMe: card.bookedByMe,
+                bookLabel: '预约直播',
+                bookedLabel: '取消预约',
+              });
+              const actionStyles = getLiveActionStyles(action.tone);
+              const busy = actionSessionId === card.sessionId;
+              const coverUri = card.coverUri || card.avatarUri;
+              return (
+                <TouchableOpacity
+                  key={card.key}
+                  activeOpacity={0.85}
+                  style={styles.liveCard}
+                  onPress={() =>
+                    navigation.navigate('OnlineCourseDetail', {
+                      sessionId: card.sessionId,
+                    })
+                  }
+                >
+                  <Flex align="start">
+                    <Image
+                      style={styles.liveAvatar}
+                      source={
+                        coverUri
+                          ? { uri: coverUri }
+                          : require('@/assets/images/curriculum/ljl.png')
                       }
-                    }}
-                  >
-                    <Text style={styles.liveBookBtnText}>
-                      {actionSessionId === card.sessionId
-                        ? '处理中...'
-                        : card.bookedByMe
-                          ? '取消预约'
-                          : '预约直播'}
+                    />
+                    <View style={styles.liveInfo}>
+                      <View style={styles.liveTag}>
+                        <Text style={styles.liveTagText}>直播·推荐</Text>
+                      </View>
+                      <Text style={styles.liveTitle} numberOfLines={2}>
+                        {card.title}
+                      </Text>
+                      <Text style={styles.liveSuit} numberOfLines={2}>
+                        {card.suitText}
+                      </Text>
+                    </View>
+                  </Flex>
+
+                  <Flex style={styles.livePrepareBox}>
+                    <Image
+                      style={styles.livePrepareIcon}
+                      source={require('@/assets/images/curriculum/zb.png')}
+                    />
+                    <Text style={styles.livePrepareText} numberOfLines={2}>
+                      {card.prepareText}
                     </Text>
-                  </TouchableOpacity>
-                </Flex>
-              </TouchableOpacity>
-            ))
+                  </Flex>
+
+                  <Flex justify="between" align="center" style={styles.liveBottomRow}>
+                    <View style={styles.liveBottomLeft}>
+                      <Text style={styles.liveTime}>{card.timeText}</Text>
+                      <View style={styles.liveBenefitRow}>
+                        <Image
+                          style={styles.liveBenefitIcon}
+                          tintColor="#000000"
+                          source={require('@/assets/images/curriculum/bm.png')}
+                        />
+                        <Text style={styles.liveBenefitText}>{card.benefitText}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={[styles.liveBookBtn, actionStyles.btn]}
+                      disabled={busy || !action.pressable}
+                      onPress={() => {
+                        if (!action.pressable || busy) return;
+                        if (card.bookedByMe) {
+                          handleCancel(card);
+                        } else {
+                          handleBook(card);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.liveBookBtnText, actionStyles.text]}>
+                        {busy ? '处理中...' : action.label}
+                      </Text>
+                    </TouchableOpacity>
+                  </Flex>
+                </TouchableOpacity>
+              );
+            })
           )}
 
           <Text style={styles.weekOnlineTitle}>随时练一练</Text>

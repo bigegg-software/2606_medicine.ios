@@ -43,10 +43,29 @@ import {
   type GroupSessionCardView,
   type NextBookingView,
 } from '../utils/courseSessionHelpers';
+import { resolveSessionAction } from '../utils/sessionActionHelpers';
 
 type Props = {
   stationId?: string;
 };
+
+function getClassActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
+  switch (tone) {
+    case 'booked':
+      return { btn: styles.classBookBtnBooked, text: styles.classBookBtnBookedText };
+    case 'deadline':
+      return { btn: styles.classBookBtnDeadline, text: styles.classBookBtnDeadlineText };
+    case 'ongoing':
+      return { btn: styles.classBookBtnOngoing, text: styles.classBookBtnOngoingText };
+    case 'ended':
+      return { btn: styles.classBookBtnEnded, text: styles.classBookBtnEndedText };
+    case 'full':
+      return { btn: styles.classBookBtnFull, text: styles.classBookBtnFullText };
+    case 'book':
+    default:
+      return { btn: null, text: null };
+  }
+}
 
 /** 集体训练 */
 export default function GroupTrainingPage({ stationId }: Props) {
@@ -313,56 +332,63 @@ export default function GroupTrainingPage({ stationId }: Props) {
 
         <Flex justify="between" align="center" style={styles.filterRow}>
           <Flex style={styles.filterChipRow}>
-            <CourseCategoryFilterPicker
-              value={selectedCategory}
-              onChange={setSelectedCategory}
-            >
-              <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
-                <Flex align="center">
-                  <Text style={styles.filterChipText} numberOfLines={1}>
-                    {categoryFilterLabel}
-                  </Text>
-                  <Image
-                    style={styles.filterChipIcon}
-                    source={require('@/assets/images/curriculum/arrow_down.png')}
-                  />
-                </Flex>
-              </TouchableOpacity>
-            </CourseCategoryFilterPicker>
-            <CoachFilterPicker
-              stationId={stationId}
-              courseType="group"
-              value={selectedCoach}
-              onChange={setSelectedCoach}
-            >
-              <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
-                <Flex align="center">
-                  <Text style={styles.filterChipText} numberOfLines={1}>
-                    {coachFilterLabel}
-                  </Text>
-                  <Image
-                    style={styles.filterChipIcon}
-                    source={require('@/assets/images/curriculum/arrow_down.png')}
-                  />
-                </Flex>
-              </TouchableOpacity>
-            </CoachFilterPicker>
-            <TimeSlotFilterPicker value={selectedTimeSlot} onChange={setSelectedTimeSlot}>
-              <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
-                <Flex align="center">
-                  <Text style={styles.filterChipText} numberOfLines={1}>
-                    {timeSlotFilterLabel}
-                  </Text>
-                  <Image
-                    style={styles.filterChipIcon}
-                    source={require('@/assets/images/curriculum/arrow_down.png')}
-                  />
-                </Flex>
-              </TouchableOpacity>
-            </TimeSlotFilterPicker>
+            <View style={styles.filterChipWrap}>
+              <CourseCategoryFilterPicker
+                value={selectedCategory}
+                onChange={setSelectedCategory}
+              >
+                <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
+                  <Flex align="center" style={styles.filterChipInner}>
+                    <Text style={styles.filterChipText} numberOfLines={1} ellipsizeMode="tail">
+                      {categoryFilterLabel}
+                    </Text>
+                    <Image
+                      style={styles.filterChipIcon}
+                      source={require('@/assets/images/curriculum/arrow_down.png')}
+                    />
+                  </Flex>
+                </TouchableOpacity>
+              </CourseCategoryFilterPicker>
+            </View>
+            <View style={styles.filterChipWrap}>
+              <CoachFilterPicker
+                stationId={stationId}
+                courseType="group"
+                value={selectedCoach}
+                onChange={setSelectedCoach}
+              >
+                <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
+                  <Flex align="center" style={styles.filterChipInner}>
+                    <Text style={styles.filterChipText} numberOfLines={1} ellipsizeMode="tail">
+                      {coachFilterLabel}
+                    </Text>
+                    <Image
+                      style={styles.filterChipIcon}
+                      source={require('@/assets/images/curriculum/arrow_down.png')}
+                    />
+                  </Flex>
+                </TouchableOpacity>
+              </CoachFilterPicker>
+            </View>
+            <View style={styles.filterChipWrap}>
+              <TimeSlotFilterPicker value={selectedTimeSlot} onChange={setSelectedTimeSlot}>
+                <TouchableOpacity activeOpacity={0.7} style={styles.filterChip}>
+                  <Flex align="center" style={styles.filterChipInner}>
+                    <Text style={styles.filterChipText} numberOfLines={1} ellipsizeMode="tail">
+                      {timeSlotFilterLabel}
+                    </Text>
+                    <Image
+                      style={styles.filterChipIcon}
+                      source={require('@/assets/images/curriculum/arrow_down.png')}
+                    />
+                  </Flex>
+                </TouchableOpacity>
+              </TimeSlotFilterPicker>
+            </View>
           </Flex>
           <TouchableOpacity
             activeOpacity={0.7}
+            style={styles.myBookingBtn}
             onPress={() => navigation.navigate('MyBookingPage')}
           >
             <Flex align="center">
@@ -399,92 +425,99 @@ export default function GroupTrainingPage({ stationId }: Props) {
             <EmptyRecord text="暂无集体课" />
           </View>
         ) : (
-          sessions.map(card => (
-            <TouchableOpacity
-              key={card.key}
-              activeOpacity={0.85}
-              style={styles.classCard}
-              onPress={() =>
-                navigation.navigate('GroupCourseDetail', {
-                  sessionId: card.sessionId,
-                })
-              }
-            >
-              <Image
-                source={
-                  card.coverUri
-                    ? { uri: card.coverUri }
-                    : require('@/assets/images/curriculum/xb1.png')
+          sessions.map(card => {
+            const action = resolveSessionAction({
+              status: card.status,
+              bookedByMe: card.bookedByMe,
+              bookLabel: '预约参加',
+              bookedLabel: '取消预约',
+            });
+            const actionStyles = getClassActionStyles(action.tone);
+            const busy = actionSessionId === card.sessionId;
+            return (
+              <TouchableOpacity
+                key={card.key}
+                activeOpacity={0.85}
+                style={styles.classCard}
+                onPress={() =>
+                  navigation.navigate('GroupCourseDetail', {
+                    sessionId: card.sessionId,
+                  })
                 }
-                style={styles.classCover}
-                resizeMode="cover"
-              />
-              <View style={styles.classBody}>
-                <Flex justify="between" align="center" style={styles.classTitleRow}>
-                  <Text style={styles.classTitle} numberOfLines={1}>
-                    {card.title}
-                  </Text>
-                  <Flex style={styles.classTag}>
-                    <Image
-                      style={styles.classTagIcon}
-                      source={require('@/assets/images/exercise/hs.png')}
-                    />
-                    <Text style={styles.classTagText}>适合你</Text>
-                  </Flex>
-                </Flex>
-
-                <Flex justify="between" align="center" style={styles.classMetaRow}>
-                  <Text style={styles.classMetaLeft} numberOfLines={1}>
-                    {card.coachMeta}
-                  </Text>
-                  <View style={styles.classMetaRight}>
-                    <Image
-                      style={styles.classMetaIcon}
-                      source={require('@/assets/images/curriculum/bm.png')}
-                    />
-                    <Text style={styles.classMetaRightText}>{card.enrollText}</Text>
-                  </View>
-                </Flex>
-
-                <View style={styles.classDashWrap}>
-                  <View style={styles.classDash} />
-                </View>
-
-                <Flex justify="between" align="center" style={styles.classBottomRow}>
-                  <View style={styles.classBottomLeft}>
-                    <Text style={styles.classTime}>{card.time}</Text>
-                    <View style={styles.classBenefitRow}>
-                      <Image
-                        style={styles.classBenefitIcon}
-                        source={require('@/assets/images/curriculum/qy.png')}
-                      />
-                      <Text style={styles.classBenefitText}>{card.benefitText}</Text>
-                    </View>
-                  </View>
-                  <TouchableOpacity
-                    activeOpacity={0.7}
-                    style={styles.classBookBtn}
-                    disabled={actionSessionId === card.sessionId}
-                    onPress={() => {
-                      if (card.bookedByMe) {
-                        handleCancel(card);
-                      } else {
-                        handleBook(card);
-                      }
-                    }}
-                  >
-                    <Text style={styles.classBookBtnText}>
-                      {actionSessionId === card.sessionId
-                        ? '处理中...'
-                        : card.bookedByMe
-                          ? '取消预约'
-                          : '预约参加'}
+              >
+                <Image
+                  source={
+                    card.coverUri
+                      ? { uri: card.coverUri }
+                      : require('@/assets/images/curriculum/xb1.png')
+                  }
+                  style={styles.classCover}
+                  resizeMode="cover"
+                />
+                <View style={styles.classBody}>
+                  <Flex justify="between" align="center" style={styles.classTitleRow}>
+                    <Text style={styles.classTitle} numberOfLines={1}>
+                      {card.title}
                     </Text>
-                  </TouchableOpacity>
-                </Flex>
-              </View>
-            </TouchableOpacity>
-          ))
+                    <Flex style={styles.classTag}>
+                      <Image
+                        style={styles.classTagIcon}
+                        source={require('@/assets/images/exercise/hs.png')}
+                      />
+                      <Text style={styles.classTagText}>适合你</Text>
+                    </Flex>
+                  </Flex>
+
+                  <Flex justify="between" align="center" style={styles.classMetaRow}>
+                    <Text style={styles.classMetaLeft} numberOfLines={1}>
+                      {card.coachMeta}
+                    </Text>
+                    <View style={styles.classMetaRight}>
+                      <Image
+                        style={styles.classMetaIcon}
+                        source={require('@/assets/images/curriculum/bm.png')}
+                      />
+                      <Text style={styles.classMetaRightText}>{card.enrollText}</Text>
+                    </View>
+                  </Flex>
+
+                  <View style={styles.classDashWrap}>
+                    <View style={styles.classDash} />
+                  </View>
+
+                  <Flex justify="between" align="center" style={styles.classBottomRow}>
+                    <View style={styles.classBottomLeft}>
+                      <Text style={styles.classTime}>{card.time}</Text>
+                      <View style={styles.classBenefitRow}>
+                        <Image
+                          style={styles.classBenefitIcon}
+                          source={require('@/assets/images/curriculum/qy.png')}
+                        />
+                        <Text style={styles.classBenefitText}>{card.benefitText}</Text>
+                      </View>
+                    </View>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={[styles.classBookBtn, actionStyles.btn]}
+                      disabled={busy || !action.pressable}
+                      onPress={() => {
+                        if (!action.pressable || busy) return;
+                        if (card.bookedByMe) {
+                          handleCancel(card);
+                        } else {
+                          handleBook(card);
+                        }
+                      }}
+                    >
+                      <Text style={[styles.classBookBtnText, actionStyles.text]}>
+                        {busy ? '处理中...' : action.label}
+                      </Text>
+                    </TouchableOpacity>
+                  </Flex>
+                </View>
+              </TouchableOpacity>
+            );
+          })
         )}
 
         <Flex justify="center" align="center" style={styles.planListFooter}>

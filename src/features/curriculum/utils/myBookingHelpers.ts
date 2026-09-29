@@ -6,18 +6,60 @@ import type {
 } from '@/api/courseSession';
 import { getMyBookingNext, getMyBookingPage } from '@/api/courseSession';
 import { apiResourceData, getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { canCancelOrAdjustSession } from './sessionActionHelpers';
 
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const DEFAULT_PAGE_SIZE = 20;
 const RECENT_COMPLETED_SIZE = 3;
 
-/** 预约状态文案：1.已预约 2.已取消 3.已核销 4.已爽约/缺席 */
-export function bookingStatusLabel(status?: number) {
-  if (status === 1) return '已预约';
-  if (status === 2) return '已取消';
-  if (status === 3) return '已完成';
-  if (status === 4) return '缺席';
+type BookingStatusLabelOptions = {
+  /** 核销方式：1.学员签到 2.管理员核销 3.教练核销 */
+  verifyType?: number | null;
+  /** 场次/模板状态：5.已结束 → 展示为已完成 */
+  sessionStatus?: number | null;
+};
+
+/**
+ * 预约状态文案：
+ * - 预约：1.已预约 2.已取消 3.已核销 4.已爽约/缺席
+ * - 学员签到核销(verifyType=1) → 已签到
+ * - 场次已结束(sessionStatus=5)：已核销 → 已完成；未核销 → 已过期
+ */
+export function bookingStatusLabel(
+  status?: number,
+  options?: BookingStatusLabelOptions,
+) {
+  const s = Number(status);
+  const verifyType = Number(options?.verifyType);
+  const sessionStatus = Number(options?.sessionStatus);
+
+  if (s === 3 && verifyType === 1) return '已签到';
+  if (s === 3) return '已完成';
+  if (s === 4) return '缺席';
+  if (s === 2) return '已取消';
+  if (sessionStatus === 4) return '进行中';
+  if (sessionStatus === 5) return '已过期';
+  if (s === 1) return '已预约';
   return '已预约';
+}
+
+function resolveSessionStatus(item: CourseSessionBookingItem) {
+  const sessionStatus = item.session?.status;
+  if (sessionStatus != null && String(sessionStatus).trim() !== '') {
+    return Number(sessionStatus);
+  }
+  const templateStatus = item.session?.template?.status;
+  if (templateStatus != null && String(templateStatus).trim() !== '') {
+    return Number(templateStatus);
+  }
+  return undefined;
+}
+
+function resolveBookingStatusLabel(item: CourseSessionBookingItem) {
+  return bookingStatusLabel(item.status, {
+    verifyType: item.verifyType,
+    sessionStatus: resolveSessionStatus(item),
+  });
 }
 
 /** 是否缺席（已爽约） */
@@ -200,6 +242,10 @@ export type MyBookingNextCardView = {
   sessionDate: string;
   /** 开课时间 HH:mm */
   startTime: string;
+  /** 场次状态 */
+  sessionStatus?: number;
+  /** 进行中/已结束等不可调整时间 */
+  canAdjustTime: boolean;
   statusLabel: string;
   timeText: string;
   title: string;
@@ -259,7 +305,7 @@ export function mapCompletedBookingCard(
     sessionId,
     courseType,
     status,
-    statusLabel: bookingStatusLabel(status),
+    statusLabel: resolveBookingStatusLabel(item),
     isAbsent: isBookingAbsent(status),
     sessionDate: resolveSessionDate(item),
     dateText: formatCompletedDateText(item),
@@ -276,6 +322,7 @@ export function mapNextBookingCard(
   const sessionId = resolveSessionId(item);
   if (!bookingId || !sessionId) return null;
   const courseType = String(resolveCourseType(item) || 'private');
+  const sessionStatus = resolveSessionStatus(item);
   return {
     key: bookingId,
     bookingId,
@@ -284,7 +331,9 @@ export function mapNextBookingCard(
     courseType,
     sessionDate: resolveSessionDate(item),
     startTime: resolveStartTime(item),
-    statusLabel: bookingStatusLabel(item.status),
+    sessionStatus,
+    canAdjustTime: canCancelOrAdjustSession(sessionStatus),
+    statusLabel: resolveBookingStatusLabel(item),
     timeText: formatNextBookingTimeText(item),
     title: resolveCourseName(item),
     coachName: formatCoachMeta(item),
@@ -306,7 +355,7 @@ export function mapFollowBookingCard(
     bookingId,
     sessionId,
     courseType,
-    statusLabel: bookingStatusLabel(item.status),
+    statusLabel: resolveBookingStatusLabel(item),
     timeText: formatFollowBookingTimeText(item),
     title: resolveCourseName(item),
     coachMeta: formatCoachMeta(item),
