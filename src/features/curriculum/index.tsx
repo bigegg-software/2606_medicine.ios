@@ -88,17 +88,17 @@ export default function CurriculumPage() {
       <View style={styles.pageContent}>
         {mountedTabs.private ? (
           <View style={{ flex: 1, display: activeNav === 'private' ? 'flex' : 'none' }}>
-            <PrivateTrainingPage stationId={stationId} />
+            <PrivateTrainingPage stationId={stationId} isActive={activeNav === 'private'} />
           </View>
         ) : null}
         {mountedTabs.group ? (
           <View style={{ flex: 1, display: activeNav === 'group' ? 'flex' : 'none' }}>
-            <GroupTrainingPage stationId={stationId} />
+            <GroupTrainingPage stationId={stationId} isActive={activeNav === 'group'} />
           </View>
         ) : null}
         {mountedTabs.online ? (
           <View style={{ flex: 1, display: activeNav === 'online' ? 'flex' : 'none' }}>
-            <OnlineTrainingPage stationId={stationId} />
+            <OnlineTrainingPage stationId={stationId} isActive={activeNav === 'online'} />
           </View>
         ) : null}
       </View>

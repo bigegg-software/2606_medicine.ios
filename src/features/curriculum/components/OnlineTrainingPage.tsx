@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   View,
@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSelector } from 'react-redux';
 import styles from '@/css/curriculum/onlineTraining';
@@ -37,6 +37,7 @@ import { resolveSessionAction } from '../utils/sessionActionHelpers';
 
 type Props = {
   stationId?: string;
+  isActive?: boolean;
 };
 
 function getLiveActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
@@ -58,7 +59,7 @@ function getLiveActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone
 }
 
 /** 线上训练 */
-export default function OnlineTrainingPage({ stationId }: Props) {
+export default function OnlineTrainingPage({ stationId, isActive = true }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const onlineRemainCount = resolveCourseBenefitRemainCount(systemUser, 'online');
@@ -197,12 +198,27 @@ export default function OnlineTrainingPage({ stationId }: Props) {
   );
 
   useEffect(() => {
+    if (!isActive) return;
     void loadSessions();
-  }, [loadSessions]);
+  }, [isActive, loadSessions]);
 
   useEffect(() => {
+    if (!isActive) return;
     void loadNextBooking();
-  }, [loadNextBooking]);
+  }, [isActive, loadNextBooking]);
+
+  /** 从详情预约/取消返回时刷新列表（首屏由上方 effect 负责） */
+  const skipFocusRefreshRef = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (!isActive) return;
+      if (skipFocusRefreshRef.current) {
+        skipFocusRefreshRef.current = false;
+        return;
+      }
+      void refreshAfterBookingChange();
+    }, [isActive, refreshAfterBookingChange]),
+  );
 
   return (
     <View style={styles.tabPage}>

@@ -48,6 +48,7 @@ import {
 
 type Props = {
   stationId?: string;
+  isActive?: boolean;
 };
 
 function getCoachActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
@@ -69,7 +70,7 @@ function getCoachActionStyles(tone: ReturnType<typeof resolveSessionAction>['ton
 }
 
 /** 私教训练 */
-export default function PrivateTrainingPage({ stationId }: Props) {
+export default function PrivateTrainingPage({ stationId, isActive = true }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const dispatch = useDispatch<AppDispatch>();
   const privateRemainCount = useSelector(
@@ -288,27 +289,31 @@ export default function PrivateTrainingPage({ stationId }: Props) {
   );
 
   useEffect(() => {
+    if (!isActive) return;
     void loadSessions();
-  }, [loadSessions]);
+  }, [isActive, loadSessions]);
 
   useEffect(() => {
+    if (!isActive) return;
     void loadNextBooking();
-  }, [loadNextBooking]);
+  }, [isActive, loadNextBooking]);
 
   useEffect(() => {
+    if (!isActive) return;
     void loadDateHas();
-  }, [loadDateHas]);
+  }, [isActive, loadDateHas]);
 
   /** 从详情预约/取消返回时刷新列表与权益（首屏由上方 effect 负责，避免重复请求） */
   const skipFocusRefreshRef = useRef(true);
   useFocusEffect(
     useCallback(() => {
+      if (!isActive) return;
       if (skipFocusRefreshRef.current) {
         skipFocusRefreshRef.current = false;
         return;
       }
       void refreshAfterBookingChange();
-    }, [refreshAfterBookingChange]),
+    }, [isActive, refreshAfterBookingChange]),
   );
 
   return (
