@@ -359,3 +359,20 @@ export const postponeThisWeek = (
       headers: withPatientUserIdHeaders(options?.patientUserId),
     },
   );
+
+/** 随时练一练：根据进行中处方本周主训练安排，随机推荐居家练习动作（最多 3 个） */
+export type RecommendHomePracticeItem = ExWeekTrainingItem;
+
+export type RecommendHomePracticeData = {
+  exPatientRuleId?: number | string;
+  list?: RecommendHomePracticeItem[];
+};
+
+export type RecommendHomePracticeResult = {
+  code?: number;
+  msg?: string;
+  data?: RecommendHomePracticeData;
+};
+
+export const getRecommendHomePractice = () =>
+  request.get<RecommendHomePracticeResult>('/patient/exPatientRule/recommendHomePractice');

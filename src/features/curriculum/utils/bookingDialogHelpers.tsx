@@ -89,7 +89,10 @@ export function formatBookingDateTimeText(
   return `${m.format('M月D日')}（${weekday}）${range}`;
 }
 
-function buildSessionSummaryLines(info: BookingDialogInfo) {
+function buildSessionSummaryLines(
+  info: BookingDialogInfo,
+  courseType?: CourseSessionType | string,
+) {
   const courseName = info.courseName?.trim() || '课程';
   const coachName = info.coachName?.trim() || '教练';
   const timeText = formatBookingDateTimeText(
@@ -97,12 +100,15 @@ function buildSessionSummaryLines(info: BookingDialogInfo) {
     info.startTime,
     info.endTime,
   );
-  const stationName = info.stationName?.trim() || '门店';
+  const fourthLine =
+    courseType === 'online'
+      ? '上课方式：线上直播'
+      : `地点：${info.stationName?.trim() || '门店'}`;
   return [
     `课程：${courseName}`,
     `教练：${coachName}`,
     `时间：${timeText}`,
-    `地点：${stationName}`,
+    fourthLine,
   ];
 }
 
@@ -111,10 +117,11 @@ export function buildBookConfirmContent(
   courseType: CourseSessionType | string,
 ) {
   const typeLabel = courseTypeBenefitLabel(courseType);
-  return [
-    ...buildSessionSummaryLines(info),
-    `确认预约后，该时段将为你保留，并使用 1次${typeLabel}次数，请确认是否预约？`,
-  ].join('\n');
+  const footer =
+    courseType === 'online'
+      ? '预约成功后，可在我的预约中查看观看方式，并使用 1次线上课次数，请确认是否预约？'
+      : `确认预约后，该时段将为你保留，并使用 1次${typeLabel}次数，请确认是否预约？`;
+  return [...buildSessionSummaryLines(info, courseType), footer].join('\n');
 }
 
 export function buildCancelConfirmContent(
@@ -123,7 +130,7 @@ export function buildCancelConfirmContent(
 ) {
   const typeLabel = courseTypeBenefitLabel(courseType);
   return [
-    ...buildSessionSummaryLines(info),
+    ...buildSessionSummaryLines(info, courseType),
     `确定要取消本次课程预约吗？取消预约后将会自动退还 1次${typeLabel}次数`,
   ].join('\n');
 }

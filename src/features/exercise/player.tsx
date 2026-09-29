@@ -254,11 +254,15 @@ export default function ExercisePlayerPage() {
   const completedGroupCount = Array.from({ length: saveGroupTotal }, (_, index) =>
     isGroupDisplayDone(index, groupCounts, saveGroupTargetCount, null),
   ).filter(Boolean).length;
-  const headerRightText = showHeaderDuration
-    ? headerDurationText
-    : saveGroupTotal > 0
-      ? `${completedGroupCount}/${saveGroupTotal}组`
-      : '';
+  const readOnly = Boolean(route.params?.readOnly);
+  const practiceOnly = Boolean(route.params?.practiceOnly);
+  const headerRightText = practiceOnly
+    ? ''
+    : showHeaderDuration
+      ? headerDurationText
+      : saveGroupTotal > 0
+        ? `${completedGroupCount}/${saveGroupTotal}组`
+        : '';
   const nextSaveGroupIndex = !isDurationTimer && saveGroupTotal > 0
     ? findNextGroupInputIndex(groupCounts, saveGroupTotal)
     : -1;
@@ -268,7 +272,6 @@ export default function ExercisePlayerPage() {
       ? `保存数据·第${nextSaveGroupIndex + 1}组`
       : '保存数据';
   const saveRecordDisabled = markingGroup || submitting || isGroupResting;
-  const readOnly = Boolean(route.params?.readOnly);
   const customerLocalDate = route.params?.customerLocalDate?.trim()
     || moment().format('YYYY-MM-DD');
 
@@ -667,7 +670,7 @@ export default function ExercisePlayerPage() {
       resumeTraining?: boolean;
     },
   ) => {
-    if (readOnly || markingGroup || submitting) return false;
+    if (readOnly || practiceOnly || markingGroup || submitting) return false;
 
     const context = prescriptionContextRef.current;
     const currentVideo = videoRef.current;
@@ -881,6 +884,7 @@ export default function ExercisePlayerPage() {
     markingGroup,
     navigation,
     player,
+    practiceOnly,
     readOnly,
     route.params?.customerLocalDate,
     route.params?.exerciseType,
@@ -903,6 +907,7 @@ export default function ExercisePlayerPage() {
   useEffect(() => {
     if (
       readOnly
+      || practiceOnly
       || loading
       || markingGroup
       || submitting
@@ -990,6 +995,7 @@ export default function ExercisePlayerPage() {
     isTraining,
     loading,
     markingGroup,
+    practiceOnly,
     readOnly,
     remainingDurationMinutes,
     sessionElapsedSeconds,
@@ -1050,7 +1056,7 @@ export default function ExercisePlayerPage() {
     const unsubscribe = navigation.addListener('beforeRemove', event => {
       safePauseVideoPlayer(player);
 
-      if (readOnly || allowExitRef.current || sessionElapsedRef.current <= 0) {
+      if (readOnly || practiceOnly || allowExitRef.current || sessionElapsedRef.current <= 0) {
         return;
       }
 
@@ -1074,6 +1080,7 @@ export default function ExercisePlayerPage() {
     isDurationTimer,
     navigation,
     player,
+    practiceOnly,
     readOnly,
     showEndTrainingConfirm,
     showShortSessionAlert,
@@ -1132,7 +1139,7 @@ export default function ExercisePlayerPage() {
 
   /** 底部「保存数据」：计时类型只传时长；其它类型按序录入下一组 */
   const handleSaveRecord = useCallback(() => {
-    if (readOnly || markingGroup || submitting || isGroupRestingRef.current) return;
+    if (readOnly || practiceOnly || markingGroup || submitting || isGroupRestingRef.current) return;
 
     if (isDurationTimer) {
       const sessionSeconds = sessionElapsedRef.current;
@@ -1173,6 +1180,7 @@ export default function ExercisePlayerPage() {
     markingGroup,
     navigation,
     player,
+    practiceOnly,
     readOnly,
     showEndTrainingConfirm,
     showShortSessionAlert,
@@ -1182,15 +1190,20 @@ export default function ExercisePlayerPage() {
     totalGroups,
   ]);
 
-  /** 结束计时：默认与「保存数据」一致；组间休息时提前结束休息 */
+  /** 结束计时：默认与「保存数据」一致；组间休息时提前结束休息；随时练一练直接离开 */
   const handleSubmitTraining = useCallback(() => {
     if (readOnly) return;
+    if (practiceOnly) {
+      allowExitRef.current = true;
+      navigation.goBack();
+      return;
+    }
     if (isGroupRestingRef.current) {
       finishGroupRest();
       return;
     }
     handleSaveRecord();
-  }, [finishGroupRest, handleSaveRecord, readOnly]);
+  }, [finishGroupRest, handleSaveRecord, navigation, practiceOnly, readOnly]);
 
   if (loading) {
     return (
@@ -1373,7 +1386,7 @@ export default function ExercisePlayerPage() {
             ) : null}
           </Flex>
 
-          {(!isDurationTimer && saveGroupTotal > 0) || (isDurationTimer && saveGroupTotal > 1) ? (
+          {!practiceOnly && ((!isDurationTimer && saveGroupTotal > 0) || (isDurationTimer && saveGroupTotal > 1)) ? (
             <View>
               <GroupCountTags
                 style={styles.playerGroupRow}
@@ -1455,7 +1468,7 @@ export default function ExercisePlayerPage() {
           </View>
         </ScrollView>
 
-        {!readOnly ? (
+        {!readOnly && !practiceOnly ? (
           <Flex
             justify="between"
             align="center"
@@ -1478,7 +1491,7 @@ export default function ExercisePlayerPage() {
         ) : null}
 
         <GroupCountInputModal
-          visible={!readOnly && groupInputIndex != null}
+          visible={!readOnly && !practiceOnly && groupInputIndex != null}
           groupIndex={groupInputIndex ?? 0}
           title={groupInputMeta.title}
           unit={groupInputMeta.unit}

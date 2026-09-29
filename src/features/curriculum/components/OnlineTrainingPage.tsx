@@ -33,6 +33,10 @@ import {
   type NextBookingView,
   type OnlineSessionCardView,
 } from '../utils/courseSessionHelpers';
+import {
+  fetchHomePracticeCards,
+  type HomePracticeCardView,
+} from '../utils/homePracticeHelpers';
 import { resolveSessionAction } from '../utils/sessionActionHelpers';
 
 type Props = {
@@ -65,6 +69,7 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
   const onlineRemainCount = resolveCourseBenefitRemainCount(systemUser, 'online');
   const [sessions, setSessions] = useState<OnlineSessionCardView[]>([]);
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
+  const [practiceCards, setPracticeCards] = useState<HomePracticeCardView[]>([]);
   const [loading, setLoading] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
 
@@ -98,6 +103,15 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
       setNextBooking(null);
     }
   }, [stationId]);
+
+  const loadHomePractice = useCallback(async () => {
+    try {
+      const list = await fetchHomePracticeCards();
+      setPracticeCards(list);
+    } catch {
+      setPracticeCards([]);
+    }
+  }, []);
 
   const refreshAfterBookingChange = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
@@ -207,6 +221,11 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
     void loadNextBooking();
   }, [isActive, loadNextBooking]);
 
+  useEffect(() => {
+    if (!isActive) return;
+    void loadHomePractice();
+  }, [isActive, loadHomePractice]);
+
   /** 从详情预约/取消返回时刷新列表（首屏由上方 effect 负责） */
   const skipFocusRefreshRef = useRef(true);
   useFocusEffect(
@@ -217,7 +236,8 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
         return;
       }
       void refreshAfterBookingChange();
-    }, [isActive, refreshAfterBookingChange]),
+      void loadHomePractice();
+    }, [isActive, loadHomePractice, refreshAfterBookingChange]),
   );
 
   return (
@@ -338,28 +358,52 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
             })
           )}
 
-          <Text style={styles.weekOnlineTitle}>随时练一练</Text>
+          {practiceCards.length > 0 ? (
+            <Text style={styles.weekOnlineTitle}>随时练一练</Text>
+          ) : null}
         </View>
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.practiceScroll}
-          contentContainerStyle={styles.practiceScrollContent}
-        >
-          {[1, 2, 3].map(key => (
-            <Flex key={key} align="start" style={styles.practiceCard}>
-              <Image
-                style={styles.practiceCover}
-                source={require('@/assets/images/curriculum/ljl.png')}
-              />
-              <View style={styles.practiceInfo}>
-                <Text style={styles.practiceTitle}>15分钟晨间舒展</Text>
-                <Text style={styles.practiceSubtitle}>处方配套视频</Text>
-              </View>
-            </Flex>
-          ))}
-        </ScrollView>
+        {practiceCards.length > 0 ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.practiceScroll}
+            contentContainerStyle={styles.practiceScrollContent}
+          >
+            {practiceCards.map(card => (
+              <TouchableOpacity
+                key={card.key}
+                activeOpacity={0.85}
+                onPress={() =>
+                  navigation.navigate('ExercisePlayerPage', {
+                    exVideoId: card.exVideoId,
+                    title: card.title,
+                    ruleSubtitle: card.subtitle,
+                    trainingPhase: 'main',
+                    groupVal: card.groupVal,
+                    numberVal: card.numberVal,
+                    keepSecondVal: card.keepSecondVal,
+                    durationMinutes: card.durationMinutes,
+                    timerType: card.timerType,
+                    practiceOnly: true,
+                  })
+                }
+              >
+                <Flex align="start" style={styles.practiceCard}>
+                  <Image style={styles.practiceCover} source={card.coverSource} />
+                  <View style={styles.practiceInfo}>
+                    <Text style={styles.practiceTitle} numberOfLines={1}>
+                      {card.title}
+                    </Text>
+                    <Text style={styles.practiceSubtitle} numberOfLines={1}>
+                      {card.subtitle}
+                    </Text>
+                  </View>
+                </Flex>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        ) : null}
 
         <Flex justify="center" align="center" style={styles.planListFooter}>
           <View style={styles.planListFooterLine} />

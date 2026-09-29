@@ -254,8 +254,8 @@ function formatGroupCoachMeta(item: CourseSessionItem) {
   const coach = item.coachRealName?.trim() || '教练';
   const capacity = item.capacity ?? item.template?.capacity;
   if (capacity == null) return coach;
-  if (capacity < 0) return `${coach}·不限人数小班`;
-  return `${coach}·${capacity}人小班`;
+  if (capacity < 0) return `${coach}·不限人数`;
+  return `${coach}·${capacity}人班`;
 }
 
 function formatGroupEnrollText(item: CourseSessionItem) {

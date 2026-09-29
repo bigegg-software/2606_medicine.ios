@@ -312,6 +312,8 @@ export type RootStackParamList = {
     /** 历史日期只读查看 */
     readOnly?: boolean;
     customerLocalDate?: string;
+    /** 随时练一练：不展示分组/保存/右上角组数标签，不落库 */
+    practiceOnly?: boolean;
   } | undefined;
   TestingPage: { id: string },
   TestingResultsPage: { healthTestItemId: string; recordOnly?: boolean },
