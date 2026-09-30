@@ -1254,7 +1254,7 @@ export function sortHistoryPlans(items: HistoryExPatientRule[]) {
   );
 }
 
-const HISTORY_ARCHIVE_PREVIEW_SIZE = 5;
+const HISTORY_ARCHIVE_PREVIEW_SIZE = 3;
 
 async function loadRuleStatForArchive(exPatientRuleId?: string | number | null) {
   if (exPatientRuleId == null || exPatientRuleId === '') return null;

@@ -25,6 +25,7 @@ import {
   loadInStoreRecommendCards,
   type InStoreRecommendCardView,
 } from '@/src/features/exercise/utils/inStoreRecommendHelpers';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import {
   buildSpecialPlanIntroItems,
   buildSpecialPlanServiceFlowItems,
@@ -37,7 +38,8 @@ import {
 type Route = RouteProp<RootStackParamList, 'CoachBookingPage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CoachBookingPage'>;
 
-const DEFAULT_COACH_AVATAR = require('@/assets/images/exercise/dtls.png');
+/** 无教练头像时与「我的」页一致的默认头像 */
+const DEFAULT_COACH_AVATAR = getDefaultAvatarByGender();
 
 function resolveRecommendDetailRoute(
   courseType?: string,
@@ -353,6 +355,7 @@ export default function CoachBookingPage() {
                   {recommendCards.map((item, index) => (
                     <TouchableOpacity
                       key={item.key}
+                      disabled
                       activeOpacity={0.7}
                       onPress={() => {
                         const id = item.sessionId?.trim() || '';
@@ -372,7 +375,9 @@ export default function CoachBookingPage() {
                         <Image
                           style={styles.coachRecommendIcon}
                           source={
-                            item.avatarUri ? { uri: item.avatarUri } : DEFAULT_COACH_AVATAR
+                            item.avatarUri?.trim()
+                              ? { uri: item.avatarUri.trim() }
+                              : DEFAULT_COACH_AVATAR
                           }
                         />
                         <View style={styles.coachRecommendContent}>
@@ -408,7 +413,16 @@ export default function CoachBookingPage() {
               </Text>
               <Text style={styles.bottomPriceDesc}>专项健康体验课</Text>
             </View>
-            <TouchableOpacity activeOpacity={0.8} style={styles.bottomBookBtn}>
+            <TouchableOpacity
+              activeOpacity={0.8}
+              style={styles.bottomBookBtn}
+              onPress={() => {
+                navigation.reset({
+                  index: 0,
+                  routes: [{ name: 'MainTabs', params: { screen: 'Curriculum' } }],
+                });
+              }}
+            >
               <Image
                 style={styles.bottomBookIcon}
                 tintColor="#FFFFFF"

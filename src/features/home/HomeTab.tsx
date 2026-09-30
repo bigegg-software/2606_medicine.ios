@@ -90,6 +90,7 @@ import {
 } from '@/src/features/exercise/utils/exercisePauseTipHelpers';
 import {
   fetchLatestHistoryDietTip,
+  formatDietCompletedTipPrefix,
   formatDietPauseTipPrefix,
   isDietRulePaused,
   type DietHistoryTip,
@@ -299,25 +300,38 @@ export default function HomeTab() {
   }, [exerciseTipKind, exerciseTipRuleId, navigation]);
 
   const inUseDietPaused = Boolean(dietRule && isDietRulePaused(dietRule.status));
-  const showDietPauseTip = inUseDietPaused
-    || (!dietRule && dietHistoryTip?.kind === 'paused');
-  const dietPauseTipPrefix = showDietPauseTip
+  const dietTipKind: DietHistoryTip['kind'] | null = inUseDietPaused
+    ? 'paused'
+    : !dietRule
+      ? (dietHistoryTip?.kind ?? null)
+      : null;
+  const showDietStatusTip = dietTipKind != null;
+  const dietTipPrefix = dietTipKind === 'paused'
     ? formatDietPauseTipPrefix(
       inUseDietPaused ? dietRule?.stopReason : dietHistoryTip?.stopReason,
     )
-    : '';
-  const dietPauseTipRuleId = inUseDietPaused
+    : dietTipKind === 'completed'
+      ? formatDietCompletedTipPrefix()
+      : '';
+  const dietTipLinkText = dietTipKind === 'completed'
+    ? '点击查看处方执行情况'
+    : '查看详情';
+  const dietTipRuleId = inUseDietPaused
     ? (dietRule?.dietPatientRuleId != null ? String(dietRule.dietPatientRuleId).trim() : '')
-    : (dietHistoryTip?.kind === 'paused' ? dietHistoryTip.dietPatientRuleId : '');
+    : (dietHistoryTip?.dietPatientRuleId ?? '');
 
-  const openDietPauseTipDetail = useCallback(() => {
-    if (!dietPauseTipRuleId) return;
+  const openDietStatusTipDetail = useCallback(() => {
+    if (!dietTipRuleId) return;
+    if (dietTipKind === 'completed') {
+      navigation.navigate('NutritionExecutionStatsPage', { dietPatientRuleId: dietTipRuleId });
+      return;
+    }
     navigation.navigate('NutritionPage', {
-      dietPatientRuleId: dietPauseTipRuleId,
+      dietPatientRuleId: dietTipRuleId,
       prescriptionOnly: true,
       readOnly: true,
     });
-  }, [dietPauseTipRuleId, navigation]);
+  }, [dietTipKind, dietTipRuleId, navigation]);
 
   const exercisePrescriptionMetrics = useMemo(
     () => buildExercisePrescriptionMetrics(
@@ -420,8 +434,7 @@ export default function HomeTab() {
         apiResourceData<MealDetailItem[]>(todayRes as unknown as ApiResult<MealDetailItem[]>) ?? [],
       );
       if (!rule) {
-        const tip = await fetchLatestHistoryDietTip();
-        setDietHistoryTip(tip?.kind === 'paused' ? tip : null);
+        setDietHistoryTip(await fetchLatestHistoryDietTip());
       } else {
         setDietHistoryTip(null);
       }
@@ -976,16 +989,16 @@ export default function HomeTab() {
               </Text>
             </Flex>
             {!dietRule || inUseDietPaused ? (
-              showDietPauseTip ? (
-                <TouchableOpacity activeOpacity={0.75} onPress={openDietPauseTipDetail}>
+              showDietStatusTip ? (
+                <TouchableOpacity activeOpacity={0.75} onPress={openDietStatusTipDetail}>
                   <Flex style={styles.yyEmptyTip} align="start">
                     <Image
                       source={require('@/assets/images/home/icon_warn.png')}
                       style={styles.yyEmptyTipIcon}
                     />
                     <Text style={styles.yyEmptyTipText}>
-                      {dietPauseTipPrefix}
-                      <Text style={styles.yyEmptyTipActionLink}>查看详情</Text>
+                      {dietTipPrefix}
+                      <Text style={styles.yyEmptyTipActionLink}>{dietTipLinkText}</Text>
                     </Text>
                   </Flex>
                 </TouchableOpacity>

@@ -7,6 +7,8 @@ import {
   Image,
   ScrollView,
   ImageBackground,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -87,8 +89,12 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
   const [sessions, setSessions] = useState<GroupSessionCardView[]>([]);
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
   const [dateHasSet, setDateHasSet] = useState<Set<string>>(() => new Set());
+  const pageNumRef = useRef(1);
+  const excludeSessionIdsRef = useRef('');
+  const hasMoreRef = useRef(false);
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const weekRange = useMemo(() => resolveWeekDateRange(selectedDate), [selectedDate]);
 
@@ -120,11 +126,14 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
     const id = stationId != null ? String(stationId).trim() : '';
     if (!id) {
       setSessions([]);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = '';
+      hasMoreRef.current = false;
       return;
     }
     setLoading(true);
     try {
-      const list = await fetchRecommendGroupSessions({
+      const result = await fetchRecommendGroupSessions({
         stationId: id,
         coachUserId: selectedCoach?.coachUserId,
         courseCategory: selectedCategory?.courseCategory,
@@ -132,10 +141,17 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
         endDate: selectedDate,
         startTime: selectedTimeSlot?.startTime,
         endTime: selectedTimeSlot?.endTime,
+        pageNum: 1,
       });
-      setSessions(list);
+      setSessions(result.cards);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = result.excludeSessionIds;
+      hasMoreRef.current = result.hasMore;
     } catch {
       setSessions([]);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = '';
+      hasMoreRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -147,6 +163,56 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
     selectedTimeSlot?.startTime,
     stationId,
   ]);
+
+  const loadMoreSessions = useCallback(async () => {
+    const id = stationId != null ? String(stationId).trim() : '';
+    if (!id || !hasMoreRef.current || loadingMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = pageNumRef.current + 1;
+      const result = await fetchRecommendGroupSessions({
+        stationId: id,
+        coachUserId: selectedCoach?.coachUserId,
+        courseCategory: selectedCategory?.courseCategory,
+        startDate: selectedDate,
+        endDate: selectedDate,
+        startTime: selectedTimeSlot?.startTime,
+        endTime: selectedTimeSlot?.endTime,
+        pageNum: nextPage,
+        excludeSessionIds: excludeSessionIdsRef.current,
+      });
+      setSessions(prev => {
+        const seen = new Set(prev.map(card => card.sessionId));
+        return [...prev, ...result.cards.filter(card => !seen.has(card.sessionId))];
+      });
+      pageNumRef.current = nextPage;
+      hasMoreRef.current = result.hasMore;
+    } catch {
+      // 保持已加载列表
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [
+    loading,
+    loadingMore,
+    selectedCategory?.courseCategory,
+    selectedCoach?.coachUserId,
+    selectedDate,
+    selectedTimeSlot?.endTime,
+    selectedTimeSlot?.startTime,
+    stationId,
+  ]);
+
+  const handleSessionScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+      if (distanceFromBottom < 120) {
+        void loadMoreSessions();
+      }
+    },
+    [loadMoreSessions],
+  );
 
   const loadNextBooking = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
@@ -184,7 +250,7 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
       return;
     }
     try {
-      const [list, next] = await Promise.all([
+      const [listResult, next] = await Promise.all([
         fetchRecommendGroupSessions({
           stationId: id,
           coachUserId: selectedCoach?.coachUserId,
@@ -193,10 +259,14 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
           endDate: selectedDate,
           startTime: selectedTimeSlot?.startTime,
           endTime: selectedTimeSlot?.endTime,
+          pageNum: 1,
         }),
         fetchNextGroupBooking({ stationId: id }),
       ]);
-      setSessions(list);
+      setSessions(listResult.cards);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = listResult.excludeSessionIds;
+      hasMoreRef.current = listResult.hasMore;
       setNextBooking(next);
       void loadDateHas();
     } catch {
@@ -328,7 +398,12 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
         onSelect={setSelectedDate}
         dayRecordMarker={sessionDayRecordMarker}
       />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleSessionScroll}
+        scrollEventThrottle={16}
+      >
         <Flex justify="between" style={styles.calendarBox}>
           {weekDays.map(item => {
             const isActive = item.key === selectedDate;
@@ -554,6 +629,12 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
             );
           })
         )}
+
+        {loadingMore ? (
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <ActivityIndicator color={AppTheme.primaryColor} />
+          </View>
+        ) : null}
 
         <Flex justify="center" align="center" style={styles.planListFooter}>
           <View style={styles.planListFooterLine} />

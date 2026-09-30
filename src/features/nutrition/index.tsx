@@ -254,7 +254,13 @@ export default function NutritionPage() {
   const pageTitle = dietRule?.prescriptionName?.trim() || '营养处方';
 
   useEffect(() => {
-    const showPausedOrCompletedStats = showStatusTip && Boolean(statusTipRuleId);
+    // 仅「已完成」走执行统计；暂停与正常一致进入饮食记录
+    const showCompletedStats = tipKind === 'completed' && Boolean(statusTipRuleId);
+    const foodRecordingRuleId =
+      (dietRule?.dietPatientRuleId != null
+        ? String(dietRule.dietPatientRuleId).trim()
+        : '')
+      || statusTipRuleId;
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
@@ -267,8 +273,15 @@ export default function NutritionPage() {
             <TouchableOpacity
               style={{ marginRight: 18 }}
               onPress={() => {
-                if (showPausedOrCompletedStats) {
+                if (showCompletedStats) {
                   openStatusTipExecutionStats();
+                  return;
+                }
+                // 暂停处方需带 id，否则饮食记录按「进行中」拉取会为空
+                if (foodRecordingRuleId) {
+                  navigation.navigate('FoodRecordingPage', {
+                    dietPatientRuleId: foodRecordingRuleId,
+                  });
                   return;
                 }
                 navigation.navigate('FoodRecordingPage');
@@ -282,13 +295,14 @@ export default function NutritionPage() {
     });
   }, [
     dietPatientRuleId,
+    dietRule?.dietPatientRuleId,
     isFamilyView,
     navigation,
     openStatusTipExecutionStats,
     pageTitle,
     relationLabel,
-    showStatusTip,
     statusTipRuleId,
+    tipKind,
   ]);
 
   const statusTipText = showStatusTip ? (

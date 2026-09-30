@@ -7,6 +7,8 @@ import {
   ScrollView,
   ImageBackground,
   TouchableOpacity,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -71,24 +73,72 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
   const [practiceCards, setPracticeCards] = useState<HomePracticeCardView[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
+  const pageNumRef = useRef(1);
+  const excludeSessionIdsRef = useRef('');
+  const hasMoreRef = useRef(false);
 
   const loadSessions = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
     if (!id) {
       setSessions([]);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = '';
+      hasMoreRef.current = false;
       return;
     }
     setLoading(true);
     try {
-      const list = await fetchRecommendOnlineSessions({ stationId: id });
-      setSessions(list);
+      const result = await fetchRecommendOnlineSessions({ stationId: id, pageNum: 1 });
+      setSessions(result.cards);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = result.excludeSessionIds;
+      hasMoreRef.current = result.hasMore;
     } catch {
       setSessions([]);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = '';
+      hasMoreRef.current = false;
     } finally {
       setLoading(false);
     }
   }, [stationId]);
+
+  const loadMoreSessions = useCallback(async () => {
+    const id = stationId != null ? String(stationId).trim() : '';
+    if (!id || !hasMoreRef.current || loadingMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = pageNumRef.current + 1;
+      const result = await fetchRecommendOnlineSessions({
+        stationId: id,
+        pageNum: nextPage,
+        excludeSessionIds: excludeSessionIdsRef.current,
+      });
+      setSessions(prev => {
+        const seen = new Set(prev.map(card => card.sessionId));
+        return [...prev, ...result.cards.filter(card => !seen.has(card.sessionId))];
+      });
+      pageNumRef.current = nextPage;
+      hasMoreRef.current = result.hasMore;
+    } catch {
+      // 保持已加载列表
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loading, loadingMore, stationId]);
+
+  const handleSessionScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+      if (distanceFromBottom < 120) {
+        void loadMoreSessions();
+      }
+    },
+    [loadMoreSessions],
+  );
 
   const loadNextBooking = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
@@ -121,11 +171,14 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
       return;
     }
     try {
-      const [list, next] = await Promise.all([
-        fetchRecommendOnlineSessions({ stationId: id }),
+      const [listResult, next] = await Promise.all([
+        fetchRecommendOnlineSessions({ stationId: id, pageNum: 1 }),
         fetchNextOnlineBooking({ stationId: id }),
       ]);
-      setSessions(list);
+      setSessions(listResult.cards);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = listResult.excludeSessionIds;
+      hasMoreRef.current = listResult.hasMore;
       setNextBooking(next);
     } catch {
       // 保持当前列表
@@ -242,7 +295,12 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
 
   return (
     <View style={styles.tabPage}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleSessionScroll}
+        scrollEventThrottle={16}
+      >
         <View style={styles.contentBox}>
           <ImageBackground
             source={require('@/assets/images/curriculum/xs.png')}
@@ -302,7 +360,9 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
                     />
                     <View style={styles.liveInfo}>
                       <View style={styles.liveTag}>
-                        <Text style={styles.liveTagText}>直播·推荐</Text>
+                        <Text style={styles.liveTagText}>
+                          {card.isRecommend ? '直播·推荐' : '直播'}
+                        </Text>
                       </View>
                       <Text style={styles.liveTitle} numberOfLines={2}>
                         {card.title}
@@ -357,6 +417,12 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
               );
             })
           )}
+
+          {loadingMore ? (
+            <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+              <ActivityIndicator color={AppTheme.primaryColor} />
+            </View>
+          ) : null}
 
           {practiceCards.length > 0 ? (
             <Text style={styles.weekOnlineTitle}>随时练一练</Text>

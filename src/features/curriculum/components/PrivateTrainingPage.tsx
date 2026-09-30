@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -83,8 +85,12 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
   const [sessions, setSessions] = useState<PrivateSessionCardView[]>([]);
   const [nextBooking, setNextBooking] = useState<NextBookingView | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [actionSessionId, setActionSessionId] = useState<string | null>(null);
   const [dateHasSet, setDateHasSet] = useState<Set<string>>(() => new Set());
+  const pageNumRef = useRef(1);
+  const excludeSessionIdsRef = useRef('');
+  const hasMoreRef = useRef(false);
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const weekRange = useMemo(() => resolveWeekDateRange(selectedDate), [selectedDate]);
 
@@ -113,11 +119,14 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
     const id = stationId != null ? String(stationId).trim() : '';
     if (!id) {
       setSessions([]);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = '';
+      hasMoreRef.current = false;
       return;
     }
     setLoading(true);
     try {
-      const list = await fetchRecommendPrivateSessions({
+      const result = await fetchRecommendPrivateSessions({
         stationId: id,
         coachUserId: selectedCoach?.coachUserId,
         startDate: selectedDate,
@@ -125,10 +134,17 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
         startTime: selectedTimeSlot?.startTime,
         endTime: selectedTimeSlot?.endTime,
         privateRemainCount,
+        pageNum: 1,
       });
-      setSessions(list);
+      setSessions(result.cards);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = result.excludeSessionIds;
+      hasMoreRef.current = result.hasMore;
     } catch {
       setSessions([]);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = '';
+      hasMoreRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -140,6 +156,56 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
     selectedTimeSlot?.startTime,
     stationId,
   ]);
+
+  const loadMoreSessions = useCallback(async () => {
+    const id = stationId != null ? String(stationId).trim() : '';
+    if (!id || !hasMoreRef.current || loadingMore || loading) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = pageNumRef.current + 1;
+      const result = await fetchRecommendPrivateSessions({
+        stationId: id,
+        coachUserId: selectedCoach?.coachUserId,
+        startDate: selectedDate,
+        endDate: selectedDate,
+        startTime: selectedTimeSlot?.startTime,
+        endTime: selectedTimeSlot?.endTime,
+        privateRemainCount,
+        pageNum: nextPage,
+        excludeSessionIds: excludeSessionIdsRef.current,
+      });
+      setSessions(prev => {
+        const seen = new Set(prev.map(card => card.sessionId));
+        return [...prev, ...result.cards.filter(card => !seen.has(card.sessionId))];
+      });
+      pageNumRef.current = nextPage;
+      hasMoreRef.current = result.hasMore;
+    } catch {
+      // 保持已加载列表
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [
+    loading,
+    loadingMore,
+    privateRemainCount,
+    selectedCoach?.coachUserId,
+    selectedDate,
+    selectedTimeSlot?.endTime,
+    selectedTimeSlot?.startTime,
+    stationId,
+  ]);
+
+  const handleSessionScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+      const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+      if (distanceFromBottom < 120) {
+        void loadMoreSessions();
+      }
+    },
+    [loadMoreSessions],
+  );
 
   const loadNextBooking = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
@@ -180,7 +246,7 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
       await dispatch(fetchUserInfo());
       const remain =
         store.getState().user.systemUser?.privateCoachTotalCount ?? privateRemainCount;
-      const [list, next] = await Promise.all([
+      const [listResult, next] = await Promise.all([
         fetchRecommendPrivateSessions({
           stationId: id,
           coachUserId: selectedCoach?.coachUserId,
@@ -189,10 +255,14 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
           startTime: selectedTimeSlot?.startTime,
           endTime: selectedTimeSlot?.endTime,
           privateRemainCount: remain,
+          pageNum: 1,
         }),
         fetchNextPrivateBooking({ stationId: id }),
       ]);
-      setSessions(list);
+      setSessions(listResult.cards);
+      pageNumRef.current = 1;
+      excludeSessionIdsRef.current = listResult.excludeSessionIds;
+      hasMoreRef.current = listResult.hasMore;
       setNextBooking(next);
       void loadDateHas();
     } catch {
@@ -325,7 +395,12 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
         onSelect={setSelectedDate}
         dayRecordMarker={sessionDayRecordMarker}
       />
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        onScroll={handleSessionScroll}
+        scrollEventThrottle={16}
+      >
         <Flex justify="between" style={styles.calendarBox}>
           {weekDays.map(item => {
             const isActive = item.key === selectedDate;
@@ -454,9 +529,11 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
                   <View style={styles.coachInfo}>
                     <Flex align="center" style={styles.coachNameRow}>
                       <Text style={styles.coachName}>{card.name}</Text>
-                      <View style={styles.coachTag}>
-                        <Text style={styles.coachTagText}>{card.tag}</Text>
-                      </View>
+                      {card.tag ? (
+                        <View style={styles.coachTag}>
+                          <Text style={styles.coachTagText}>{card.tag}</Text>
+                        </View>
+                      ) : null}
                     </Flex>
                     <Text style={styles.coachDesc} numberOfLines={2}>
                       {card.desc}
@@ -504,6 +581,12 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
             );
           })
         )}
+
+        {loadingMore ? (
+          <View style={{ paddingVertical: 16, alignItems: 'center' }}>
+            <ActivityIndicator color={AppTheme.primaryColor} />
+          </View>
+        ) : null}
 
         {nextBooking ? (
           <Flex justify="between" align="center" style={styles.nextTrainBox}>

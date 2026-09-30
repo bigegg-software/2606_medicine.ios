@@ -7,6 +7,9 @@ import {
   getCourseSessionInfo,
   getCourseSessionPage,
   getMyBookingNext,
+  getRecommendGroupCourseSessions,
+  getRecommendOnlineCourseSessions,
+  getRecommendPrivateCourseSessions,
   rescheduleMyBooking,
 } from '@/api/courseSession';
 import { apiResourceData, getResourceRows, isResourceApiOk, type ApiResult } from '@/src/utils/apiHelpers';
@@ -17,7 +20,7 @@ import {
   type BookingDialogInfo,
 } from './bookingDialogHelpers';
 
-const DEFAULT_PAGE_SIZE = 50;
+const DEFAULT_PAGE_SIZE = 20;
 
 type SessionListQueryOptions = {
   stationId?: string;
@@ -27,31 +30,88 @@ type SessionListQueryOptions = {
   endDate?: string;
   startTime?: string;
   endTime?: string;
+  /** 排除的场次 id，多个英文逗号分隔（用于排除推荐课次） */
+  excludeSessionIds?: string;
   pageSize?: number;
   pageNum?: number;
 };
 
-async function fetchCourseSessionRows(
+export type CourseSessionListPageResult<T> = {
+  cards: T[];
+  /** 推荐场次 id（逗号分隔），分页加载更多时原样回传 */
+  excludeSessionIds: string;
+  pageNum: number;
+  hasMore: boolean;
+};
+
+function buildSessionQueryParams(
   courseType: CourseSessionType,
   options: SessionListQueryOptions,
-): Promise<CourseSessionItem[]> {
+) {
   const stationId = options.stationId != null ? String(options.stationId).trim() : '';
-  if (!stationId) return [];
-
-  const res = await getCourseSessionPage({
+  return {
     stationId,
     courseType,
     pageNum: options.pageNum ?? 1,
     pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
-    ...(options.coachUserId ? { coachUserId: options.coachUserId } : {}),
+    ...(options.coachUserId ? { coachUserId: String(options.coachUserId).trim() } : {}),
     ...(options.courseCategory ? { courseCategory: options.courseCategory } : {}),
     ...(options.startDate ? { startDate: options.startDate } : {}),
     ...(options.endDate ? { endDate: options.endDate } : {}),
     ...(options.startTime ? { startTime: options.startTime } : {}),
     ...(options.endTime ? { endTime: options.endTime } : {}),
-  });
+    ...(options.excludeSessionIds?.trim()
+      ? { excludeSessionIds: options.excludeSessionIds.trim() }
+      : {}),
+  };
+}
 
-  return getResourceRows(res);
+function collectSessionIds(rows: CourseSessionItem[]) {
+  return rows
+    .map(item => (item.sessionId != null ? String(item.sessionId).trim() : ''))
+    .filter(Boolean);
+}
+
+function joinExcludeSessionIds(ids: string[]) {
+  return Array.from(new Set(ids)).join(',');
+}
+
+async function fetchRecommendSessionRows(
+  courseType: CourseSessionType,
+  options: SessionListQueryOptions,
+): Promise<CourseSessionItem[]> {
+  const stationId = options.stationId != null ? String(options.stationId).trim() : '';
+  if (!stationId) return [];
+  const params = buildSessionQueryParams(courseType, { ...options, pageNum: 1 });
+  const res =
+    courseType === 'private'
+      ? await getRecommendPrivateCourseSessions(params)
+      : courseType === 'group'
+        ? await getRecommendGroupCourseSessions(params)
+        : await getRecommendOnlineCourseSessions(params);
+  if (!isResourceApiOk(res as { code?: number })) return [];
+  const data = apiResourceData<CourseSessionItem[]>(
+    res as { code?: number; data?: CourseSessionItem[] },
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+async function fetchCourseSessionPageRows(
+  courseType: CourseSessionType,
+  options: SessionListQueryOptions,
+): Promise<{ rows: CourseSessionItem[]; hasMore: boolean }> {
+  const stationId = options.stationId != null ? String(options.stationId).trim() : '';
+  if (!stationId) return { rows: [], hasMore: false };
+
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+  const pageNum = options.pageNum ?? 1;
+  const res = await getCourseSessionPage(buildSessionQueryParams(courseType, options));
+  const rows = getResourceRows(res);
+  const total = typeof (res as { total?: number }).total === 'number'
+    ? Number((res as { total?: number }).total)
+    : 0;
+  const hasMore = total > 0 ? pageNum * pageSize < total : rows.length >= pageSize;
+  return { rows, hasMore };
 }
 
 export type PrivateSessionCardView = {
@@ -197,7 +257,7 @@ export function formatPrivateBenefitRemainText(remain?: number | null): string {
 
 export function mapPrivateSessionToCard(
   item: CourseSessionItem,
-  options?: { privateRemainCount?: number | null },
+  options?: { privateRemainCount?: number | null; isRecommend?: boolean },
 ): PrivateSessionCardView | null {
   const sessionId = item.sessionId != null ? String(item.sessionId).trim() : '';
   if (!sessionId) return null;
@@ -211,7 +271,7 @@ export function mapPrivateSessionToCard(
     key: sessionId,
     sessionId,
     name: item.coachRealName?.trim() || '教练',
-    tag: '处方推荐',
+    tag: options?.isRecommend ? '处方推荐' : '',
     // 已关联课程 → 课程标签；未关联 → 教练擅长方向
     desc: courseName ? courseTags : formatSessionTags(specialty),
     benefitText: formatPrivateBenefitRemainText(options?.privateRemainCount),
@@ -226,14 +286,64 @@ export function mapPrivateSessionToCard(
   };
 }
 
-/** 拉取私教排期列表 */
+function mapPrivateCards(
+  rows: CourseSessionItem[],
+  options?: { privateRemainCount?: number | null; isRecommend?: boolean },
+) {
+  return rows
+    .map(item => mapPrivateSessionToCard(item, options))
+    .filter((item): item is PrivateSessionCardView => item != null);
+}
+
+/**
+ * 私教：先拉处方推荐，再拉分页列表并排除推荐 id
+ * pageNum=1 返回推荐+第一页；pageNum>1 仅返回分页（须带 excludeSessionIds）
+ */
 export async function fetchRecommendPrivateSessions(
   options: SessionListQueryOptions & { privateRemainCount?: number | null },
-): Promise<PrivateSessionCardView[]> {
-  const list = await fetchCourseSessionRows('private', options);
-  return list
-    .map(item => mapPrivateSessionToCard(item, { privateRemainCount: options.privateRemainCount }))
-    .filter((item): item is PrivateSessionCardView => item != null);
+): Promise<CourseSessionListPageResult<PrivateSessionCardView>> {
+  const pageNum = options.pageNum ?? 1;
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  if (pageNum > 1) {
+    const excludeSessionIds = options.excludeSessionIds?.trim() || '';
+    const { rows, hasMore } = await fetchCourseSessionPageRows('private', {
+      ...options,
+      pageNum,
+      pageSize,
+      excludeSessionIds,
+    });
+    return {
+      cards: mapPrivateCards(rows, { privateRemainCount: options.privateRemainCount }),
+      excludeSessionIds,
+      pageNum,
+      hasMore,
+    };
+  }
+
+  const recommended = await fetchRecommendSessionRows('private', options);
+  const excludeSessionIds = joinExcludeSessionIds(collectSessionIds(recommended));
+  const { rows, hasMore } = await fetchCourseSessionPageRows('private', {
+    ...options,
+    pageNum: 1,
+    pageSize,
+    excludeSessionIds,
+  });
+  const recommendCards = mapPrivateCards(recommended, {
+    privateRemainCount: options.privateRemainCount,
+    isRecommend: true,
+  });
+  const listCards = mapPrivateCards(rows, { privateRemainCount: options.privateRemainCount });
+  const seen = new Set(recommendCards.map(card => card.sessionId));
+  return {
+    cards: [
+      ...recommendCards,
+      ...listCards.filter(card => !seen.has(card.sessionId)),
+    ],
+    excludeSessionIds,
+    pageNum: 1,
+    hasMore,
+  };
 }
 
 export type GroupSessionCardView = {
@@ -290,14 +400,57 @@ export function mapGroupSessionToCard(item: CourseSessionItem): GroupSessionCard
   };
 }
 
-/** 拉取集体课排期列表 */
-export async function fetchRecommendGroupSessions(
-  options: SessionListQueryOptions,
-): Promise<GroupSessionCardView[]> {
-  const list = await fetchCourseSessionRows('group', options);
-  return list
+function mapGroupCards(rows: CourseSessionItem[]) {
+  return rows
     .map(mapGroupSessionToCard)
     .filter((item): item is GroupSessionCardView => item != null);
+}
+
+/**
+ * 集体课：先拉处方推荐，再拉分页列表并排除推荐 id
+ */
+export async function fetchRecommendGroupSessions(
+  options: SessionListQueryOptions,
+): Promise<CourseSessionListPageResult<GroupSessionCardView>> {
+  const pageNum = options.pageNum ?? 1;
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  if (pageNum > 1) {
+    const excludeSessionIds = options.excludeSessionIds?.trim() || '';
+    const { rows, hasMore } = await fetchCourseSessionPageRows('group', {
+      ...options,
+      pageNum,
+      pageSize,
+      excludeSessionIds,
+    });
+    return {
+      cards: mapGroupCards(rows),
+      excludeSessionIds,
+      pageNum,
+      hasMore,
+    };
+  }
+
+  const recommended = await fetchRecommendSessionRows('group', options);
+  const excludeSessionIds = joinExcludeSessionIds(collectSessionIds(recommended));
+  const { rows, hasMore } = await fetchCourseSessionPageRows('group', {
+    ...options,
+    pageNum: 1,
+    pageSize,
+    excludeSessionIds,
+  });
+  const recommendCards = mapGroupCards(recommended);
+  const listCards = mapGroupCards(rows);
+  const seen = new Set(recommendCards.map(card => card.sessionId));
+  return {
+    cards: [
+      ...recommendCards,
+      ...listCards.filter(card => !seen.has(card.sessionId)),
+    ],
+    excludeSessionIds,
+    pageNum: 1,
+    hasMore,
+  };
 }
 
 /** 拉取下一次待上课预约（集体课） */
@@ -327,6 +480,8 @@ export type OnlineSessionCardView = {
   /** 课程封面 */
   coverUri?: string;
   avatarUri?: string;
+  /** 处方推荐条目 */
+  isRecommend?: boolean;
   status?: number;
   bookedByMe: boolean;
   bookingId?: string;
@@ -342,7 +497,10 @@ function formatOnlineWeekdayTime(item: CourseSessionItem) {
   return weekday ? `${weekday} ${range}` : range;
 }
 
-export function mapOnlineSessionToCard(item: CourseSessionItem): OnlineSessionCardView | null {
+export function mapOnlineSessionToCard(
+  item: CourseSessionItem,
+  options?: { isRecommend?: boolean },
+): OnlineSessionCardView | null {
   const sessionId = item.sessionId != null ? String(item.sessionId).trim() : '';
   if (!sessionId) return null;
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
@@ -360,6 +518,7 @@ export function mapOnlineSessionToCard(item: CourseSessionItem): OnlineSessionCa
     benefitText: formatCapacityText(item),
     coverUri: item.template?.coverOssUrl?.trim() || undefined,
     avatarUri: item.coachAvatarUrl?.trim() || undefined,
+    isRecommend: Boolean(options?.isRecommend),
     status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
     bookingInfo: mapBookingDialogInfo({
@@ -373,14 +532,57 @@ export function mapOnlineSessionToCard(item: CourseSessionItem): OnlineSessionCa
   };
 }
 
-/** 拉取线上课排期列表（默认今日起 14 天） */
+function mapOnlineCards(rows: CourseSessionItem[], options?: { isRecommend?: boolean }) {
+  return rows
+    .map(item => mapOnlineSessionToCard(item, options))
+    .filter((item): item is OnlineSessionCardView => item != null);
+}
+
+/**
+ * 线上课：先拉处方推荐，再拉分页列表并排除推荐 id
+ */
 export async function fetchRecommendOnlineSessions(
   options: SessionListQueryOptions,
-): Promise<OnlineSessionCardView[]> {
-  const list = await fetchCourseSessionRows('online', options);
-  return list
-    .map(mapOnlineSessionToCard)
-    .filter((item): item is OnlineSessionCardView => item != null);
+): Promise<CourseSessionListPageResult<OnlineSessionCardView>> {
+  const pageNum = options.pageNum ?? 1;
+  const pageSize = options.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  if (pageNum > 1) {
+    const excludeSessionIds = options.excludeSessionIds?.trim() || '';
+    const { rows, hasMore } = await fetchCourseSessionPageRows('online', {
+      ...options,
+      pageNum,
+      pageSize,
+      excludeSessionIds,
+    });
+    return {
+      cards: mapOnlineCards(rows),
+      excludeSessionIds,
+      pageNum,
+      hasMore,
+    };
+  }
+
+  const recommended = await fetchRecommendSessionRows('online', options);
+  const excludeSessionIds = joinExcludeSessionIds(collectSessionIds(recommended));
+  const { rows, hasMore } = await fetchCourseSessionPageRows('online', {
+    ...options,
+    pageNum: 1,
+    pageSize,
+    excludeSessionIds,
+  });
+  const recommendCards = mapOnlineCards(recommended, { isRecommend: true });
+  const listCards = mapOnlineCards(rows);
+  const seen = new Set(recommendCards.map(card => card.sessionId));
+  return {
+    cards: [
+      ...recommendCards,
+      ...listCards.filter(card => !seen.has(card.sessionId)),
+    ],
+    excludeSessionIds,
+    pageNum: 1,
+    hasMore,
+  };
 }
 
 /** 拉取下一次待上课预约（线上课） */

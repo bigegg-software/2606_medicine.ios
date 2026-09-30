@@ -215,7 +215,7 @@ const styles = StyleSheet.create({
   doneCover: {
     width: 64,
     height: 64,
-    borderRadius: 8,
+    borderRadius: 32,
     flexShrink: 0,
   },
   doneInfo: {

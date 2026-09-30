@@ -13,17 +13,20 @@ import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/nutrition/foodRecording';
 import NutritionTrendChart from '@/src/features/nutrition/components/NutritionTrendChart';
-import type { ExPatientRuleModuleDayCompleteRateItem } from '@/api/exPatientRule';
+import type {
+  ExPatientRuleModuleCompleteRate,
+  ExPatientRuleModuleDayCompleteRateItem,
+} from '@/api/exPatientRule';
 import {
   EXERCISE_TREND_SERIES,
   buildExerciseExecutionStatsRateCards,
   formatExerciseExecutionRateValue,
+  loadExerciseModuleCompleteRate,
   loadExerciseModuleDayCompleteRateList,
   loadExerciseRuleForExecutionStats,
   mapModuleDayRateToTrendChart,
   resolveExerciseStatsDateRange,
   sliceExerciseTrendRowsByRange,
-  summarizeModuleDayCompleteRates,
   type ExerciseExecutionRateCard,
   type ExerciseExecutionRateTone,
 } from './utils/exerciseExecutionStatsHelpers';
@@ -46,11 +49,12 @@ export default function ExerciseExecutionStatsPage() {
 
   const [loading, setLoading] = useState(true);
   const [trendRange, setTrendRange] = useState<7 | 30>(7);
+  const [moduleRate, setModuleRate] = useState<ExPatientRuleModuleCompleteRate | null>(null);
   const [dayRows, setDayRows] = useState<ExPatientRuleModuleDayCompleteRateItem[]>([]);
 
   const rateCards = useMemo<ExerciseExecutionRateCard[]>(
-    () => buildExerciseExecutionStatsRateCards(dayRows),
-    [dayRows],
+    () => buildExerciseExecutionStatsRateCards(moduleRate),
+    [moduleRate],
   );
 
   const trendList = useMemo(
@@ -59,23 +63,27 @@ export default function ExerciseExecutionStatsPage() {
   );
 
   const executionRateValue = useMemo(
-    () => formatExerciseExecutionRateValue(
-      summarizeModuleDayCompleteRates(dayRows).mainCompleteRate,
-    ),
-    [dayRows],
+    () => formatExerciseExecutionRateValue(moduleRate?.mainCompleteRate),
+    [moduleRate],
   );
 
   const hasData = rateCards.some(card => card.valueText !== '--');
 
   const loadData = useCallback(async () => {
     if (!exPatientRuleId) {
+      setModuleRate(null);
       setDayRows([]);
       setLoading(false);
       return;
     }
     setLoading(true);
     try {
-      const rule = await loadExerciseRuleForExecutionStats(exPatientRuleId);
+      const [rate, rule] = await Promise.all([
+        loadExerciseModuleCompleteRate(exPatientRuleId),
+        loadExerciseRuleForExecutionStats(exPatientRuleId),
+      ]);
+      setModuleRate(rate);
+
       const { startDate, endDate } = resolveExerciseStatsDateRange(rule);
       if (!startDate || !endDate) {
         setDayRows([]);
@@ -88,6 +96,7 @@ export default function ExerciseExecutionStatsPage() {
       });
       setDayRows(rows);
     } catch {
+      setModuleRate(null);
       setDayRows([]);
     } finally {
       setLoading(false);

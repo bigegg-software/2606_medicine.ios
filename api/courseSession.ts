@@ -246,6 +246,24 @@ export const getRecommendInStoreCourseSessions = (params: CourseSessionQueryPara
     params: buildCourseSessionParams(params),
   });
 
+/** 推荐私教课程排次（按运动处方训练目标匹配教练擅长方向，最多 2 条） */
+export const getRecommendPrivateCourseSessions = (params: CourseSessionQueryParams) =>
+  request.get<CourseSessionRecommendInStoreResult>('/patient/courseSession/recommend/private', {
+    params: buildCourseSessionParams(params),
+  });
+
+/** 推荐集体课排次（按主诊断/健康标签与适合人群匹配，最多 2 条） */
+export const getRecommendGroupCourseSessions = (params: CourseSessionQueryParams) =>
+  request.get<CourseSessionRecommendInStoreResult>('/patient/courseSession/recommend/group', {
+    params: buildCourseSessionParams(params),
+  });
+
+/** 推荐线上课排次（按主诊断/健康标签与适合人群匹配，最多 2 条） */
+export const getRecommendOnlineCourseSessions = (params: CourseSessionQueryParams) =>
+  request.get<CourseSessionRecommendInStoreResult>('/patient/courseSession/recommend/online', {
+    params: buildCourseSessionParams(params),
+  });
+
 /** 按日起止与课程类型查询每日是否有场次（status=1～5） */
 export const getCourseSessionDateHasList = (params: CourseSessionDateHasListParams) =>
   request.get<CourseSessionDateHasListResult>('/patient/courseSession/dateHasList', {

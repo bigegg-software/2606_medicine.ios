@@ -202,6 +202,7 @@ const styles = StyleSheet.create({
     coachRecommendIcon: {
         width: 54,
         height: 54,
+        borderRadius: 27,
         flexShrink: 0,
     },
     coachRecommendContent: {
