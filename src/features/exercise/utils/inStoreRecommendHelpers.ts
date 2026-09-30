@@ -19,10 +19,15 @@ export type InStoreRecommendCardView = {
   subtitle: string;
   /** 教练姓名 */
   coachName: string;
+  coachUserId?: string;
   /** 标签：擅长方向 / 课程分类 */
   tag: string;
-  /** 可约：周六 10:00-11:00 */
+  /** 可约时段：周日上午 / 周日上午/周一下午 */
   availableText: string;
+  /** 单场次：周日上午 */
+  weekdayPeriod: string;
+  sessionDate?: string;
+  startTime?: string;
   avatarUri?: string;
   bookedByMe: boolean;
 };
@@ -51,11 +56,82 @@ export function formatInStoreRecommendTitle(item: CourseSessionItem): string {
   return weekday || range || '--';
 }
 
+/** 周日上午 / 周一下午（12 点前上午，否则下午） */
+export function formatSessionWeekdayPeriod(
+  sessionDate?: string | null,
+  startTime?: string | null,
+): string {
+  const date = String(sessionDate ?? '').trim();
+  const weekday = date ? WEEKDAY_LABELS[moment(date, 'YYYY-MM-DD').day()] || '' : '';
+  const hm = formatTimePart(startTime);
+  if (!weekday && !hm) return '';
+  const hour = hm ? Number(hm.slice(0, 2)) : NaN;
+  const period = Number.isFinite(hour) && hour < 12 ? '上午' : '下午';
+  if (weekday && hm) return `${weekday}${period}`;
+  return weekday || (hm ? period : '');
+}
+
 /** 李老师 · 崇文门Life Medicine */
 export function formatInStoreRecommendSubtitle(item: CourseSessionItem): string {
   const coach = item.coachRealName?.trim() || '';
   const station = item.stationName?.trim() || item.template?.stationName?.trim() || '';
   return [coach, station].filter(Boolean).join(' · ') || '--';
+}
+
+function sessionSortKey(sessionDate?: string, startTime?: string) {
+  const date = sessionDate?.trim() || '';
+  const time = formatTimePart(startTime) || '00:00';
+  return `${date} ${time}`;
+}
+
+/** 最近两个可约时段文案：周日上午/周一下午 */
+export function formatNearestTwoWeekdayPeriods(
+  cards: InStoreRecommendCardView[],
+): string {
+  const periods: string[] = [];
+  [...cards]
+    .sort((a, b) =>
+      sessionSortKey(a.sessionDate, a.startTime).localeCompare(
+        sessionSortKey(b.sessionDate, b.startTime),
+      ),
+    )
+    .forEach(card => {
+      const period = card.weekdayPeriod?.trim() || '';
+      if (!period || periods.includes(period) || periods.length >= 2) return;
+      periods.push(period);
+    });
+  return periods.join('/');
+}
+
+/**
+ * 同一教练最近两个可约时段：周日上午/周一下午
+ * 不同教练各自展示自己的最近时段
+ */
+export function applyNearestWeekdayPeriodTexts(
+  cards: InStoreRecommendCardView[],
+): InStoreRecommendCardView[] {
+  const sorted = [...cards].sort((a, b) =>
+    sessionSortKey(a.sessionDate, a.startTime).localeCompare(
+      sessionSortKey(b.sessionDate, b.startTime),
+    ),
+  );
+  const periodsByCoach = new Map<string, string[]>();
+  sorted.forEach(card => {
+    const coachKey = card.coachUserId?.trim() || card.coachName || card.key;
+    const period = card.weekdayPeriod?.trim() || '';
+    if (!period) return;
+    const list = periodsByCoach.get(coachKey) ?? [];
+    if (!list.includes(period) && list.length < 2) {
+      list.push(period);
+    }
+    periodsByCoach.set(coachKey, list);
+  });
+  return cards.map(card => {
+    const coachKey = card.coachUserId?.trim() || card.coachName || card.key;
+    const periods = periodsByCoach.get(coachKey) ?? [];
+    const availableText = periods.join('/') || card.weekdayPeriod || card.availableText;
+    return { ...card, availableText };
+  });
 }
 
 export function mapInStoreRecommendCard(item: CourseSessionItem): InStoreRecommendCardView | null {
@@ -65,7 +141,10 @@ export function mapInStoreRecommendCard(item: CourseSessionItem): InStoreRecomme
     | CourseSessionType
     | string;
   const title = formatInStoreRecommendTitle(item);
+  const weekdayPeriod = formatSessionWeekdayPeriod(item.sessionDate, item.startTime);
   const coachName = item.coachRealName?.trim() || '教练';
+  const coachUserId =
+    item.coachUserId != null ? String(item.coachUserId).trim() : undefined;
   const tag =
     item.coachSpecialtyDirection?.trim() ||
     item.template?.courseCategoryLabel?.trim() ||
@@ -78,8 +157,12 @@ export function mapInStoreRecommendCard(item: CourseSessionItem): InStoreRecomme
     title,
     subtitle: formatInStoreRecommendSubtitle(item),
     coachName,
+    coachUserId,
     tag,
-    availableText: `可约：${title}`,
+    weekdayPeriod,
+    sessionDate: item.sessionDate?.trim() || undefined,
+    startTime: formatTimePart(item.startTime) || undefined,
+    availableText: weekdayPeriod || title,
     avatarUri: item.coachAvatarUrl?.trim() || undefined,
     bookedByMe: Boolean(item.bookedByMe),
   };
@@ -116,10 +199,11 @@ export async function loadInStoreRecommendCards(options?: {
       res as { code?: number; data?: CourseSessionItem[] },
     );
     if (!Array.isArray(list)) return [];
-    return list
+    const cards = list
       .map(mapInStoreRecommendCard)
       .filter((card): card is InStoreRecommendCardView => card != null)
       .slice(0, 2);
+    return applyNearestWeekdayPeriodTexts(cards);
   } catch (error) {
     console.error('loadInStoreRecommendCards failed:', error);
     return [];

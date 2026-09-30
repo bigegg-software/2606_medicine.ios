@@ -31,33 +31,20 @@ import {
 import {
   bookPrivateSession,
   cancelPrivateBooking,
-  fetchCourseSessionDetail,
+  fetchOnlineCourseDetail,
   formatOnlineHeaderEnrollText,
   formatOnlineWatchMethodText,
-  mapOnlineCourseDetail,
   toSessionId,
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
+import CoachEntryCard from './components/CoachEntryCard';
+import CourseSubMetaRow from './components/CourseSubMetaRow';
+import CourseTypeTitleTag from './components/CourseTypeTitleTag';
 
 type Route = RouteProp<RootStackParamList, 'OnlineCourseDetail'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 const DEFAULT_COVER = require('@/assets/images/curriculum/xb1.png');
-
-function MetaParts({ parts }: { parts: string[] }) {
-  return (
-    <Flex align="center" style={styles.metaLeft}>
-      {parts.map((part, index) => (
-        <React.Fragment key={`${part}-${index}`}>
-          {index > 0 ? <View style={styles.metaDivider} /> : null}
-          <Text style={index === 0 ? styles.metaName : styles.metaSchedule} numberOfLines={1}>
-            {part}
-          </Text>
-        </React.Fragment>
-      ))}
-    </Flex>
-  );
-}
 
 /** 线上课程详情（布局参考直播详情） */
 export default function OnlineCourseDetailPage() {
@@ -96,8 +83,8 @@ export default function OnlineCourseDetailPage() {
     }
     setLoading(true);
     try {
-      const item = await fetchCourseSessionDetail(sessionId);
-      setDetail(item ? mapOnlineCourseDetail(item) : null);
+      const next = await fetchOnlineCourseDetail(sessionId);
+      setDetail(next);
     } catch {
       setDetail(null);
     } finally {
@@ -207,14 +194,9 @@ export default function OnlineCourseDetailPage() {
     }
   }, [detail?.liveLink]);
 
-  const metaParts = useMemo(() => {
+  const subMetaParts = useMemo(() => {
     if (!detail) return [];
-    return [
-      detail.coachName,
-      detail.timeText,
-      detail.courseTypeLabel,
-      detail.categoryLabel,
-    ].filter(Boolean);
+    return [detail.timeText, detail.categoryLabel].filter(Boolean);
   }, [detail]);
 
   if (loading) {
@@ -272,12 +254,13 @@ export default function OnlineCourseDetailPage() {
             ) : null}
           </View>
 
-          <Flex style={styles.metaBar} align="center">
-            <MetaParts parts={metaParts} />
-          </Flex>
-
           <View style={styles.body}>
-            <Text style={styles.title}>{detail.title}</Text>
+            <CourseSubMetaRow parts={subMetaParts} />
+            <Flex align="center" style={styles.titleRow}>
+              <Text style={styles.title}>{detail.title}</Text>
+              <CourseTypeTitleTag type="online" />
+            </Flex>
+
 
             <View style={styles.watchCard}>
               <Flex align="center" style={styles.watchRow}>
@@ -311,6 +294,12 @@ export default function OnlineCourseDetailPage() {
                 <Text style={styles.infoText}>{detail.prepareText}</Text>
               ) : null} */}
             </View>
+
+            <CoachEntryCard
+              coachName={detail.coachName}
+              coachUserId={detail.coachUserId}
+              avatarUri={detail.avatarUri}
+            />
 
             <Flex align="center" style={styles.sectionTitleRow}>
               <View style={styles.sectionTitleBar} />

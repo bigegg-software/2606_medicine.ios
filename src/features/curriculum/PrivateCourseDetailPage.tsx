@@ -37,11 +37,14 @@ import {
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
 import AdjustTimeModal from './components/AdjustTimeModal';
+import CoachEntryCard from './components/CoachEntryCard';
+import CourseSubMetaRow from './components/CourseSubMetaRow';
+import CourseTypeTitleTag from './components/CourseTypeTitleTag';
 
 type Route = RouteProp<RootStackParamList, 'PrivateCourseDetail'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
-const DEFAULT_AVATAR = require('@/assets/images/curriculum/ljl.png');
+const DEFAULT_COVER = require('@/assets/images/curriculum/sj.png');
 
 function MetaParts({ parts }: { parts: string[] }) {
   return (
@@ -58,7 +61,7 @@ function MetaParts({ parts }: { parts: string[] }) {
   );
 }
 
-/** 私教课程详情（布局同集体课；头图 129×129；仅个人简介） */
+/** 私教课程详情（顶部参考集体课；头图高 206；关联课程才展示介绍区） */
 export default function PrivateCourseDetailPage() {
   const navigation = useNavigation<Nav>();
   const insets = useSafeAreaInsets();
@@ -197,12 +200,12 @@ export default function PrivateCourseDetailPage() {
 
   const metaParts = useMemo(() => {
     if (!detail) return [];
-    return [
-      detail.coachName,
-      detail.timeText,
-      detail.courseTypeLabel,
-      detail.categoryLabel,
-    ].filter(Boolean);
+    return ['上课地点'];
+  }, [detail]);
+
+  const subMetaParts = useMemo(() => {
+    if (!detail) return [];
+    return [detail.timeText, detail.categoryLabel].filter(Boolean);
   }, [detail]);
 
   if (loading) {
@@ -221,7 +224,7 @@ export default function PrivateCourseDetailPage() {
     );
   }
 
-  const avatarSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_AVATAR;
+  const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
   // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消、调整时间
   const showReserveAction =
     detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
@@ -243,6 +246,8 @@ export default function PrivateCourseDetailPage() {
           ? '已取消'
           : '不可预约';
   const introText = detail.introText.trim() || '';
+  const pointsText = detail.pointsText.trim() || '';
+  const suitText = detail.suitText.trim() || '';
   const adjustInitialStartTime = detail.startTime || detail.timeText.split('-')[0]?.trim() || '';
 
   return (
@@ -272,73 +277,78 @@ export default function PrivateCourseDetailPage() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.privateHeroWrap}>
-            <Image source={avatarSource} style={styles.privateHeroImage} resizeMode="cover" />
+            <Image source={coverSource} style={styles.privateHeroImage} resizeMode="cover" />
+            {detail.courseTags.length > 0 ? (
+              <View style={styles.privateHeroTagRow} pointerEvents="none">
+                {detail.courseTags.map(tag => (
+                  <View key={tag} style={styles.categoryTag}>
+                    <Text style={styles.categoryText}>{tag}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
           </View>
 
-          <Flex style={[styles.metaBar, styles.privateMetaBar]} align="center">
+          <Flex style={styles.metaBar} align="center" justify="between">
             <MetaParts parts={metaParts} />
-          </Flex>
-
-          <View style={styles.body}>
-            <Text style={styles.title}>{detail.title}</Text>
-
             {detail.stationName ? (
               <TouchableOpacity
                 activeOpacity={0.7}
-                style={styles.addressRow}
+                style={styles.metaRight}
                 onPress={() => openMap(detail.stationName)}
               >
-                <Image
-                  style={styles.addressIcon}
-                  source={require('@/assets/images/curriculum/address.png')}
-                />
-                <Text style={styles.addressText} numberOfLines={2}>
-                  上课地点：{detail.stationName}
-                </Text>
-                <Image
-                  style={styles.addressArrow}
-                  source={require('@/assets/images/curriculum/icon_right.png')}
-                />
+                <Flex align="center">
+                  <Image
+                    tintColor={"#999999"}
+                    style={styles.metaAddressIcon}
+                    source={require('@/assets/images/curriculum/address.png')}
+                  />
+                  <Text style={styles.metaAddress} numberOfLines={1}>
+                    {detail.stationName}
+                  </Text>
+                  <Image
+                    style={styles.metaAddressArrow}
+                    source={require('@/assets/images/curriculum/icon_right.png')}
+                  />
+                </Flex>
               </TouchableOpacity>
             ) : null}
+          </Flex>
 
-            {(detail.certificateText || detail.specialtyText) ? (
-              <View style={styles.coachInfoCard}>
-                {detail.certificateText ? (
-                  <View style={styles.coachInfoRow}>
-                    <Image
-                      style={styles.coachInfoIcon}
-                      source={require('@/assets/images/curriculum/icon_cert.png')}
-                    />
-                    <Text style={styles.coachInfoText}>
-                      资格证书 : {detail.certificateText}
-                    </Text>
-                  </View>
-                ) : null}
-                {detail.specialtyText ? (
-                  <View
-                    style={[
-                      styles.coachInfoRow,
-                      detail.certificateText ? styles.coachInfoRowGap : null,
-                    ]}
-                  >
-                    <Image
-                      style={styles.coachInfoIcon}
-                      source={require('@/assets/images/curriculum/icon_specialty.png')}
-                    />
-                    <Text style={styles.coachInfoText}>
-                      擅长方向 : {detail.specialtyText}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            <Flex align="center" style={styles.sectionTitleRow}>
-              <View style={styles.sectionTitleBar} />
-              <Text style={styles.sectionTitle}>个人简介</Text>
+          <View style={styles.body}>
+            <CourseSubMetaRow parts={subMetaParts} />
+            <Flex align="center" style={styles.titleRow}>
+              <Text style={styles.title}>{detail.title}</Text>
+              <CourseTypeTitleTag type="private" />
             </Flex>
-            <Text style={styles.detailText}>{introText || '暂无个人简介'}</Text>
+
+            <CoachEntryCard
+              coachName={detail.coachName}
+              coachUserId={detail.coachUserId}
+              avatarUri={detail.avatarUri}
+            />
+
+            {detail.hasLinkedCourse ? (
+              <>
+                <Flex align="center" style={styles.sectionTitleRow}>
+                  <View style={styles.sectionTitleBar} />
+                  <Text style={styles.sectionTitle}>适合人群</Text>
+                </Flex>
+                <Text style={styles.detailText}>{suitText || '暂无适合人群说明'}</Text>
+
+                <Flex align="center" style={styles.sectionTitleRow}>
+                  <View style={styles.sectionTitleBar} />
+                  <Text style={styles.sectionTitle}>课程介绍</Text>
+                </Flex>
+                <Text style={styles.detailText}>{introText || '暂无课程介绍'}</Text>
+
+                <Flex align="center" style={styles.sectionTitleRow}>
+                  <View style={styles.sectionTitleBar} />
+                  <Text style={styles.sectionTitle}>课程要点</Text>
+                </Flex>
+                <Text style={styles.detailText}>{pointsText || '暂无课程要点'}</Text>
+              </>
+            ) : null}
           </View>
         </ScrollView>
 

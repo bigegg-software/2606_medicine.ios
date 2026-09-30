@@ -19,6 +19,7 @@ import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import {
   resolveCourseBenefitRemainCount,
   showBookConfirmAlert,
@@ -45,6 +46,9 @@ type Props = {
   stationId?: string;
   isActive?: boolean;
 };
+
+/** 无教练头像时与预约教练页一致的默认头像 */
+const DEFAULT_COACH_AVATAR = getDefaultAvatarByGender();
 
 function getLiveActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
   switch (tone) {
@@ -337,7 +341,7 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
               });
               const actionStyles = getLiveActionStyles(action.tone);
               const busy = actionSessionId === card.sessionId;
-              const coverUri = card.coverUri || card.avatarUri;
+              const avatarUri = card.avatarUri?.trim() || '';
               return (
                 <TouchableOpacity
                   key={card.key}
@@ -353,9 +357,9 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
                     <Image
                       style={styles.liveAvatar}
                       source={
-                        coverUri
-                          ? { uri: coverUri }
-                          : require('@/assets/images/curriculum/ljl.png')
+                        avatarUri
+                          ? { uri: avatarUri }
+                          : DEFAULT_COACH_AVATAR
                       }
                     />
                     <View style={styles.liveInfo}>

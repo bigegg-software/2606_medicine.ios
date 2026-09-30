@@ -272,8 +272,8 @@ export function mapPrivateSessionToCard(
     sessionId,
     name: item.coachRealName?.trim() || '教练',
     tag: options?.isRecommend ? '处方推荐' : '',
-    // 已关联课程 → 课程标签；未关联 → 教练擅长方向
-    desc: courseName ? courseTags : formatSessionTags(specialty),
+    // 优先教练擅长方向；无则显示课程标签
+    desc: formatSessionTags(specialty) || courseTags,
     benefitText: formatPrivateBenefitRemainText(options?.privateRemainCount),
     time: formatSessionTime(item.startTime, item.endTime),
     topic: courseName || '一对一私教训练',
@@ -729,6 +729,12 @@ export type OnlineCourseDetailView = {
   certificateText: string;
   /** 擅长方向 */
   specialtyText: string;
+  /** 是否关联课程模板（无私教关联课程时不展示介绍区） */
+  hasLinkedCourse: boolean;
+  /** 教练用户 id */
+  coachUserId?: string;
+  /** 教练头像 */
+  avatarUri?: string;
   coverUri?: string;
   liveLink?: string;
   /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
@@ -738,6 +744,15 @@ export type OnlineCourseDetailView = {
   bookedByMe: boolean;
   bookingId?: string;
 };
+
+/** 场次是否关联课程模板 */
+export function hasLinkedCourseTemplate(item: CourseSessionItem) {
+  if (item.templateId != null && String(item.templateId).trim()) return true;
+  if (item.template?.templateId != null && String(item.template.templateId).trim()) {
+    return true;
+  }
+  return Boolean(item.template?.courseName?.trim());
+}
 
 /** 详情信息栏时间：今天/明天/M月D日 + HH:mm-HH:mm */
 export function formatOnlineDetailTime(item: CourseSessionItem) {
@@ -799,39 +814,43 @@ export function mapPrivateCourseDetail(item: CourseSessionItem): OnlineCourseDet
   if (!base) return null;
   const specialty = item.coachSpecialtyDirection?.trim() || '';
   const certificate = item.coachCertificate?.trim() || '';
-  const courseIntro = item.template?.courseIntro?.trim() || '';
   return {
     ...base,
     certificateText: certificate,
     specialtyText: specialty,
-    introText: courseIntro,
-    coverUri: item.template?.coverOssUrl?.trim() || item.coachAvatarUrl?.trim() || undefined,
+    // 仅用课程封面；无封面时由详情页默认图兜底
+    coverUri: item.template?.coverOssUrl?.trim() || undefined,
   };
 }
 
-/** 用教练详情覆盖资格证书 / 擅长方向 / 个人简介 / 头像 */
-export function applyCoachUserToPrivateDetail(
+/** 用教练详情覆盖资格证书 / 擅长方向 / 姓名 / 头像（封面不回退教练头像） */
+export function applyCoachUserToDetail(
   detail: OnlineCourseDetailView,
   coach: CoachUserInfo | null | undefined,
 ): OnlineCourseDetailView {
   if (!coach) return detail;
   const certificate = coach.qualificationCert?.trim() || '';
   const specialty = coach.specialtyDirection?.trim() || '';
-  const introduction = coach.introduction?.trim() || '';
-  const avatarUri = coach.avatarOssUrl?.trim() || '';
   const realName = coach.realName?.trim() || '';
+  const avatarUri = coach.avatarOssUrl?.trim() || '';
+  const coachUserId =
+    coach.userId != null && String(coach.userId).trim()
+      ? String(coach.userId).trim()
+      : detail.coachUserId;
   return {
     ...detail,
     certificateText: certificate || detail.certificateText,
     specialtyText: specialty || detail.specialtyText,
-    introText: introduction || detail.introText,
-    // 已有封面不覆盖；无封面时用教练头像兜底
-    coverUri: detail.coverUri || avatarUri || undefined,
     coachName: realName || detail.coachName,
+    avatarUri: avatarUri || detail.avatarUri,
+    ...(coachUserId ? { coachUserId } : {}),
   };
 }
 
-/** 拉取私教课详情（含教练资格证书 / 擅长方向 / 个人简介） */
+/** @deprecated 使用 applyCoachUserToDetail */
+export const applyCoachUserToPrivateDetail = applyCoachUserToDetail;
+
+/** 拉取私教课详情（含教练信息） */
 export async function fetchPrivateCourseDetail(
   sessionId?: string | number | null,
 ): Promise<OnlineCourseDetailView | null> {
@@ -840,7 +859,31 @@ export async function fetchPrivateCourseDetail(
   const detail = mapPrivateCourseDetail(item);
   if (!detail) return null;
   const coach = await fetchCoachUserDetail(item.coachUserId);
-  return applyCoachUserToPrivateDetail(detail, coach);
+  return applyCoachUserToDetail(detail, coach);
+}
+
+/** 拉取集体课详情（含教练信息） */
+export async function fetchGroupCourseDetail(
+  sessionId?: string | number | null,
+): Promise<OnlineCourseDetailView | null> {
+  const item = await fetchCourseSessionDetail(sessionId);
+  if (!item) return null;
+  const detail = mapGroupCourseDetail(item);
+  if (!detail) return null;
+  const coach = await fetchCoachUserDetail(item.coachUserId);
+  return applyCoachUserToDetail(detail, coach);
+}
+
+/** 拉取线上课详情（含教练信息） */
+export async function fetchOnlineCourseDetail(
+  sessionId?: string | number | null,
+): Promise<OnlineCourseDetailView | null> {
+  const item = await fetchCourseSessionDetail(sessionId);
+  if (!item) return null;
+  const detail = mapOnlineCourseDetail(item);
+  if (!detail) return null;
+  const coach = await fetchCoachUserDetail(item.coachUserId);
+  return applyCoachUserToDetail(detail, coach);
 }
 
 function mapCourseSessionDetail(
@@ -858,6 +901,10 @@ function mapCourseSessionDetail(
         : '';
   const courseName = item.template?.courseName?.trim() || options.titleFallback;
   const coachName = item.coachRealName?.trim() || '教练待定';
+  const coachUserId =
+    item.coachUserId != null && String(item.coachUserId).trim()
+      ? String(item.coachUserId).trim()
+      : '';
   const stationName =
     item.stationName?.trim() || item.template?.stationName?.trim() || '';
   const platformLabel =
@@ -891,6 +938,7 @@ function mapCourseSessionDetail(
     pointsText: item.template?.coursePoints?.trim() || '',
     certificateText: item.coachCertificate?.trim() || '',
     specialtyText: item.coachSpecialtyDirection?.trim() || '',
+    hasLinkedCourse: hasLinkedCourseTemplate(item),
     coverUri: item.template?.coverOssUrl?.trim() || undefined,
     avatarUri: item.coachAvatarUrl?.trim() || undefined,
     liveLink: item.liveLink?.trim() || undefined,
@@ -898,6 +946,7 @@ function mapCourseSessionDetail(
     bookedCount,
     capacity: item.capacity,
     bookedByMe: Boolean(item.bookedByMe),
+    ...(coachUserId ? { coachUserId } : {}),
     ...(bookingId ? { bookingId } : {}),
   };
 }

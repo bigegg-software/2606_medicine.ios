@@ -144,13 +144,10 @@ function resolveStationId(item: CourseSessionBookingItem) {
   return '';
 }
 
+/** 统一优先教练头像（含后续安排 / 已完成） */
 function resolveCoverUri(item: CourseSessionBookingItem) {
   const session = resolveSession(item);
-  const courseType = resolveCourseType(item);
-  if (courseType === 'private') {
-    return session?.coachAvatarUrl?.trim() || session?.template?.coverOssUrl?.trim() || undefined;
-  }
-  return session?.template?.coverOssUrl?.trim() || session?.coachAvatarUrl?.trim() || undefined;
+  return session?.coachAvatarUrl?.trim() || session?.template?.coverOssUrl?.trim() || undefined;
 }
 
 function formatCapacityMeta(item: CourseSessionBookingItem) {

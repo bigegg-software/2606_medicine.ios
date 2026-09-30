@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PageLayout from '@/src/components/PageLayout';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import styles from '@/css/curriculum/myBooking';
 import type { RootStackParamList } from '@/route/router';
 import AdjustTimeModal from './components/AdjustTimeModal';
@@ -43,8 +44,8 @@ const TAB_LIST = [
 
 type TabKey = (typeof TAB_LIST)[number]['key'];
 
-const DEFAULT_AVATAR = require('@/assets/images/curriculum/ljl.png');
-const DEFAULT_COVER = require('@/assets/images/curriculum/xb1.png');
+/** 无教练头像时默认占位（与预约教练页一致） */
+const DEFAULT_AVATAR = getDefaultAvatarByGender();
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -299,7 +300,7 @@ export default function MyBookingPage() {
                         <Flex align="start">
                           <Image
                             style={styles.followCover}
-                            source={item.coverUri ? { uri: item.coverUri } : DEFAULT_COVER}
+                            source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
                           />
                           <View style={styles.followInfo}>
                             <Flex justify="between" align="center">
@@ -337,18 +338,23 @@ export default function MyBookingPage() {
                       <TouchableOpacity
                         key={item.key}
                         activeOpacity={0.7}
+                        style={styles.doneCard}
                         onPress={() => {
                           if (item.sessionId) openDetail(item.sessionId, item.courseType);
                         }}
                       >
-                        <Flex justify="between" align="start" style={styles.completedCard}>
+                        <Flex align="start">
                           <Image
-                            style={styles.completedDateIcon}
+                            style={styles.doneCheckIcon}
                             source={item.isAbsent ? ABSENT_ICON : DONE_ICON}
                           />
-                          <View style={styles.completedInfo}>
-                            <Text style={styles.completedDate}>{item.dateText}</Text>
-                            <Text style={styles.completedTitle} numberOfLines={1}>
+                          <Image
+                            style={styles.doneCover}
+                            source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
+                          />
+                          <View style={styles.doneInfo}>
+                            <Text style={styles.doneDate}>{item.dateText}</Text>
+                            <Text style={styles.doneTitle} numberOfLines={2}>
                               {item.title}
                             </Text>
                           </View>
@@ -436,7 +442,7 @@ export default function MyBookingPage() {
                     />
                     <Image
                       style={styles.doneCover}
-                      source={item.coverUri ? { uri: item.coverUri } : DEFAULT_COVER}
+                      source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
                     />
                     <View style={styles.doneInfo}>
                       <Text style={styles.doneDate}>{item.dateText}</Text>

@@ -70,6 +70,7 @@ import MyBookingPage from '@/src/features/curriculum/MyBookingPage';
 import OnlineCourseDetailPage from '@/src/features/curriculum/OnlineCourseDetailPage';
 import PrivateCourseDetailPage from '@/src/features/curriculum/PrivateCourseDetailPage';
 import GroupCourseDetailPage from '@/src/features/curriculum/GroupCourseDetailPage';
+import CoachDetailPage from '@/src/features/curriculum/CoachDetailPage';
 import ScanCodePage from '@/src/features/curriculum/ScanCodePage';
 
 
@@ -352,6 +353,7 @@ export type RootStackParamList = {
   OnlineCourseDetail: { sessionId: string };
   PrivateCourseDetail: { sessionId: string };
   GroupCourseDetail: { sessionId: string };
+  CoachDetail: { coachUserId: string };
   ManualCorrectionPage: {
     itemIndex: number;
     item: import('@/api/mealRecognition').FoodIdentifyItem;
@@ -674,12 +676,17 @@ export default function RootStack() {
       <Stack.Screen
         name="PrivateCourseDetail"
         component={PrivateCourseDetailPage}
-        options={{ title: '课程详情' }}
+        options={{ title: '' }}
       />
       <Stack.Screen
         name="GroupCourseDetail"
         component={GroupCourseDetailPage}
-        options={{ title: '课程详情' }}
+        options={{ title: '' }}
+      />
+      <Stack.Screen
+        name="CoachDetail"
+        component={CoachDetailPage}
+        options={{ title: '教练详情' }}
       />
       <Stack.Screen name="MealResultPage" component={MealResultPage} options={{ title: '', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />
       <Stack.Screen name="FoodDetailPage" component={FoodDetailPage} options={{ title: '食物详情', showHeaderBackground: false, headerBackgroundColor: '#F7F7F9' }} />

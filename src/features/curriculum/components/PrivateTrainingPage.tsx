@@ -23,6 +23,7 @@ import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePic
 import { buildDietWeekDays } from '@/src/features/exercise/utils/dietCalendarHelpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import CoachFilterPicker, { type CoachFilterValue } from './CoachFilterPicker';
 import TimeSlotFilterPicker from './TimeSlotFilterPicker';
 import type { TimeSlotValue } from '../utils/timeSlotHelpers';
@@ -52,6 +53,9 @@ type Props = {
   stationId?: string;
   isActive?: boolean;
 };
+
+/** 无教练头像时与预约教练页一致的默认头像 */
+const DEFAULT_COACH_AVATAR = getDefaultAvatarByGender();
 
 function getCoachActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
   switch (tone) {
@@ -505,7 +509,7 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
             });
             const actionStyles = getCoachActionStyles(action.tone);
             const busy = actionSessionId === card.sessionId;
-            const imageUri = card.coverUri || card.avatarUri;
+            const avatarUri = card.avatarUri?.trim() || '';
             return (
               <TouchableOpacity
                 key={card.key}
@@ -521,9 +525,9 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
                   <Image
                     style={styles.coachAvatar}
                     source={
-                      imageUri
-                        ? { uri: imageUri }
-                        : require('@/assets/images/curriculum/ljl.png')
+                      avatarUri
+                        ? { uri: avatarUri }
+                        : DEFAULT_COACH_AVATAR
                     }
                   />
                   <View style={styles.coachInfo}>

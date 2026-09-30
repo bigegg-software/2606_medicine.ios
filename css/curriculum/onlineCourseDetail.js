@@ -54,14 +54,15 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   privateHeroWrap: {
-    marginTop: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    position: 'relative',
+    width: '100%',
+    height: 206,
+    backgroundColor: '#000',
+    overflow: 'hidden',
   },
   privateHeroImage: {
-    width: 129,
-    height: 129,
-    borderRadius: 70
+    width: '100%',
+    height: '100%',
   },
   privateHeroTagRow: {
     position: 'absolute',
@@ -69,6 +70,7 @@ const styles = StyleSheet.create({
     bottom: 8,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   heroTagRow: {
     position: 'absolute',
@@ -77,6 +79,58 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+  },
+  metaAddressIcon:{
+    width:13,
+    height:13,
+    marginRight:4,
+  },
+  metaAddress: {
+    flexShrink: 1,
+    maxWidth: 180,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#999999',
+  },
+  metaAddressArrow: {
+    width: 5,
+    height: 10,
+    marginLeft: 6,
+    flexShrink: 0,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  titleTypeTag: {
+    marginLeft: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 4,
+    flexShrink: 0,
+  },
+  titleTypeTagPrivate: {
+    backgroundColor: 'rgba(9, 81, 174, 0.06)',
+  },
+  titleTypeTagGroup: {
+    backgroundColor: 'rgba(109, 146, 94, 0.06)',
+  },
+  titleTypeTagOnline: {
+    backgroundColor: 'rgba(238, 156, 68, 0.06)',
+  },
+  titleTypeTagText: {
+    fontWeight: 'bold',
+    fontSize: 13,
+  },
+  titleTypeTagTextPrivate: {
+    color: '#0951AE',
+  },
+  titleTypeTagTextGroup: {
+    color: '#6D925E',
+  },
+  titleTypeTagTextOnline: {
+    color: '#EE9C44',
   },
   statusTag: {
     flexDirection: 'row',
@@ -123,9 +177,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     backgroundColor: '#F6F8FB',
   },
-  privateMetaBar: {
-    marginTop: 32,
-  },
   metaLeft: {
     flex: 1,
     minWidth: 0,
@@ -168,10 +219,58 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   title: {
+    flexShrink: 1,
     fontSize: 20,
     lineHeight: 28,
     fontWeight: 'bold',
     color: AppTheme.textPrimary,
+  },
+  privateSubMetaRow: {
+    marginBottom: 10,
+  },
+  privateSubMetaIcon: {
+    width: 13,
+    height: 13,
+    flexShrink: 0,
+  },
+  privateSubMetaText: {
+    marginLeft: 6,
+    fontWeight: '500',
+    fontSize: 15,
+    color: '#999999',
+  },
+  privateSubMetaDivider: {
+    marginHorizontal: 6,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+  },
+  coachEntryCard: {
+    marginTop: 21,
+    paddingVertical: 13,
+    paddingHorizontal: 11,
+    backgroundColor: '#F6F8FB',
+    borderRadius: 6,
+  },
+  coachEntryAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    flexShrink: 0,
+  },
+  coachEntryName: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 13,
+    fontWeight: '500',
+    fontSize: 16,
+    color: '#333333',
+  },
+  coachEntryArrow: {
+    width: 8,
+    height: 16,
+    marginLeft: 8,
+    flexShrink: 0,
   },
   addressRow: {
     marginTop: 18,

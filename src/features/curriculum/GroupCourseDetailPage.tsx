@@ -31,12 +31,14 @@ import {
 import {
   bookPrivateSession,
   cancelPrivateBooking,
-  fetchCourseSessionDetail,
+  fetchGroupCourseDetail,
   formatOnlineHeaderEnrollText,
-  mapGroupCourseDetail,
   toSessionId,
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
+import CoachEntryCard from './components/CoachEntryCard';
+import CourseSubMetaRow from './components/CourseSubMetaRow';
+import CourseTypeTitleTag from './components/CourseTypeTitleTag';
 
 type Route = RouteProp<RootStackParamList, 'GroupCourseDetail'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -95,8 +97,8 @@ export default function GroupCourseDetailPage() {
     }
     setLoading(true);
     try {
-      const item = await fetchCourseSessionDetail(sessionId);
-      setDetail(item ? mapGroupCourseDetail(item) : null);
+      const next = await fetchGroupCourseDetail(sessionId);
+      setDetail(next);
     } catch {
       setDetail(null);
     } finally {
@@ -196,12 +198,12 @@ export default function GroupCourseDetailPage() {
 
   const metaParts = useMemo(() => {
     if (!detail) return [];
-    return [
-      detail.coachName,
-      detail.timeText,
-      detail.courseTypeLabel,
-      detail.categoryLabel,
-    ].filter(Boolean);
+    return ['上课地点'];
+  }, [detail]);
+
+  const subMetaParts = useMemo(() => {
+    if (!detail) return [];
+    return [detail.timeText, detail.categoryLabel].filter(Boolean);
   }, [detail]);
 
   if (loading) {
@@ -266,32 +268,44 @@ export default function GroupCourseDetailPage() {
             ) : null}
           </View>
 
-          <Flex style={styles.metaBar} align="center">
+          <Flex style={styles.metaBar} align="center" justify="between">
             <MetaParts parts={metaParts} />
-          </Flex>
-
-          <View style={styles.body}>
-            <Text style={styles.title}>{detail.title}</Text>
-
             {detail.stationName ? (
               <TouchableOpacity
                 activeOpacity={0.7}
-                style={styles.addressRow}
+                style={styles.metaRight}
                 onPress={() => openMap(detail.stationName)}
               >
-                <Image
-                  style={styles.addressIcon}
-                  source={require('@/assets/images/curriculum/address.png')}
-                />
-                <Text style={styles.addressText} numberOfLines={2}>
-                  上课地点：{detail.stationName}
-                </Text>
-                <Image
-                  style={styles.addressArrow}
-                  source={require('@/assets/images/curriculum/icon_right.png')}
-                />
+                <Flex align="center">
+                  <Image
+                    tintColor="#999999"
+                    style={styles.metaAddressIcon}
+                    source={require('@/assets/images/curriculum/address.png')}
+                  />
+                  <Text style={styles.metaAddress} numberOfLines={1}>
+                    {detail.stationName}
+                  </Text>
+                  <Image
+                    style={styles.metaAddressArrow}
+                    source={require('@/assets/images/curriculum/icon_right.png')}
+                  />
+                </Flex>
               </TouchableOpacity>
             ) : null}
+          </Flex>
+
+          <View style={styles.body}>
+            <CourseSubMetaRow parts={subMetaParts} />
+            <Flex align="center" style={styles.titleRow}>
+              <Text style={styles.title}>{detail.title}</Text>
+              <CourseTypeTitleTag type="group" />
+            </Flex>
+
+            <CoachEntryCard
+              coachName={detail.coachName}
+              coachUserId={detail.coachUserId}
+              avatarUri={detail.avatarUri}
+            />
 
             <Flex align="center" style={styles.sectionTitleRow}>
               <View style={styles.sectionTitleBar} />

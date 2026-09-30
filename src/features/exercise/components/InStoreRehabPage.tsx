@@ -38,6 +38,10 @@ import {
   loadInStoreRecommendCards,
   type InStoreRecommendCardView,
 } from '../utils/inStoreRecommendHelpers';
+import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+
+/** 无教练头像时与预约教练页一致的默认头像 */
+const DEFAULT_COACH_AVATAR = getDefaultAvatarByGender();
 import { loadCoachTrainingRecordByRuleAndDate } from '../utils/coachTrainingRecordHelpers';
 import { type TrainingPhaseExerciseCard } from '../utils/trainingPhaseHelpers';
 
@@ -374,9 +378,9 @@ export default function InStoreRehabPage({
                 <Image
                   style={styles.trainingExerciseThumb}
                   source={
-                    card.avatarUri
-                      ? { uri: card.avatarUri }
-                      : require('@/assets/images/exercise/dtls.png')
+                    card.avatarUri?.trim()
+                      ? { uri: card.avatarUri.trim() }
+                      : DEFAULT_COACH_AVATAR
                   }
                 />
                 <View style={styles.trainingExerciseInfo}>

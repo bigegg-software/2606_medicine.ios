@@ -22,6 +22,7 @@ import type { RootState } from '@/store/store';
 import { getSpecialPlanInfo, type SpecialPlanItem } from '@/api/specialPlan';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
+  formatNearestTwoWeekdayPeriods,
   loadInStoreRecommendCards,
   type InStoreRecommendCardView,
 } from '@/src/features/exercise/utils/inStoreRecommendHelpers';
@@ -110,6 +111,11 @@ export default function CoachBookingPage() {
 
   const planIntro = useMemo(() => buildSpecialPlanIntroItems(plan), [plan]);
   const serviceFlow = useMemo(() => buildSpecialPlanServiceFlowItems(plan), [plan]);
+  /** 推荐场次最近两个时段：周日上午/周一下午 */
+  const nearestTwoTimesText = useMemo(
+    () => formatNearestTwoWeekdayPeriods(recommendCards),
+    [recommendCards],
+  );
   const serviceFlowListRef = useRef<View>(null);
   const serviceFlowIconRefs = useRef<Array<View | null>>([]);
   const [serviceFlowDash, setServiceFlowDash] = useState<{
@@ -352,48 +358,53 @@ export default function CoachBookingPage() {
                   </Flex>
                 </ImageBackground>
                 <View style={styles.planIntroBox}>
-                  {recommendCards.map((item, index) => (
-                    <TouchableOpacity
-                      key={item.key}
-                      disabled
-                      activeOpacity={0.7}
-                      onPress={() => {
-                        const id = item.sessionId?.trim() || '';
-                        if (!id) return;
-                        navigation.navigate(resolveRecommendDetailRoute(item.courseType), {
-                          sessionId: id,
-                        });
-                      }}
-                    >
-                      <Flex
-                        align="start"
-                        style={[
-                          styles.coachRecommendItem,
-                          { marginTop: index === 0 ? 0 : 13 },
-                        ]}
+                  {recommendCards.map((item, index) => {
+                    const timeText = nearestTwoTimesText || item.availableText;
+                    return (
+                      <TouchableOpacity
+                        key={item.key}
+                        disabled
+                        activeOpacity={0.7}
+                        onPress={() => {
+                          const id = item.sessionId?.trim() || '';
+                          if (!id) return;
+                          navigation.navigate(resolveRecommendDetailRoute(item.courseType), {
+                            sessionId: id,
+                          });
+                        }}
                       >
-                        <Image
-                          style={styles.coachRecommendIcon}
-                          source={
-                            item.avatarUri?.trim()
-                              ? { uri: item.avatarUri.trim() }
-                              : DEFAULT_COACH_AVATAR
-                          }
-                        />
-                        <View style={styles.coachRecommendContent}>
-                          <Flex align="center" style={{ marginTop: 4 }}>
-                            <Text style={styles.coachRecommendName}>{item.coachName}</Text>
-                            {item.tag ? (
-                              <View style={styles.coachRecommendTag}>
-                                <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
-                              </View>
+                        <Flex
+                          align="start"
+                          style={[
+                            styles.coachRecommendItem,
+                            { marginTop: index === 0 ? 0 : 13 },
+                          ]}
+                        >
+                          <Image
+                            style={styles.coachRecommendIcon}
+                            source={
+                              item.avatarUri?.trim()
+                                ? { uri: item.avatarUri.trim() }
+                                : DEFAULT_COACH_AVATAR
+                            }
+                          />
+                          <View style={styles.coachRecommendContent}>
+                            <Flex align="center" style={{ marginTop: 4 }}>
+                              <Text style={styles.coachRecommendName}>{item.coachName}</Text>
+                              {item.tag ? (
+                                <View style={styles.coachRecommendTag}>
+                                  <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
+                                </View>
+                              ) : null}
+                            </Flex>
+                            {timeText ? (
+                              <Text style={styles.coachRecommendTime}>{`可约：${timeText}`}</Text>
                             ) : null}
-                          </Flex>
-                          <Text style={styles.coachRecommendTime}>{item.availableText}</Text>
-                        </View>
-                      </Flex>
-                    </TouchableOpacity>
-                  ))}
+                          </View>
+                        </Flex>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </>
             ) : null}
