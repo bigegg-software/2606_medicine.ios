@@ -13,10 +13,32 @@ import type {
 } from '@/src/features/nutrition/components/NutritionTrendChart';
 import {
   formatFoodRecordingRate,
-  getFoodRecordingRateStatus,
   type FoodRecordingRateCard,
-  type FoodRecordingRateTone,
 } from '@/src/features/nutrition/components/utils/foodRecordingHelpers';
+
+/** 运动达标率色阶：绿优秀 / 蓝良好 / 橙偏低 / 红较低 */
+export type ExerciseExecutionRateTone = 'ok' | 'good' | 'warn' | 'bad';
+
+export type ExerciseExecutionRateCard = Omit<FoodRecordingRateCard, 'tone'> & {
+  tone: ExerciseExecutionRateTone;
+};
+
+/**
+ * 达标率标准：
+ * 绿色优秀 ≥90%；蓝色良好 70–90%；橙色偏低 50–70%；红色较低 <50%
+ * 0 视为无数据
+ */
+export function getExerciseExecutionRateStatus(rate?: number | null): {
+  label: string;
+  tone: ExerciseExecutionRateTone;
+} | null {
+  const value = normalizeComplianceRate(rate);
+  if (value === 0) return null;
+  if (value >= 90) return { label: '优秀', tone: 'ok' };
+  if (value >= 70) return { label: '良好', tone: 'good' };
+  if (value >= 50) return { label: '偏低', tone: 'warn' };
+  return { label: '较低', tone: 'bad' };
+}
 
 /** 图表四系：复用 NutritionTrendItem 字段映射 */
 export const EXERCISE_TREND_SERIES: NutritionTrendSeriesItem[] = [
@@ -30,14 +52,14 @@ function buildRateCard(
   key: string,
   title: string,
   rate?: number | null,
-): FoodRecordingRateCard {
-  const status = getFoodRecordingRateStatus(rate);
+): ExerciseExecutionRateCard {
+  const status = getExerciseExecutionRateStatus(rate);
   return {
     key,
     title,
     valueText: formatFoodRecordingRate(rate),
     statusLabel: status?.label ?? '--',
-    tone: (status?.tone ?? 'bad') as FoodRecordingRateTone,
+    tone: status?.tone ?? 'bad',
   };
 }
 
@@ -73,7 +95,7 @@ export function summarizeModuleDayCompleteRates(
 /** 总体达标率卡片：有氧/抗阻/柔韧/平衡/热身/冷身 */
 export function buildExerciseExecutionStatsRateCards(
   rows: ExPatientRuleModuleDayCompleteRateItem[],
-): FoodRecordingRateCard[] {
+): ExerciseExecutionRateCard[] {
   const summary = summarizeModuleDayCompleteRates(rows);
   return [
     buildRateCard('cardio', '有氧心肺', summary.cardioCompleteRate),
@@ -174,4 +196,4 @@ export function sliceExerciseTrendRowsByRange(
   });
 }
 
-export type { FoodRecordingRateCard };
+export type { ExerciseExecutionRateCard };

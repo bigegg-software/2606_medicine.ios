@@ -47,7 +47,7 @@ export function courseTypeBenefitLabel(courseType: CourseSessionType | string) {
   return '私教课';
 }
 
-/** 读取对应课型剩余次数；-1 不限；缺省 null */
+/** 读取对应课型剩余次数；-1 不限；缺省 null（权益页展示为 --，预约按 0 拦截） */
 export function resolveCourseBenefitRemainCount(
   user: SystemUser | null | undefined,
   courseType: CourseSessionType | string,
@@ -62,14 +62,17 @@ export function resolveCourseBenefitRemainCount(
   return Number(raw);
 }
 
-/** 已知剩余次数且不足时拦截预约（null / -1 不拦截，交给接口） */
+/**
+ * 剩余次数不足时拦截预约。
+ * null / 非数字（权益页「--」）按 0；-1 不限不拦截。
+ */
 export function shouldBlockBookForInsufficientBenefit(
   remain: number | null | undefined,
   needCount = 1,
 ): boolean {
-  if (remain == null || Number.isNaN(Number(remain))) return false;
   if (remain === -1) return false;
-  return remain < needCount;
+  const n = remain == null || Number.isNaN(Number(remain)) ? 0 : Number(remain);
+  return n < needCount;
 }
 
 /** 9月25日（周五）19:00–20:00 */
@@ -235,7 +238,7 @@ export function showInsufficientBenefitAlert(options: {
   );
 }
 
-/** 次数不足时弹窗并返回 true；足够或未知则返回 false */
+/** 次数不足时弹窗并返回 true；足够则返回 false（null/-- 按 0） */
 export function tryShowInsufficientBenefitAlert(options: {
   courseType: CourseSessionType | string;
   remainCount?: number | null;
@@ -246,9 +249,13 @@ export function tryShowInsufficientBenefitAlert(options: {
   if (!shouldBlockBookForInsufficientBenefit(options.remainCount, needCount)) {
     return false;
   }
+  const remain =
+    options.remainCount == null || Number.isNaN(Number(options.remainCount))
+      ? 0
+      : Math.max(0, Math.floor(Number(options.remainCount)));
   showInsufficientBenefitAlert({
     courseType: options.courseType,
-    remainCount: Math.max(0, Math.floor(Number(options.remainCount))),
+    remainCount: remain,
     needCount,
     onViewBenefit: options.onViewBenefit,
   });

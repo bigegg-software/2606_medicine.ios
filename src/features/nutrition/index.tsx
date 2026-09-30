@@ -74,6 +74,8 @@ export default function NutritionPage() {
     [initialTab]: true,
     ...(prescriptionOnly ? {} : { todayExercise: true }),
   });
+  /** 首屏后再次 focus（详情返回等）静默刷新，避免整页 loading */
+  const hasLoadedRef = useRef(false);
   const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
   const familyFromStore = useMemo(() => {
@@ -154,7 +156,9 @@ export default function NutritionPage() {
     navigation.push('NutritionExecutionStatsPage', { dietPatientRuleId: statusTipRuleId });
   }, [navigation, statusTipRuleId]);
 
-  const loadDietRule = useCallback(async () => {
+  const loadDietRule = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) setLoading(true);
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
       const [ruleRes, baseRes] = await Promise.all([
@@ -186,6 +190,7 @@ export default function NutritionPage() {
       } else if (readOnly) {
         setFamilyUser(null);
       }
+      hasLoadedRef.current = true;
     } catch {
       setDietRule(null);
       setHistoryTip(null);
@@ -200,7 +205,7 @@ export default function NutritionPage() {
       if (!readOnly) {
         void dispatch(fetchUserBaseInfo());
       }
-      void loadDietRule();
+      void loadDietRule({ silent: hasLoadedRef.current });
     }, [dispatch, loadDietRule, readOnly]),
   );
 
@@ -210,7 +215,8 @@ export default function NutritionPage() {
     if (!readOnly) return;
     if (prevPatientUserIdRef.current === patientUserId) return;
     prevPatientUserIdRef.current = patientUserId;
-    void loadDietRule();
+    hasLoadedRef.current = false;
+    void loadDietRule({ silent: false });
   }, [patientUserId, readOnly, loadDietRule]);
 
   const onPressNav = useCallback((key: NutritionNavKey) => {

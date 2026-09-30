@@ -14,7 +14,6 @@ import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/nutrition/foodRecording';
 import NutritionTrendChart from '@/src/features/nutrition/components/NutritionTrendChart';
 import type { ExPatientRuleModuleDayCompleteRateItem } from '@/api/exPatientRule';
-import type { FoodRecordingRateTone } from '@/src/features/nutrition/components/utils/foodRecordingHelpers';
 import {
   EXERCISE_TREND_SERIES,
   buildExerciseExecutionStatsRateCards,
@@ -25,13 +24,15 @@ import {
   resolveExerciseStatsDateRange,
   sliceExerciseTrendRowsByRange,
   summarizeModuleDayCompleteRates,
-  type FoodRecordingRateCard,
+  type ExerciseExecutionRateCard,
+  type ExerciseExecutionRateTone,
 } from './utils/exerciseExecutionStatsHelpers';
 
 type Route = RouteProp<RootStackParamList, 'ExerciseExecutionStatsPage'>;
 
-const RATE_TAG_STYLE: Record<FoodRecordingRateTone, { box: object; text: object }> = {
+const RATE_TAG_STYLE: Record<ExerciseExecutionRateTone, { box: object; text: object }> = {
   ok: { box: styles.rateTagOk, text: styles.rateTagTextOk },
+  good: { box: styles.rateTagGood, text: styles.rateTagTextGood },
   warn: { box: styles.rateTagWarn, text: styles.rateTagTextWarn },
   bad: { box: styles.rateTagBad, text: styles.rateTagTextBad },
 };
@@ -47,7 +48,7 @@ export default function ExerciseExecutionStatsPage() {
   const [trendRange, setTrendRange] = useState<7 | 30>(7);
   const [dayRows, setDayRows] = useState<ExPatientRuleModuleDayCompleteRateItem[]>([]);
 
-  const rateCards = useMemo<FoodRecordingRateCard[]>(
+  const rateCards = useMemo<ExerciseExecutionRateCard[]>(
     () => buildExerciseExecutionStatsRateCards(dayRows),
     [dayRows],
   );

@@ -238,6 +238,15 @@ export default function OnlineCourseDetailPage() {
   // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消预约
   const showReserveAction =
     detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+  const reserveBlocked =
+    !detail.bookedByMe && (detail.status === 2 || detail.status === 3);
+  const reserveActionLabel = detail.bookedByMe
+    ? '取消预约'
+    : detail.status === 3
+      ? '报名截止'
+      : detail.status === 2
+        ? '已满员'
+        : '立即预约';
   const introText = detail.introText.trim() || '';
   const pointsText = detail.pointsText.trim() || '';
   const suitText = detail.suitText.trim() || '';
@@ -252,11 +261,13 @@ export default function OnlineCourseDetailPage() {
         >
           <View style={styles.heroWrap}>
             <Image source={coverSource} style={styles.heroImage} resizeMode="cover" />
-            {detail.categoryLabel ? (
+            {detail.courseTags.length > 0 ? (
               <View style={styles.heroTagRow} pointerEvents="none">
-                <View style={styles.categoryTag}>
-                  <Text style={styles.categoryText}>{detail.categoryLabel}</Text>
-                </View>
+                {detail.courseTags.map(tag => (
+                  <View key={tag} style={styles.categoryTag}>
+                    <Text style={styles.categoryText}>{tag}</Text>
+                  </View>
+                ))}
               </View>
             ) : null}
           </View>
@@ -327,11 +338,12 @@ export default function OnlineCourseDetailPage() {
               style={[
                 styles.btn,
                 detail.bookedByMe && styles.btnCancel,
-                actionLoading && styles.btnDisabled,
+                (actionLoading || reserveBlocked) && styles.btnDisabled,
               ]}
               activeOpacity={0.7}
-              disabled={actionLoading}
+              disabled={actionLoading || reserveBlocked}
               onPress={() => {
+                if (reserveBlocked) return;
                 if (detail.bookedByMe) {
                   handleCancel();
                 } else {
@@ -343,7 +355,7 @@ export default function OnlineCourseDetailPage() {
                 <ActivityIndicator color={detail.bookedByMe ? '#6D925E' : '#FFFFFF'} />
               ) : (
                 <Text style={[styles.btnText, detail.bookedByMe && styles.btnCancelText]}>
-                  {detail.bookedByMe ? '取消预约' : '立即预约'}
+                  {reserveActionLabel}
                 </Text>
               )}
             </TouchableOpacity>

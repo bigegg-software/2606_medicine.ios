@@ -176,22 +176,23 @@ function formatCapacityText(item: CourseSessionItem) {
 }
 
 function formatSessionTags(raw?: string | null): string {
-  if (!raw?.trim()) return '';
+  return parseSessionTags(raw).join(' · ');
+}
+
+function parseSessionTags(raw?: string | null): string[] {
+  if (!raw?.trim()) return [];
   return raw
     .split(/[,，、]/)
     .map(tag => tag.trim())
-    .filter(Boolean)
-    .join(' · ');
+    .filter(Boolean);
 }
 
-/** 私教列表权益文案：私教权益 剩余X节 */
+/** 私教列表权益文案：私教权益 剩余X节（缺省/-- 按 0） */
 export function formatPrivateBenefitRemainText(remain?: number | null): string {
-  if (remain == null || Number.isNaN(Number(remain))) {
-    return '私教权益 剩余--节';
-  }
-  const n = Number(remain);
-  if (n === -1) return '私教权益 不限次数';
-  return `私教权益 剩余${Math.max(0, Math.floor(n))}节`;
+  if (remain === -1) return '私教权益 不限次数';
+  const n =
+    remain == null || Number.isNaN(Number(remain)) ? 0 : Math.max(0, Math.floor(Number(remain)));
+  return `私教权益 剩余${n}节`;
 }
 
 export function mapPrivateSessionToCard(
@@ -507,6 +508,8 @@ export type OnlineCourseDetailView = {
   courseTypeLabel: string;
   /** 课程分类名称，如：综合训练 */
   categoryLabel: string;
+  /** 课程标签（逗号分割解析后） */
+  courseTags: string[];
   enrollText: string;
   /** 信息栏时间，如：10:15-11:15 */
   timeText: string;
@@ -534,12 +537,24 @@ export type OnlineCourseDetailView = {
   bookingId?: string;
 };
 
-/** 信息栏时间文案 */
+/** 详情信息栏时间：今天/明天/M月D日 + HH:mm-HH:mm */
 export function formatOnlineDetailTime(item: CourseSessionItem) {
   const start = formatHm(item.startTime);
   const end = formatHm(item.endTime);
-  if (start && end) return `${start}-${end}`;
-  return start || end || '';
+  const range = start && end ? `${start}-${end}` : start || end || '';
+  const sessionDate = item.sessionDate?.trim() || '';
+  if (!sessionDate) return range;
+
+  const m = moment(sessionDate, 'YYYY-MM-DD');
+  if (!m.isValid()) return range;
+
+  const today = moment().startOf('day');
+  const diff = m.clone().startOf('day').diff(today, 'days');
+  let dayLabel = m.format('M月D日');
+  if (diff === 0) dayLabel = '今天';
+  else if (diff === 1) dayLabel = '明天';
+
+  return range ? `${dayLabel} ${range}` : dayLabel;
 }
 
 export function formatOnlineWatchMethodText(platformLabel?: string | null) {
@@ -577,7 +592,7 @@ export function mapGroupCourseDetail(item: CourseSessionItem): OnlineCourseDetai
 export function mapPrivateCourseDetail(item: CourseSessionItem): OnlineCourseDetailView | null {
   const base = mapCourseSessionDetail(item, {
     courseTypeLabel: '私教课',
-    titleFallback: '私教课',
+    titleFallback: '一对一私教训练',
   });
   if (!base) return null;
   const specialty = item.coachSpecialtyDirection?.trim() || '';
@@ -646,6 +661,7 @@ function mapCourseSessionDetail(
   const platformLabel =
     item.livePlatformLabel?.trim() || item.livePlatform?.trim() || '';
   const categoryLabel = item.template?.courseCategoryLabel?.trim() || '';
+  const courseTags = parseSessionTags(item.template?.courseTags);
   const crowd = item.template?.applicableCrowd?.trim() || '';
   const equipment = item.template?.requiredEquipment?.trim() || '';
   const bookedCount =
@@ -660,6 +676,7 @@ function mapCourseSessionDetail(
     stationName,
     courseTypeLabel: options.courseTypeLabel,
     categoryLabel,
+    courseTags,
     enrollText: formatCapacityText(item),
     timeText: formatOnlineDetailTime(item),
     sessionDate: item.sessionDate?.trim() || '',

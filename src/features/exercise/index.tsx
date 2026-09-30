@@ -97,6 +97,8 @@ export default function ExercisePage() {
   const [mountedTabs, setMountedTabs] = useState<Partial<Record<ExerciseNavKey, boolean>>>(
     prescriptionOnly ? { prescription: true } : { homeTraining: true },
   );
+  /** 首屏后再次 focus（详情/播放器返回等）静默刷新，避免整页 loading */
+  const hasLoadedRef = useRef(false);
   const infoText = formatExerciseUserInfoText(
     profileUser,
     readOnly && isFamilyView ? null : userExtr,
@@ -164,7 +166,9 @@ export default function ExercisePage() {
     tipKind,
   ]);
 
-  const loadExerciseRule = useCallback(async () => {
+  const loadExerciseRule = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) setLoading(true);
     try {
       const opts = patientUserId ? { patientUserId } : undefined;
       // 历史处方：按指定 id 拉详情；当前处方（含暂停 status/stopReason）走 getInUseInfo
@@ -199,6 +203,7 @@ export default function ExercisePage() {
       } else if (isFamilyView) {
         setFamilyUser(null);
       }
+      hasLoadedRef.current = true;
     } catch {
       setExerciseRule(null);
       setHistoryTip(null);
@@ -213,7 +218,7 @@ export default function ExercisePage() {
       if (!isFamilyView) {
         void dispatch(fetchUserBaseInfo());
       }
-      void loadExerciseRule();
+      void loadExerciseRule({ silent: hasLoadedRef.current });
     }, [dispatch, loadExerciseRule, isFamilyView]),
   );
 
@@ -284,7 +289,8 @@ export default function ExercisePage() {
     if (!isFamilyView) return;
     if (prevPatientUserIdRef.current === patientUserId) return;
     prevPatientUserIdRef.current = patientUserId;
-    void loadExerciseRule();
+    hasLoadedRef.current = false;
+    void loadExerciseRule({ silent: false });
   }, [patientUserId, isFamilyView, loadExerciseRule]);
 
   const pageTitle = exerciseRule?.prescriptionName?.trim() || '运动处方';

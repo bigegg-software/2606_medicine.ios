@@ -378,7 +378,6 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
                   navigation.navigate('ExercisePlayerPage', {
                     exVideoId: card.exVideoId,
                     title: card.title,
-                    ruleSubtitle: card.subtitle,
                     trainingPhase: 'main',
                     groupVal: card.groupVal,
                     numberVal: card.numberVal,

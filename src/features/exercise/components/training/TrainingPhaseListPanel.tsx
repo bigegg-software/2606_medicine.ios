@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -79,6 +79,8 @@ export default function TrainingPhaseListPanel({
   const [loading, setLoading] = useState(true);
   const [isRest, setIsRest] = useState(false);
   const [isPostponedAway, setIsPostponedAway] = useState(false);
+  /** 播放器/详情返回时静默刷新，避免整段切成 loading */
+  const hasLoadedRef = useRef(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -94,13 +96,14 @@ export default function TrainingPhaseListPanel({
 
       if (restDay || postponedAway || items.length === 0) {
         setCards([]);
+        hasLoadedRef.current = true;
         setLoading(false);
         return () => {
           cancelled = true;
         };
       }
 
-      setLoading(true);
+      if (!hasLoadedRef.current) setLoading(true);
       void buildTrainingPhaseCards(items, undefined, {
         defaultThumbKey: config.trainingPhase,
         actionType: 'home',
@@ -116,11 +119,13 @@ export default function TrainingPhaseListPanel({
         .then(nextCards => {
           if (cancelled) return;
           setCards(nextCards);
+          hasLoadedRef.current = true;
           setLoading(false);
         })
         .catch(() => {
           if (cancelled) return;
           setCards([]);
+          hasLoadedRef.current = true;
           setLoading(false);
         });
 

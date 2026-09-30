@@ -416,26 +416,35 @@ export default function AdjustTimeModal({
           })}
         </ScrollView>
 
-        <TouchableOpacity
-          activeOpacity={1}
-          style={styles.allDateFloat}
-          onPress={() => {
-            // 进入月历时清空旧打点，避免带上日期条的数据
-            setCalendarDateHasSet(new Set());
-            setCalendarMonth(
-              moment(selectedDate || undefined, 'YYYY-MM-DD').isValid()
-                ? moment(selectedDate, 'YYYY-MM-DD').format('YYYY-MM')
-                : moment().format('YYYY-MM'),
-            );
-            setPanel('calendar');
-          }}
-        >
-          <Image
-            style={styles.allDateIcon}
-            source={require('@/assets/images/nutrition/time.png')}
+        <View style={styles.allDateFloatWrap} pointerEvents="box-none">
+          <LinearGradient
+            pointerEvents="none"
+            colors={['rgba(234,234,234,0)', 'rgba(234,234,234,0.95)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.allDateLeftShadow}
           />
-          <Text style={styles.allDateLabel}>全部日期</Text>
-        </TouchableOpacity>
+          <TouchableOpacity
+            activeOpacity={1}
+            style={styles.allDateFloat}
+            onPress={() => {
+              // 进入月历时清空旧打点，避免带上日期条的数据
+              setCalendarDateHasSet(new Set());
+              setCalendarMonth(
+                moment(selectedDate || undefined, 'YYYY-MM-DD').isValid()
+                  ? moment(selectedDate, 'YYYY-MM-DD').format('YYYY-MM')
+                  : moment().format('YYYY-MM'),
+              );
+              setPanel('calendar');
+            }}
+          >
+            <Image
+              style={styles.allDateIcon}
+              source={require('@/assets/images/nutrition/time.png')}
+            />
+            <Text style={styles.allDateLabel}>全部日期</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.dashedLine} />

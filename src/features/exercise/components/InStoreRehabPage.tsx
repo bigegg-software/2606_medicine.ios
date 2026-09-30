@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -69,6 +69,8 @@ export default function InStoreRehabPage({
   const [recommendCards, setRecommendCards] = useState<InStoreRecommendCardView[]>([]);
   /** 当日是否已有教练到店训练日志 */
   const [inStoreDone, setInStoreDone] = useState(false);
+  /** 处方 focus 刷新时静默更新，避免整页 loading */
+  const hasLoadedRef = useRef(false);
   const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
   const prescriptionStartDate = exerciseRule?.startDate?.trim() || '';
   const prescriptionEndDate = exerciseRule?.endDate?.trim() || '';
@@ -94,7 +96,7 @@ export default function InStoreRehabPage({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
+    if (!hasLoadedRef.current) setLoading(true);
     void (async () => {
       try {
         const rule = await loadExPatientRuleForDate(selectedDate, exerciseRule, {
@@ -116,12 +118,14 @@ export default function InStoreRehabPage({
         setCards(result.cards);
         setWeeklyInStoreTip(formatWeeklyInStoreTip(inStoreDayCount));
         setInStoreDone(Boolean(coachRecord));
+        hasLoadedRef.current = true;
       } catch {
         if (cancelled) return;
         setDayRule(null);
         setCards([]);
         setWeeklyInStoreTip(formatWeeklyInStoreTip(0));
         setInStoreDone(false);
+        hasLoadedRef.current = true;
       } finally {
         if (!cancelled) setLoading(false);
       }

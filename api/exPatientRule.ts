@@ -361,7 +361,11 @@ export const postponeThisWeek = (
   );
 
 /** 随时练一练：根据进行中处方本周主训练安排，随机推荐居家练习动作（最多 3 个） */
-export type RecommendHomePracticeItem = ExWeekTrainingItem;
+export type RecommendHomePracticeItem = ExWeekTrainingItem & {
+  /** 动作/视频名称（接口回填时优先使用） */
+  title?: string;
+  name?: string;
+};
 
 export type RecommendHomePracticeData = {
   exPatientRuleId?: number | string;

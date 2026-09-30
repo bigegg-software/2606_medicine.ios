@@ -205,14 +205,17 @@ export default function ExercisePlayerPage() {
     videoKeepSecondVal: video?.keepSecondVal,
     videoTimerType: video?.timerType,
   });
-  const pageTitle = formatExercisePlayerHeaderTitle(basePageTitle, {
-    timerType: scheduleRule.timerType,
-    durationMinutes: targetMinutes,
-    numberVal: scheduleRule.targetCount,
-    keepSecondVal: scheduleRule.keepSecondVal,
-    groupVal: scheduleRule.groupVal,
-    ruleSubtitle,
-  });
+  const practiceOnly = Boolean(route.params?.practiceOnly);
+  const pageTitle = practiceOnly
+    ? basePageTitle
+    : formatExercisePlayerHeaderTitle(basePageTitle, {
+      timerType: scheduleRule.timerType,
+      durationMinutes: targetMinutes,
+      numberVal: scheduleRule.targetCount,
+      keepSecondVal: scheduleRule.keepSecondVal,
+      groupVal: scheduleRule.groupVal,
+      ruleSubtitle,
+    });
   const totalGroups = scheduleRule.groupVal;
   const trainingPhase = (route.params?.trainingPhase?.trim() || 'hot') as ExRecordTrainingPhase;
   const timerType = scheduleRule.timerType;
@@ -255,7 +258,6 @@ export default function ExercisePlayerPage() {
     isGroupDisplayDone(index, groupCounts, saveGroupTargetCount, null),
   ).filter(Boolean).length;
   const readOnly = Boolean(route.params?.readOnly);
-  const practiceOnly = Boolean(route.params?.practiceOnly);
   const headerRightText = practiceOnly
     ? ''
     : showHeaderDuration

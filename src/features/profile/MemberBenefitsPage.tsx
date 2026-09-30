@@ -62,7 +62,7 @@ export default function MemberBenefitsPage() {
           <View style={styles.heroTextWrap}>
             <Text style={styles.heroLabel}>{summary.heroLabel}</Text>
             <Text style={styles.heroStatus}>
-              {summary.benefitValidityText || '如需签约请联系工作人员'}
+              {summary.benefitValidityText || '如需开通/续费，请联系工作人员'}
             </Text>
           </View>
           <Image

@@ -225,6 +225,15 @@ export default function PrivateCourseDetailPage() {
   // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消、调整时间
   const showReserveAction =
     detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+  const reserveBlocked =
+    !detail.bookedByMe && (detail.status === 2 || detail.status === 3);
+  const reserveActionLabel = detail.bookedByMe
+    ? '取消预约'
+    : detail.status === 3
+      ? '报名截止'
+      : detail.status === 2
+        ? '已满员'
+        : '立即预约';
   const disabledActionLabel =
     detail.status === 4
       ? '进行中'
@@ -341,11 +350,12 @@ export default function PrivateCourseDetailPage() {
                   styles.btn,
                   styles.btnFlex,
                   detail.bookedByMe && styles.btnCancel,
-                  actionLoading && styles.btnDisabled,
+                  (actionLoading || reserveBlocked) && styles.btnDisabled,
                 ]}
                 activeOpacity={0.7}
-                disabled={actionLoading}
+                disabled={actionLoading || reserveBlocked}
                 onPress={() => {
+                  if (reserveBlocked) return;
                   if (detail.bookedByMe) {
                     handleCancel();
                   } else {
@@ -357,7 +367,7 @@ export default function PrivateCourseDetailPage() {
                   <ActivityIndicator color={detail.bookedByMe ? '#6D925E' : '#FFFFFF'} />
                 ) : (
                   <Text style={[styles.btnText, detail.bookedByMe && styles.btnCancelText]}>
-                    {detail.bookedByMe ? '取消预约' : '立即预约'}
+                    {reserveActionLabel}
                   </Text>
                 )}
               </TouchableOpacity>

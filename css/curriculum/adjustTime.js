@@ -86,22 +86,29 @@ const styles = StyleSheet.create({
     borderRadius: 2.5,
     backgroundColor: '#6D925E',
   },
-  allDateFloat: {
+  allDateFloatWrap: {
     position: 'absolute',
     right: 0,
     top: 0,
+    width: 60,
+    height: 60,
+    zIndex: 2,
+  },
+  /** 仅左侧投影（原生 shadow 四周都会糊开） */
+  allDateLeftShadow: {
+    position: 'absolute',
+    left: -12,
+    top: 0,
+    bottom: 0,
+    width: 12,
+  },
+  allDateFloat: {
     width: 60,
     height: 60,
     borderRadius: 6,
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 2,
-    shadowColor: '#EAEAEA',
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.9,
-    shadowRadius: 6,
-    elevation: 6,
   },
   allDateLabel: {
     fontWeight: '500',

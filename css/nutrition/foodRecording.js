@@ -94,6 +94,9 @@ const styles = StyleSheet.create({
   rateTagOk: {
     borderColor: '#6D925E',
   },
+  rateTagGood: {
+    borderColor: '#56A2D8',
+  },
   rateTagWarn: {
     borderColor: '#EE9C44',
   },
@@ -109,6 +112,9 @@ const styles = StyleSheet.create({
   },
   rateTagTextOk: {
     color: '#6D925E',
+  },
+  rateTagTextGood: {
+    color: '#56A2D8',
   },
   rateTagTextWarn: {
     color: '#EE9C44',

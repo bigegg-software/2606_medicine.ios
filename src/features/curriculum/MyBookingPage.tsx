@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -61,6 +61,8 @@ export default function MyBookingPage() {
   const [completedCourseType, setCompletedCourseType] = useState<CourseTypeFilterValue>('');
   const [completedStatus, setCompletedStatus] = useState<BookingStatusFilterValue>('');
   const [adjustTimeVisible, setAdjustTimeVisible] = useState(false);
+  /** 同 tab 再次进入（如详情返回）静默刷新，避免 loading 卸载列表导致滚动回顶 */
+  const loadedTabRef = useRef<TabKey | null>(null);
 
   const openDetail = useCallback(
     (sessionId: string, courseType: string) => {
@@ -123,13 +125,15 @@ export default function MyBookingPage() {
     useCallback(() => {
       let cancelled = false;
       (async () => {
-        setLoading(true);
+        const silent = loadedTabRef.current === activeTab;
+        if (!silent) setLoading(true);
         try {
           if (activeTab === 'upcoming') {
             await loadUpcoming();
           } else {
             await loadCompleted();
           }
+          if (!cancelled) loadedTabRef.current = activeTab;
         } finally {
           if (!cancelled) setLoading(false);
         }
@@ -376,7 +380,7 @@ export default function MyBookingPage() {
             </View>
           )
         ) : (
-          <View style={styles.contentBox}>
+          <View style={[styles.contentBox, styles.contentBoxFill]}>
             <Flex justify="between" align="center" style={styles.doneToolbar}>
               <Flex align="center" style={styles.doneFilterRow}>
                 <CourseTypeFilterPicker

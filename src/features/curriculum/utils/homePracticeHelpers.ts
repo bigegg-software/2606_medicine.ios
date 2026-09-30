@@ -29,10 +29,14 @@ function resolveDurationMinutes(item: RecommendHomePracticeItem) {
   return 0;
 }
 
-function formatPracticeTitle(videoTitle: string, durationMinutes: number) {
-  const name = videoTitle.trim() || '居家练习';
-  if (durationMinutes > 0) return `${durationMinutes}分钟${name}`;
-  return name;
+/** 优先接口 list 返回的名称，其次视频详情 title */
+function resolvePracticeName(item: RecommendHomePracticeItem, videoTitle?: string) {
+  return (
+    item.title?.trim()
+    || item.name?.trim()
+    || videoTitle?.trim()
+    || '居家练习'
+  );
 }
 
 async function mapHomePracticeCard(
@@ -53,10 +57,11 @@ async function mapHomePracticeCard(
   const durationMinutes = resolveDurationMinutes(item);
   const coverUrl = video?.coverOssUrl?.trim() || '';
   const defaultThumb = resolveDefaultTrainingThumb(video?.exerciseType);
+  const title = resolvePracticeName(item, video?.title);
   return {
     key: `${exVideoId}-${index}`,
     exVideoId,
-    title: formatPracticeTitle(video?.title?.trim() || '', durationMinutes),
+    title,
     subtitle: '处方配套视频',
     coverSource: coverUrl ? { uri: coverUrl } : defaultThumb,
     timerType: item.timerType?.trim() || '',

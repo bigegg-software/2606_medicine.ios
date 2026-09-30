@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -187,18 +187,21 @@ export default function MainTrainingPhase({
   const [isRest, setIsRest] = useState(false);
   const [isPostponedAway, setIsPostponedAway] = useState(false);
   const [modules, setModules] = useState<MainTrainingTypeModule[]>([]);
+  /** 播放器/详情返回时静默刷新，避免整段切成 loading */
+  const hasLoadedRef = useRef(false);
   const fittTipLines = formatMainTrainingFittTipLines(dayRule);
 
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
-      setLoading(true);
+      if (!hasLoadedRef.current) setLoading(true);
       void buildMainTrainingModules(dayRule, selectedDate, patientUserId)
         .then(result => {
           if (cancelled) return;
           setIsRest(result.isRest);
           setIsPostponedAway(result.isPostponedAway);
           setModules(result.modules);
+          hasLoadedRef.current = true;
           setLoading(false);
         })
         .catch(() => {
@@ -206,6 +209,7 @@ export default function MainTrainingPhase({
           setIsRest(false);
           setIsPostponedAway(false);
           setModules([]);
+          hasLoadedRef.current = true;
           setLoading(false);
         });
       return () => {

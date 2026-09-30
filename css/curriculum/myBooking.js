@@ -12,6 +12,9 @@ const styles = StyleSheet.create({
   contentBox: {
     paddingHorizontal: 13,
   },
+  contentBoxFill: {
+    flex: 1,
+  },
   navBox: {
     marginHorizontal: 13,
     marginTop: 11,
@@ -48,7 +51,7 @@ const styles = StyleSheet.create({
   emptyWrap: {
     flex: 1,
     justifyContent: 'center',
-    paddingTop: 80,
+    alignItems: 'center',
   },
   weekOnlineTitle: {
     marginTop: 16,

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   ScrollView,
@@ -42,9 +42,12 @@ export default function HealthPlanPage({
   const planItemStyle = [styles.planItem, { width: width - 24 }];
   const [plans, setPlans] = useState<SpecialPlanItem[]>([]);
   const [loading, setLoading] = useState(true);
+  /** 再次进入 tab / 返回页面时静默刷新 */
+  const hasLoadedRef = useRef(false);
 
-  const loadPlans = useCallback(async () => {
-    setLoading(true);
+  const loadPlans = useCallback(async (options?: { silent?: boolean }) => {
+    const silent = Boolean(options?.silent);
+    if (!silent) setLoading(true);
     try {
       const ruleId = dietPatientRuleId != null ? String(dietPatientRuleId).trim() : '';
       const res = await getSpecialPlanList(
@@ -56,6 +59,7 @@ export default function HealthPlanPage({
       }
       const list = apiResourceData(res);
       setPlans(Array.isArray(list) ? list : []);
+      hasLoadedRef.current = true;
     } catch {
       setPlans([]);
     } finally {
@@ -65,7 +69,7 @@ export default function HealthPlanPage({
 
   useEffect(() => {
     if (!isActive) return;
-    void loadPlans();
+    void loadPlans({ silent: hasLoadedRef.current });
   }, [isActive, loadPlans]);
 
   const openCoachBooking = (planId?: number | string) => {

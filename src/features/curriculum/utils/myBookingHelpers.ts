@@ -171,10 +171,7 @@ function formatCoachMeta(item: CourseSessionBookingItem) {
     const platform = item.session?.livePlatformLabel?.trim() || '线上课';
     return `${coach}·${platform}`;
   }
-  const specialty = item.session?.coachSpecialtyDirection?.trim() || '';
-  const category = item.session?.template?.courseCategoryLabel?.trim() || '';
-  const suffix = specialty || category || resolveCourseName(item);
-  return suffix ? `${coach}·${suffix}` : coach;
+  return `${coach}·私教`;
 }
 
 /** 明天·周三 (10:15-11:15) / 11月8日·周六 (10:15-11:15) */
