@@ -1,6 +1,7 @@
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import moment from 'moment';
 import { getActivityInfo } from '@/api/activity';
+import { getCourseSessionInfo } from '@/api/courseSession';
 import { getInUseDietPatientRuleInfo } from '@/api/dietPatientRule';
 import { getIdentityAuditInfo } from '@/api/identityAudit';
 import { getLiveStreamInfo } from '@/api/liveStream';
@@ -14,6 +15,7 @@ import {
   loadLiveFamilyBindInvite,
   resolveFamilyBindAcceptedTarget,
 } from '@/src/familyPage/profilePage/utils/familyBindInviteHelpers';
+import { resolveBookingDetailRoute } from '@/src/features/curriculum/utils/myBookingHelpers';
 import { parseMessageCreateTime } from './messageHelpers';
 import { getHistoryPlanExerciseParams } from '@/src/features/schedule/utils/scheduleHistoryNavHelpers';
 import { DIET_MEAL_DAY_ARCHIVE_REFRESH_TYPE } from '@/src/features/nutrition/components/utils/mealRefreshPeriodHelpers';
@@ -62,6 +64,23 @@ const LIVE_TYPES = new Set([
 ]);
 
 const ACTIVITY_CANCEL_TYPES = new Set(['activiey_cancel']);
+
+/** 课程预约相关通知（如开课前 2 小时提醒）→ 课程场次详情 */
+function isCourseBookingMessageType(type: string) {
+  return type.startsWith('course_booking');
+}
+
+function resolveSessionIdFromMessageParams(params?: Record<string, unknown> | null) {
+  const raw = params?.sessionId;
+  if (raw != null && String(raw).trim()) return String(raw).trim();
+  return '';
+}
+
+function resolveCourseTypeFromMessageParams(params?: Record<string, unknown> | null) {
+  const raw = params?.courseType;
+  if (raw != null && String(raw).trim()) return String(raw).trim();
+  return '';
+}
 
 const VITAL_ALL_DATA_TYPE: Record<string, NonNullable<RootStackParamList['AllDataPage']['type']>> = {
   health_bp_warning: '血压',
@@ -277,6 +296,33 @@ export async function resolveMessageNavigation(
       action: 'navigate',
       name: 'LiveDetail',
       params: { liveId: bizId },
+    };
+  }
+
+  // 课程预约提醒：params.sessionId → 对应类型课程详情
+  if (isCourseBookingMessageType(type)) {
+    const sessionId = resolveSessionIdFromMessageParams(item.params);
+    if (!sessionId) return { action: 'missing' };
+    let courseType = resolveCourseTypeFromMessageParams(item.params);
+    if (!courseType) {
+      try {
+        const res = await getCourseSessionInfo(sessionId);
+        if (!isResourceApiOk(res as { code?: number })) return { action: 'missing' };
+        const data = apiResourceData<{
+          courseType?: string;
+          template?: { courseType?: string };
+        }>(res as { code?: number; data?: unknown });
+        if (!data) return { action: 'missing' };
+        courseType =
+          data.courseType?.trim() || data.template?.courseType?.trim() || 'private';
+      } catch {
+        return { action: 'missing' };
+      }
+    }
+    return {
+      action: 'navigate',
+      name: resolveBookingDetailRoute(courseType),
+      params: { sessionId },
     };
   }
 

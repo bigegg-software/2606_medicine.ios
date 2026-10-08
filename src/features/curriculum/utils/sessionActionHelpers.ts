@@ -6,6 +6,17 @@ export function canCancelOrAdjustSession(status?: number | null) {
   return s !== 4 && s !== 5 && s !== 6;
 }
 
+/** 预约已结束态：已取消 / 已核销(含签到) / 已爽约 → 详情不再展示取消预约、进入直播 */
+export function isBookingActionClosed(bookingStatus?: number | null) {
+  const s = Number(bookingStatus);
+  return s === 2 || s === 3 || s === 4;
+}
+
+/** 预约缺席（已爽约）→ 详情展示「重新预约」 */
+export function isBookingAbsentStatus(bookingStatus?: number | null) {
+  return Number(bookingStatus) === 4;
+}
+
 export type SessionActionTone =
   | 'book'
   | 'booked'

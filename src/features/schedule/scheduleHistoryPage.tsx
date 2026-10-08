@@ -65,7 +65,8 @@ export default function ScheduleHistoryPage() {
       if (loadingMoreRef.current || !hasMoreRef.current) return;
       loadingMoreRef.current = true;
       setLoadingMore(true);
-    } else if (mode === 'initial') {
+    } else if (mode === 'initial' || mode === 'filter') {
+      if (mode === 'filter') setItems([]);
       setLoading(true);
     } else if (mode === 'refresh') {
       setRefreshing(true);

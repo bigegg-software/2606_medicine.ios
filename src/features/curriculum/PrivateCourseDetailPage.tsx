@@ -40,6 +40,11 @@ import AdjustTimeModal from './components/AdjustTimeModal';
 import CoachEntryCard from './components/CoachEntryCard';
 import CourseSubMetaRow from './components/CourseSubMetaRow';
 import CourseTypeTitleTag from './components/CourseTypeTitleTag';
+import { navigateToCurriculumTab } from './utils/navigationHelpers';
+import {
+  isBookingAbsentStatus,
+  isBookingActionClosed,
+} from './utils/sessionActionHelpers';
 
 type Route = RouteProp<RootStackParamList, 'PrivateCourseDetail'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -67,6 +72,10 @@ export default function PrivateCourseDetailPage() {
   const insets = useSafeAreaInsets();
   const { params } = useRoute<Route>();
   const sessionId = toSessionId(params.sessionId);
+  const bookingStatusHint =
+    params.bookingStatus != null && String(params.bookingStatus).trim() !== ''
+      ? Number(params.bookingStatus)
+      : undefined;
   const privateRemainCount = useSelector((state: RootState) =>
     resolveCourseBenefitRemainCount(state.user.systemUser, 'private'),
   );
@@ -99,14 +108,14 @@ export default function PrivateCourseDetailPage() {
     }
     setLoading(true);
     try {
-      const next = await fetchPrivateCourseDetail(sessionId);
+      const next = await fetchPrivateCourseDetail(sessionId, bookingStatusHint);
       setDetail(next);
     } catch {
       setDetail(null);
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [bookingStatusHint, sessionId]);
 
   useEffect(() => {
     void loadDetail();
@@ -225,9 +234,11 @@ export default function PrivateCourseDetailPage() {
   }
 
   const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
+  const bookingClosed = isBookingActionClosed(detail.bookingStatus);
+  const showRebook = isBookingAbsentStatus(detail.bookingStatus);
   // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消、调整时间
   const showReserveAction =
-    detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+    !bookingClosed && detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
   const reserveBlocked =
     !detail.bookedByMe && (detail.status === 2 || detail.status === 3);
   const reserveActionLabel = detail.bookedByMe
@@ -237,14 +248,6 @@ export default function PrivateCourseDetailPage() {
       : detail.status === 2
         ? '已满员'
         : '立即预约';
-  const disabledActionLabel =
-    detail.status === 4
-      ? '进行中'
-      : detail.status === 5
-        ? '已过期'
-        : detail.status === 6
-          ? '已取消'
-          : '不可预约';
   const introText = detail.introText.trim() || '';
   const pointsText = detail.pointsText.trim() || '';
   const suitText = detail.suitText.trim() || '';
@@ -264,7 +267,8 @@ export default function PrivateCourseDetailPage() {
         onSuccess={newSessionId => {
           const id = String(newSessionId ?? '').trim();
           if (id && id !== detail.sessionId) {
-            navigation.replace('PrivateCourseDetail', { sessionId: id });
+            // 同页更新场次，避免 replace 再次打开详情
+            navigation.setParams({ sessionId: id });
             return;
           }
           void loadDetail();
@@ -352,8 +356,18 @@ export default function PrivateCourseDetailPage() {
           </View>
         </ScrollView>
 
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
-          {showReserveAction ? (
+        {showRebook ? (
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
+            <TouchableOpacity
+              style={styles.btn}
+              activeOpacity={0.7}
+              onPress={() => navigateToCurriculumTab(navigation)}
+            >
+              <Text style={styles.btnText}>重新预约</Text>
+            </TouchableOpacity>
+          </View>
+        ) : showReserveAction ? (
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
             <View style={styles.bottomBtnRow}>
               <TouchableOpacity
                 style={[
@@ -402,12 +416,8 @@ export default function PrivateCourseDetailPage() {
                 </TouchableOpacity>
               ) : null}
             </View>
-          ) : (
-            <View style={[styles.btn, styles.btnDisabled]}>
-              <Text style={styles.btnText}>{disabledActionLabel}</Text>
-            </View>
-          )}
-        </View>
+          </View>
+        ) : null}
       </View>
     </PageLayout>
   );

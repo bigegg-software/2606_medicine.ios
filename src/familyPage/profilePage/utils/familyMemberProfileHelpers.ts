@@ -17,10 +17,31 @@ export type FamilyMemberProfileForm = {
   phone: string;
 };
 
-function normalizeBirthDate(value?: string) {
-  if (!value) return '';
-  const m = moment(value, ['YYYY-MM-DD', 'YYYYMMDD'], true);
-  return m.isValid() ? m.format('YYYY-MM-DD') : value;
+/** 统一为 YYYY-MM-DD；兼容 ISO 等后端格式 */
+function normalizeBirthDate(value?: string | null) {
+  if (value == null) return '';
+  const raw = String(value).trim();
+  if (!raw) return '';
+  const strict = moment(raw, ['YYYY-MM-DD', 'YYYYMMDD', 'YYYY/MM/DD'], true);
+  if (strict.isValid()) return strict.format('YYYY-MM-DD');
+  const loose = moment(raw);
+  return loose.isValid() ? loose.format('YYYY-MM-DD') : '';
+}
+
+/** 接口可能返回 birthDate / birthday 等字段 */
+function pickBirthDateRaw(data?: UserBaseInfo | null): string {
+  if (!data) return '';
+  const extra = data as UserBaseInfo & {
+    birthday?: string;
+    birthDay?: string;
+    birth_date?: string;
+  };
+  const candidates = [extra.birthDate, extra.birthday, extra.birthDay, extra.birth_date];
+  for (const item of candidates) {
+    const normalized = normalizeBirthDate(item);
+    if (normalized) return normalized;
+  }
+  return '';
 }
 
 export function emptyFamilyMemberProfileForm(phone?: string): FamilyMemberProfileForm {
@@ -37,25 +58,29 @@ export function emptyFamilyMemberProfileForm(phone?: string): FamilyMemberProfil
 /** 拉取本人基础资料（头像/姓名/性别/出生日期） */
 export async function loadFamilyMemberProfileForm(
   phone?: string,
+  cachedUser?: UserBaseInfo | null,
 ): Promise<FamilyMemberProfileForm> {
   const fallback = emptyFamilyMemberProfileForm(phone);
+  const cachedBirthDate = pickBirthDateRaw(cachedUser);
 
   try {
     const res = await getUserBaseInfo();
     const data = apiResourceData<UserBaseInfo>(
       res as { code?: number; data?: UserBaseInfo },
     );
-    if (!data) return fallback;
+    if (!data) {
+      return cachedBirthDate ? { ...fallback, birthDate: cachedBirthDate } : fallback;
+    }
     return {
       avatarOssId: data.avatarOssId != null ? String(data.avatarOssId) : undefined,
       avatarOssUrl: data.avatarOssUrl?.trim() || '',
       name: data.name?.trim() || '',
       gender: data.gender?.trim() || '',
-      birthDate: normalizeBirthDate(data.birthDate),
+      birthDate: pickBirthDateRaw(data) || cachedBirthDate,
       phone: maskPhoneNumber(phone),
     };
   } catch {
-    return fallback;
+    return cachedBirthDate ? { ...fallback, birthDate: cachedBirthDate } : fallback;
   }
 }
 
@@ -84,6 +109,7 @@ export async function saveFamilyMemberProfileForm(
 
 export function parseBirthDate(value?: string) {
   if (!value) return undefined;
-  const m = moment(value, ['YYYY-MM-DD', 'YYYYMMDD'], true);
-  return m.isValid() ? m.toDate() : undefined;
+  const normalized = normalizeBirthDate(value);
+  if (!normalized) return undefined;
+  return moment(normalized, 'YYYY-MM-DD', true).toDate();
 }

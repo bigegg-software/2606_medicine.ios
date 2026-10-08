@@ -347,12 +347,22 @@ export type RootStackParamList = {
   NutritionHistoryPage: undefined;
   NutritionExecutionStatsPage: { dietPatientRuleId: string };
   ExerciseExecutionStatsPage: { exPatientRuleId: string };
-  CoachBookingPage: { planId?: string } | undefined;
+  CoachBookingPage: { planId?: string; readOnly?: boolean } | undefined;
   MyBookingPage: undefined;
   ScanCodePage: undefined;
-  OnlineCourseDetail: { sessionId: string };
-  PrivateCourseDetail: { sessionId: string };
-  GroupCourseDetail: { sessionId: string };
+  OnlineCourseDetail: {
+    sessionId: string;
+    /** 预约状态：1已预约 2已取消 3已核销 4缺席（我的预约进入时可选） */
+    bookingStatus?: number;
+  };
+  PrivateCourseDetail: {
+    sessionId: string;
+    bookingStatus?: number;
+  };
+  GroupCourseDetail: {
+    sessionId: string;
+    bookingStatus?: number;
+  };
   CoachDetail: { coachUserId: string };
   ManualCorrectionPage: {
     itemIndex: number;
@@ -620,7 +630,7 @@ export default function RootStack() {
       <Stack.Screen name="PlayerPage" component={PlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="ExercisePlayerPage" component={ExercisePlayerPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="TestingPage" component={TestingPage} options={{ title: '' }} />
-      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false , gestureEnabled: false }} />
+      <Stack.Screen name="TestingResultsPage" component={TestingResultsPage} options={{ title: '', showHeaderBackground: false, gestureEnabled: false }} />
       <Stack.Screen name="TestingRecordPage" component={TestingRecordPage} options={{ title: '测试记录', showHeaderBackground: false }} />
       <Stack.Screen name="QuestionnaireTestingPage" component={QuestionnaireTestingPage} options={{ title: '评估问卷' }} />
       <Stack.Screen name="QuestionnaireTestingRecordPage" component={QuestionnaireTestingRecordPage} options={{ title: '评估记录', showHeaderBackground: false }} />
@@ -645,7 +655,7 @@ export default function RootStack() {
       <Stack.Screen
         name="NutritionHistoryPage"
         component={NutritionHistoryPage}
-        options={{ title: '营养处方历史', showHeaderBackground: false }}
+        options={{ title: '营养处方历史' }}
       />
       <Stack.Screen
         name="NutritionExecutionStatsPage"

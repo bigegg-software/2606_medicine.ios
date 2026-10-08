@@ -491,6 +491,7 @@ export default function ExercisePage() {
                   <InStoreRehabPage
                     exerciseRule={exerciseRule}
                     lockToRule={Boolean(exPatientRuleId)}
+                    readOnly={readOnly}
                     patientUserId={patientUserId}
                   />
                 </View>

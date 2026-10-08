@@ -19,6 +19,7 @@ import {
   parseRemainCountFromMsg,
   type BookingDialogInfo,
 } from './bookingDialogHelpers';
+import { fetchMyBookingStatusForSession } from './myBookingHelpers';
 
 const DEFAULT_PAGE_SIZE = 20;
 
@@ -272,8 +273,8 @@ export function mapPrivateSessionToCard(
     sessionId,
     name: item.coachRealName?.trim() || '教练',
     tag: options?.isRecommend ? '处方推荐' : '',
-    // 优先教练擅长方向；无则显示课程标签
-    desc: formatSessionTags(specialty) || courseTags,
+    // 优先课程标签；无则显示教练擅长方向
+    desc: courseTags || formatSessionTags(specialty),
     benefitText: formatPrivateBenefitRemainText(options?.privateRemainCount),
     time: formatSessionTime(item.startTime, item.endTime),
     topic: courseName || '一对一私教训练',
@@ -743,6 +744,8 @@ export type OnlineCourseDetailView = {
   capacity?: number;
   bookedByMe: boolean;
   bookingId?: string;
+  /** 当前用户预约状态：1.已预约 2.已取消 3.已核销 4.已爽约 */
+  bookingStatus?: number;
 };
 
 /** 场次是否关联课程模板 */
@@ -850,40 +853,79 @@ export function applyCoachUserToDetail(
 /** @deprecated 使用 applyCoachUserToDetail */
 export const applyCoachUserToPrivateDetail = applyCoachUserToDetail;
 
-/** 拉取私教课详情（含教练信息） */
-export async function fetchPrivateCourseDetail(
+/** 场次项上的预约状态（若接口已回填） */
+function pickItemBookingStatus(item: CourseSessionItem): number | undefined {
+  if (item.bookingStatus != null && String(item.bookingStatus).trim() !== '') {
+    return Number(item.bookingStatus);
+  }
+  return undefined;
+}
+
+/** 补齐详情上的预约状态（签到核销/缺席后用于底部操作） */
+async function withResolvedBookingStatus(
+  detail: OnlineCourseDetailView,
+  options?: { bookingStatusHint?: number | null },
+): Promise<OnlineCourseDetailView> {
+  const hint = options?.bookingStatusHint;
+  if (hint != null && String(hint).trim() !== '') {
+    return { ...detail, bookingStatus: Number(hint) };
+  }
+  if (detail.bookingStatus != null) return detail;
+  // 已预约、有 bookingId、进行中/已结束（签到或缺席后可能已清 bookedByMe）时再查
+  if (
+    !detail.bookedByMe &&
+    !detail.bookingId &&
+    detail.status !== 4 &&
+    detail.status !== 5
+  ) {
+    return detail;
+  }
+  const bookingStatus = await fetchMyBookingStatusForSession({
+    sessionId: detail.sessionId,
+    bookingId: detail.bookingId,
+  });
+  if (bookingStatus == null) return detail;
+  return { ...detail, bookingStatus };
+}
+
+async function fetchCourseDetailWithCoach(
+  mapDetail: (item: CourseSessionItem) => OnlineCourseDetailView | null,
   sessionId?: string | number | null,
+  bookingStatusHint?: number | null,
 ): Promise<OnlineCourseDetailView | null> {
   const item = await fetchCourseSessionDetail(sessionId);
   if (!item) return null;
-  const detail = mapPrivateCourseDetail(item);
+  const detail = mapDetail(item);
   if (!detail) return null;
-  const coach = await fetchCoachUserDetail(item.coachUserId);
-  return applyCoachUserToDetail(detail, coach);
+  const [coach, withBooking] = await Promise.all([
+    fetchCoachUserDetail(item.coachUserId),
+    withResolvedBookingStatus(detail, { bookingStatusHint }),
+  ]);
+  return applyCoachUserToDetail(withBooking, coach);
+}
+
+/** 拉取私教课详情（含教练信息） */
+export async function fetchPrivateCourseDetail(
+  sessionId?: string | number | null,
+  bookingStatusHint?: number | null,
+): Promise<OnlineCourseDetailView | null> {
+  return fetchCourseDetailWithCoach(mapPrivateCourseDetail, sessionId, bookingStatusHint);
 }
 
 /** 拉取集体课详情（含教练信息） */
 export async function fetchGroupCourseDetail(
   sessionId?: string | number | null,
+  bookingStatusHint?: number | null,
 ): Promise<OnlineCourseDetailView | null> {
-  const item = await fetchCourseSessionDetail(sessionId);
-  if (!item) return null;
-  const detail = mapGroupCourseDetail(item);
-  if (!detail) return null;
-  const coach = await fetchCoachUserDetail(item.coachUserId);
-  return applyCoachUserToDetail(detail, coach);
+  return fetchCourseDetailWithCoach(mapGroupCourseDetail, sessionId, bookingStatusHint);
 }
 
 /** 拉取线上课详情（含教练信息） */
 export async function fetchOnlineCourseDetail(
   sessionId?: string | number | null,
+  bookingStatusHint?: number | null,
 ): Promise<OnlineCourseDetailView | null> {
-  const item = await fetchCourseSessionDetail(sessionId);
-  if (!item) return null;
-  const detail = mapOnlineCourseDetail(item);
-  if (!detail) return null;
-  const coach = await fetchCoachUserDetail(item.coachUserId);
-  return applyCoachUserToDetail(detail, coach);
+  return fetchCourseDetailWithCoach(mapOnlineCourseDetail, sessionId, bookingStatusHint);
 }
 
 function mapCourseSessionDetail(
@@ -893,6 +935,7 @@ function mapCourseSessionDetail(
   const sessionId = toSessionId(item.sessionId);
   if (!sessionId) return null;
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
+  const bookingStatus = pickItemBookingStatus(item);
   const stationId =
     item.stationId != null && String(item.stationId).trim()
       ? String(item.stationId).trim()
@@ -948,5 +991,6 @@ function mapCourseSessionDetail(
     bookedByMe: Boolean(item.bookedByMe),
     ...(coachUserId ? { coachUserId } : {}),
     ...(bookingId ? { bookingId } : {}),
+    ...(bookingStatus != null ? { bookingStatus } : {}),
   };
 }

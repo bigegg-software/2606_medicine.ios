@@ -1,69 +1,183 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
+  RefreshControl,
   ScrollView,
   Text,
+  TouchableOpacity,
   View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native';
+import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import PageLayout from '@/src/components/PageLayout';
 import type { RootStackParamList } from '@/route/router';
-import styles from '@/css/nutrition/foodRecording';
-import scheduleStyles from '@/css/schedule/schedule';
+import PageLayout from '@/src/components/PageLayout';
+import EmptyRecord from '@/src/components/EmptyRecord';
+import styles from '@/css/schedule/schedule';
 import DietHistoryArchiveCard from './components/DietHistoryArchiveCard';
 import {
+  DIET_HISTORY_FILTER_OPTIONS,
+  fetchDietHistoryArchivePage,
   getHistoryDietExecutionStatsParams,
   getHistoryDietNutritionParams,
   getHistoryDietPrescriptionParams,
-  loadDietHistoryArchivePreview,
   type DietHistoryArchiveItem,
+  type DietHistoryPlanFilter,
 } from './components/utils/dietHistoryArchiveHelpers';
 
-type Nav = NativeStackNavigationProp<RootStackParamList>;
+const PAGE_SIZE = 20;
+
+function mergeArchiveItems(
+  existing: DietHistoryArchiveItem[],
+  incoming: DietHistoryArchiveItem[],
+) {
+  const map = new Map<string, DietHistoryArchiveItem>();
+  [...existing, ...incoming].forEach(item => {
+    map.set(item.id, item);
+  });
+  return [...map.values()];
+}
 
 /** 历史营养处方（个人中心「营养处方」入口） */
 export default function NutritionHistoryPage() {
-  const navigation = useNavigation<Nav>();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [filter, setFilter] = useState<DietHistoryPlanFilter>('all');
   const [items, setItems] = useState<DietHistoryArchiveItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const hasMoreRef = useRef(true);
+  const pageNumRef = useRef(1);
+  const filterRef = useRef(filter);
+  const loadingMoreRef = useRef(false);
 
-  const loadHistory = useCallback(async () => {
+  filterRef.current = filter;
+
+  const loadPlans = useCallback(async (mode: 'initial' | 'refresh' | 'more' | 'filter' = 'initial') => {
+    const currentFilter = filterRef.current;
+    const nextPageNum = mode === 'more' ? pageNumRef.current + 1 : 1;
+
+    if (mode === 'more') {
+      if (loadingMoreRef.current || !hasMoreRef.current) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else if (mode === 'initial' || mode === 'filter') {
+      if (mode === 'filter') setItems([]);
+      setLoading(true);
+    } else if (mode === 'refresh') {
+      setRefreshing(true);
+    }
+
     try {
-      const list = await loadDietHistoryArchivePreview();
-      setItems(list);
+      const { rows, hasMore: nextHasMore } = await fetchDietHistoryArchivePage(
+        currentFilter,
+        nextPageNum,
+        PAGE_SIZE,
+      );
+
+      // 筛选切换过程中若用户又点了别的筛选项，丢弃过期结果
+      if (currentFilter !== filterRef.current) return;
+
+      setItems(prev => (mode === 'more' ? mergeArchiveItems(prev, rows) : rows));
+      pageNumRef.current = nextPageNum;
+      setHasMore(nextHasMore);
+      hasMoreRef.current = nextHasMore;
     } catch {
-      setItems([]);
+      if (currentFilter !== filterRef.current) return;
+      if (mode !== 'more') {
+        setItems([]);
+      }
+      setHasMore(false);
+      hasMoreRef.current = false;
     } finally {
-      setLoading(false);
+      if (currentFilter === filterRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+        setLoadingMore(false);
+        loadingMoreRef.current = false;
+      }
     }
   }, []);
 
+  const handleFilterChange = useCallback((nextFilter: DietHistoryPlanFilter) => {
+    if (nextFilter === filterRef.current) return;
+    filterRef.current = nextFilter;
+    setFilter(nextFilter);
+    pageNumRef.current = 1;
+    hasMoreRef.current = true;
+    void loadPlans('filter');
+  }, [loadPlans]);
+
   useFocusEffect(
     useCallback(() => {
-      setLoading(true);
-      void loadHistory();
-    }, [loadHistory]),
+      void loadPlans('initial');
+    }, [loadPlans]),
   );
 
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (loadingMoreRef.current || loading || refreshing || !hasMoreRef.current) return;
+
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const distanceFromBottom = contentSize.height - layoutMeasurement.height - contentOffset.y;
+    if (distanceFromBottom < 120) {
+      void loadPlans('more');
+    }
+  }, [loadPlans, loading, refreshing]);
+
+  const showListLoading = loading && !refreshing && items.length === 0;
+
   return (
-    <PageLayout
-      style={styles.container}
-      contentStyle={{ flex: 1 }}
-      showHeaderBackground={false}
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: 0 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[scheduleStyles.historyBox, { paddingHorizontal: 12 }]}>
-          {loading ? (
-            <View style={{ paddingVertical: 40, alignItems: 'center' }}>
-              <ActivityIndicator color="#6D925E" />
-            </View>
-          ) : items.length > 0 ? (
+    <PageLayout style={styles.container} contentStyle={styles.historyPageBody}>
+      <View style={styles.historyFilterSection}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterRow}
+        >
+          {DIET_HISTORY_FILTER_OPTIONS.map(option => {
+            const active = filter === option.value;
+            return (
+              <TouchableOpacity
+                key={option.value}
+                activeOpacity={0.85}
+                style={[styles.filterItem, active && styles.filterItemActive]}
+                onPress={() => handleFilterChange(option.value)}
+              >
+                <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {showListLoading ? (
+        <Flex justify="center" style={styles.center}>
+          <ActivityIndicator color="#6D925E" />
+        </Flex>
+      ) : (
+        <ScrollView
+          style={styles.historyListScroll}
+          contentContainerStyle={[
+            styles.historyListContent,
+            items.length === 0 && styles.historyListContentEmpty,
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadPlans('refresh')}
+              colors={['#6D925E']}
+              tintColor="#6D925E"
+            />
+          }
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          {items.length > 0 ? (
             items.map(item => (
               <DietHistoryArchiveCard
                 key={item.id}
@@ -86,17 +200,19 @@ export default function NutritionHistoryPage() {
               />
             ))
           ) : (
-            <View style={scheduleStyles.historyEmptyInline}>
-              <Image
-                source={require('@/assets/images/common/zwjl.png')}
-                style={scheduleStyles.historyEmptyIcon}
-                resizeMode="contain"
-              />
-              <Text style={scheduleStyles.historyEmptyText}>暂无历史营养处方</Text>
+            <View style={styles.historyEmptyWrap}>
+              <EmptyRecord text="暂无历史营养处方" />
             </View>
           )}
-        </View>
-      </ScrollView>
+
+          {loadingMore ? (
+            <ActivityIndicator color="#6D925E" style={{ marginTop: 16 }} />
+          ) : null}
+          {!loadingMore && items.length > 0 && !hasMore ? (
+            <Text style={styles.loadMoreText}>没有更多了</Text>
+          ) : null}
+        </ScrollView>
+      )}
     </PageLayout>
   );
 }

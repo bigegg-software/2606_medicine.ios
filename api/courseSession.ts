@@ -84,6 +84,10 @@ export type CourseSessionItem = {
   bookedByMe?: boolean;
   /** 当前用户预约 id（若列表回填） */
   bookingId?: number | string;
+  /** 当前用户预约状态：1.已预约 2.已取消 3.已核销 4.已爽约（若详情/列表回填） */
+  bookingStatus?: number;
+  /** 核销方式：1.学员签到 2.管理员核销 3.教练核销（若回填） */
+  verifyType?: number;
   delFlag?: string;
   createTime?: string;
   updateTime?: string;

@@ -36,6 +36,8 @@ type Props = {
 export default function HealthPlanPage({
   isActive = true,
   dietPatientRuleId,
+  readOnly = false,
+  patientUserId,
 }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { width } = useWindowDimensions();
@@ -44,6 +46,7 @@ export default function HealthPlanPage({
   const [loading, setLoading] = useState(true);
   /** 再次进入 tab / 返回页面时静默刷新 */
   const hasLoadedRef = useRef(false);
+  const suitLabel = patientUserId ? '适合家人' : '适合你';
 
   const loadPlans = useCallback(async (options?: { silent?: boolean }) => {
     const silent = Boolean(options?.silent);
@@ -73,11 +76,15 @@ export default function HealthPlanPage({
   }, [isActive, loadPlans]);
 
   const openCoachBooking = (planId?: number | string) => {
-    if (planId == null || planId === '') {
+    const params = {
+      ...(planId != null && planId !== '' ? { planId: String(planId) } : {}),
+      ...(readOnly ? { readOnly: true as const } : {}),
+    };
+    if (Object.keys(params).length === 0) {
       navigation.navigate('CoachBookingPage');
       return;
     }
-    navigation.navigate('CoachBookingPage', { planId: String(planId) });
+    navigation.navigate('CoachBookingPage', params);
   };
 
   return (
@@ -108,7 +115,7 @@ export default function HealthPlanPage({
                         style={styles.planItemBtnIcon}
                         source={require('@/assets/images/exercise/hs.png')}
                       />
-                      <Text style={styles.planItemBtnText}>适合你</Text>
+                      <Text style={styles.planItemBtnText}>{suitLabel}</Text>
                     </Flex>
                     <Text style={styles.planItemTitle} numberOfLines={1}>
                       {item.planName?.trim() || '--'}

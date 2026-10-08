@@ -92,6 +92,11 @@ export default function FamilyHomePage() {
     () => buildFamilyHomeMemberCards(familyList),
     [familyList],
   );
+  /** 本周活跃度仅展示已确认家人，待确认不出现在此区块 */
+  const activityMemberCards = useMemo(
+    () => memberCards.filter(item => !item.pending),
+    [memberCards],
+  );
   const approvedFamilyList = useMemo(
     () => getApprovedFamilyBindList(familyList),
     [familyList],
@@ -470,7 +475,7 @@ export default function FamilyHomePage() {
             <Text style={styles.todoTitle}>家人本周活跃度</Text>
           </Flex>
 
-          {memberCards.length === 0 ? (
+          {activityMemberCards.length === 0 ? (
             <View style={styles.activityScroll}>
               <FamilyHomeEmpty />
             </View>
@@ -480,7 +485,7 @@ export default function FamilyHomePage() {
               showsHorizontalScrollIndicator={false}
               style={styles.activityScroll}
             >
-              {memberCards.map(member => {
+              {activityMemberCards.map(member => {
                 const rate = member.patientUserId
                   ? activityProgressMap[member.patientUserId]
                   : null;

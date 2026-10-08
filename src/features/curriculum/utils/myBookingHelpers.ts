@@ -21,19 +21,16 @@ type BookingStatusLabelOptions = {
 
 /**
  * 预约状态文案：
- * - 预约：1.已预约 2.已取消 3.已核销 4.已爽约/缺席
- * - 学员签到核销(verifyType=1) → 已签到
- * - 场次已结束(sessionStatus=5)：已核销 → 已完成；未核销 → 已过期
+ * - 预约：1.已预约 2.已取消 3.已核销/已完成 4.已爽约/缺席
+ * - 场次已结束(sessionStatus=5)且未核销 → 已过期
  */
 export function bookingStatusLabel(
   status?: number,
   options?: BookingStatusLabelOptions,
 ) {
   const s = Number(status);
-  const verifyType = Number(options?.verifyType);
   const sessionStatus = Number(options?.sessionStatus);
 
-  if (s === 3 && verifyType === 1) return '已签到';
   if (s === 3) return '已完成';
   if (s === 4) return '缺席';
   if (s === 2) return '已取消';
@@ -98,6 +95,55 @@ function resolveBookingId(item: CourseSessionBookingItem) {
   return item.bookingId != null ? String(item.bookingId).trim() : '';
 }
 
+/**
+ * 按 bookingId / sessionId 查当前用户预约状态（1已预约 2已取消 3已核销 4已爽约）
+ * 用于详情页：签到核销后隐藏取消预约 / 进入直播
+ */
+export async function fetchMyBookingStatusForSession(params: {
+  sessionId?: string | number | null;
+  bookingId?: string | number | null;
+}): Promise<number | undefined> {
+  const bookingId =
+    params.bookingId != null && String(params.bookingId).trim()
+      ? String(params.bookingId).trim()
+      : '';
+  const sessionId =
+    params.sessionId != null && String(params.sessionId).trim()
+      ? String(params.sessionId).trim()
+      : '';
+  if (!bookingId && !sessionId) return undefined;
+
+  const match = (item: CourseSessionBookingItem) => {
+    if (bookingId && resolveBookingId(item) === bookingId) return true;
+    return Boolean(sessionId && resolveSessionId(item) === sessionId);
+  };
+
+  // 优先查核销/缺席（签到后常见），再查进行中预约与取消
+  const statuses = [3, 1, 4, 2] as const;
+  const results = await Promise.all(
+    statuses.map(async status => {
+      try {
+        const res = await getMyBookingPage({
+          status,
+          pageNum: 1,
+          pageSize: 50,
+        });
+        if (!isResourceApiOk(res)) return null;
+        return getResourceRows<CourseSessionBookingItem>(res).find(match) ?? null;
+      } catch {
+        return null;
+      }
+    }),
+  );
+
+  for (const found of results) {
+    if (found?.status != null && String(found.status).trim() !== '') {
+      return Number(found.status);
+    }
+  }
+  return undefined;
+}
+
 function resolveSessionDate(item: CourseSessionBookingItem) {
   return item.sessionDate?.trim() || item.session?.sessionDate?.trim() || '';
 }
@@ -119,7 +165,13 @@ function resolveCoachName(item: CourseSessionBookingItem) {
 }
 
 function resolveCourseName(item: CourseSessionBookingItem) {
-  return item.session?.template?.courseName?.trim() || '课程';
+  const name = item.session?.template?.courseName?.trim() || '';
+  const courseType = resolveCourseType(item);
+  // 私教无关联课程（或占位「课程」）时统一展示一对一私教训练
+  if (courseType === 'private' && (!name || name === '课程')) {
+    return '一对一私教训练';
+  }
+  return name || '课程';
 }
 
 function resolveStationName(item: CourseSessionBookingItem) {
@@ -293,14 +345,16 @@ export function mapCompletedBookingCard(
   const coach = resolveCoachName(item);
   const courseName = resolveCourseName(item);
   const status = Number(item.status ?? 3);
+  const isAbsent = isBookingAbsent(status);
   return {
     key: bookingId,
     bookingId,
     sessionId,
     courseType,
     status,
-    statusLabel: resolveBookingStatusLabel(item),
-    isAbsent: isBookingAbsent(status),
+    // 已完成页签仅两种状态
+    statusLabel: isAbsent ? '缺席' : '已完成',
+    isAbsent,
     sessionDate: resolveSessionDate(item),
     dateText: formatCompletedDateText(item),
     title: `${courseName} · ${courseTypeShortLabel(courseType)} · ${coach}`,
@@ -424,6 +478,7 @@ async function fetchCompletedBookingsByStatus(options: {
 /**
  * 已完成列表：默认含已核销(3)+缺席(4)；可按状态筛选
  * status：'' | 3 | 4
+ * total：仅统计已完成(status=3)课时，不含缺席
  */
 export async function fetchCompletedBookings(options?: {
   courseType?: string;
@@ -441,13 +496,32 @@ export async function fetchCompletedBookings(options?: {
       ? Number(statusRaw)
       : NaN;
 
-  if (statusNum === 3 || statusNum === 4) {
+  if (statusNum === 3) {
     return fetchCompletedBookingsByStatus({
-      status: statusNum,
+      status: 3,
       courseType,
       pageNum,
       pageSize,
     });
+  }
+
+  if (statusNum === 4) {
+    const [absent, done] = await Promise.all([
+      fetchCompletedBookingsByStatus({
+        status: 4,
+        courseType,
+        pageNum,
+        pageSize,
+      }),
+      // 课时统计只计已完成
+      fetchCompletedBookingsByStatus({
+        status: 3,
+        courseType,
+        pageNum: 1,
+        pageSize: 1,
+      }),
+    ]);
+    return { rows: absent.rows, total: done.total };
   }
 
   const [done, absent] = await Promise.all([
@@ -455,7 +529,7 @@ export async function fetchCompletedBookings(options?: {
     fetchCompletedBookingsByStatus({ status: 4, courseType, pageNum, pageSize }),
   ]);
   const merged = sortCompletedCards([...done.rows, ...absent.rows]).slice(0, pageSize);
-  return { rows: merged, total: done.total + absent.total };
+  return { rows: merged, total: done.total };
 }
 
 /** 即将开始页数据：下一次 + 后续安排 + 最近完成 */

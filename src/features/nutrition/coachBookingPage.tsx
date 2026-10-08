@@ -55,6 +55,7 @@ export default function CoachBookingPage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
   const planId = route.params?.planId ? String(route.params.planId) : '';
+  const readOnly = Boolean(route.params?.readOnly);
   const stationId = useSelector((state: RootState) => {
     const id = state.user.systemUser?.stationId;
     return id != null ? String(id).trim() : '';
@@ -416,32 +417,34 @@ export default function CoachBookingPage() {
             </Flex>
           </ScrollView>
 
-          <Flex justify="between" align="start" style={styles.bottomBar}>
-            <View>
-              <Text style={styles.bottomPrice}>
-                <Text style={{ fontSize: 18 }}>￥</Text>
-                {priceText}
-              </Text>
-              <Text style={styles.bottomPriceDesc}>专项健康体验课</Text>
-            </View>
-            <TouchableOpacity
-              activeOpacity={0.8}
-              style={styles.bottomBookBtn}
-              onPress={() => {
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'MainTabs', params: { screen: 'Curriculum' } }],
-                });
-              }}
-            >
-              <Image
-                style={styles.bottomBookIcon}
-                tintColor="#FFFFFF"
-                source={require('@/assets/images/schedule/time.png')}
-              />
-              <Text style={styles.bottomBookText}>预约教练</Text>
-            </TouchableOpacity>
-          </Flex>
+          {!readOnly ? (
+            <Flex justify="between" align="start" style={styles.bottomBar}>
+              <View>
+                <Text style={styles.bottomPrice}>
+                  <Text style={{ fontSize: 18 }}>￥</Text>
+                  {priceText}
+                </Text>
+                <Text style={styles.bottomPriceDesc}>专项健康体验课</Text>
+              </View>
+              <TouchableOpacity
+                activeOpacity={0.8}
+                style={styles.bottomBookBtn}
+                onPress={() => {
+                  navigation.reset({
+                    index: 0,
+                    routes: [{ name: 'MainTabs', params: { screen: 'Curriculum' } }],
+                  });
+                }}
+              >
+                <Image
+                  style={styles.bottomBookIcon}
+                  tintColor="#FFFFFF"
+                  source={require('@/assets/images/schedule/time.png')}
+                />
+                <Text style={styles.bottomBookText}>预约教练</Text>
+              </TouchableOpacity>
+            </Flex>
+          ) : null}
         </>
       )}
     </PageLayout>

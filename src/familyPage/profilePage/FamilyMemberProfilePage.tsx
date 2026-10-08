@@ -71,6 +71,7 @@ export default function FamilyMemberProfilePage() {
   const dispatch = useDispatch<AppDispatch>();
   const insets = useSafeAreaInsets();
   const systemUser = useSelector((s: RootState) => s.user.systemUser);
+  const cachedUser = useSelector((s: RootState) => s.user.info);
   const phone = systemUser?.phonenumber;
 
   const [form, setForm] = useState<FamilyMemberProfileForm>(
@@ -90,14 +91,14 @@ export default function FamilyMemberProfilePage() {
   const loadProfile = useCallback(async () => {
     setInitializing(true);
     try {
-      const data = await loadFamilyMemberProfileForm(phone);
+      const data = await loadFamilyMemberProfileForm(phone, cachedUser);
       setForm(data);
     } catch {
       setForm(emptyFamilyMemberProfileForm(phone));
     } finally {
       setInitializing(false);
     }
-  }, [phone]);
+  }, [cachedUser, phone]);
 
   useFocusEffect(
     useCallback(() => {
@@ -263,16 +264,19 @@ export default function FamilyMemberProfilePage() {
                 <TouchableOpacity activeOpacity={0.7}>
                   <Flex justify="between" align="center" style={styles.infoItem}>
                     <Text style={styles.infoItemLabel}>出生日期</Text>
-                    <Flex justify="end" align="center" style={{ flex: 1 }}>
+                    <Flex align="center" style={{ flexShrink: 0 }}>
                       <Text
-                        style={[styles.infoItemValue, !form.birthDate && styles.infoPlaceholder]}
+                        style={[
+                          styles.birthDateText,
+                          !form.birthDate && styles.infoPlaceholder,
+                        ]}
                       >
                         {form.birthDate || '请选择出生日期'}
                       </Text>
                       <Image
                         tintColor={AppTheme.primaryColor}
                         source={require('@/assets/images/user/icon-rl.png')}
-                        style={styles.arrowRight}
+                        style={styles.birthDateIcon}
                       />
                     </Flex>
                   </Flex>

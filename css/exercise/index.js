@@ -202,6 +202,25 @@ const styles = StyleSheet.create({
   trainingExerciseInfo: { flex: 1, marginLeft: 13, justifyContent: 'center' },
   trainingExerciseTitle: { fontWeight: 'bold', fontSize: 15, color: '#333333' },
   trainingExerciseDuration: { marginTop: 6, fontWeight: '500', fontSize: 14, color: '#999999' },
+  trainingExerciseEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  trainingExerciseEmptyIcon: {
+    marginTop: -60,
+    width: 80,
+    height: 80,
+  },
+  trainingExerciseEmptyText: {
+    marginTop: 25,
+    fontWeight: '500',
+    fontSize: 14,
+    color: '#999999',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   trainingExerciseCheck: { width: 20, height: 20, flexShrink: 0 },
   trainingPhaseContentTitle: { fontWeight: 'bold', fontSize: 16, color: '#333333' },
   mainTrainingModule: {

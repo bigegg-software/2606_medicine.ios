@@ -40,6 +40,11 @@ import {
 import CoachEntryCard from './components/CoachEntryCard';
 import CourseSubMetaRow from './components/CourseSubMetaRow';
 import CourseTypeTitleTag from './components/CourseTypeTitleTag';
+import { navigateToCurriculumTab } from './utils/navigationHelpers';
+import {
+  isBookingAbsentStatus,
+  isBookingActionClosed,
+} from './utils/sessionActionHelpers';
 
 type Route = RouteProp<RootStackParamList, 'OnlineCourseDetail'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -52,6 +57,10 @@ export default function OnlineCourseDetailPage() {
   const insets = useSafeAreaInsets();
   const { params } = useRoute<Route>();
   const sessionId = toSessionId(params.sessionId);
+  const bookingStatusHint =
+    params.bookingStatus != null && String(params.bookingStatus).trim() !== ''
+      ? Number(params.bookingStatus)
+      : undefined;
   const onlineRemainCount = useSelector((state: RootState) =>
     resolveCourseBenefitRemainCount(state.user.systemUser, 'online'),
   );
@@ -83,14 +92,14 @@ export default function OnlineCourseDetailPage() {
     }
     setLoading(true);
     try {
-      const next = await fetchOnlineCourseDetail(sessionId);
+      const next = await fetchOnlineCourseDetail(sessionId, bookingStatusHint);
       setDetail(next);
     } catch {
       setDetail(null);
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [bookingStatusHint, sessionId]);
 
   useEffect(() => {
     void loadDetail();
@@ -217,9 +226,13 @@ export default function OnlineCourseDetailPage() {
 
   const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
   const watchUrl = detail.liveLink?.trim() || '';
+  // 已签到/已核销/已取消/缺席：不再展示取消预约、进入直播
+  const bookingClosed = isBookingActionClosed(detail.bookingStatus);
+  const showRebook = isBookingAbsentStatus(detail.bookingStatus);
   // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消预约
   const showReserveAction =
-    detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+    !bookingClosed && detail.status !== 4 && detail.status !== 5 && detail.status !== 6;
+  const showEnterLive = !bookingClosed && detail.status === 4;
   const reserveBlocked =
     !detail.bookedByMe && (detail.status === 2 || detail.status === 3);
   const reserveActionLabel = detail.bookedByMe
@@ -321,8 +334,18 @@ export default function OnlineCourseDetailPage() {
           </View>
         </ScrollView>
 
-        <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
-          {showReserveAction ? (
+        {showRebook ? (
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
+            <TouchableOpacity
+              style={styles.btn}
+              activeOpacity={0.7}
+              onPress={() => navigateToCurriculumTab(navigation)}
+            >
+              <Text style={styles.btnText}>重新预约</Text>
+            </TouchableOpacity>
+          </View>
+        ) : showReserveAction ? (
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
             <TouchableOpacity
               style={[
                 styles.btn,
@@ -348,12 +371,14 @@ export default function OnlineCourseDetailPage() {
                 </Text>
               )}
             </TouchableOpacity>
-          ) : (
+          </View>
+        ) : showEnterLive ? (
+          <View style={[styles.bottomBar, { paddingBottom: Math.max(insets.bottom, 40) }]}>
             <TouchableOpacity style={styles.btn} activeOpacity={0.7} onPress={handleWatch}>
               <Text style={styles.btnText}>进入直播</Text>
             </TouchableOpacity>
-          )}
-        </View>
+          </View>
+        ) : null}
       </View>
     </PageLayout>
   );

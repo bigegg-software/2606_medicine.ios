@@ -66,11 +66,14 @@ export default function MyBookingPage() {
   const loadedTabRef = useRef<TabKey | null>(null);
 
   const openDetail = useCallback(
-    (sessionId: string, courseType: string) => {
+    (sessionId: string, courseType: string, bookingStatus?: number) => {
       const id = String(sessionId ?? '').trim();
       if (!id) return;
       const route = resolveBookingDetailRoute(courseType);
-      navigation.navigate(route, { sessionId: id });
+      navigation.navigate(route, {
+        sessionId: id,
+        ...(bookingStatus != null ? { bookingStatus } : {}),
+      });
     },
     [navigation],
   );
@@ -199,7 +202,9 @@ export default function MyBookingPage() {
                   />
                   <View style={styles.bookingCardBody}>
                     <Flex justify="between" align="center">
-                      <Text style={styles.bookingLabel}>下一次训练</Text>
+                      <Text style={styles.bookingLabel}>
+                        {nextBooking.sessionStatus === 4 ? '当前训练' : '下一次训练'}
+                      </Text>
                       <View style={styles.bookingStatusTag}>
                         <Text style={styles.bookingStatusText}>{nextBooking.statusLabel}</Text>
                       </View>
@@ -340,7 +345,9 @@ export default function MyBookingPage() {
                         activeOpacity={0.7}
                         style={styles.doneCard}
                         onPress={() => {
-                          if (item.sessionId) openDetail(item.sessionId, item.courseType);
+                          if (item.sessionId) {
+                            openDetail(item.sessionId, item.courseType, item.status);
+                          }
                         }}
                       >
                         <Flex align="start">
@@ -432,7 +439,9 @@ export default function MyBookingPage() {
                   activeOpacity={0.7}
                   style={styles.doneCard}
                   onPress={() => {
-                    if (item.sessionId) openDetail(item.sessionId, item.courseType);
+                    if (item.sessionId) {
+                      openDetail(item.sessionId, item.courseType, item.status);
+                    }
                   }}
                 >
                   <Flex align="start">

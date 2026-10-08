@@ -152,6 +152,7 @@ export function resolveMessageCategory(type?: string): MessageCategoryMeta {
       'activiey_cancel',
       'activity_',
       'health_activity',
+      'course_booking',
     ])
   ) {
     return CATEGORY_META.activity;

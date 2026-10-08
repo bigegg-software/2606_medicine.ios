@@ -211,7 +211,12 @@ export default function MessagePage() {
             const severity = item.severity;
             const showDetail = shouldShowMessageDetailLink(item.raw.type);
             return (
-                <TouchableOpacity activeOpacity={0.85} onPress={() => { void handlePressItem(item); }}>
+                <TouchableOpacity
+                    activeOpacity={0.85}
+                    onPress={() => {
+                        void handlePressItem(item);
+                    }}
+                >
                     <View style={styles.messageItem}>
                         <Flex justify="between" align="center">
                             <Flex align="center" style={{ flexShrink: 1 }}>

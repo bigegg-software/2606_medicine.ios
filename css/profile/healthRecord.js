@@ -343,6 +343,15 @@ const styles = StyleSheet.create({
     // editPage
     tipText: { fontWeight: 400, marginTop: 8, fontSize: 14, color: AppTheme.textSecondary, lineHeight: 21 },
     arrowRight: { width: 5, height: 9, marginLeft: 8 },
+    /** 家属个人信息出生日期（独立样式，避免 infoItemValue 的 flex 把文案压没） */
+    birthDateText: {
+        marginLeft: 12,
+        fontWeight: '500',
+        fontSize: 14,
+        color: AppTheme.textPrimary,
+        flexShrink: 0,
+    },
+    birthDateIcon: { width: 16, height: 16, marginLeft: 8, flexShrink: 0 },
     unitText: { fontWeight: 500, fontSize: 14, color: AppTheme.textSecondary, marginLeft: 16 },
     chipGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-start' },
     genderSelectRow: {
