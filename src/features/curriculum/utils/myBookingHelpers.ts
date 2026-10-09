@@ -340,8 +340,10 @@ export type MyBookingCompletedCardView = {
   isAbsent: boolean;
   sessionDate: string;
   dateText: string;
-  /** 康复普拉提 · 私教 · 李教练 */
+  /** 康复普拉提 · 私教 · 李教练（已完成页签） */
   title: string;
+  /** 康复普拉提 · 李教练（最近完成单行，不含课程类型） */
+  briefTitle: string;
   coverUri?: string;
 };
 
@@ -368,6 +370,7 @@ export function mapCompletedBookingCard(
     sessionDate: resolveSessionDate(item),
     dateText: formatCompletedDateText(item),
     title: `${courseName} · ${courseTypeShortLabel(courseType)} · ${coach}`,
+    briefTitle: `${courseName} · ${coach}`,
     coverUri: resolveCoverUri(item),
   };
 }

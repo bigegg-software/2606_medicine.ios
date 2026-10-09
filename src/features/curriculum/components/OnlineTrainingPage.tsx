@@ -368,12 +368,44 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
                           {card.isRecommend ? '直播·推荐' : '直播'}
                         </Text>
                       </View>
-                      <Text style={styles.liveTitle} numberOfLines={2}>
+                      <Text style={styles.liveTitle} numberOfLines={1}>
                         {card.title}
                       </Text>
-                      <Text style={styles.liveSuit} numberOfLines={2}>
+                      <Text style={styles.liveTime} numberOfLines={1}>
+                        {card.timeText}
+                      </Text>
+                      <Text style={styles.liveSuit} numberOfLines={1}>
                         {card.suitText}
                       </Text>
+                      <Flex justify="between" align="center" style={styles.liveActionRow}>
+                        <View style={styles.liveEnrollRow}>
+                          <Image
+                            style={styles.liveEnrollIcon}
+                            tintColor={"#666666"}
+                            source={require('@/assets/images/curriculum/bm.png')}
+                          />
+                          <Text style={styles.liveEnrollText} numberOfLines={1}>
+                            {card.benefitText}
+                          </Text>
+                        </View>
+                        <TouchableOpacity
+                          activeOpacity={0.7}
+                          style={[styles.liveBookBtn, actionStyles.btn]}
+                          disabled={busy || !action.pressable}
+                          onPress={() => {
+                            if (!action.pressable || busy) return;
+                            if (card.bookedByMe) {
+                              handleCancel(card);
+                            } else {
+                              handleBook(card);
+                            }
+                          }}
+                        >
+                          <Text style={[styles.liveBookBtnText, actionStyles.text]}>
+                            {busy ? '处理中...' : action.label}
+                          </Text>
+                        </TouchableOpacity>
+                      </Flex>
                     </View>
                   </Flex>
 
@@ -385,37 +417,6 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
                     <Text style={styles.livePrepareText} numberOfLines={2}>
                       {card.prepareText}
                     </Text>
-                  </Flex>
-
-                  <Flex justify="between" align="center" style={styles.liveBottomRow}>
-                    <View style={styles.liveBottomLeft}>
-                      <Text style={styles.liveTime}>{card.timeText}</Text>
-                      <View style={styles.liveBenefitRow}>
-                        <Image
-                          style={styles.liveBenefitIcon}
-                          tintColor="#000000"
-                          source={require('@/assets/images/curriculum/bm.png')}
-                        />
-                        <Text style={styles.liveBenefitText}>{card.benefitText}</Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      activeOpacity={0.7}
-                      style={[styles.liveBookBtn, actionStyles.btn]}
-                      disabled={busy || !action.pressable}
-                      onPress={() => {
-                        if (!action.pressable || busy) return;
-                        if (card.bookedByMe) {
-                          handleCancel(card);
-                        } else {
-                          handleBook(card);
-                        }
-                      }}
-                    >
-                      <Text style={[styles.liveBookBtnText, actionStyles.text]}>
-                        {busy ? '处理中...' : action.label}
-                      </Text>
-                    </TouchableOpacity>
                   </Flex>
                 </TouchableOpacity>
               );
@@ -459,9 +460,26 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
                 }
               >
                 <Flex align="start" style={styles.practiceCard}>
-                  <Image style={styles.practiceCover} source={card.coverSource} />
+                  <Image
+                    style={styles.practiceCover}
+                    source={card.coverSource}
+                    resizeMode="cover"
+                  />
                   <View style={styles.practiceInfo}>
-                    <Text style={styles.practiceTitle} numberOfLines={1}>
+                    {card.durationMinutes > 0 ? (
+                      <Text style={styles.practiceTitle} numberOfLines={1}>
+                        {`${card.durationMinutes}分钟`}
+                      </Text>
+                    ) : null}
+                    <Text
+                      style={[
+                        styles.practiceTitle,
+                        card.durationMinutes > 0 ? styles.practiceTitleSecond : null,
+                        {marginTop:8},
+
+                      ]}
+                      numberOfLines={1}
+                    >
                       {card.title}
                     </Text>
                     <Text style={styles.practiceSubtitle} numberOfLines={1}>
@@ -474,10 +492,9 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
           </ScrollView>
         ) : null}
 
-        <Flex justify="center" align="center" style={styles.planListFooter}>
-          <View style={styles.planListFooterLine} />
+        <Flex justify="center" align="center" style={[styles.planListFooter, { gap: 6 }]}>
+          <Image source={require('@/assets/images/curriculum/yz.png')} style={styles.planListFooterImage} />
           <Text style={styles.planListFooterText}>每一次居家练习，都是为更好相见做准备</Text>
-          <View style={styles.planListFooterLine} />
         </Flex>
       </ScrollView>
     </View>

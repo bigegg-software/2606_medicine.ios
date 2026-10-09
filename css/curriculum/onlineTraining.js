@@ -23,8 +23,10 @@ const styles = StyleSheet.create({
     borderRadius: 13,
   },
   bannerTitle: {
+    width: 120,
     fontWeight: 'bold',
     fontSize: 17,
+    lineHeight: 26,
     color: '#333333',
   },
   bannerDesc: {
@@ -49,91 +51,96 @@ const styles = StyleSheet.create({
     borderRadius: 13,
   },
   liveAvatar: {
-    width: 86,
-    height: 86,
+    width: 89,
+    height: 89,
     borderRadius: 50,
     flexShrink: 0,
   },
   liveInfo: {
     flex: 1,
-    marginLeft: 13,
+    marginLeft: 16,
     minWidth: 0,
   },
   liveTag: {
     alignSelf: 'flex-start',
-    marginTop: 8,
     paddingHorizontal: 5,
-    paddingVertical: 3,
-    backgroundColor: '#6D925E',
+    paddingVertical: 4,
+    backgroundColor: '#EFF7F0',
     borderRadius: 4,
   },
   liveTagText: {
-    fontWeight: '500',
+    fontWeight: 'bold',
     fontSize: 11,
-    color: '#FFFFFF',
+    color: '#6D925E',
   },
   liveTitle: {
-    marginTop: 7,
+    marginTop: 9,
     fontWeight: 'bold',
-    fontSize: 17,
+    fontSize: 15,
+    color: '#333333',
+  },
+  liveTime: {
+    marginTop: 9,
+    fontWeight: '500',
+    fontSize: 14,
     color: '#333333',
   },
   liveSuit: {
-    marginTop: 11,
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#999999',
-  },
-  livePrepareBox: {
-    marginTop: 16,
-    paddingHorizontal: 13,
-    paddingVertical: 16,
-    backgroundColor: '#F6F8FB',
-    borderRadius: 6,
-  },
-  livePrepareIcon: {
-    width: 13,
-    height: 13,
-    marginRight: 5,
-  },
-  livePrepareText: {
+    marginTop: 9,
     fontWeight: '500',
     fontSize: 13,
     color: '#666666',
   },
-  liveBottomRow: {
-    marginTop: 16,
+  liveActionRow: {
+    marginTop: 9,
     alignItems: 'center',
   },
-  liveBottomLeft: {
+  liveEnrollRow: {
     flex: 1,
     minWidth: 0,
     marginRight: 8,
-  },
-  liveTime: {
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#6D925E',
-  },
-  liveBenefitRow: {
-    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'center',
   },
-  liveBenefitIcon: {
+  liveEnrollIcon: {
     width: 13,
     height: 13,
     marginRight: 5,
+    flexShrink: 0,
   },
-  liveBenefitText: {
+  liveEnrollText: {
+    flex: 1,
+    minWidth: 0,
     fontWeight: '500',
-    fontSize: 14,
+    fontSize: 13,
+    color: '#333333',
+  },
+  livePrepareBox: {
+    marginTop: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 16,
+    backgroundColor: '#F6F8FB',
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  livePrepareIcon: {
+    width: 13,
+    height: 13,
+    marginRight: 8,
+    flexShrink: 0,
+  },
+  livePrepareText: {
+    flex: 1,
+    minWidth: 0,
+    fontWeight: '500',
+    fontSize: 13,
+    lineHeight: 18,
     color: '#666666',
   },
   liveBookBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 27,
+    borderRadius: 50,
     borderWidth: 1,
     borderColor: '#6D925E',
     backgroundColor: '#FFFFFF',
@@ -144,27 +151,31 @@ const styles = StyleSheet.create({
     color: '#6D925E',
   },
   liveBookBtnBooked: {
-    borderColor: '#6D925E',
-    backgroundColor: 'rgba(109,146,94,0.12)',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: 'rgba(109,146,94,0.2)',
   },
   liveBookBtnBookedText: {
     color: '#6D925E',
   },
   liveBookBtnDeadline: {
-    borderColor: '#EE9C44',
-    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: '#E4E5E7',
   },
   liveBookBtnDeadlineText: {
-    color: '#EE9C44',
+    color: '#333333',
   },
   liveBookBtnOngoing: {
     borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: '#6D925E',
   },
   liveBookBtnOngoingText: {
     color: '#FFFFFF',
   },
   liveBookBtnEnded: {
+    borderWidth: 1,
     borderColor: '#FB4550',
     backgroundColor: '#FFFFFF',
   },
@@ -172,6 +183,7 @@ const styles = StyleSheet.create({
     color: '#FB4550',
   },
   liveBookBtnFull: {
+    borderWidth: 1,
     borderColor: '#EE9C44',
     backgroundColor: '#FFFFFF',
   },
@@ -186,7 +198,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   practiceCard: {
-    padding: 16,
+    width: 190,
+    padding: 5,
     backgroundColor: '#FFFFFF',
     borderRadius: 13,
     shadowColor: '#EAEAEA',
@@ -196,30 +209,38 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   practiceCover: {
-    width: 54,
-    height: 54,
-    borderRadius: 50,
+    width: 86,
+    height: 72,
+    borderRadius: 8,
     flexShrink: 0,
   },
   practiceInfo: {
-    marginLeft: 13,
+    flex: 1,
+    marginLeft: 9,
     minWidth: 0,
   },
   practiceTitle: {
     marginTop: 4,
     fontWeight: '500',
-    fontSize: 15,
+    fontSize: 13,
     color: '#333333',
   },
+  practiceTitleSecond: {
+    marginTop: 2,
+  },
   practiceSubtitle: {
-    marginTop: 6,
+    marginTop: 8,
     fontWeight: '500',
-    fontSize: 13,
+    fontSize: 12,
     color: '#999999',
   },
   planListFooter: {
     marginTop: 19,
-    gap: 13,
+    gap: 6,
+  },
+  planListFooterImage: {
+    width: 13,
+    height: 13,
   },
   planListFooterLine: {
     width: 26,
@@ -232,7 +253,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#999999',
   },
-
 });
 
 export default styles;

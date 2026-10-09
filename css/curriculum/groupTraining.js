@@ -75,37 +75,22 @@ const styles = StyleSheet.create({
   filterRow: {
     marginTop: 19,
     alignItems: 'center',
-    width: '100%',
   },
   filterChipRow: {
-    flex: 1,
-    minWidth: 0,
     gap: 8,
-    marginRight: 8,
-  },
-  filterChipWrap: {
-    flex: 1,
-    minWidth: 0,
   },
   filterChip: {
-    width: '100%',
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 9,
     backgroundColor: '#FFFFFF',
-    borderRadius: 4,
+    borderRadius: 20,
     shadowColor: '#EAEAEA',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
     shadowRadius: 5,
     elevation: 2,
   },
-  filterChipInner: {
-    width: '100%',
-  },
   filterChipText: {
-    flex: 1,
-    flexShrink: 1,
-    minWidth: 0,
     fontWeight: '500',
     fontSize: 14,
     color: '#333333',
@@ -113,12 +98,7 @@ const styles = StyleSheet.create({
   filterChipIcon: {
     width: 9,
     height: 4,
-    marginLeft: 4,
-    flexShrink: 0,
-  },
-  myBookingBtn: {
-    marginLeft: 8,
-    flexShrink: 0,
+    marginLeft: 5,
   },
   myBookingIcon: {
     width: 8,
@@ -203,23 +183,24 @@ const styles = StyleSheet.create({
     height: 107,
   },
   classBody: {
-    padding: 16,
+    paddingVertical: 11,
+    paddingHorizontal: 16,
   },
   classTitleRow: {
     alignItems: 'center',
   },
   classTitle: {
+    flex: 1,
     minWidth: 0,
-    marginRight: 8,
     fontWeight: 'bold',
     fontSize: 17,
     color: '#333333',
   },
   classTag: {
-    alignSelf: 'flex-start',
     flexDirection: 'row',
     alignItems: 'center',
     flexShrink: 0,
+    marginRight: 6,
     paddingHorizontal: 4,
     paddingVertical: 5,
     backgroundColor: '#6D925E',
@@ -236,59 +217,54 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   classMetaRow: {
-    marginTop: 9,
-    alignItems: 'center',
+    marginTop: 11,
+    alignItems: 'flex-start',
   },
-  classMetaLeft: {
+  classTime: {
+    flexShrink: 0,
+    marginRight: 10,
+    fontWeight: '500',
+    fontSize: 15,
+    color: '#6D925E',
+  },
+  classMetaCenter: {
     flex: 1,
     minWidth: 0,
-    marginRight: 8,
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#999999',
+    marginRight: 9,
   },
-  classMetaRight: {
+  classMetaCoach: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#666666',
+  },
+  classMetaEnroll: {
+    marginTop: 5,
     flexDirection: 'row',
     alignItems: 'center',
-    flexShrink: 0,
   },
   classMetaIcon: {
     width: 13,
     height: 13,
     marginRight: 5,
+    flexShrink: 0,
   },
-  classMetaRightText: {
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#999999',
-  },
-  classDashWrap: {
-    marginTop: 16,
-    height: 1,
-    overflow: 'hidden',
-  },
-  classDash: {
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: 'rgba(23,63,125,0.08)',
-    marginTop: -1,
-  },
-  classBottomRow: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  classBottomLeft: {
+  classMetaEnrollText: {
     flex: 1,
     minWidth: 0,
-    marginRight: 8,
-  },
-  classTime: {
     fontWeight: '500',
-    fontSize: 14,
-    color: '#6D925E',
+    fontSize: 13,
+    color: '#666666',
+  },
+  classBookBtnWrap: {
+    flexShrink: 0,
+  },
+  classDivider: {
+    marginTop: 13,
+    height: 1,
+    backgroundColor: 'rgba(23,63,125,0.08)',
   },
   classBenefitRow: {
-    marginTop: 6,
+    marginTop: 11,
     flexDirection: 'row',
     alignItems: 'center',
   },
@@ -296,16 +272,19 @@ const styles = StyleSheet.create({
     width: 13,
     height: 13,
     marginRight: 4,
+    flexShrink: 0,
   },
   classBenefitText: {
+    flex: 1,
+    minWidth: 0,
     fontWeight: '500',
-    fontSize: 14,
+    fontSize: 13,
     color: '#666666',
   },
   classBookBtn: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderRadius: 27,
+    borderRadius: 50,
     borderWidth: 1,
     borderColor: '#6D925E',
     backgroundColor: '#FFFFFF',
@@ -316,27 +295,31 @@ const styles = StyleSheet.create({
     color: '#6D925E',
   },
   classBookBtnBooked: {
-    borderColor: '#6D925E',
-    backgroundColor: 'rgba(109,146,94,0.12)',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: 'rgba(109,146,94,0.2)',
   },
   classBookBtnBookedText: {
     color: '#6D925E',
   },
   classBookBtnDeadline: {
-    borderColor: '#EE9C44',
-    backgroundColor: '#FFFFFF',
+    borderWidth: 0,
+    borderColor: 'transparent',
+    backgroundColor: '#E4E5E7',
   },
   classBookBtnDeadlineText: {
-    color: '#EE9C44',
+    color: '#333333',
   },
   classBookBtnOngoing: {
     borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: '#6D925E',
   },
   classBookBtnOngoingText: {
     color: '#FFFFFF',
   },
   classBookBtnEnded: {
+    borderWidth: 1,
     borderColor: '#FB4550',
     backgroundColor: '#FFFFFF',
   },
@@ -344,6 +327,7 @@ const styles = StyleSheet.create({
     color: '#FB4550',
   },
   classBookBtnFull: {
+    borderWidth: 1,
     borderColor: '#EE9C44',
     backgroundColor: '#FFFFFF',
   },
@@ -352,7 +336,11 @@ const styles = StyleSheet.create({
   },
   planListFooter: {
     marginTop: 19,
-    gap: 13,
+    gap: 6,
+  },
+  planListFooterImage: {
+    width: 13,
+    height: 13,
   },
   planListFooterLine: {
     width: 26,

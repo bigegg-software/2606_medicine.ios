@@ -248,12 +248,22 @@ function parseSessionTags(raw?: string | null): string[] {
     .filter(Boolean);
 }
 
-/** 私教列表权益文案：私教权益 剩余X节（缺省/-- 按 0） */
+/** 私教列表权益文案：私教权益 剩余 X 节（缺省/-- 按 0） */
 export function formatPrivateBenefitRemainText(remain?: number | null): string {
-  if (remain === -1) return '私教权益 不限次数';
+  const parts = formatPrivateBenefitRemainParts(remain);
+  return `${parts.prefix}${parts.highlight ?? ''}${parts.suffix ?? ''}`;
+}
+
+/** 私教权益文案拆分，便于高亮剩余节数 */
+export function formatPrivateBenefitRemainParts(remain?: number | null): {
+  prefix: string;
+  highlight?: string;
+  suffix?: string;
+} {
+  if (remain === -1) return { prefix: '私教权益 不限次数' };
   const n =
     remain == null || Number.isNaN(Number(remain)) ? 0 : Math.max(0, Math.floor(Number(remain)));
-  return `私教权益 剩余${n}节`;
+  return { prefix: '私教权益 剩余 ', highlight: String(n), suffix: ' 节' };
 }
 
 export function mapPrivateSessionToCard(

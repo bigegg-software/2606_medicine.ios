@@ -44,6 +44,7 @@ import {
   cancelPrivateBooking,
   fetchNextPrivateBooking,
   fetchRecommendPrivateSessions,
+  formatPrivateBenefitRemainParts,
   resolveCardBookingId,
   type NextBookingView,
   type PrivateSessionCardView,
@@ -506,10 +507,13 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
             const action = resolveSessionAction({
               status: card.status,
               bookedByMe: card.bookedByMe,
+              bookLabel: `预约${card.name}`,
+              bookedLabel: '取消预约',
             });
             const actionStyles = getCoachActionStyles(action.tone);
             const busy = actionSessionId === card.sessionId;
-            const avatarUri = card.avatarUri?.trim() || '';
+            const coverUri = card.coverUri?.trim() || card.avatarUri?.trim() || '';
+            const benefitParts = formatPrivateBenefitRemainParts(privateRemainCount);
             return (
               <TouchableOpacity
                 key={card.key}
@@ -521,48 +525,34 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
                   })
                 }
               >
-                <Flex align="start">
+                <View style={styles.coachCoverWrap}>
                   <Image
-                    style={styles.coachAvatar}
-                    source={
-                      avatarUri
-                        ? { uri: avatarUri }
-                        : DEFAULT_COACH_AVATAR
-                    }
+                    style={styles.coachCover}
+                    source={coverUri ? { uri: coverUri } : DEFAULT_COACH_AVATAR}
+                    resizeMode="cover"
                   />
-                  <View style={styles.coachInfo}>
-                    <Flex align="center" style={styles.coachNameRow}>
-                      <Text style={styles.coachName}>{card.name}</Text>
-                      {card.tag ? (
-                        <View style={styles.coachTag}>
-                          <Text style={styles.coachTagText}>{card.tag}</Text>
-                        </View>
-                      ) : null}
-                    </Flex>
+                </View>
+                <View style={styles.coachInfo}>
+                  <Flex align="center" style={styles.coachNameRow}>
+                    <Text style={styles.coachName} numberOfLines={1}>
+                      {card.name}
+                    </Text>
+                    {card.tag ? (
+                      <View style={styles.coachTag}>
+                        <Text style={styles.coachTagText}>{card.tag}</Text>
+                      </View>
+                    ) : null}
+                  </Flex>
+                  {card.desc ? (
                     <Text style={styles.coachDesc} numberOfLines={2}>
                       {card.desc}
                     </Text>
-                    <Flex align="center" style={styles.coachBenefitRow}>
-                      <Image
-                        style={styles.coachBenefitIcon}
-                        source={require('@/assets/images/curriculum/qy.png')}
-                      />
-                      <Text style={styles.coachBenefitText}>{card.benefitText}</Text>
-                    </Flex>
-                  </View>
-                </Flex>
-
-                <View style={styles.coachDashWrap}>
-                  <View style={styles.coachDash} />
-                </View>
-
-                <Flex justify="between" align="center" style={styles.coachBottomRow}>
-                  <View style={styles.coachSessionInfo}>
-                    <Text style={styles.coachTime}>{card.time}</Text>
-                    <Text style={styles.coachTopic} numberOfLines={1}>
-                      {card.topic}
-                    </Text>
-                  </View>
+                  ) : null}
+                  <View style={styles.coachDivider} />
+                  <Text style={styles.coachTime}>{card.time}</Text>
+                  <Text style={styles.coachTopic} numberOfLines={1}>
+                    {card.topic}
+                  </Text>
                   <TouchableOpacity
                     activeOpacity={0.7}
                     style={[styles.coachBookBtn, actionStyles.btn]}
@@ -580,7 +570,22 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
                       {busy ? '处理中...' : action.label}
                     </Text>
                   </TouchableOpacity>
-                </Flex>
+                  <Flex align="center" style={styles.coachBenefitRow}>
+                    <Image
+                      style={styles.coachBenefitIcon}
+                      source={require('@/assets/images/curriculum/qy.png')}
+                    />
+                    <Text style={styles.coachBenefitText}>
+                      {benefitParts.prefix}
+                      {benefitParts.highlight != null ? (
+                        <Text style={styles.coachBenefitHighlight}>
+                          {benefitParts.highlight}
+                        </Text>
+                      ) : null}
+                      {benefitParts.suffix ?? ''}
+                    </Text>
+                  </Flex>
+                </View>
               </TouchableOpacity>
             );
           })

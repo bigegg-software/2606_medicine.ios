@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
     backgroundColor: '#FFFFFF',
-    borderRadius: 4,
+    borderRadius: 20,
     shadowColor: '#EAEAEA',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.5,
@@ -146,9 +146,11 @@ const styles = StyleSheet.create({
     color: '#333333',
   },
   coachCard: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'stretch',
     backgroundColor: '#FFFFFF',
     borderRadius: 13,
+    overflow: 'hidden',
   },
   coachCardFirst: {
     marginTop: 19,
@@ -156,19 +158,28 @@ const styles = StyleSheet.create({
   coachCardRest: {
     marginTop: 13,
   },
-  coachAvatar: {
-    width: 86,
-    height: 86,
-    borderRadius: 50,
+  coachCoverWrap: {
+    width: 150,
+    minHeight: 209,
+    alignSelf: 'stretch',
     flexShrink: 0,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  coachCover: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   coachInfo: {
     flex: 1,
-    marginLeft: 13,
     minWidth: 0,
+    padding: 17,
   },
   coachNameRow: {
-    marginTop: 4,
+    flexWrap: 'wrap',
   },
   coachName: {
     fontWeight: 'bold',
@@ -188,17 +199,52 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   coachDesc: {
-    marginTop: 7,
+    marginTop: 11,
     fontWeight: '500',
     fontSize: 14,
     color: '#999999',
   },
+  coachDivider: {
+    marginTop: 13,
+    height: 1,
+    backgroundColor: 'rgba(23,63,125,0.08)',
+  },
+  coachTime: {
+    marginTop: 13,
+    fontWeight: '500',
+    fontSize: 19,
+    color: '#6D925E',
+  },
+  coachTopic: {
+    marginTop: 8,
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#666666',
+  },
+  coachBookBtn: {
+    marginTop: 13,
+    height: 33,
+    borderRadius: 50,
+    borderWidth: 1,
+    borderColor: '#6D925E',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+  },
+  coachBookBtnText: {
+    fontWeight: '500',
+    fontSize: 13,
+    color: '#6D925E',
+  },
   coachBenefitRow: {
-    marginTop: 14,
+    marginTop: 13,
+    alignItems: 'center',
   },
   coachBenefitIcon: {
     width: 13,
     height: 13,
+    flexShrink: 0,
   },
   coachBenefitText: {
     marginLeft: 4,
@@ -206,52 +252,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#333333',
   },
-  coachDashWrap: {
-    marginTop: 16,
-    height: 1,
-    overflow: 'hidden',
-  },
-  coachDash: {
-    borderStyle: 'dashed',
-    borderWidth: 1,
-    borderColor: 'rgba(23,63,125,0.08)',
-    marginTop: -1,
-  },
-  coachBottomRow: {
-    marginTop: 16,
-  },
-  coachSessionInfo: {
-    flex: 1,
-    minWidth: 0,
-    marginRight: 12,
-  },
-  coachTime: {
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#6D925E',
-  },
-  coachTopic: {
-    marginTop: 6,
-    fontWeight: '500',
-    fontSize: 14,
-    color: '#666666',
-  },
-  coachBookBtn: {
-    paddingHorizontal: 19,
-    paddingVertical: 8,
-    borderRadius: 27,
-    borderWidth: 1,
-    borderColor: '#6D925E',
-    backgroundColor: 'transparent',
-    flexShrink: 0,
-  },
-  coachBookBtnText: {
+  coachBenefitHighlight: {
     fontWeight: '500',
     fontSize: 13,
     color: '#6D925E',
   },
   coachBookBtnBooked: {
     borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: 'rgba(109,146,94,0.2)',
   },
   coachBookBtnBookedText: {
@@ -259,6 +267,7 @@ const styles = StyleSheet.create({
   },
   coachBookBtnDeadline: {
     borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: '#E4E5E7',
   },
   coachBookBtnDeadlineText: {
@@ -266,6 +275,7 @@ const styles = StyleSheet.create({
   },
   coachBookBtnOngoing: {
     borderWidth: 0,
+    borderColor: 'transparent',
     backgroundColor: '#6D925E',
   },
   coachBookBtnOngoingText: {

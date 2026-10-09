@@ -4,9 +4,13 @@ import { Flex, Toast } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { useSelector } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import moment from 'moment';
 import styles from '@/css/nutrition';
+import AcceptAiPromptModal from '@/src/features/profile/settingPage/components/AcceptAiPromptModal';
+import { updateExtrInfo } from '@/api/user';
+import { SET_USER_EXTR } from '@/store/type/user';
+import type { AppDispatch } from '@/store/store';
 import {
     buildDietWeekDays,
     clampDateToPrescriptionRange,
@@ -177,6 +181,69 @@ function RecommendedMealCard({
     patientUserId?: string;
 }) {
     const navigation = useNavigation<Nav>();
+    const dispatch = useDispatch<AppDispatch>();
+    const userExtr = useSelector((state: RootState) => state.user.userExtr);
+    const acceptAiAuthorized = userExtr?.acceptAi !== 0;
+    const [acceptAiModalVisible, setAcceptAiModalVisible] = useState(false);
+    const [savingAcceptAi, setSavingAcceptAi] = useState(false);
+    const pendingRecipeQuestionRef = useRef<string | null>(null);
+
+    const openRecipeAssistant = useCallback(
+        (question: string) => {
+            navigation.navigate('AssistantPage', { autoSendText: question });
+        },
+        [navigation],
+    );
+
+    const handleViewRecipe = useCallback(() => {
+        const question = buildMealRecipeQuestion(section.foods);
+        if (!question) {
+            Toast.show('暂无推荐食物');
+            return;
+        }
+        if (!acceptAiAuthorized) {
+            pendingRecipeQuestionRef.current = question;
+            setAcceptAiModalVisible(true);
+            return;
+        }
+        openRecipeAssistant(question);
+    }, [acceptAiAuthorized, openRecipeAssistant, section.foods]);
+
+    const handleAcceptAiCancel = useCallback(() => {
+        if (savingAcceptAi) return;
+        pendingRecipeQuestionRef.current = null;
+        setAcceptAiModalVisible(false);
+    }, [savingAcceptAi]);
+
+    const handleAcceptAiConfirm = useCallback(async () => {
+        if (savingAcceptAi) return;
+        setSavingAcceptAi(true);
+        try {
+            const res = await updateExtrInfo({ acceptAi: 1 });
+            if (!isResourceApiOk(res as { code?: number })) {
+                Toast.show((res as { msg?: string })?.msg || '授权失败，请稍后重试', 1.5);
+                return;
+            }
+            if (userExtr) {
+                dispatch({
+                    type: SET_USER_EXTR,
+                    payload: {
+                        ...userExtr,
+                        acceptAi: 1,
+                    },
+                });
+            }
+            setAcceptAiModalVisible(false);
+            const question = pendingRecipeQuestionRef.current?.trim() || '';
+            pendingRecipeQuestionRef.current = null;
+            if (question) openRecipeAssistant(question);
+        } catch {
+            Toast.show('网络错误，请稍后重试', 1.5);
+        } finally {
+            setSavingAcceptAi(false);
+        }
+    }, [dispatch, openRecipeAssistant, savingAcceptAi, userExtr]);
+
     const planCalories = section.planCalories > 0 ? Math.round(section.planCalories) : 0;
     const actualRounded = actualCalories > 0 ? Math.round(actualCalories) : 0;
     const caloriesText = actualRounded > 0 ? String(actualRounded) : '--';
@@ -258,14 +325,7 @@ function RecommendedMealCard({
                                 <TouchableOpacity
                                     style={styles.mealActionRecipeBtn}
                                     activeOpacity={0.7}
-                                    onPress={() => {
-                                        const question = buildMealRecipeQuestion(section.foods);
-                                        if (!question) {
-                                            Toast.show('暂无推荐食物');
-                                            return;
-                                        }
-                                        navigation.navigate('AssistantPage', { autoSendText: question });
-                                    }}
+                                    onPress={handleViewRecipe}
                                 >
                                     <Text style={styles.mealActionRecipeText}>查看做法</Text>
                                 </TouchableOpacity>
@@ -391,6 +451,16 @@ function RecommendedMealCard({
                     </Flex>
                 </TouchableOpacity>
             ) : null} */}
+
+            <AcceptAiPromptModal
+                visible={acceptAiModalVisible}
+                enabling
+                saving={savingAcceptAi}
+                onCancel={handleAcceptAiCancel}
+                onConfirm={() => {
+                    void handleAcceptAiConfirm();
+                }}
+            />
         </View>
     );
 }

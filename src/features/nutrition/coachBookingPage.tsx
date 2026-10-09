@@ -22,7 +22,6 @@ import type { RootState } from '@/store/store';
 import { getSpecialPlanInfo, type SpecialPlanItem } from '@/api/specialPlan';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
-  formatNearestTwoWeekdayPeriods,
   loadInStoreRecommendCards,
   type InStoreRecommendCardView,
 } from '@/src/features/exercise/utils/inStoreRecommendHelpers';
@@ -112,11 +111,6 @@ export default function CoachBookingPage() {
 
   const planIntro = useMemo(() => buildSpecialPlanIntroItems(plan), [plan]);
   const serviceFlow = useMemo(() => buildSpecialPlanServiceFlowItems(plan), [plan]);
-  /** 推荐场次最近两个时段：周日上午/周一下午 */
-  const nearestTwoTimesText = useMemo(
-    () => formatNearestTwoWeekdayPeriods(recommendCards),
-    [recommendCards],
-  );
   const serviceFlowListRef = useRef<View>(null);
   const serviceFlowIconRefs = useRef<Array<View | null>>([]);
   const [serviceFlowDash, setServiceFlowDash] = useState<{
@@ -360,7 +354,7 @@ export default function CoachBookingPage() {
                 </ImageBackground>
                 <View style={styles.planIntroBox}>
                   {recommendCards.map((item, index) => {
-                    const timeText = nearestTwoTimesText || item.availableText;
+                    const timeText = item.availableText?.trim() || '';
                     return (
                       <TouchableOpacity
                         key={item.key}

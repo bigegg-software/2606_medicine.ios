@@ -103,6 +103,10 @@ export function formatNearestTwoWeekdayPeriods(
   return periods.join('/');
 }
 
+function resolveCoachKey(card: InStoreRecommendCardView) {
+  return card.coachUserId?.trim() || card.coachName || card.key;
+}
+
 /**
  * 同一教练最近两个可约时段：周日上午/周一下午
  * 不同教练各自展示自己的最近时段
@@ -117,7 +121,7 @@ export function applyNearestWeekdayPeriodTexts(
   );
   const periodsByCoach = new Map<string, string[]>();
   sorted.forEach(card => {
-    const coachKey = card.coachUserId?.trim() || card.coachName || card.key;
+    const coachKey = resolveCoachKey(card);
     const period = card.weekdayPeriod?.trim() || '';
     if (!period) return;
     const list = periodsByCoach.get(coachKey) ?? [];
@@ -127,11 +131,36 @@ export function applyNearestWeekdayPeriodTexts(
     periodsByCoach.set(coachKey, list);
   });
   return cards.map(card => {
-    const coachKey = card.coachUserId?.trim() || card.coachName || card.key;
+    const coachKey = resolveCoachKey(card);
     const periods = periodsByCoach.get(coachKey) ?? [];
     const availableText = periods.join('/') || card.weekdayPeriod || card.availableText;
     return { ...card, availableText };
   });
+}
+
+/**
+ * 按教练去重：保留该教练最早一场，可约文案已合并最近两个时段
+ */
+export function dedupeInStoreRecommendByCoach(
+  cards: InStoreRecommendCardView[],
+  limit = 2,
+): InStoreRecommendCardView[] {
+  const withTexts = applyNearestWeekdayPeriodTexts(cards);
+  const sorted = [...withTexts].sort((a, b) =>
+    sessionSortKey(a.sessionDate, a.startTime).localeCompare(
+      sessionSortKey(b.sessionDate, b.startTime),
+    ),
+  );
+  const seen = new Set<string>();
+  const result: InStoreRecommendCardView[] = [];
+  for (const card of sorted) {
+    const coachKey = resolveCoachKey(card);
+    if (seen.has(coachKey)) continue;
+    seen.add(coachKey);
+    result.push(card);
+    if (result.length >= limit) break;
+  }
+  return result;
 }
 
 export function mapInStoreRecommendCard(item: CourseSessionItem): InStoreRecommendCardView | null {
@@ -201,9 +230,9 @@ export async function loadInStoreRecommendCards(options?: {
     if (!Array.isArray(list)) return [];
     const cards = list
       .map(mapInStoreRecommendCard)
-      .filter((card): card is InStoreRecommendCardView => card != null)
-      .slice(0, 2);
-    return applyNearestWeekdayPeriodTexts(cards);
+      .filter((card): card is InStoreRecommendCardView => card != null);
+    // 先按全部场次汇总时段，再按教练去重（避免同一教练两条重复）
+    return dedupeInStoreRecommendByCoach(cards, 2);
   } catch (error) {
     console.error('loadInStoreRecommendCards failed:', error);
     return [];

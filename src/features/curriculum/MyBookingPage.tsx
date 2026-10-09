@@ -195,98 +195,92 @@ export default function MyBookingPage() {
           hasUpcoming ? (
             <>
               {nextBooking ? (
-                <View style={styles.bookingCard}>
-                  <Image
-                    source={require('@/assets/images/curriculum/back.png')}
-                    style={styles.bookingCardBg}
-                    resizeMode="stretch"
-                  />
-                  <View style={styles.bookingCardBody}>
-                    <Flex justify="between" align="center">
-                      <Text style={styles.bookingLabel}>
-                        {nextBooking.sessionStatus === 4 ? '当前训练' : '下一次训练'}
-                      </Text>
-                      <View style={styles.bookingStatusTag}>
-                        <Text style={styles.bookingStatusText}>{nextBooking.statusLabel}</Text>
-                      </View>
-                    </Flex>
+                <View style={styles.bookingCardBody}>
+                  <Flex justify="between" align="center">
+                    <Text style={styles.bookingLabel}>
+                      {nextBooking.sessionStatus === 4 ? '当前训练' : '下一次训练'}
+                    </Text>
+                    <View style={styles.bookingStatusTag}>
+                      <Text style={styles.bookingStatusText}>{nextBooking.statusLabel}</Text>
+                    </View>
+                  </Flex>
+                  <Image source={require('@/assets/images/curriculum/yy.png')} style={styles.bookingCardStatusIcon} />
 
-                    <Text style={styles.bookingTime}>{nextBooking.timeText}</Text>
-                    <Text style={styles.bookingTitle}>{nextBooking.title}</Text>
+                  <Text style={styles.bookingTime}>{nextBooking.timeText}</Text>
+                  <Text style={styles.bookingTitle}>{nextBooking.title}</Text>
 
-                    <Flex align="start" style={styles.bookingCoachRow}>
-                      <Image
-                        style={styles.bookingCoachAvatar}
-                        source={
-                          nextBooking.avatarUri
-                            ? { uri: nextBooking.avatarUri }
-                            : DEFAULT_AVATAR
-                        }
-                      />
-                      <View style={styles.bookingCoachInfo}>
-                        <Text style={styles.bookingCoachName}>{nextBooking.coachName}</Text>
-                        <Flex align="center" style={styles.bookingCoachMetaRow}>
-                          <Image
-                            style={styles.bookingCoachMetaIcon}
-                            tintColor="#999999"
-                            source={require('@/assets/images/curriculum/address.png')}
-                          />
-                          <Text style={styles.bookingCoachMeta}>{nextBooking.stationName}</Text>
-                        </Flex>
-                        <Flex align="center" style={styles.bookingCoachMetaRow}>
-                          <Image
-                            style={styles.bookingCoachMetaIcon}
-                            tintColor="#999999"
-                            source={require('@/assets/images/curriculum/time.png')}
-                          />
-                          <Text style={styles.bookingCoachTip}>{nextBooking.tipText}</Text>
-                        </Flex>
-                      </View>
-                    </Flex>
+                  <Flex align="start" style={styles.bookingCoachRow}>
+                    <Image
+                      style={styles.bookingCoachAvatar}
+                      source={
+                        nextBooking.avatarUri
+                          ? { uri: nextBooking.avatarUri }
+                          : DEFAULT_AVATAR
+                      }
+                    />
+                    <View style={styles.bookingCoachInfo}>
+                      <Text style={styles.bookingCoachName}>{nextBooking.coachName}</Text>
+                      <Flex align="center" style={styles.bookingCoachMetaRow}>
+                        <Image
+                          style={styles.bookingCoachMetaIcon}
+                          tintColor="#999999"
+                          source={require('@/assets/images/curriculum/address.png')}
+                        />
+                        <Text style={styles.bookingCoachMeta}>{nextBooking.stationName}</Text>
+                      </Flex>
+                      <Flex align="center" style={styles.bookingCoachMetaRow}>
+                        <Image
+                          style={styles.bookingCoachMetaIcon}
+                          tintColor="#999999"
+                          source={require('@/assets/images/curriculum/time.png')}
+                        />
+                        <Text style={styles.bookingCoachTip}>{nextBooking.tipText}</Text>
+                      </Flex>
+                    </View>
+                  </Flex>
 
-                    <Flex style={styles.bookingActionRow}>
-                      <TouchableOpacity
-                        activeOpacity={nextBooking.canAdjustTime ? 0.7 : 1}
-                        style={[
-                          styles.bookingAdjustBtn,
-                          !nextBooking.canAdjustTime && styles.bookingAdjustBtnDisabled,
-                        ]}
-                        onPress={openAdjustTime}
-                      >
-                        <Flex style={{ flex: 1 }} justify="center">
-                          <Image
-                            style={styles.bookingAdjustBtnIcon}
-                            tintColor={nextBooking.canAdjustTime ? '#6D925E' : '#999999'}
-                            source={require('@/assets/images/curriculum/time.png')}
-                          />
-                          <Text
-                            style={[
-                              styles.bookingAdjustBtnText,
-                              !nextBooking.canAdjustTime && styles.bookingAdjustBtnTextDisabled,
-                            ]}
-                          >
-                            调整时间
-                          </Text>
-                        </Flex>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        style={styles.bookingDetailBtn}
-                        onPress={() =>
-                          openDetail(nextBooking.sessionId, nextBooking.courseType)
-                        }
-                      >
-                        <Flex style={{ flex: 1 }} justify="center">
-                          <Text style={styles.bookingDetailBtnText}>查看详情</Text>
-                          <Image
-                            style={styles.bookingDetailBtnIcon}
-                            tintColor="#333333"
-                            source={require('@/assets/images/curriculum/icon_right.png')}
-                          />
-                        </Flex>
-                      </TouchableOpacity>
-                    </Flex>
-                  </View>
+                  <Flex style={styles.bookingActionRow}>
+                    <TouchableOpacity
+                      activeOpacity={nextBooking.canAdjustTime ? 0.7 : 1}
+                      style={[
+                        styles.bookingAdjustBtn,
+                        !nextBooking.canAdjustTime && styles.bookingAdjustBtnDisabled,
+                      ]}
+                      onPress={openAdjustTime}
+                    >
+                      <Flex style={{ flex: 1 }} justify="center">
+                        <Image
+                          style={styles.bookingAdjustBtnIcon}
+                          tintColor={nextBooking.canAdjustTime ? '#6D925E' : '#999999'}
+                          source={require('@/assets/images/curriculum/time.png')}
+                        />
+                        <Text
+                          style={[
+                            styles.bookingAdjustBtnText,
+                            !nextBooking.canAdjustTime && styles.bookingAdjustBtnTextDisabled,
+                          ]}
+                        >
+                          调整时间
+                        </Text>
+                      </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.7}
+                      style={styles.bookingDetailBtn}
+                      onPress={() =>
+                        openDetail(nextBooking.sessionId, nextBooking.courseType)
+                      }
+                    >
+                      <Flex style={{ flex: 1 }} justify="center">
+                        <Text style={styles.bookingDetailBtnText}>查看详情</Text>
+                        <Image
+                          style={styles.bookingDetailBtnIcon}
+                          tintColor="#333333"
+                          source={require('@/assets/images/curriculum/icon_right.png')}
+                        />
+                      </Flex>
+                    </TouchableOpacity>
+                  </Flex>
                 </View>
               ) : null}
 
@@ -344,28 +338,21 @@ export default function MyBookingPage() {
                       <TouchableOpacity
                         key={item.key}
                         activeOpacity={0.7}
-                        style={styles.doneCard}
+                        style={styles.recentDoneCard}
                         onPress={() => {
                           if (item.sessionId) {
                             openDetail(item.sessionId, item.courseType, item.status);
                           }
                         }}
                       >
-                        <Flex align="start">
+                        <Flex align="center">
                           <Image
-                            style={styles.doneCheckIcon}
+                            style={styles.recentDoneCheckIcon}
                             source={item.isAbsent ? ABSENT_ICON : DONE_ICON}
                           />
-                          <Image
-                            style={styles.doneCover}
-                            source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
-                          />
-                          <View style={styles.doneInfo}>
-                            <Text style={styles.doneDate}>{item.dateText}</Text>
-                            <Text style={styles.doneTitle} numberOfLines={2}>
-                              {item.title}
-                            </Text>
-                          </View>
+                          <Text style={styles.recentDoneText} numberOfLines={1}>
+                            {`${item.dateText} · ${item.briefTitle}`}
+                          </Text>
                           <View
                             style={[
                               styles.completedStatusTag,
@@ -455,24 +442,28 @@ export default function MyBookingPage() {
                       source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
                     />
                     <View style={styles.doneInfo}>
-                      <Text style={styles.doneDate}>{item.dateText}</Text>
+                      <Flex justify="between" align="center" style={styles.doneDateRow}>
+                        <Text style={styles.doneDate} numberOfLines={1}>
+                          {item.dateText}
+                        </Text>
+                        <View
+                          style={[
+                            styles.completedStatusTag,
+                            item.isAbsent ? styles.completedStatusTagAbsent : null,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.completedStatusText,
+                              item.isAbsent ? styles.completedStatusTextAbsent : null,
+                            ]}
+                          >
+                            {item.statusLabel}
+                          </Text>
+                        </View>
+                      </Flex>
                       <Text style={styles.doneTitle} numberOfLines={2}>
                         {item.title}
-                      </Text>
-                    </View>
-                    <View
-                      style={[
-                        styles.completedStatusTag,
-                        item.isAbsent ? styles.completedStatusTagAbsent : null,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.completedStatusText,
-                          item.isAbsent ? styles.completedStatusTextAbsent : null,
-                        ]}
-                      >
-                        {item.statusLabel}
                       </Text>
                     </View>
                   </Flex>
