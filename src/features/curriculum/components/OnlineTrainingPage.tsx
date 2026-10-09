@@ -492,7 +492,7 @@ export default function OnlineTrainingPage({ stationId, isActive = true }: Props
           </ScrollView>
         ) : null}
 
-        <Flex justify="center" align="center" style={[styles.planListFooter, { gap: 6 }]}>
+        <Flex justify="center" align="center" style={styles.planListFooter}>
           <Image source={require('@/assets/images/curriculum/yz.png')} style={styles.planListFooterImage} />
           <Text style={styles.planListFooterText}>每一次居家练习，都是为更好相见做准备</Text>
         </Flex>

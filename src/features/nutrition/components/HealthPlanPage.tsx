@@ -95,7 +95,7 @@ export default function HealthPlanPage({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.dayTitle}>从医学评估到每周做得到的健康改变</Text>
+        <Text style={[styles.dayTitle, { marginTop: 19 }]}>从医学评估到每周做得到的健康改变</Text>
         <Text style={styles.daySubtitle}>卓外医院健康管理中心医学评估·LM长期处方执行陪伴</Text>
 
         {loading ? (
@@ -107,14 +107,20 @@ export default function HealthPlanPage({
             const subtitle = formatSpecialPlanSubtitle(item);
             return (
               <View key={String(item.planId ?? item.planName)} style={planItemStyle}>
-                <Flex align="start" style={styles.planItemRow}>
-                  <Image style={styles.planItemIcon} source={getSpecialPlanCoverSource(item)} />
+                <Flex style={styles.planItemRow}>
+                  <View style={styles.planItemIconWrap}>
+                    <Image
+                      style={styles.planItemIcon}
+                      source={getSpecialPlanCoverSource(item)}
+                      resizeMode="cover"
+                    />
+                  </View>
                   <View style={styles.planItemContent}>
                     <Flex style={styles.planItemBtn}>
-                      <Image
+                      {/* <Image
                         style={styles.planItemBtnIcon}
                         source={require('@/assets/images/exercise/hs.png')}
-                      />
+                      /> */}
                       <Text style={styles.planItemBtnText}>{suitLabel}</Text>
                     </Flex>
                     <Text style={styles.planItemTitle} numberOfLines={1}>
@@ -129,20 +135,22 @@ export default function HealthPlanPage({
                         {subtitle}
                       </Text>
                     ) : null}
-                    <Flex align="center" style={styles.planItemBrandRow}>
-                      <Image
-                        style={styles.planItemBrandIcon}
-                        source={require('@/assets/images/exercise/fw.png')}
-                      />
-                      <Text style={styles.planItemBrandText}>
-                        {formatSpecialPlanSchemeName(item)}
-                      </Text>
-                    </Flex>
-                    <Flex
-                      style={styles.planItemCoachBtn}
-                      onPress={() => openCoachBooking(item.planId)}
-                    >
-                      <Text style={styles.planItemCoachBtnText}>查看详情</Text>
+                    <Flex justify="between" style={styles.planItemBrandRow}>
+                      <Flex align="start" style={styles.planItemBrandLeft}>
+                        <Image
+                          style={styles.planItemBrandIcon}
+                          source={require('@/assets/images/exercise/fw.png')}
+                        />
+                        <Text style={styles.planItemBrandText}>
+                          {formatSpecialPlanSchemeName(item)}
+                        </Text>
+                      </Flex>
+                      <Flex
+                        style={styles.planItemCoachBtn}
+                        onPress={() => openCoachBooking(item.planId)}
+                      >
+                        <Text style={styles.planItemCoachBtnText}>查看详情</Text>
+                      </Flex>
                     </Flex>
                   </View>
                 </Flex>
@@ -152,9 +160,8 @@ export default function HealthPlanPage({
         )}
 
         <Flex justify="center" align="center" style={styles.planListFooter}>
-          <View style={styles.planListFooterLine} />
+          <Image source={require('@/assets/images/curriculum/yz.png')} style={styles.planListFooterImage} />
           <Text style={styles.planListFooterText}>寻得同行者，开启健康路</Text>
-          <View style={styles.planListFooterLine} />
         </Flex>
       </ScrollView>
     </View>

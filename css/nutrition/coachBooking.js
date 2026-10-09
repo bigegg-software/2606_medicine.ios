@@ -19,10 +19,14 @@ const styles = StyleSheet.create({
         color: '#6D925E',
     },
     planItemCoachBtn: {
-        marginRight: 11,
+        position: 'absolute',
+        top: 9,
+        left: 9,
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 11,
         paddingVertical: 7,
-        backgroundColor: 'rgba(109,146,94,0.1)',
+        backgroundColor: '#FFFFFF',
         borderRadius: 35,
     },
     planItemCoachBtnIcon: {
@@ -39,6 +43,7 @@ const styles = StyleSheet.create({
         marginTop: 12,
         backgroundColor: '#FFFFFF',
         borderRadius: 13,
+        overflow: 'hidden',
         shadowColor: "#000",
         shadowOffset: {
             width: 0,
@@ -48,11 +53,15 @@ const styles = StyleSheet.create({
         shadowRadius: 1.41,
         elevation: 2,
     },
+    planTopImageWrap: {
+        position: 'relative',
+        width: '100%',
+    },
     planTopBg: {
         width: "100%",
+        height: 150,
         borderTopLeftRadius: 13,
         borderTopRightRadius: 13,
-        height: 211,
     },
     planTopContent: {
         paddingHorizontal: 16,
@@ -194,19 +203,28 @@ const styles = StyleSheet.create({
         color: '#666666',
         lineHeight: 20,
     },
+    coachRecommendScroll: {
+        backgroundColor: '#F7F7F9',
+    },
+    coachRecommendScrollContent: {
+        paddingHorizontal: 13,
+        gap: 13,
+    },
     coachRecommendItem: {
+        width: 244,
         backgroundColor: '#FFFFFF',
         borderRadius: 13,
         padding: 16,
     },
     coachRecommendIcon: {
-        width: 54,
-        height: 54,
-        borderRadius: 27,
+        width: 64,
+        height: 64,
+        borderRadius: 32,
         flexShrink: 0,
     },
     coachRecommendContent: {
         flex: 1,
+        minWidth: 0,
         marginLeft: 13,
     },
     coachRecommendName: {
@@ -215,7 +233,8 @@ const styles = StyleSheet.create({
         color: '#333333',
     },
     coachRecommendTag: {
-        marginLeft: 6,
+        alignSelf: 'flex-start',
+        marginTop: 4,
         paddingHorizontal: 6,
         paddingVertical: 4,
         backgroundColor: 'rgba(109,146,94,0.1)',
@@ -227,15 +246,19 @@ const styles = StyleSheet.create({
         color: '#6D925E',
     },
     coachRecommendTime: {
-        marginTop: 8,
+        marginTop: 6,
         fontWeight: '500',
-        fontSize: 14,
+        fontSize: 12,
         color: '#999999',
     },
 
     planListFooter: {
-        marginTop: 16,
-        gap: 13,
+        marginTop: 19,
+        gap: 6,
+    },
+    planListFooterImage: {
+        width: 13,
+        height: 13,
     },
     planListFooterLine: {
         width: 26,

@@ -176,31 +176,32 @@ export default function CoachBookingPage() {
             showsVerticalScrollIndicator={false}
           >
             <View style={styles.planItemBox}>
-              <Flex justify="between">
-                <Flex align="center" style={{ marginLeft: 11 }}>
-                  <Image
-                    style={styles.planItemBrandIcon}
-                    source={require('@/assets/images/exercise/fw.png')}
-                  />
-                  <Text style={styles.planItemBrandText}>{schemeName}</Text>
-                </Flex>
-                <Flex style={styles.planItemCoachBtn} onPress={() => { }}>
-                  <Image
-                    style={styles.planItemCoachBtnIcon}
-                    source={require('@/assets/images/common/wc.png')}
-                  />
-                  <Text style={styles.planItemCoachBtnText}>专项健康计划</Text>
-                </Flex>
+              <Flex align="center" style={{ marginLeft: 11 }}>
+                <Image
+                  style={styles.planItemBrandIcon}
+                  source={require('@/assets/images/exercise/fw.png')}
+                />
+                <Text style={styles.planItemBrandText}>{schemeName}</Text>
               </Flex>
               <View style={styles.planTopBox}>
-                <Image
-                  style={styles.planTopBg}
-                  source={
-                    plan
-                      ? getSpecialPlanTopCoverSource(plan)
-                      : require('@/assets/images/exercise/slt.png')
-                  }
-                />
+                <View style={styles.planTopImageWrap}>
+                  <Image
+                    style={styles.planTopBg}
+                    source={
+                      plan
+                        ? getSpecialPlanTopCoverSource(plan)
+                        : require('@/assets/images/exercise/slt.png')
+                    }
+                    resizeMode="cover"
+                  />
+                  <View style={styles.planItemCoachBtn} pointerEvents="none">
+                    <Image
+                      style={styles.planItemCoachBtnIcon}
+                      source={require('@/assets/images/common/wc.png')}
+                    />
+                    <Text style={styles.planItemCoachBtnText}>专项健康计划</Text>
+                  </View>
+                </View>
                 <View style={styles.planTopContent}>
                   <Text style={styles.planTopTitle}>{planName}</Text>
                   {planSubtitle ? (
@@ -352,14 +353,20 @@ export default function CoachBookingPage() {
                     <Text style={styles.backImage1Text}>为你推荐的健康陪伴教练</Text>
                   </Flex>
                 </ImageBackground>
-                <View style={styles.planIntroBox}>
-                  {recommendCards.map((item, index) => {
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  style={styles.coachRecommendScroll}
+                  contentContainerStyle={styles.coachRecommendScrollContent}
+                >
+                  {recommendCards.map(item => {
                     const timeText = item.availableText?.trim() || '';
                     return (
                       <TouchableOpacity
                         key={item.key}
                         disabled
                         activeOpacity={0.7}
+                        style={styles.coachRecommendItem}
                         onPress={() => {
                           const id = item.sessionId?.trim() || '';
                           if (!id) return;
@@ -368,13 +375,7 @@ export default function CoachBookingPage() {
                           });
                         }}
                       >
-                        <Flex
-                          align="start"
-                          style={[
-                            styles.coachRecommendItem,
-                            { marginTop: index === 0 ? 0 : 13 },
-                          ]}
-                        >
+                        <Flex align="start">
                           <Image
                             style={styles.coachRecommendIcon}
                             source={
@@ -384,30 +385,31 @@ export default function CoachBookingPage() {
                             }
                           />
                           <View style={styles.coachRecommendContent}>
-                            <Flex align="center" style={{ marginTop: 4 }}>
-                              <Text style={styles.coachRecommendName}>{item.coachName}</Text>
-                              {item.tag ? (
-                                <View style={styles.coachRecommendTag}>
-                                  <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
-                                </View>
-                              ) : null}
-                            </Flex>
+                            <Text style={styles.coachRecommendName} numberOfLines={1}>
+                              {item.coachName}
+                            </Text>
+                            {item.tag ? (
+                              <View style={styles.coachRecommendTag}>
+                                <Text style={styles.coachRecommendTagText}>{item.tag}</Text>
+                              </View>
+                            ) : null}
                             {timeText ? (
-                              <Text style={styles.coachRecommendTime}>{`可约：${timeText}`}</Text>
+                              <Text style={styles.coachRecommendTime} numberOfLines={1}>
+                                {`可约：${timeText}`}
+                              </Text>
                             ) : null}
                           </View>
                         </Flex>
                       </TouchableOpacity>
                     );
                   })}
-                </View>
+                </ScrollView>
               </>
             ) : null}
 
             <Flex justify="center" align="center" style={styles.planListFooter}>
-              <View style={styles.planListFooterLine} />
+              <Image source={require('@/assets/images/curriculum/yz.png')} style={styles.planListFooterImage} />
               <Text style={styles.planListFooterText}>寻得同行者，开启健康路</Text>
-              <View style={styles.planListFooterLine} />
             </Flex>
           </ScrollView>
 

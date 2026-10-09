@@ -1,4 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useRef,
+    useState,
+} from 'react';
 import { View, Text, TouchableOpacity, Image, ScrollView, Alert, DeviceEventEmitter } from 'react-native';
 import { Flex, Toast } from '@ant-design/react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,6 +87,10 @@ import {
 } from './utils/dietSignHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+
+export type DietPageRef = {
+    openDatePicker: () => void;
+};
 
 type Props = {
     dietRule?: DietPatientRuleInfo | null;
@@ -246,7 +258,6 @@ function RecommendedMealCard({
 
     const planCalories = section.planCalories > 0 ? Math.round(section.planCalories) : 0;
     const actualRounded = actualCalories > 0 ? Math.round(actualCalories) : 0;
-    const caloriesText = actualRounded > 0 ? String(actualRounded) : '--';
     const planText = planCalories > 0 ? String(planCalories) : '--';
     const actualText = actualRounded > 0 ? String(actualRounded) : '--';
     const diff = actualRounded - planCalories;
@@ -255,126 +266,99 @@ function RecommendedMealCard({
         : '--kcal';
 
     return (
-        <View style={styles.calendarContent}>
-            <Flex align='center'>
-                <Flex>
-                    <Image style={styles.dietListImage} source={section.icon} />
-                    <Text style={styles.calendarContentTitle}>{section.title}</Text>
-                </Flex>
-                <Text style={styles.mealMacroApprox} numberOfLines={1}>
-                    {formatMealApproxCalories(section.planCalories)}
-                </Text>
-            </Flex>
-            <Flex justify="between" align="center" style={styles.mealMacroRow}>
-                <Flex align="center" style={styles.mealMacroItem}>
-                    <Image
-                        style={styles.mealMacroIcon}
-                        source={require('@/assets/images/nutrition/dbz.png')}
-                    />
-                    <Text style={styles.mealMacroText}>
-                        蛋白质{formatMealMacroGrams(section.protein)}g
-                    </Text>
-                </Flex>
-                <Flex align="center" style={styles.mealMacroItem}>
-                    <Image
-                        style={styles.mealMacroIcon}
-                        source={require('@/assets/images/nutrition/ts.png')}
-                    />
-                    <Text style={styles.mealMacroText}>
-                        碳水{formatMealMacroGrams(section.carbs)}g
-                    </Text>
-                </Flex>
-                <Flex align="center" style={styles.mealMacroItem}>
-                    <Image
-                        style={styles.mealMacroIcon}
-                        source={require('@/assets/images/nutrition/zf.png')}
-                    />
-                    <Text style={styles.mealMacroText}>
-                        脂肪{formatMealMacroGrams(section.fat)}g
-                    </Text>
-                </Flex>
+        <View style={styles.mealRecommendCard}>
+            <Flex align="center" style={styles.dietMapBox}>
+                <Image
+                    style={styles.mapImg}
+                    source={resolveMealDefaultFoodImage(section.category)}
+                />
+                <View style={styles.mapCenBox}>
+                    <Flex align="center" style={styles.mealRecommendTitleRow}>
+                        <Image style={styles.dietListImage} source={section.icon} />
+                        <Text style={styles.calendarContentTitle}>{section.title}</Text>
+                        <Text style={styles.mealMacroApprox} numberOfLines={1}>
+                            {formatMealApproxCalories(section.planCalories)}
+                        </Text>
+                    </Flex>
 
-            </Flex>
-            <View style={styles.mealMacroDashWrap}>
-                <View style={styles.mealMacroDash} />
-            </View>
+                    {section.foods.map((food, index) => (
+                        <Flex
+                            key={food.key}
+                            justify="between"
+                            align="center"
+                            style={styles.mapFoodRow}
+                        >
+                            <Flex align="center" style={styles.mapTitleRow}>
+                                <View style={styles.mapBor} />
+                                <Text style={styles.mapTitle} numberOfLines={1}>{food.foodName}</Text>
+                            </Flex>
+                            <Text style={styles.mapValue}>{food.amountText}</Text>
+                        </Flex>
+                    ))}
 
-            {section.foods.length > 0 ? (
-                <Flex align="start" style={styles.dietMapBox}>
-                    <Image
-                        style={styles.mapImg}
-                        source={resolveMealDefaultFoodImage(section.category)}
-                    />
-                    <View style={styles.mapCenBox}>
-                        {section.foods.map((food, index) => (
-                            <Flex
-                                key={food.key}
-                                justify="between"
-                                align="center"
-                                style={index > 0 ? styles.mapFoodRow : undefined}
+                    <Flex justify="between" align="center" style={styles.mealMacroBar}>
+                        <Text style={styles.mealMacroBarText}>
+                            蛋白 {formatMealMacroGrams(section.protein)}g
+                        </Text>
+                        <Text style={styles.mealMacroBarText}>
+                            碳水 {formatMealMacroGrams(section.carbs)}g
+                        </Text>
+                        <Text style={styles.mealMacroBarText}>
+                            脂肪 {formatMealMacroGrams(section.fat)}g
+                        </Text>
+                    </Flex>
+
+                    {showMealActions ? (
+                        <Flex style={styles.mealActionRow}>
+                            <TouchableOpacity
+                                style={styles.mealActionRecipeBtn}
+                                activeOpacity={0.7}
+                                onPress={handleViewRecipe}
                             >
-                                <Flex align="center" style={styles.mapTitleRow}>
-                                    <View style={styles.mapBor} />
-                                    <Text style={styles.mapTitle} numberOfLines={1}>{food.foodName}</Text>
+                                <Text style={styles.mealActionRecipeText}>查看做法</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[
+                                    styles.mealActionRefreshBtn,
+                                    (!showMealRefreshButton || mealRefreshDisabled) && styles.mealActionRefreshBtnDisabled,
+                                ]}
+                                activeOpacity={0.7}
+                                disabled={!showMealRefreshButton || mealRefreshDisabled}
+                                onPress={() => onRefreshMeal?.(section.category)}
+                            >
+                                <Flex justify="center" align="center">
+                                    <Image
+                                        style={[
+                                            styles.mealActionRefreshIcon,
+                                            mealRefreshDisabled && styles.mealActionRefreshIconDisabled,
+                                        ]}
+                                        source={require('@/assets/images/nutrition/hyh.png')}
+                                    />
+                                    <Text
+                                        style={[
+                                            styles.mealActionRefreshText,
+                                            mealRefreshDisabled && styles.mealActionRefreshTextDisabled,
+                                        ]}
+                                    >
+                                        换一换
+                                    </Text>
                                 </Flex>
-                                <Text style={styles.mapValue}>{food.amountText}</Text>
-                            </Flex>
-                        ))}
-                        {showMealActions ? (
-                            <Flex justify="between" style={styles.mealActionRow}>
-                                <TouchableOpacity
-                                    style={styles.mealActionRecipeBtn}
-                                    activeOpacity={0.7}
-                                    onPress={handleViewRecipe}
-                                >
-                                    <Text style={styles.mealActionRecipeText}>查看做法</Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    style={[
-                                        styles.mealActionRefreshBtn,
-                                        (!showMealRefreshButton || mealRefreshDisabled) && styles.mealActionRefreshBtnDisabled,
-                                    ]}
-                                    activeOpacity={0.7}
-                                    disabled={!showMealRefreshButton || mealRefreshDisabled}
-                                    onPress={() => onRefreshMeal?.(section.category)}
-                                >
-                                    <Flex justify="center" align="center">
-                                        <Image
-                                            style={[
-                                                styles.mealActionRefreshIcon,
-                                                mealRefreshDisabled && styles.mealActionRefreshIconDisabled,
-                                            ]}
-                                            source={require('@/assets/images/nutrition/hyh.png')}
-                                        />
-                                        <Text
-                                            style={[
-                                                styles.mealActionRefreshText,
-                                                mealRefreshDisabled && styles.mealActionRefreshTextDisabled,
-                                            ]}
-                                        >
-                                            换一换
-                                        </Text>
-                                    </Flex>
-                                </TouchableOpacity>
-                            </Flex>
-                        ) : null}
-                    </View>
-                </Flex>
-            ) : null}
+                            </TouchableOpacity>
+                        </Flex>
+                    ) : null}
+                </View>
+            </Flex>
 
             {actualFoods.length > 0 ? (
                 <View style={styles.actualEatBox}>
-                    <Flex justify="between" align="center">
-                        <Flex align="center">
-                            <Image
-                                style={styles.dietListImage}
-                                source={require('@/assets/images/nutrition/icon_time.png')}
-                            />
-                            <Text style={styles.actualEatTitle}>实际吃了</Text>
-                        </Flex>
-                        <Text style={styles.actualEatValue}>
-                            {caloriesText}{' '}
-                            <Text style={styles.actualEatUnit}>kcal</Text>
+                    <Flex align="center">
+                        <Image
+                            style={styles.dietListImage}
+                            source={require('@/assets/images/nutrition/icon_time.png')}
+                        />
+                        <Text style={styles.actualEatTitle}>实际吃了</Text>
+                        <Text style={styles.mealMacroApprox} numberOfLines={1}>
+                            {formatMealApproxCalories(actualRounded)}
                         </Text>
                     </Flex>
 
@@ -465,13 +449,13 @@ function RecommendedMealCard({
     );
 }
 
-export default function DietPage({
+const DietPage = forwardRef<DietPageRef, Props>(function DietPage({
     dietRule = null,
     onDietRuleChange,
     readOnly = false,
     patientUserId,
     emptyCenter,
-}: Props) {
+}, ref) {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<Nav>();
     const user = useSelector((state: RootState) => state.user.info);
@@ -784,9 +768,13 @@ export default function DietPage({
         ]);
     }, []);
 
-    const onPressDatePicker = () => {
+    const onPressDatePicker = useCallback(() => {
         setDatePickerVisible(true);
-    };
+    }, []);
+
+    useImperativeHandle(ref, () => ({
+        openDatePicker: onPressDatePicker,
+    }), [onPressDatePicker]);
 
     const onPressCheckIn = useCallback(async () => {
         if (signing) return;
@@ -1179,7 +1167,7 @@ export default function DietPage({
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
             >
-                <Flex justify="between" style={styles.calendarBox}>
+                {/* <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;
                         const selectable = isCalendarDateInPrescriptionRange(
@@ -1244,7 +1232,7 @@ export default function DietPage({
                             source={require('@/assets/images/nutrition/time.png')}
                         />
                     </TouchableOpacity>
-                </Flex>
+                </Flex> */}
 
                 <Text style={styles.dayTitle}>今天这样吃，身体更轻松</Text>
                 {dayTagsSubtitle ? (
@@ -1371,9 +1359,8 @@ export default function DietPage({
                 {!readOnly && isTodaySelected ? renderMealActionCamera() : null}
 
                 <Flex justify="center" align="center" style={styles.planListFooter}>
-                    <View style={styles.planListFooterLine} />
+                    <Image source={require('@/assets/images/curriculum/yz.png')} style={styles.planListFooterImage} />
                     <Text style={styles.planListFooterText}>每一次适合自己的选择，都是身体慢慢变好的开始。</Text>
-                    <View style={styles.planListFooterLine} />
                 </Flex>
             </ScrollView>
 
@@ -1447,4 +1434,6 @@ export default function DietPage({
             />
         </View>
     );
-}
+});
+
+export default DietPage;

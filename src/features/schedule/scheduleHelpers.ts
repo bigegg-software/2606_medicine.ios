@@ -1223,10 +1223,12 @@ export function toScheduleHistoryArchiveItem(
   const isInProgress = info.status === 0;
   const isPaused = info.status === 1;
   const stopReason = info.stopReason?.trim() || '';
-  // 已暂停：展示暂停原因；其余用完成总结 / 调整原因
-  const summary = isPaused
-    ? (stopReason ? `暂停原因：${stopReason}` : '')
-    : (info.completeSummary?.trim() || info.adjustReason?.trim() || '');
+  // 进行中：不展示备注；已暂停：暂停原因；其余：完成总结 / 调整原因
+  const summary = isInProgress
+    ? ''
+    : isPaused
+      ? (stopReason ? `暂停原因：${stopReason}` : '')
+      : (info.completeSummary?.trim() || info.adjustReason?.trim() || '');
 
   return {
     id,
@@ -1305,10 +1307,11 @@ export async function loadScheduleHistoryArchivePreview(pageSize = HISTORY_ARCHI
   );
 }
 
-export type HistoryPlanFilter = 'all' | 'paused' | 'ended';
+export type HistoryPlanFilter = 'all' | 'inProgress' | 'paused' | 'ended';
 
 export const HISTORY_PLAN_FILTER_OPTIONS: { label: string; value: HistoryPlanFilter }[] = [
   { label: '全部', value: 'all' },
+  { label: '进行中', value: 'inProgress' },
   { label: '已暂停', value: 'paused' },
   { label: '已完成', value: 'ended' },
 ];
@@ -1318,6 +1321,13 @@ export async function fetchHistoryPlanPage(
   pageNum: number,
   pageSize: number,
 ): Promise<{ rows: HistoryExPatientRule[]; hasMore: boolean }> {
+  if (filter === 'inProgress') {
+    const res = await getHistoryExPatientRuleList({ status: 0, pageSize, pageNum });
+    const rows = getResourceRows<HistoryExPatientRule>(res);
+    const total = (res as unknown as HistoryListResult).total ?? 0;
+    return { rows, hasMore: pageNum * pageSize < total };
+  }
+
   if (filter === 'paused') {
     const res = await getHistoryExPatientRuleList({ status: 1, pageSize, pageNum });
     const rows = getResourceRows<HistoryExPatientRule>(res);
@@ -1332,20 +1342,26 @@ export async function fetchHistoryPlanPage(
     return { rows, hasMore: pageNum * pageSize < total };
   }
 
-  // 全部：不含进行中（status=0）
-  const [pausedRes, endedRes] = await Promise.all([
+  // 全部：进行中 + 已暂停 + 已结束
+  const [inProgressRes, pausedRes, endedRes] = await Promise.all([
+    getHistoryExPatientRuleList({ status: 0, pageSize, pageNum }),
     getHistoryExPatientRuleList({ status: 1, pageSize, pageNum }),
     getHistoryExPatientRuleList({ status: 2, pageSize, pageNum }),
   ]);
   const rows = sortHistoryPlans([
+    ...getResourceRows<HistoryExPatientRule>(inProgressRes),
     ...getResourceRows<HistoryExPatientRule>(pausedRes),
     ...getResourceRows<HistoryExPatientRule>(endedRes),
   ]);
+  const inProgressTotal = (inProgressRes as unknown as HistoryListResult).total ?? 0;
   const pausedTotal = (pausedRes as unknown as HistoryListResult).total ?? 0;
   const endedTotal = (endedRes as unknown as HistoryListResult).total ?? 0;
   return {
     rows,
-    hasMore: pageNum * pageSize < pausedTotal || pageNum * pageSize < endedTotal,
+    hasMore:
+      pageNum * pageSize < inProgressTotal ||
+      pageNum * pageSize < pausedTotal ||
+      pageNum * pageSize < endedTotal,
   };
 }
 

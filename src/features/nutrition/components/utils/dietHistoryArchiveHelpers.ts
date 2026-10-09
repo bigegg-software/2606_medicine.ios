@@ -19,10 +19,11 @@ function formatArchiveRateValue(rate?: number | null) {
   return text === '--' ? '--' : text.replace(/%$/, '');
 }
 
-export type DietHistoryPlanFilter = 'all' | 'paused' | 'ended';
+export type DietHistoryPlanFilter = 'all' | 'inProgress' | 'paused' | 'ended';
 
 export const DIET_HISTORY_FILTER_OPTIONS: { label: string; value: DietHistoryPlanFilter }[] = [
   { label: '全部', value: 'all' },
+  { label: '进行中', value: 'inProgress' },
   { label: '已暂停', value: 'paused' },
   { label: '已完成', value: 'ended' },
 ];
@@ -107,12 +108,15 @@ export function toDietHistoryArchiveItem(
   const rawId = info.dietPatientRuleId != null ? String(info.dietPatientRuleId).trim() : '';
   const id = rawId
     || `${info.startDate ?? ''}-${info.endDate ?? ''}-${info.prescriptionName ?? ''}`;
+  const isInProgress = info.status === 0;
   const isPaused = info.status === 1;
   const stopReason = info.stopReason?.trim() || '';
-  // 已暂停：展示暂停原因；其余用完成总结 / 调整原因
-  const summaryText = isPaused
-    ? (stopReason ? `暂停原因：${stopReason}` : '')
-    : (info.completeSummary?.trim() || info.adjustReason?.trim() || '');
+  // 进行中：不展示备注；已暂停：暂停原因；其余：完成总结 / 调整原因
+  const summaryText = isInProgress
+    ? ''
+    : isPaused
+      ? (stopReason ? `暂停原因：${stopReason}` : '')
+      : (info.completeSummary?.trim() || info.adjustReason?.trim() || '');
 
   return {
     id,
@@ -124,7 +128,7 @@ export function toDietHistoryArchiveItem(
     calorieRateText: formatArchiveRateValue(statistics?.calorieComplianceRate),
     proteinRateText: formatArchiveRateValue(statistics?.proteinComplianceRate),
     summaryText,
-    isInProgress: info.status === 0,
+    isInProgress,
     isPaused,
     isDone: info.status === 2,
   };
@@ -144,6 +148,13 @@ export async function fetchDietHistoryPlanPage(
   pageNum: number,
   pageSize: number,
 ): Promise<{ rows: DietPatientRuleInfo[]; hasMore: boolean }> {
+  if (filter === 'inProgress') {
+    const res = await getDietPatientRuleList({ status: 0, pageSize, pageNum });
+    const rows = getResourceRows<DietPatientRuleInfo>(res);
+    const total = (res as unknown as HistoryListResult).total ?? 0;
+    return { rows, hasMore: pageNum * pageSize < total };
+  }
+
   if (filter === 'paused') {
     const res = await getDietPatientRuleList({ status: 1, pageSize, pageNum });
     const rows = getResourceRows<DietPatientRuleInfo>(res);
@@ -158,20 +169,26 @@ export async function fetchDietHistoryPlanPage(
     return { rows, hasMore: pageNum * pageSize < total };
   }
 
-  // 全部：不含进行中
-  const [pausedRes, endedRes] = await Promise.all([
+  // 全部：进行中 + 已暂停 + 已结束
+  const [inProgressRes, pausedRes, endedRes] = await Promise.all([
+    getDietPatientRuleList({ status: 0, pageSize, pageNum }),
     getDietPatientRuleList({ status: 1, pageSize, pageNum }),
     getDietPatientRuleList({ status: 2, pageSize, pageNum }),
   ]);
   const rows = sortDietHistoryPlans([
+    ...getResourceRows<DietPatientRuleInfo>(inProgressRes),
     ...getResourceRows<DietPatientRuleInfo>(pausedRes),
     ...getResourceRows<DietPatientRuleInfo>(endedRes),
   ]);
+  const inProgressTotal = (inProgressRes as unknown as HistoryListResult).total ?? 0;
   const pausedTotal = (pausedRes as unknown as HistoryListResult).total ?? 0;
   const endedTotal = (endedRes as unknown as HistoryListResult).total ?? 0;
   return {
     rows,
-    hasMore: pageNum * pageSize < pausedTotal || pageNum * pageSize < endedTotal,
+    hasMore:
+      pageNum * pageSize < inProgressTotal ||
+      pageNum * pageSize < pausedTotal ||
+      pageNum * pageSize < endedTotal,
   };
 }
 

@@ -6,7 +6,7 @@ import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/nutrition';
-import DietPage from './components/DietPage';
+import DietPage, { type DietPageRef } from './components/DietPage';
 import NutritionPrescriptionPage from './components/NutritionPrescriptionPage';
 import HealthPlanPage from './components/HealthPlanPage';
 import { getDietPatientRuleInfo, getInUseDietPatientRuleInfo, type DietPatientRuleInfo } from '@/api/dietPatientRule';
@@ -76,6 +76,7 @@ export default function NutritionPage() {
   });
   /** 首屏后再次 focus（详情返回等）静默刷新，避免整页 loading */
   const hasLoadedRef = useRef(false);
+  const dietPageRef = useRef<DietPageRef>(null);
   const profileComplete = isFamilyView ? true : isUserBaseInfoComplete(user);
 
   const familyFromStore = useMemo(() => {
@@ -253,18 +254,45 @@ export default function NutritionPage() {
 
   const pageTitle = dietRule?.prescriptionName?.trim() || '营养处方';
 
+  const openDietDatePicker = useCallback(() => {
+    if (!dietRule) {
+      // 无进行中处方时：已完成走执行统计，其余保持原饮食记录入口
+      if (tipKind === 'completed' && statusTipRuleId) {
+        openStatusTipExecutionStats();
+        return;
+      }
+      const foodRecordingRuleId = statusTipRuleId;
+      if (foodRecordingRuleId) {
+        navigation.navigate('FoodRecordingPage', {
+          dietPatientRuleId: foodRecordingRuleId,
+        });
+        return;
+      }
+      navigation.navigate('FoodRecordingPage');
+      return;
+    }
+    if (activeNav !== 'todayExercise') {
+      onPressNav('todayExercise');
+    }
+    // 切 tab 后下一帧再弹窗，确保 DietPage 已展示
+    requestAnimationFrame(() => {
+      dietPageRef.current?.openDatePicker();
+    });
+  }, [
+    activeNav,
+    dietRule,
+    navigation,
+    onPressNav,
+    openStatusTipExecutionStats,
+    statusTipRuleId,
+    tipKind,
+  ]);
+
   useEffect(() => {
-    // 仅「已完成」走执行统计；暂停与正常一致进入饮食记录
-    const showCompletedStats = tipKind === 'completed' && Boolean(statusTipRuleId);
-    const foodRecordingRuleId =
-      (dietRule?.dietPatientRuleId != null
-        ? String(dietRule.dietPatientRuleId).trim()
-        : '')
-      || statusTipRuleId;
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
-      // 历史处方只读：不显示右上角家人切换 / 饮食记录入口
+      // 历史处方只读：不显示右上角家人切换 / 日历入口
       headerRight: dietPatientRuleId
         ? () => null
         : isFamilyView
@@ -272,37 +300,21 @@ export default function NutritionPage() {
           : () => (
             <TouchableOpacity
               style={{ marginRight: 18 }}
-              onPress={() => {
-                if (showCompletedStats) {
-                  openStatusTipExecutionStats();
-                  return;
-                }
-                // 暂停处方需带 id，否则饮食记录按「进行中」拉取会为空
-                if (foodRecordingRuleId) {
-                  navigation.navigate('FoodRecordingPage', {
-                    dietPatientRuleId: foodRecordingRuleId,
-                  });
-                  return;
-                }
-                navigation.navigate('FoodRecordingPage');
-              }}>
+              onPress={openDietDatePicker}>
               <Image
                 style={{ width: 24, height: 24 }}
-                source={require('@/assets/images/nutrition/icon_history.png')}
+                source={require('@/assets/images/nutrition/rightTime.png')}
               />
             </TouchableOpacity>
           ),
     });
   }, [
     dietPatientRuleId,
-    dietRule?.dietPatientRuleId,
     isFamilyView,
     navigation,
-    openStatusTipExecutionStats,
+    openDietDatePicker,
     pageTitle,
     relationLabel,
-    statusTipRuleId,
-    tipKind,
   ]);
 
   const statusTipText = showStatusTip ? (
@@ -366,8 +378,8 @@ export default function NutritionPage() {
           <Image style={styles.topBoxImage} source={require('@/assets/images/nutrition/model.png')} />
           <Text style={styles.topBoxText}>生活方式医学中心联盟</Text>
         </Flex>
-        <View style={styles.topNameBox}>
-          <Flex style={{ marginTop: 7 }}>
+        <Flex justify="between" align="center" style={styles.topNameBox}>
+          <Flex align="center" style={styles.topNameLeft}>
             <Text style={styles.topNameText}>{header.name}</Text>
             {header.version ? (
               <Flex style={styles.containerBox}>
@@ -376,7 +388,7 @@ export default function NutritionPage() {
               </Flex>
             ) : null}
           </Flex>
-          <Flex style={styles.topInfoBox}>
+          <Flex align="center" style={styles.topInfoBox}>
             <Flex style={styles.brBox}>
               <Text style={styles.brText}>{isFamilyView ? relationLabel : '本人'}</Text>
             </Flex>
@@ -384,8 +396,7 @@ export default function NutritionPage() {
               {header.infoText}
             </Text>
           </Flex>
-          <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
-        </View>
+        </Flex>
       </View>
       {/* 历史处方（完成情况 / 处方详情）不展示底部 tab */}
       {!prescriptionOnly && !dietPatientRuleId ? (
@@ -400,9 +411,7 @@ export default function NutritionPage() {
               <Text
                 style={[styles.navText, activeNav === page.key && styles.activeNavText]}
                 numberOfLines={1}
-              >
-                {page.title}
-              </Text>
+              >{page.title}</Text>
             </Flex>
           ))}
         </Flex>
@@ -490,6 +499,7 @@ export default function NutritionPage() {
               {mountedTabs.todayExercise ? (
                 <View style={{ flex: 1, display: activeNav === 'todayExercise' ? 'flex' : 'none' }}>
                   <DietPage
+                    ref={dietPageRef}
                     key={patientUserId ?? 'self'}
                     dietRule={dietRule}
                     onDietRuleChange={setDietRule}
