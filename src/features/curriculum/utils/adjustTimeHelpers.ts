@@ -233,17 +233,21 @@ export function mapSessionsToAdjustSlots(
 
 /**
  * 拉取本服务站、指定课程类型、某日可改约场次（含当前已预约置灰项）
+ * 传入 coachUserId 时仅返回该教练场次
  */
 export async function fetchAdjustableSessions(options: {
   stationId: string;
   courseType: CourseSessionType | string;
   sessionDate: string;
+  /** 当前教练：仅展示该教练可约时间 */
+  coachUserId?: string;
   /** 当前已预约场次：列表中保留并置灰 */
   currentSessionId?: string;
 }): Promise<AdjustTimeSlotItem[]> {
   const stationId = String(options.stationId ?? '').trim();
   const courseType = String(options.courseType ?? '').trim();
   const sessionDate = String(options.sessionDate ?? '').trim();
+  const coachUserId = String(options.coachUserId ?? '').trim();
   if (!stationId || !courseType || !sessionDate) return [];
 
   const res = await getCourseSessionPage({
@@ -253,6 +257,7 @@ export async function fetchAdjustableSessions(options: {
     endDate: sessionDate,
     pageNum: 1,
     pageSize: 50,
+    ...(coachUserId ? { coachUserId } : {}),
   });
 
   return mapSessionsToAdjustSlots(getResourceRows<CourseSessionItem>(res), {

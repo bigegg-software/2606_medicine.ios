@@ -218,7 +218,8 @@ const styles = StyleSheet.create({
     },
     familyHealthAddIcon: {
         width: 40,
-        height: 40
+        height: 40,
+        borderRadius: 20,
     },
     familyHealthAddText: {
         marginTop: 8,

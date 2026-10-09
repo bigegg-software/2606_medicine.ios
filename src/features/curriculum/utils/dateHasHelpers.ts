@@ -19,6 +19,7 @@ export async function fetchCourseSessionDateHasSet(options: {
   startDate: string;
   endDate: string;
   stationId?: string;
+  coachUserId?: string;
 }): Promise<Set<string>> {
   const startDate = options.startDate?.trim() || '';
   const endDate = options.endDate?.trim() || '';
@@ -27,11 +28,14 @@ export async function fetchCourseSessionDateHasSet(options: {
 
   try {
     const stationId = options.stationId != null ? String(options.stationId).trim() : '';
+    const coachUserId =
+      options.coachUserId != null ? String(options.coachUserId).trim() : '';
     const res = await getCourseSessionDateHasList({
       startDate,
       endDate,
       courseType,
       ...(stationId ? { stationId } : {}),
+      ...(coachUserId ? { coachUserId } : {}),
     });
     if (!isResourceApiOk(res)) return new Set();
     const rows = apiResourceData(res);

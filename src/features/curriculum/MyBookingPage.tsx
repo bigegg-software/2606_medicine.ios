@@ -160,6 +160,7 @@ export default function MyBookingPage() {
           onClose={() => setAdjustTimeVisible(false)}
           bookingId={nextBooking.bookingId}
           stationId={nextBooking.stationId}
+          coachUserId={nextBooking.coachUserId}
           courseType={nextBooking.courseType || 'private'}
           excludeSessionId={nextBooking.sessionId}
           initialDate={nextBooking.sessionDate}

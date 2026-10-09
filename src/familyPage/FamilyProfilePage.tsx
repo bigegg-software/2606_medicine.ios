@@ -184,7 +184,8 @@ export default function FamilyProfilePage() {
         ),
       });
       return () => {
-        parent?.setOptions({ headerRight: undefined });
+        // undefined 不会清除已有按钮，需显式置空
+        parent?.setOptions({ headerRight: () => null });
       };
     }, [navigation]),
   );

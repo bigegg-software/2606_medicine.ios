@@ -36,6 +36,7 @@ import {
   toSessionId,
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
+import CachedRemoteImage from './components/CachedRemoteImage';
 import CoachEntryCard from './components/CoachEntryCard';
 import CourseSubMetaRow from './components/CourseSubMetaRow';
 import CourseTypeTitleTag from './components/CourseTypeTitleTag';
@@ -231,7 +232,6 @@ export default function GroupCourseDetailPage() {
     );
   }
 
-  const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
   const bookingClosed = isBookingActionClosed(detail.bookingStatus);
   const showRebook = isBookingAbsentStatus(detail.bookingStatus);
   // 进行中(4) / 已结束(5) / 已取消(6) 不可预约
@@ -259,7 +259,12 @@ export default function GroupCourseDetailPage() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroWrap}>
-            <Image source={coverSource} style={styles.heroImage} resizeMode="cover" />
+            <CachedRemoteImage
+              uri={detail.coverUri}
+              fallback={DEFAULT_COVER}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
             {detail.courseTags.length > 0 ? (
               <View style={styles.heroTagRow} pointerEvents="none">
                 {detail.courseTags.map(tag => (

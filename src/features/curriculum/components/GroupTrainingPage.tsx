@@ -569,13 +569,15 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
                     <Text style={styles.classTitle} numberOfLines={1}>
                       {card.title}
                     </Text>
-                    <Flex style={styles.classTag}>
-                      <Image
-                        style={styles.classTagIcon}
-                        source={require('@/assets/images/exercise/hs.png')}
-                      />
-                      <Text style={styles.classTagText}>适合你</Text>
-                    </Flex>
+                    {card.isRecommend ? (
+                      <Flex style={styles.classTag}>
+                        <Image
+                          style={styles.classTagIcon}
+                          source={require('@/assets/images/exercise/hs.png')}
+                        />
+                        <Text style={styles.classTagText}>适合你</Text>
+                      </Flex>
+                    ) : null}
                   </Flex>
 
                   <Flex justify="between" align="center" style={styles.classMetaRow}>

@@ -18,6 +18,7 @@ import type { RootStackParamList } from '@/route/router';
 import styles from '@/css/schedule/calendar';
 import type { DailyRecordStatusItem } from '@/api/dailyRecordStatus';
 import {
+  CALENDAR_ACTIVITY_LIVE_ENABLED,
   CALENDAR_DAY_DOT_COLORS,
   buildLocalCalendarDotStatus,
   clampScheduleCalendarDate,
@@ -72,6 +73,7 @@ import {
   isExPatientRuleActiveOnDate,
   buildUpcomingExerciseProgressMapFallback,
 } from './utils/calendarDietDotHelpers';
+import { resolveBookingDetailRoute } from '@/src/features/curriculum/utils/myBookingHelpers';
 import type { DietPatientRuleInfo } from '@/api/dietPatientRule';
 import type { InUseExPatientRule } from '@/api/schedule';
 
@@ -98,6 +100,7 @@ const TIMELINE_ICONS: Record<CalendarTimelineItem['kind'], number> = {
   drug: require('@/assets/images/schedule/yw.png'),
   activity: require('@/assets/images/schedule/hd.png'),
   live: require('@/assets/images/schedule/zb.png'),
+  course: require('@/assets/images/schedule/kc.png'),
 };
 
 type CalendarDay = {
@@ -384,7 +387,12 @@ function TimelineCardItem({
 }) {
   const isDietItem = item.kind === 'diet';
   const isDrugItem = item.kind === 'drug';
-  const isPressable = !readOnly && (isDietItem || item.kind === 'activity' || item.kind === 'live');
+  const isPressable =
+    !readOnly &&
+    (isDietItem ||
+      item.kind === 'activity' ||
+      item.kind === 'live' ||
+      item.kind === 'course');
 
   if (isDrugItem) {
     return (
@@ -560,6 +568,66 @@ function ActivityTimelineCard({
   );
 }
 
+function CourseTimelineCard({
+  items,
+  readOnly,
+  onPressItem,
+}: {
+  items: CalendarTimelineItem[];
+  readOnly?: boolean;
+  onPressItem: (item: CalendarTimelineItem) => void;
+}) {
+  return (
+    <View style={styles.mergedTimelineCard}>
+      {items.map((item, itemIndex) => {
+        const subtitle = item.desc;
+        const statusText = item.courseStatusLabel || '已预约';
+        // 同时间课程为平级项：只加间距，不用 mergedTimelineCardItem 的左缩进
+        const row = (
+          <Flex
+            justify="between"
+            align="center"
+            style={itemIndex > 0 ? { marginTop: 15 } : null}>
+            <View style={styles.mergedMedicationContent}>
+              <Flex align="center">
+                <Image
+                  style={styles.taskCardIcon}
+                  source={require('@/assets/images/schedule/kc.png')}
+                />
+                <Text style={[styles.taskCardTitle, { flexShrink: 1 }]} numberOfLines={1}>
+                  {item.title}
+                </Text>
+              </Flex>
+              {subtitle ? (
+                <Text
+                  style={[styles.mergedMedicationDesc, styles.activityLocationText]}
+                  numberOfLines={2}
+                >
+                  {subtitle}
+                </Text>
+              ) : null}
+            </View>
+            <TimelineStatusBtn label={statusText} />
+          </Flex>
+        );
+
+        if (readOnly) {
+          return <View key={item.key}>{row}</View>;
+        }
+
+        return (
+          <TouchableOpacity
+            key={item.key}
+            activeOpacity={0.7}
+            onPress={() => onPressItem(item)}>
+            {row}
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
 function MedicationTimelineCard({
   items,
   readOnly,
@@ -687,10 +755,19 @@ function TimelineSection({
         {timeGroups.map((group, groupIndex) => {
           const isLast = groupIndex === timeGroups.length - 1;
           const medicationItems = group.items.filter(item => item.kind === 'drug');
-          const activityItems = group.items.filter(item => item.kind === 'activity');
-          const liveItems = group.items.filter(item => item.kind === 'live');
+          const activityItems = CALENDAR_ACTIVITY_LIVE_ENABLED
+            ? group.items.filter(item => item.kind === 'activity')
+            : [];
+          const liveItems = CALENDAR_ACTIVITY_LIVE_ENABLED
+            ? group.items.filter(item => item.kind === 'live')
+            : [];
+          const courseItems = group.items.filter(item => item.kind === 'course');
           const otherItems = group.items.filter(
-            item => item.kind !== 'drug' && item.kind !== 'activity' && item.kind !== 'live',
+            item =>
+              item.kind !== 'drug' &&
+              item.kind !== 'activity' &&
+              item.kind !== 'live' &&
+              item.kind !== 'course',
           );
 
           return (
@@ -722,7 +799,7 @@ function TimelineSection({
                       />
                     </View>
                   ) : null}
-                  {activityItems.length > 0 ? (
+                  {CALENDAR_ACTIVITY_LIVE_ENABLED && activityItems.length > 0 ? (
                     <View style={styles.cardSideBox}>
                       <ActivityTimelineCard
                         items={activityItems}
@@ -731,10 +808,19 @@ function TimelineSection({
                       />
                     </View>
                   ) : null}
-                  {liveItems.length > 0 ? (
+                  {CALENDAR_ACTIVITY_LIVE_ENABLED && liveItems.length > 0 ? (
                     <View style={styles.cardSideBox}>
                       <LiveTimelineCard
                         items={liveItems}
+                        readOnly={readOnly}
+                        onPressItem={onPressItem}
+                      />
+                    </View>
+                  ) : null}
+                  {courseItems.length > 0 ? (
+                    <View style={styles.cardSideBox}>
+                      <CourseTimelineCard
+                        items={courseItems}
                         readOnly={readOnly}
                         onPressItem={onPressItem}
                       />
@@ -1291,7 +1377,13 @@ export default function ScheduleCalendarPage() {
   }, [statusMap, selectedDate, loadDayTimeline, loadExercisePrescription]);
 
   const handleTimelinePress = useCallback((item: CalendarTimelineItem) => {
-    if (readOnly && (item.kind === 'activity' || item.kind === 'live' || item.kind === 'drug')) {
+    if (
+      readOnly &&
+      (item.kind === 'activity' ||
+        item.kind === 'live' ||
+        item.kind === 'course' ||
+        item.kind === 'drug')
+    ) {
       return;
     }
     if (item.kind === 'diet') {
@@ -1336,6 +1428,14 @@ export default function ScheduleCalendarPage() {
     }
     if (item.kind === 'live' && item.liveId) {
       navigation.navigate('LiveDetail', { liveId: item.liveId });
+      return;
+    }
+    if (item.kind === 'course' && item.sessionId) {
+      const route = resolveBookingDetailRoute(item.courseType);
+      navigation.navigate(route, {
+        sessionId: item.sessionId,
+        ...(item.bookingStatus != null ? { bookingStatus: item.bookingStatus } : {}),
+      });
     }
   }, [navigation, readOnly, selectedDate, viewNavParams]);
 

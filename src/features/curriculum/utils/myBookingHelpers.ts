@@ -164,6 +164,14 @@ function resolveCoachName(item: CourseSessionBookingItem) {
   );
 }
 
+function resolveCoachUserId(item: CourseSessionBookingItem) {
+  if (item.coachUserId != null && String(item.coachUserId).trim()) {
+    return String(item.coachUserId).trim();
+  }
+  const sid = item.session?.coachUserId;
+  return sid != null && String(sid).trim() ? String(sid).trim() : '';
+}
+
 function resolveCourseName(item: CourseSessionBookingItem) {
   const name = item.session?.template?.courseName?.trim() || '';
   const courseType = resolveCourseType(item);
@@ -283,6 +291,8 @@ export type MyBookingNextCardView = {
   bookingId: string;
   sessionId: string;
   stationId: string;
+  /** 教练用户 id（调整时间限定当前教练） */
+  coachUserId: string;
   courseType: string;
   /** 上课日期 yyyy-MM-dd */
   sessionDate: string;
@@ -376,6 +386,7 @@ export function mapNextBookingCard(
     bookingId,
     sessionId,
     stationId: resolveStationId(item),
+    coachUserId: resolveCoachUserId(item),
     courseType,
     sessionDate: resolveSessionDate(item),
     startTime: resolveStartTime(item),

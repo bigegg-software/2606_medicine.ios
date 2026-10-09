@@ -221,7 +221,7 @@ export default function FamilyTabs() {
     }, [dispatch, processFamilyBindNotices]),
   );
 
-  // 只更新 title，并清除非预警页可能残留的 headerRight
+  // 预警/档案页的 headerRight 由页面自身设置，此处只改 title，避免盖掉右侧按钮
   const syncFamilyTabTitle = useCallback(
     (routeName: string) => {
       const title = FAMILY_TAB_TITLES[routeName as keyof FamilyTabParamList] ?? '首页';
@@ -238,21 +238,11 @@ export default function FamilyTabs() {
         return;
       }
 
-      if (routeName === 'FamilyAlert') {
+      if (routeName === 'FamilyAlert' || routeName === 'FamilyProfile') {
         navigation.setOptions({
-          title,
+          title: routeName === 'FamilyProfile' ? '家人档案' : title,
           headerTitle: undefined,
           headerLeft: undefined,
-        });
-        return;
-      }
-
-      if (routeName === 'FamilyProfile') {
-        navigation.setOptions({
-          title: '家人档案',
-          headerTitle: undefined,
-          headerLeft: undefined,
-          headerRight: () => null,
         });
         return;
       }

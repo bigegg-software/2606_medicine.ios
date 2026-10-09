@@ -360,6 +360,8 @@ export type GroupSessionCardView = {
   bookedByMe: boolean;
   bookingId?: string;
   bookingInfo: BookingDialogInfo;
+  /** 处方推荐场次 */
+  isRecommend?: boolean;
 };
 
 function formatGroupCoachMeta(item: CourseSessionItem) {
@@ -379,12 +381,14 @@ function formatGroupEnrollText(item: CourseSessionItem) {
   return `已报名${booked}人·还可预约${remain}人`;
 }
 
-export function mapGroupSessionToCard(item: CourseSessionItem): GroupSessionCardView | null {
+export function mapGroupSessionToCard(
+  item: CourseSessionItem,
+  options?: { isRecommend?: boolean },
+): GroupSessionCardView | null {
   const sessionId = item.sessionId != null ? String(item.sessionId).trim() : '';
   if (!sessionId) return null;
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
-  const coverUri =
-    item.template?.coverOssUrl?.trim() || undefined;
+  const coverUri = item.template?.coverOssUrl?.trim() || undefined;
   return {
     key: sessionId,
     sessionId,
@@ -397,13 +401,14 @@ export function mapGroupSessionToCard(item: CourseSessionItem): GroupSessionCard
     status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
     bookingInfo: mapBookingDialogInfo(item),
+    isRecommend: Boolean(options?.isRecommend),
     ...(bookingId ? { bookingId } : {}),
   };
 }
 
-function mapGroupCards(rows: CourseSessionItem[]) {
+function mapGroupCards(rows: CourseSessionItem[], options?: { isRecommend?: boolean }) {
   return rows
-    .map(mapGroupSessionToCard)
+    .map(item => mapGroupSessionToCard(item, options))
     .filter((item): item is GroupSessionCardView => item != null);
 }
 
@@ -440,7 +445,7 @@ export async function fetchRecommendGroupSessions(
     pageSize,
     excludeSessionIds,
   });
-  const recommendCards = mapGroupCards(recommended);
+  const recommendCards = mapGroupCards(recommended, { isRecommend: true });
   const listCards = mapGroupCards(rows);
   const seen = new Set(recommendCards.map(card => card.sessionId));
   return {
@@ -800,12 +805,26 @@ export function mapOnlineCourseDetail(item: CourseSessionItem): OnlineCourseDeta
   });
 }
 
+/** 模板封面：优先 listCoverOssUrl，其次 coverOssUrl */
+function resolveTemplateCoverUri(item: CourseSessionItem) {
+  return (
+    item.template?.listCoverOssUrl?.trim() ||
+    item.template?.coverOssUrl?.trim() ||
+    undefined
+  );
+}
+
 /** 映射集体课详情 */
 export function mapGroupCourseDetail(item: CourseSessionItem): OnlineCourseDetailView | null {
-  return mapCourseSessionDetail(item, {
+  const base = mapCourseSessionDetail(item, {
     courseTypeLabel: '集体课',
     titleFallback: '集体课',
   });
+  if (!base) return null;
+  return {
+    ...base,
+    coverUri: resolveTemplateCoverUri(item),
+  };
 }
 
 /** 映射私教课详情 */

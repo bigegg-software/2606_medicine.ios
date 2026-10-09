@@ -37,6 +37,7 @@ import {
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
 import AdjustTimeModal from './components/AdjustTimeModal';
+import CachedRemoteImage from './components/CachedRemoteImage';
 import CoachEntryCard from './components/CoachEntryCard';
 import CourseSubMetaRow from './components/CourseSubMetaRow';
 import CourseTypeTitleTag from './components/CourseTypeTitleTag';
@@ -233,7 +234,6 @@ export default function PrivateCourseDetailPage() {
     );
   }
 
-  const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
   const bookingClosed = isBookingActionClosed(detail.bookingStatus);
   const showRebook = isBookingAbsentStatus(detail.bookingStatus);
   // 进行中(4) / 已结束(5) / 已取消(6)：不可预约、取消、调整时间
@@ -260,6 +260,7 @@ export default function PrivateCourseDetailPage() {
         onClose={() => setAdjustTimeVisible(false)}
         bookingId={detail.bookingId}
         stationId={detail.stationId}
+        coachUserId={detail.coachUserId}
         courseType="private"
         excludeSessionId={detail.sessionId}
         initialDate={detail.sessionDate}
@@ -281,7 +282,12 @@ export default function PrivateCourseDetailPage() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.privateHeroWrap}>
-            <Image source={coverSource} style={styles.privateHeroImage} resizeMode="cover" />
+            <CachedRemoteImage
+              uri={detail.coverUri}
+              fallback={DEFAULT_COVER}
+              style={styles.privateHeroImage}
+              resizeMode="cover"
+            />
             {detail.courseTags.length > 0 ? (
               <View style={styles.privateHeroTagRow} pointerEvents="none">
                 {detail.courseTags.map(tag => (

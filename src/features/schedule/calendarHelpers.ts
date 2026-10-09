@@ -22,6 +22,7 @@ import {
   type DailyLiveItem,
   type DailyRecordStatusItem,
 } from '@/api/dailyRecordStatus';
+import { loadCourseTimelineItems } from './utils/calendarCourseHelpers';
 import {
   formatExerciseChildTypes,
   getExerciseTypeLabel,
@@ -64,6 +65,12 @@ export const SCHEDULE_CALENDAR_MIN_MONTH = '2026-06';
 /** 日程日历最早可选日期 */
 export const SCHEDULE_CALENDAR_MIN_DATE = `${SCHEDULE_CALENDAR_MIN_MONTH}-01`;
 
+/**
+ * 日历活动/直播：暂关闭（不请求、不渲染、不参与「其他」亮点）
+ * 需要恢复时改为 true 即可
+ */
+export const CALENDAR_ACTIVITY_LIVE_ENABLED = false;
+
 export function clampScheduleCalendarMonth(month: Moment | string): Moment {
   const min = moment(SCHEDULE_CALENDAR_MIN_MONTH, 'YYYY-MM').startOf('month');
   const target = moment(month).startOf('month');
@@ -87,7 +94,7 @@ export type CalendarTimelineItem = {
   time: string;
   title: string;
   desc: string;
-  kind: 'diet' | 'ex' | 'drug' | 'activity' | 'live';
+  kind: 'diet' | 'ex' | 'drug' | 'activity' | 'live' | 'course';
   activityId?: string;
   activityLocation?: string;
   activityStatus?: number;
@@ -98,6 +105,14 @@ export type CalendarTimelineItem = {
   livePlatform?: string;
   liveStatus?: number;
   liveStatusName?: string;
+  /** 课程场次 */
+  sessionId?: string;
+  bookingId?: string;
+  courseType?: string;
+  bookingStatus?: number;
+  courseStatusLabel?: string;
+  courseCoachName?: string;
+  courseStationName?: string;
   exerciseTypeLabel?: string;
   exerciseGoalText?: string;
   /** 已完成分钟（展示：done/target分钟） */
@@ -170,7 +185,13 @@ export function getCalendarGridDateRange(month: Moment) {
 
 export function hasDailyRecord(status?: DailyRecordStatusItem | null) {
   if (!status) return false;
-  return Boolean(status.isDiet || status.isEx || status.isDrug || status.isActivity || status.isLive);
+  return Boolean(
+    status.isDiet ||
+    status.isEx ||
+    status.isDrug ||
+    status.isCourseSession ||
+    (CALENDAR_ACTIVITY_LIVE_ENABLED && (status.isActivity || status.isLive)),
+  );
 }
 
 /** 日历日期点颜色：用餐 / 用药 / 运动 / 其他 */
@@ -187,6 +208,7 @@ export type CalendarDayLocalDotStatus = {
   isEx?: boolean;
   isActivity?: boolean;
   isLive?: boolean;
+  isCourseSession?: boolean;
 };
 
 export function buildLocalCalendarDotStatus(
@@ -197,9 +219,30 @@ export function buildLocalCalendarDotStatus(
     isEx: Boolean(options?.isEx),
     isDiet: items.some(item => item.kind === 'diet'),
     isDrug: Boolean(options?.hasMedicationPlan) || items.some(item => item.kind === 'drug'),
-    isActivity: items.some(item => item.kind === 'activity'),
-    isLive: items.some(item => item.kind === 'live'),
+    isActivity: CALENDAR_ACTIVITY_LIVE_ENABLED
+      ? items.some(item => item.kind === 'activity')
+      : false,
+    isLive: CALENDAR_ACTIVITY_LIVE_ENABLED
+      ? items.some(item => item.kind === 'live')
+      : false,
+    isCourseSession: items.some(item => item.kind === 'course'),
   };
+}
+
+/** 其他：课程；活动/直播受 CALENDAR_ACTIVITY_LIVE_ENABLED 控制 */
+export function hasCalendarOtherRecord(
+  status?: DailyRecordStatusItem | null,
+  local?: CalendarDayLocalDotStatus | null,
+) {
+  const activityLive = CALENDAR_ACTIVITY_LIVE_ENABLED
+    ? Boolean(
+      status?.isActivity ||
+      status?.isLive ||
+      local?.isActivity ||
+      local?.isLive,
+    )
+    : false;
+  return Boolean(status?.isCourseSession || local?.isCourseSession || activityLive);
 }
 
 export function getCalendarDayDotColors(
@@ -209,7 +252,7 @@ export function getCalendarDayDotColors(
   const isDiet = Boolean(status?.isDiet || local?.isDiet);
   const isDrug = Boolean(status?.isDrug || local?.isDrug);
   const isEx = Boolean(status?.isEx || local?.isEx);
-  const isOther = Boolean(status?.isActivity || status?.isLive || local?.isActivity || local?.isLive);
+  const isOther = hasCalendarOtherRecord(status, local);
   if (!isDiet && !isDrug && !isEx && !isOther) return [];
   const colors: string[] = [];
   if (isDiet) colors.push(CALENDAR_DAY_DOT_COLORS.diet);
@@ -239,6 +282,8 @@ const TIMELINE_STATUS_DONE_LABELS = new Set([
   '直播中',
   '进行中',
   '已报名',
+  '已完成',
+  '已预约',
 ]);
 const TIMELINE_STATUS_PENDING_LABELS = new Set([
   '未记录',
@@ -248,6 +293,8 @@ const TIMELINE_STATUS_PENDING_LABELS = new Set([
   '已结束',
   '已取消',
   '未报名',
+  '缺席',
+  '已过期',
 ]);
 
 export type TimelineStatusBtnTone = 'done' | 'pending' | 'default';
@@ -980,20 +1027,29 @@ export async function loadCalendarDayTimelineItems(
       ? { patientUserId: options.patientUserId }
       : undefined;
     const detailTasks: Promise<CalendarTimelineItem[]>[] = [
-      getDailyActivityListByDate({ customerLocalDate }, patientOpts)
-        .then(res => (isResourceApiOk(res)
-          ? (apiResourceData<DailyActivityItem[]>(res as any) ?? []).map(mapActivityTimelineItem)
-          : [])),
-      (async () => {
-        const [liveRes, platformLabelMap] = await Promise.all([
-          getDailyLiveListByDate({ customerLocalDate }, patientOpts),
-          loadLivePlatformLabelMap(),
-        ]);
-        if (!isResourceApiOk(liveRes)) return [];
-        return (apiResourceData<DailyLiveItem[]>(liveRes as any) ?? []).map((item, index) =>
-          mapLiveTimelineItem(item, index, platformLabelMap),
-        );
-      })(),
+      // 活动/直播：CALENDAR_ACTIVITY_LIVE_ENABLED 为 true 时恢复请求
+      ...(CALENDAR_ACTIVITY_LIVE_ENABLED
+        ? [
+          getDailyActivityListByDate({ customerLocalDate }, patientOpts).then(res =>
+            isResourceApiOk(res)
+              ? (apiResourceData<DailyActivityItem[]>(res as any) ?? []).map(
+                mapActivityTimelineItem,
+              )
+              : [],
+          ),
+          (async () => {
+            const [liveRes, platformLabelMap] = await Promise.all([
+              getDailyLiveListByDate({ customerLocalDate }, patientOpts),
+              loadLivePlatformLabelMap(),
+            ]);
+            if (!isResourceApiOk(liveRes)) return [];
+            return (apiResourceData<DailyLiveItem[]>(liveRes as any) ?? []).map(
+              (item, index) => mapLiveTimelineItem(item, index, platformLabelMap),
+            );
+          })(),
+        ]
+        : []),
+      loadCourseTimelineItems(customerLocalDate),
       loadDietTimelineItems(customerLocalDate, patientOpts),
     ];
 

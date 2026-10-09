@@ -19,9 +19,11 @@ import {
   type DictDataItem,
 } from '@/api/dict';
 import {
+  CALENDAR_ACTIVITY_LIVE_ENABLED,
   mapTodayMedicationGroupsToTimelineItems,
   type CalendarTimelineItem,
 } from '@/src/features/schedule/calendarHelpers';
+import { loadCourseTimelineItems } from '@/src/features/schedule/utils/calendarCourseHelpers';
 import { loadMedicationPlanGroupsForDate } from '@/src/features/profile/medication/medicationHelpers';
 import {
   buildMealCardsFromRule,
@@ -51,7 +53,7 @@ export type TodayScheduleItem = {
   sortValue: number;
   title: string;
   desc: string;
-  kind: 'diet' | 'drug' | 'activity' | 'live' | 'ex';
+  kind: 'diet' | 'drug' | 'activity' | 'live' | 'course' | 'ex';
   icon?: ImageSourcePropType;
   mealWindowEnd?: number;
   mealCard?: MealCardData;
@@ -66,6 +68,12 @@ export type TodayScheduleItem = {
   livePlatform?: string;
   /** 主播姓名、观看平台 */
   liveSubtitle?: string;
+  /** 课程场次 */
+  sessionId?: string;
+  bookingId?: string;
+  courseType?: string;
+  bookingStatus?: number;
+  courseStatusLabel?: string;
   progress?: number;
   exerciseType?: string;
   exerciseChildType?: string;
@@ -102,6 +110,7 @@ const TIMELINE_ICONS: Record<TodayScheduleItem['kind'], number> = {
   drug: require('@/assets/images/schedule/yw.png'),
   activity: require('@/assets/images/assistant/icon_hd.png'),
   live: require('@/assets/images/assistant/icon_zb.png'),
+  course: require('@/assets/images/assistant/icon_kc.png'),
   ex: require('@/assets/images/schedule/exercise2.png'),
 };
 
@@ -171,7 +180,24 @@ function formatLiveSubtitle(anchor?: string, platform?: string) {
   return [anchor?.trim(), platform?.trim()].filter(Boolean).join('、');
 }
 
-function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleItem {
+function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleItem | null {
+  // 活动/直播关闭时不进入今日安排
+  if (
+    !CALENDAR_ACTIVITY_LIVE_ENABLED &&
+    (item.kind === 'activity' || item.kind === 'live')
+  ) {
+    return null;
+  }
+  if (
+    item.kind !== 'diet' &&
+    item.kind !== 'drug' &&
+    item.kind !== 'activity' &&
+    item.kind !== 'live' &&
+    item.kind !== 'course' &&
+    item.kind !== 'ex'
+  ) {
+    return null;
+  }
   const liveSubtitle =
     item.kind === 'live'
       ? formatLiveSubtitle(item.liveAnchorName, item.livePlatform) || undefined
@@ -193,6 +219,11 @@ function mapTimelineToScheduleItem(item: CalendarTimelineItem): TodayScheduleIte
     liveAnchorName: item.liveAnchorName,
     livePlatform: item.livePlatform,
     liveSubtitle,
+    sessionId: item.sessionId,
+    bookingId: item.bookingId,
+    courseType: item.courseType,
+    bookingStatus: item.bookingStatus,
+    courseStatusLabel: item.courseStatusLabel,
   };
 }
 
@@ -267,6 +298,7 @@ async function fetchDrugItems(currentMinutes: number) {
   const groups = await loadMedicationPlanGroupsForDate(getTodayDate());
   return mapTodayMedicationGroupsToTimelineItems(groups)
     .map(mapTimelineToScheduleItem)
+    .filter((item): item is TodayScheduleItem => item != null)
     .filter(item => item.sortValue >= currentMinutes);
 }
 
@@ -336,7 +368,9 @@ async function loadLivePlatformLabelMap(): Promise<Record<string, string>> {
   return {};
 }
 
-async function fetchTimelineItems(currentMinutes: number) {
+async function fetchActivityLiveItems(currentMinutes: number): Promise<TodayScheduleItem[]> {
+  if (!CALENDAR_ACTIVITY_LIVE_ENABLED) return [];
+
   const today = getTodayDate();
   const [activityRes, liveRes, platformLabelMap] = await Promise.all([
     getDailyActivityListByDate({ customerLocalDate: today }),
@@ -346,18 +380,36 @@ async function fetchTimelineItems(currentMinutes: number) {
 
   const activities = isResourceApiOk(activityRes as unknown as { code?: number })
     ? (apiResourceData<DailyActivityItem[]>(
-      activityRes as unknown as { code?: number; data?: DailyActivityItem[] },
-    ) ?? []).map(mapActivityTimelineItem)
+        activityRes as unknown as { code?: number; data?: DailyActivityItem[] },
+      ) ?? []).map(mapActivityTimelineItem)
     : [];
   const lives = isResourceApiOk(liveRes as unknown as { code?: number })
     ? (apiResourceData<DailyLiveItem[]>(
-      liveRes as unknown as { code?: number; data?: DailyLiveItem[] },
-    ) ?? []).map((item, index) => mapLiveTimelineItem(item, index, platformLabelMap))
+        liveRes as unknown as { code?: number; data?: DailyLiveItem[] },
+      ) ?? []).map((item, index) => mapLiveTimelineItem(item, index, platformLabelMap))
     : [];
 
   return [...activities, ...lives]
     .map(mapTimelineToScheduleItem)
+    .filter((item): item is TodayScheduleItem => item != null)
     .filter(item => item.sortValue >= currentMinutes);
+}
+
+async function fetchCourseItems(currentMinutes: number): Promise<TodayScheduleItem[]> {
+  const today = getTodayDate();
+  const rows = await loadCourseTimelineItems(today);
+  return rows
+    .map(mapTimelineToScheduleItem)
+    .filter((item): item is TodayScheduleItem => item != null)
+    .filter(item => item.sortValue >= currentMinutes);
+}
+
+async function fetchTimelineItems(currentMinutes: number) {
+  const [activityLiveItems, courseItems] = await Promise.all([
+    fetchActivityLiveItems(currentMinutes),
+    fetchCourseItems(currentMinutes),
+  ]);
+  return [...activityLiveItems, ...courseItems];
 }
 
 async function fetchExerciseItems() {
@@ -446,11 +498,17 @@ export function parseTodayScheduleFromInterfaceData(
   interfaceData: { respData?: unknown } | undefined,
 ): TodaySchedulePayload {
   const respData = interfaceData?.respData as Partial<TodaySchedulePayload> | undefined;
+  const rawItems = Array.isArray(respData?.items) ? respData.items : [];
+  const items = CALENDAR_ACTIVITY_LIVE_ENABLED
+    ? rawItems
+    : rawItems.filter(
+        item => item?.kind !== 'activity' && item?.kind !== 'live',
+      );
   return {
-    items: Array.isArray(respData?.items) ? respData.items : [],
+    items,
     mealCards: Array.isArray(respData?.mealCards) ? respData.mealCards : [],
     mealSwiperIndex: respData?.mealSwiperIndex ?? 0,
-    isEmpty: Boolean(respData?.isEmpty),
+    isEmpty: items.length === 0,
   };
 }
 

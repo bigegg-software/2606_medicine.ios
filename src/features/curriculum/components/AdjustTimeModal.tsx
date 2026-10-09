@@ -45,6 +45,8 @@ type Props = {
   bookingId?: string;
   /** 服务站 id */
   stationId?: string;
+  /** 当前教练用户 id（仅展示该教练场次） */
+  coachUserId?: string;
   /** 课程类型：private / group / online */
   courseType?: CourseSessionType | string;
   /** 当前已预约场次 id（列表中置灰展示） */
@@ -63,6 +65,7 @@ export default function AdjustTimeModal({
   onClose,
   bookingId,
   stationId,
+  coachUserId,
   courseType = 'private',
   excludeSessionId,
   initialDate,
@@ -161,6 +164,7 @@ export default function AdjustTimeModal({
 
   const loadStripDateHas = useCallback(async () => {
     const sid = stationId?.trim() || '';
+    const coachId = coachUserId?.trim() || '';
     const { startDate, endDate } = dateStripRange;
     if (!visible || panel !== 'slots' || !sid || !startDate || !endDate) return;
     try {
@@ -169,15 +173,17 @@ export default function AdjustTimeModal({
         startDate,
         endDate,
         stationId: sid,
+        ...(coachId ? { coachUserId: coachId } : {}),
       });
       setStripDateHasSet(filterDateHasSetFromToday(set));
     } catch {
       setStripDateHasSet(new Set());
     }
-  }, [visible, panel, stationId, resolvedCourseType, dateStripRange]);
+  }, [visible, panel, stationId, coachUserId, resolvedCourseType, dateStripRange]);
 
   const loadCalendarDateHas = useCallback(async () => {
     const sid = stationId?.trim() || '';
+    const coachId = coachUserId?.trim() || '';
     const { startDate, endDate } = calendarMonthRange;
     if (!visible || panel !== 'calendar' || !sid || !startDate || !endDate) {
       return;
@@ -188,12 +194,13 @@ export default function AdjustTimeModal({
         startDate,
         endDate,
         stationId: sid,
+        ...(coachId ? { coachUserId: coachId } : {}),
       });
       setCalendarDateHasSet(filterDateHasSetFromToday(set));
     } catch {
       setCalendarDateHasSet(new Set());
     }
-  }, [visible, panel, stationId, resolvedCourseType, calendarMonthRange]);
+  }, [visible, panel, stationId, coachUserId, resolvedCourseType, calendarMonthRange]);
 
   useEffect(() => {
     void loadStripDateHas();
@@ -206,6 +213,7 @@ export default function AdjustTimeModal({
   const loadSlots = useCallback(
     async (date: string) => {
       const sid = stationId?.trim() || '';
+      const coachId = coachUserId?.trim() || '';
       const day = date?.trim() || '';
       if (!sid || !day) {
         setSlots([]);
@@ -218,6 +226,7 @@ export default function AdjustTimeModal({
           courseType: resolvedCourseType,
           sessionDate: day,
           currentSessionId,
+          ...(coachId ? { coachUserId: coachId } : {}),
         });
         setSlots(list);
         const start = initialStartTime?.trim() || '';
@@ -248,7 +257,7 @@ export default function AdjustTimeModal({
         setSlotsLoading(false);
       }
     },
-    [stationId, resolvedCourseType, currentSessionId, initialStartTime],
+    [stationId, coachUserId, resolvedCourseType, currentSessionId, initialStartTime],
   );
 
   useEffect(() => {

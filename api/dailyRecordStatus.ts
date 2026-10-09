@@ -8,6 +8,8 @@ export type DailyRecordStatusItem = {
   isDrug?: boolean;
   isActivity?: boolean;
   isLive?: boolean;
+  /** 是否有课程场次（当日有本人未取消预约，且关联场次未取消） */
+  isCourseSession?: boolean;
 };
 
 export type DailyRecordStatusListResult = {

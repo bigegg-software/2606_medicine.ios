@@ -37,6 +37,7 @@ import {
   toSessionId,
   type OnlineCourseDetailView,
 } from './utils/courseSessionHelpers';
+import CachedRemoteImage from './components/CachedRemoteImage';
 import CoachEntryCard from './components/CoachEntryCard';
 import CourseSubMetaRow from './components/CourseSubMetaRow';
 import CourseTypeTitleTag from './components/CourseTypeTitleTag';
@@ -224,7 +225,6 @@ export default function OnlineCourseDetailPage() {
     );
   }
 
-  const coverSource = detail.coverUri ? { uri: detail.coverUri } : DEFAULT_COVER;
   const watchUrl = detail.liveLink?.trim() || '';
   // 已签到/已核销/已取消/缺席：不再展示取消预约、进入直播
   const bookingClosed = isBookingActionClosed(detail.bookingStatus);
@@ -255,7 +255,12 @@ export default function OnlineCourseDetailPage() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.heroWrap}>
-            <Image source={coverSource} style={styles.heroImage} resizeMode="cover" />
+            <CachedRemoteImage
+              uri={detail.coverUri}
+              fallback={DEFAULT_COVER}
+              style={styles.heroImage}
+              resizeMode="cover"
+            />
             {detail.courseTags.length > 0 ? (
               <View style={styles.heroTagRow} pointerEvents="none">
                 {detail.courseTags.map(tag => (

@@ -14,6 +14,8 @@ import {
   type TodaySchedulePayload,
 } from '../utils/todayScheduleAction';
 import { setPendingTrainingPhaseTab } from '@/src/features/exercise/utils/trainingPhaseTabSync';
+import { CALENDAR_ACTIVITY_LIVE_ENABLED } from '@/src/features/schedule/calendarHelpers';
+import { resolveBookingDetailRoute } from '@/src/features/curriculum/utils/myBookingHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -30,8 +32,9 @@ function ScheduleCard({
   showGap?: boolean;
   onPress?: () => void;
 }) {
-  const isActivity = item.kind === 'activity';
-  const isLive = item.kind === 'live';
+  const isActivity = CALENDAR_ACTIVITY_LIVE_ENABLED && item.kind === 'activity';
+  const isLive = CALENDAR_ACTIVITY_LIVE_ENABLED && item.kind === 'live';
+  const isCourse = item.kind === 'course';
   const location = item.location || (isActivity ? item.desc : '');
   const liveSubtitle =
     item.liveSubtitle
@@ -73,6 +76,31 @@ function ScheduleCard({
           {liveSubtitle ? (
             <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={1}>
               {liveSubtitle}
+            </Text>
+          ) : null}
+        </View>
+        <Text style={assistantStyles.todayScheduleMealTime}>{item.time}</Text>
+      </View>
+    );
+  } else if (isCourse) {
+    content = (
+      <View style={assistantStyles.todayScheduleMealRow}>
+        <Image
+          style={[assistantStyles.todayScheduleCardIcon, assistantStyles.todayScheduleMealIcon]}
+          source={getTodayScheduleIcon(item)}
+        />
+        <View style={assistantStyles.todayScheduleMealBody}>
+          <View style={assistantStyles.todayScheduleMealTitleRow}>
+            <Text style={assistantStyles.todayScheduleMealTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            {item.courseStatusLabel ? (
+              <Text style={calendarStyles.taskCardMedicationType}>{item.courseStatusLabel}</Text>
+            ) : null}
+          </View>
+          {item.desc ? (
+            <Text style={assistantStyles.todayScheduleMealFoods} numberOfLines={2}>
+              {item.desc}
             </Text>
           ) : null}
         </View>
@@ -166,12 +194,20 @@ export default function TodayScheduleCards({ payload }: Props) {
       navigation.navigate('ExercisePage');
       return;
     }
-    if (item.kind === 'activity' && item.activityId) {
+    if (CALENDAR_ACTIVITY_LIVE_ENABLED && item.kind === 'activity' && item.activityId) {
       navigation.navigate('ActivityDetail', { id: item.activityId });
       return;
     }
-    if (item.kind === 'live' && item.liveId) {
+    if (CALENDAR_ACTIVITY_LIVE_ENABLED && item.kind === 'live' && item.liveId) {
       navigation.navigate('LiveDetail', { liveId: item.liveId });
+      return;
+    }
+    if (item.kind === 'course' && item.sessionId) {
+      const route = resolveBookingDetailRoute(item.courseType);
+      navigation.navigate(route, {
+        sessionId: item.sessionId,
+        ...(item.bookingStatus != null ? { bookingStatus: item.bookingStatus } : {}),
+      });
     }
   }, [navigation]);
 
@@ -189,8 +225,9 @@ export default function TodayScheduleCards({ payload }: Props) {
           item.kind === 'diet'
           || item.kind === 'drug'
           || item.kind === 'ex'
-          || (item.kind === 'activity' && item.activityId)
-          || (item.kind === 'live' && item.liveId);
+          || (item.kind === 'course' && Boolean(item.sessionId))
+          || (CALENDAR_ACTIVITY_LIVE_ENABLED && item.kind === 'activity' && Boolean(item.activityId))
+          || (CALENDAR_ACTIVITY_LIVE_ENABLED && item.kind === 'live' && Boolean(item.liveId));
 
         return (
           <ScheduleCard

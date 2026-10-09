@@ -42,6 +42,8 @@ export type CourseTemplateInfo = {
   defaultDuration?: number;
   coverOssId?: number | string;
   coverOssUrl?: string;
+  /** 与 coverOssUrl 同级；详情封面优先使用 */
+  listCoverOssUrl?: string;
   courseTags?: string;
   applicableCrowd?: string;
   requiredEquipment?: string;
@@ -134,8 +136,10 @@ export type CourseSessionMyBookingNextParams = {
   courseType?: CourseSessionType | string;
   stationId?: string;
   coachUserId?: string;
-  /** 预约状态：1.已预约 2.已取消 3.已核销 4.已爽约 */
+  /** 预约状态：1.已预约 2.已取消 3.已核销 4.已爽约；多个英文逗号分隔 */
   status?: number | string;
+  /** 上课日期 yyyy-MM-dd */
+  sessionDate?: string;
   /** 排除的预约 id，多个英文逗号分隔 */
   excludeBookingIds?: string;
   /** 上课日期排序：asc / desc */
@@ -178,6 +182,9 @@ function buildMyBookingNextParams(params: CourseSessionMyBookingNextParams) {
       ? { coachUserId: String(params.coachUserId).trim() }
       : {}),
     ...(params.status != null ? { status: String(params.status) } : {}),
+    ...(params.sessionDate != null && String(params.sessionDate).trim()
+      ? { sessionDate: String(params.sessionDate).trim() }
+      : {}),
   };
 }
 
@@ -208,6 +215,8 @@ export type CourseSessionDateHasItem = {
 export type CourseSessionDateHasListParams = {
   /** 所属服务站id（可选） */
   stationId?: string;
+  /** 教练用户id（可选；调整时间等场景限定当前教练） */
+  coachUserId?: string;
   /** 上课日期起（含）yyyy-MM-dd */
   startDate: string;
   /** 上课日期止（含）yyyy-MM-dd */
@@ -227,6 +236,9 @@ function buildDateHasListParams(params: CourseSessionDateHasListParams) {
     courseType: String(params.courseType).trim(),
     ...(params.stationId != null && String(params.stationId).trim()
       ? { stationId: String(params.stationId).trim() }
+      : {}),
+    ...(params.coachUserId != null && String(params.coachUserId).trim()
+      ? { coachUserId: String(params.coachUserId).trim() }
       : {}),
   };
 }
