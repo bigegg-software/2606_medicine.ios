@@ -1,4 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+    forwardRef,
+    useCallback,
+    useEffect,
+    useImperativeHandle,
+    useMemo,
+    useState,
+} from 'react';
 import { View, Text, TouchableOpacity, Image, ImageBackground, ScrollView, type ImageSourcePropType } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -72,6 +79,10 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 export type TrainingPhaseKey = 'warmup' | 'main' | 'cooldown';
 
+export type TrainingPageRef = {
+    openDatePicker: () => void;
+};
+
 function resolveMainTaskIndex(
     dayRule: InUseExPatientRule | null | undefined,
     exerciseType: string,
@@ -112,12 +123,12 @@ type Props = {
     lockToRule?: boolean;
 };
 
-export default function TrainingPage({
+const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
     exerciseRule = null,
     forceReadOnly = false,
     patientUserId,
     lockToRule = false,
-}: Props) {
+}, ref) {
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
     const [selectedDate, setSelectedDate] = useState(() =>
@@ -388,9 +399,13 @@ export default function TrainingPage({
         });
     }, [dayRule, loadMainProgress, loadWeekCheckIn, selectedDate]);
 
-    const onPressDatePicker = () => {
+    const onPressDatePicker = useCallback(() => {
         setDatePickerVisible(true);
-    };
+    }, []);
+
+    useImperativeHandle(ref, () => ({
+        openDatePicker: onPressDatePicker,
+    }), [onPressDatePicker]);
 
     /** 主训练每项有进度（半完成）即可打卡 */
     const canFinishSign = useMemo(
@@ -794,64 +809,51 @@ export default function TrainingPage({
                     </View>
 
                     <ImageBackground
-                        source={
-                            patientUserId || lockToRule
-                                ? require('@/assets/images/exercise/zzxl_1.png')
-                                : require('@/assets/images/exercise/zzxl.png')
-                        }
+                        source={require('@/assets/images/exercise/zzxl.png')}
                         style={styles.autonomousTrainingBackground}
                         imageStyle={styles.autonomousTrainingBackgroundImage}
                     >
-                        <Flex justify="between" style={styles.autonomousContentTop}>
-                            <Flex>
-                                <Image style={styles.autonomousContentTopIcon} source={require('@/assets/images/common/wc.png')} />
-                                <Text style={styles.autonomousContentTopText}>可独立完成</Text>
-                            </Flex>
-                            <Text style={styles.autonomousContentTopText2}>已为你选择可在家安全完成的训练</Text>
+                        <Flex align="center" style={styles.autonomousHomeTitleRow}>
+                            <Text style={styles.autonomousHomeTitle}>居家自主训练</Text>
+                            <View style={styles.autonomousHomeTag}>
+                                <Text style={styles.autonomousHomeTagText}>可独立完成</Text>
+                            </View>
                         </Flex>
-                        <Text style={styles.autonomousTrainingText1}>居家自主训练</Text>
-                        <Text style={styles.autonomousTrainingText2}>舒展与核心激活</Text>
-                        <Text style={styles.autonomousTrainingText3}>{mainTrainingSummaryText}</Text>
+                        <Text style={styles.autonomousHomeSubtitle}>舒展与核心激活</Text>
+                        <Text style={styles.autonomousHomeSummary}>{mainTrainingSummaryText}</Text>
+                        <Text style={styles.autonomousHomeTip}>已为你选择可在家安全完成的训练。</Text>
                         {!forceReadOnly ? (
-                            <>
-                                <TouchableOpacity
-                                    activeOpacity={0.7}
-                                    onPress={() => navigation.navigate('AssistantPage')}
-                                    style={{ marginTop: 14 }}
+                            <TouchableOpacity
+                                activeOpacity={0.85}
+                                disabled={!bottomAction || bottomAction.disabled}
+                                onPress={onPressBottomAction}
+                                style={[
+                                    styles.autonomousStartBtnWrap,
+                                    (!bottomAction || bottomAction.disabled || bottomAction.dimmed)
+                                        ? { opacity: 0.5 }
+                                        : undefined,
+                                ]}
+                            >
+                                <LinearGradient
+                                    colors={['#9BBD8E', '#6D925E']}
+                                    start={{ x: 0, y: 0 }}
+                                    end={{ x: 1, y: 0 }}
+                                    style={styles.autonomousStartBtn}
                                 >
-                                    <Flex>
-                                        <Text style={styles.autonomousTrainingText4}>如有明显不适，请暂停训练并联系LM 管家</Text>
-                                        <Image style={styles.autonomousTrainingIcon} tintColor={'#6D925E'} source={require('@/assets/images/nutrition/icon_right.png')} />
-                                    </Flex>
-                                </TouchableOpacity>
 
-                                <TouchableOpacity
-                                    activeOpacity={0.85}
-                                    disabled={!bottomAction || bottomAction.disabled}
-                                    onPress={onPressBottomAction}
-                                    style={
-                                        !bottomAction || bottomAction.disabled || bottomAction.dimmed
-                                            ? { opacity: 0.5 }
-                                            : undefined
-                                    }
-                                >
-                                    <LinearGradient
-                                        colors={['#9BBD8E', '#6D925E']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={styles.autonomousStartBtn}
-                                    >
-                                        <Image
-                                            style={styles.autonomousStartBtnIcon}
-                                            source={require('@/assets/images/exercise/start.png')}
-                                        />
-                                        <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
-                                    </LinearGradient>
-                                </TouchableOpacity>
-                            </>
+                                    <Text style={styles.autonomousStartBtnText}>开始跟练</Text>
+                                    <Image
+                                        style={styles.autonomousStartBtnIcon}
+                                        source={require('@/assets/images/exercise/jt.png')}
+                                    />
+
+                                </LinearGradient>
+                            </TouchableOpacity>
                         ) : null}
-
-                        {/* <Text style={styles.autonomousTrainingText}>居家自主训练</Text> */}
+                        <Flex style={styles.autonomousHomeTipRow}>
+                            <Image style={styles.autonomousHomeTipIcon} source={require('@/assets/images/exercise/dp.png')} />
+                            <Text style={styles.autonomousHomeTipText}>如有明显不适，请暂停训练并联系LM 管家。</Text>
+                        </Flex>
                     </ImageBackground>
                 </View>
 
@@ -958,4 +960,6 @@ export default function TrainingPage({
             ) : null}
         </View>
     );
-}
+});
+
+export default TrainingPage;

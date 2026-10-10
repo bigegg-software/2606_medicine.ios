@@ -276,22 +276,13 @@ export default function InStoreRehabPage({
                 <Text style={styles.autonomousText2}>这些训练需要老师指导、器械辅助或在安全范围内完成负荷进阶。</Text>
               </View>
               <ImageBackground
-                source={
-                  patientUserId || lockToRule
-                    ? require('@/assets/images/exercise/zzxl1_1.png')
-                    : require('@/assets/images/exercise/zzxl1.png')
-                }
+                source={require('@/assets/images/exercise/zzxl1.png')}
                 style={styles.autonomousTrainingBackground}
                 imageStyle={styles.autonomousTrainingBackgroundImage}
               >
-                <Flex justify="between" style={styles.autonomousContentTop}>
-                  <Flex>
-                    <Image style={styles.autonomousContentTopIcon} source={require('@/assets/images/common/wc.png')} />
-                    <Text style={styles.autonomousContentTopText}>本阶段到店训练重点</Text>
-                  </Flex>
-                  <Text style={styles.autonomousContentTopText2}>{weeklyInStoreTip}</Text>
-                </Flex>
-                <Text style={[styles.autonomousTrainingText2, { marginTop: 16 }]}>下肢稳定与核心控制</Text>
+                <Text style={styles.autonomousContentTopText}>本阶段到店训练重点</Text>
+                <Text style={[styles.autonomousTrainingText2, { marginTop: 9 }]}>下肢稳定与核心控制</Text>
+                <Text style={styles.autonomousContentTopText2}>{weeklyInStoreTip}</Text>
                 <Text style={styles.autonomousTrainingText5}>由老师结合你的运动处方安排训练</Text>
 
                 {canBook ? (
@@ -301,7 +292,7 @@ export default function InStoreRehabPage({
                     style={styles.inStoreGuideBtn}
                   >
                     <Image
-                      style={styles.autonomousStartBtnIcon}
+                      style={styles.inStoreGuideBtnIcon}
                       source={require('@/assets/images/exercise/book.png')}
                     />
                     <Text style={styles.inStoreGuideBtnText}>需要老师指导</Text>

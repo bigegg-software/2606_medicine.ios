@@ -11,7 +11,7 @@ import { fetchUserBaseInfo } from '@/store/actions/user';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { formatExerciseUserInfoText, normalizeExPatientRuleInfo } from './utils/exerciseHelpers';
 import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
-import TrainingPage from './components/TrainingPage';
+import TrainingPage, { type TrainingPageRef } from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
 import InStoreRehabPage from './components/InStoreRehabPage';
 import type { InUseExPatientRule } from '@/api/schedule';
@@ -99,6 +99,7 @@ export default function ExercisePage() {
   );
   /** 首屏后再次 focus（详情/播放器返回等）静默刷新，避免整页 loading */
   const hasLoadedRef = useRef(false);
+  const trainingPageRef = useRef<TrainingPageRef>(null);
   const infoText = formatExerciseUserInfoText(
     profileUser,
     readOnly && isFamilyView ? null : userExtr,
@@ -295,43 +296,64 @@ export default function ExercisePage() {
 
   const pageTitle = exerciseRule?.prescriptionName?.trim() || '运动处方';
 
-  useEffect(() => {
-    const currentRuleId = exerciseRule?.exPatientRuleId != null
-      ? String(exerciseRule.exPatientRuleId).trim()
-      : '';
-    const showStatsEntry = !isFamilyView && !exPatientRuleId && Boolean(currentRuleId);
-    navigation.setOptions({
-      title: pageTitle,
-      headerTitle: undefined,
-      headerRight: isFamilyView
-        ? () => <FamilyRelationHeaderBadge label={relationLabel} />
-        : showStatsEntry
-          ? () => (
-            <TouchableOpacity
-              style={styles.headerHistoryBtn}
-              activeOpacity={0.8}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              onPress={() => {
-                navigation.navigate('ExerciseExecutionStatsPage', {
-                  exPatientRuleId: currentRuleId,
-                });
-              }}
-            >
-              <Image
-                source={require('@/assets/images/exercise/icon_history.png')}
-                style={styles.headerHistoryIcon}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          )
-          : () => null,
-    });
-  }, [exPatientRuleId, exerciseRule?.exPatientRuleId, navigation, pageTitle, isFamilyView, relationLabel]);
+  const statusTipRuleId = inUsePaused
+    ? (exerciseRule?.exPatientRuleId != null ? String(exerciseRule.exPatientRuleId).trim() : '')
+    : (historyTip?.exPatientRuleId ?? '');
 
   const onPressNav = useCallback((key: ExerciseNavKey) => {
     setActiveNav(key);
     setMountedTabs(prev => (prev[key] ? prev : { ...prev, [key]: true }));
   }, []);
+
+  const openExerciseDatePicker = useCallback(() => {
+    if (!exerciseRule) {
+      if (tipKind === 'completed' && statusTipRuleId) {
+        navigation.navigate('ExerciseExecutionStatsPage', {
+          exPatientRuleId: statusTipRuleId,
+        });
+      }
+      return;
+    }
+    if (activeNav !== 'homeTraining') {
+      onPressNav('homeTraining');
+    }
+    requestAnimationFrame(() => {
+      trainingPageRef.current?.openDatePicker();
+    });
+  }, [activeNav, exerciseRule, navigation, onPressNav, statusTipRuleId, tipKind]);
+
+  useEffect(() => {
+    navigation.setOptions({
+      title: pageTitle,
+      headerTitle: undefined,
+      // 历史处方只读：不显示右上角家人切换 / 日历入口
+      headerRight: exPatientRuleId
+        ? () => null
+        : isFamilyView
+          ? () => <FamilyRelationHeaderBadge label={relationLabel} />
+          : () => (
+            <TouchableOpacity
+              style={styles.headerHistoryBtn}
+              activeOpacity={0.8}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              onPress={openExerciseDatePicker}
+            >
+              <Image
+                source={require('@/assets/images/nutrition/rightTime.png')}
+                style={styles.headerHistoryIcon}
+                resizeMode="contain"
+              />
+            </TouchableOpacity>
+          ),
+    });
+  }, [
+    exPatientRuleId,
+    isFamilyView,
+    navigation,
+    openExerciseDatePicker,
+    pageTitle,
+    relationLabel,
+  ]);
 
   const pageList: { key: ExerciseNavKey; title: string; icon: number }[] = [
     {
@@ -399,8 +421,8 @@ export default function ExercisePage() {
           <Image style={styles.topBoxImage} source={require('@/assets/images/nutrition/model.png')} />
           <Text style={styles.topBoxText}>北体运动模型</Text>
         </Flex>
-        <View style={styles.topNameBox}>
-          <Flex style={{ marginTop: 7 }}>
+        <Flex justify="between" align="center" style={styles.topNameBox}>
+          <Flex align="center" style={styles.topNameLeft}>
             <Text style={styles.topNameText}>{displayName}</Text>
             {versionText ? (
               <Flex style={styles.containerBox}>
@@ -409,7 +431,7 @@ export default function ExercisePage() {
               </Flex>
             ) : null}
           </Flex>
-          <Flex style={styles.topInfoBox}>
+          <Flex align="center" style={styles.topInfoBox}>
             <Flex style={styles.brBox}>
               <Text style={styles.brText}>{relationBadgeText}</Text>
             </Flex>
@@ -417,8 +439,7 @@ export default function ExercisePage() {
               {infoText}
             </Text>
           </Flex>
-          <Image style={styles.rightImg} source={require('@/assets/images/nutrition/order.png')} />
-        </View>
+        </Flex>
       </View>
       {!prescriptionOnly ? (
         <Flex style={styles.navBox}>
@@ -474,6 +495,7 @@ export default function ExercisePage() {
               {mountedTabs.homeTraining ? (
                 <View style={{ flex: 1, display: activeNav === 'homeTraining' ? 'flex' : 'none' }}>
                   <TrainingPage
+                    ref={trainingPageRef}
                     exerciseRule={exerciseRule}
                     forceReadOnly={readOnly}
                     lockToRule={Boolean(exPatientRuleId)}
