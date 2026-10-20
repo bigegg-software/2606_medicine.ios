@@ -326,8 +326,8 @@ export default function ExercisePage() {
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
-      // 历史处方只读：不显示右上角家人切换 / 日历入口
-      headerRight: exPatientRuleId
+      // 仅「处方详情」隐藏日历；「完成情况」历史只读仍可切换日期
+      headerRight: prescriptionOnly
         ? () => null
         : isFamilyView
           ? () => <FamilyRelationHeaderBadge label={relationLabel} />
@@ -347,11 +347,11 @@ export default function ExercisePage() {
           ),
     });
   }, [
-    exPatientRuleId,
     isFamilyView,
     navigation,
     openExerciseDatePicker,
     pageTitle,
+    prescriptionOnly,
     relationLabel,
   ]);
 
@@ -404,9 +404,9 @@ export default function ExercisePage() {
       <Flex align="start">
         <Image
           source={require('@/assets/images/exercise/icon_warn.png')}
-          style={styles.inStoreDoneTipIcon}
+          style={styles.pauseTipIcon}
         />
-        <Text style={[styles.pauseTipText, { marginLeft: 5 }]}>
+        <Text style={styles.pauseTipText}>
           {pauseTipPrefix}
           <Text style={styles.pauseTipLink}>{statusTipLinkText}</Text>
         </Text>

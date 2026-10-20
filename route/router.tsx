@@ -303,6 +303,8 @@ export type RootStackParamList = {
     startDate?: string;
     endDate?: string;
     initialWeek?: 'current' | 'last';
+    /** 初始选中日（优先于 initialWeek） */
+    selectedDate?: string;
   };
   PlayerPage: {
     exerciseType?: string;

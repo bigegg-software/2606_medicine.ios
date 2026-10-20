@@ -37,7 +37,6 @@ import { buildBidirectionalAdjustDateItems } from '../utils/adjustTimeHelpers';
 import {
   TRAINING_DATE_FUTURE_COUNT,
   TRAINING_DATE_PAST_COUNT,
-  resolveTrainingDateStripScrollX,
 } from '../utils/trainingCalendarHelpers';
 import {
   bookPrivateSession,
@@ -84,7 +83,7 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
     (state: RootState) => state.user.systemUser?.privateCoachTotalCount,
   );
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
-  /** 固定范围：今天前一周 ~ 往后两周，默认选中今天 */
+  /** 固定范围：今天起往后两周，默认选中今天（不可选过去） */
   const dateItems = useMemo(
     () => buildBidirectionalAdjustDateItems(TRAINING_DATE_PAST_COUNT, TRAINING_DATE_FUTURE_COUNT),
     [],
@@ -101,7 +100,6 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
   const excludeSessionIdsRef = useRef('');
   const hasMoreRef = useRef(false);
   const dateStripRef = useRef<ScrollView>(null);
-  const didScrollToTodayRef = useRef(false);
   const dateRange = useMemo(() => {
     const startDate = dateItems[0]?.key?.trim() || '';
     const endDate = dateItems[dateItems.length - 1]?.key?.trim() || '';
@@ -241,19 +239,6 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
       setDateHasSet(new Set());
     }
   }, [dateRange.endDate, dateRange.startDate, stationId]);
-
-  /** 首屏把「今天」滚到可视区左侧，便于左右滑动 */
-  useEffect(() => {
-    if (didScrollToTodayRef.current) return;
-    const todayIndex = dateItems.findIndex(item => item.isToday);
-    if (todayIndex < 0) return;
-    const timer = setTimeout(() => {
-      const x = resolveTrainingDateStripScrollX(todayIndex);
-      dateStripRef.current?.scrollTo({ x, animated: false });
-      didScrollToTodayRef.current = true;
-    }, 16);
-    return () => clearTimeout(timer);
-  }, [dateItems]);
 
   const refreshAfterBookingChange = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';

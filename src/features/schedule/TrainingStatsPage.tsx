@@ -117,9 +117,28 @@ export default function TrainingStatsPage() {
     startDate: prescriptionStartDate,
     endDate: prescriptionEndDate,
     initialWeek = 'current',
+    selectedDate: routeSelectedDate,
   } = route.params;
 
   const initialWeekState = useMemo(() => {
+    const fromRoute = routeSelectedDate?.trim()
+      ? moment(routeSelectedDate.trim(), 'YYYY-MM-DD')
+      : null;
+    if (fromRoute?.isValid()) {
+      let selected = fromRoute.clone();
+      const prescriptionStart = moment(prescriptionStartDate);
+      const prescriptionEnd = moment(prescriptionEndDate);
+      if (prescriptionStart.isValid() && selected.isBefore(prescriptionStart, 'day')) {
+        selected = prescriptionStart.clone();
+      }
+      if (prescriptionEnd.isValid() && selected.isAfter(prescriptionEnd, 'day')) {
+        selected = prescriptionEnd.clone();
+      }
+      return {
+        weekStart: selected.clone().startOf('isoWeek'),
+        selectedDate: selected.format('YYYY-MM-DD'),
+      };
+    }
     if (initialWeek === 'last') {
       return getPrescriptionLastWeekState(prescriptionStartDate, prescriptionEndDate);
     }
@@ -127,7 +146,7 @@ export default function TrainingStatsPage() {
       weekStart: moment().startOf('isoWeek'),
       selectedDate: moment().format('YYYY-MM-DD'),
     };
-  }, [initialWeek, prescriptionEndDate, prescriptionStartDate]);
+  }, [initialWeek, prescriptionEndDate, prescriptionStartDate, routeSelectedDate]);
 
   const [weekStart, setWeekStart] = useState(() => initialWeekState.weekStart);
   const [selectedDate, setSelectedDate] = useState(() => initialWeekState.selectedDate);

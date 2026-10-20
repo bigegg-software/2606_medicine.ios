@@ -287,7 +287,7 @@ export default function MyBookingPage() {
               <View style={styles.contentBox}>
                 {followList.length > 0 ? (
                   <>
-                    <Text style={[styles.weekOnlineTitle, { marginTop: nextBooking ? 0 : 16 }]}>
+                    <Text style={[styles.weekOnlineTitle, { marginTop: nextBooking ? 16 : 0 }]}>
                       后续安排
                     </Text>
                     {followList.map(item => (

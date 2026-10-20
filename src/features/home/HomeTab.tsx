@@ -756,19 +756,17 @@ export default function HomeTab() {
               </Flex>
               {!exercisePrescription || inUseExercisePaused ? (
                 showExerciseStatusTip ? (
-                  <TouchableOpacity
-                    activeOpacity={0.75}
-                    style={styles.cfEmpty}
-                    onPress={openExerciseStatusTipDetail}
-                  >
-                    <Image
-                      source={require('@/assets/images/home/icon_yd_empty.png')}
-                      style={styles.cfEmptyIcon}
-                    />
-                    <Text style={styles.cfEmptyText}>
-                      {exerciseTipPrefix}
-                      <Text style={styles.cfEmptyTipLink}>{exerciseTipLinkText}</Text>
-                    </Text>
+                  <TouchableOpacity activeOpacity={0.75} onPress={openExerciseStatusTipDetail}>
+                    <Flex style={styles.yyEmptyTip} align="start">
+                      <Image
+                        source={require('@/assets/images/home/icon_warn.png')}
+                        style={styles.yyEmptyTipIcon}
+                      />
+                      <Text style={styles.yyEmptyTipText}>
+                        {exerciseTipPrefix}
+                        <Text style={styles.yyEmptyTipActionLink}>{exerciseTipLinkText}</Text>
+                      </Text>
+                    </Flex>
                   </TouchableOpacity>
                 ) : (
                   <View style={styles.cfEmpty}>

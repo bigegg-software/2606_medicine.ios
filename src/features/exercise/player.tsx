@@ -1420,7 +1420,7 @@ export default function ExercisePlayerPage() {
             </View>
           ) : null}
 
-          <View style={infoStyles.infoBox}>
+          {/* <View style={infoStyles.infoBox}>
             <Text style={infoStyles.infoTitle}>训练步骤</Text>
             {stepLines.length > 0 ? (
               <StepTimeline steps={stepLines} showConnector={false} />
@@ -1449,7 +1449,7 @@ export default function ExercisePlayerPage() {
                 <Text style={infoStyles.infoItemText}>暂无训练提示</Text>
               )}
             </View>
-          </View>
+          </View> */}
           <View style={infoStyles.infoBox}>
             <Text style={infoStyles.infoTitle}>注意事项</Text>
             <View style={[infoStyles.infoItem, { backgroundColor: '#FDF3E9' }]}>

@@ -135,7 +135,7 @@ export function prependAdjustDateItems(
 }
 
 /**
- * 今天居中：左侧 pastCount 天 + 今天 + 右侧 futureCount 天
+ * 日期条：左侧 pastCount 天 + 今天 + 右侧 futureCount 天（pastCount=0 时仅今天及以后）
  */
 export function buildBidirectionalAdjustDateItems(
   pastCount = DEFAULT_DAY_COUNT,

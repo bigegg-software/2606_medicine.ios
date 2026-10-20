@@ -65,10 +65,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(238,156,68,0.35)',
   },
+  /** 与 pauseTipText lineHeight:24 首行垂直居中：(24-16)/2 */
   pauseTipIcon: {
     width: 16,
     height: 16,
     flexShrink: 0,
+    marginTop: 4,
   },
   pauseTipText: {
     marginLeft: 5,
@@ -76,6 +78,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666666',
     lineHeight: 24,
+    flex: 1,
     flexShrink: 1,
   },
   pauseTipLink: {

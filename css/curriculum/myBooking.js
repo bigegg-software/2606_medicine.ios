@@ -87,13 +87,13 @@ const styles = StyleSheet.create({
     color: '#6D925E',
   },
   followTitle: {
-    marginTop: 9,
+    marginTop: 4,
     fontWeight: 'bold',
     fontSize: 17,
     color: '#333333',
   },
   followMetaRow: {
-    marginTop: 8,
+    marginTop: 6,
   },
   followMetaIcon: {
     width: 16,

@@ -1,5 +1,9 @@
 import { StyleSheet } from 'react-native';
 import { AppTheme } from '@/common/theme';
+import {
+  TRAINING_DATE_CELL_GAP,
+  TRAINING_DATE_CELL_WIDTH,
+} from '@/src/features/curriculum/utils/trainingCalendarHelpers';
 
 const styles = StyleSheet.create({
   tabPage: {
@@ -19,11 +23,11 @@ const styles = StyleSheet.create({
   calendarScrollContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: TRAINING_DATE_CELL_GAP,
     paddingHorizontal: 4,
   },
   calendarCol: {
-    width: 38,
+    width: TRAINING_DATE_CELL_WIDTH,
     height: 72,
     borderRadius: 25,
     backgroundColor: 'transparent',
