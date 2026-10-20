@@ -144,6 +144,10 @@ import FeedbackPage from '@/src/features/feedback/index';
 import RecordPointsPage from '@/src/features/profile/recordPoints';
 import MemberBenefitsPage from '@/src/features/profile/MemberBenefitsPage';
 import FavoritePage from '@/src/features/profile/favorites';
+import CommunityScreeningReportPage from '@/src/features/profile/communityScreeningReport';
+import CommunityScreeningReportHistoryPage from '@/src/features/profile/communityScreeningReport/history';
+import CommunityScreeningReportFallDetailPage from '@/src/features/profile/communityScreeningReport/fallDetail';
+import CommunityScreeningReportPilatesDetailPage from '@/src/features/profile/communityScreeningReport/pilatesDetail';
 // 家人
 import MyFamily from '@/src/features/profile/myFamily';
 import MyFamilyAdd from '@/src/features/profile/myFamily/add';
@@ -237,6 +241,19 @@ export type RootStackParamList = {
   MessagePage: undefined;
   FavoritePage: undefined;
   MemberBenefitsPage: undefined;
+  CommunityScreeningReportPage: ({
+    reportId?: string;
+    reportType?: string;
+  } & FamilyReadOnlyViewParams) | undefined;
+  CommunityScreeningReportFallDetail: ({
+    reportId?: string;
+    reportType?: string;
+  } & FamilyReadOnlyViewParams) | undefined;
+  CommunityScreeningReportPilatesDetail: ({
+    reportId?: string;
+    reportType?: string;
+  } & FamilyReadOnlyViewParams) | undefined;
+  CommunityScreeningReportHistory: FamilyReadOnlyViewParams | undefined;
   RecordPointsPage: undefined;
   EquipmentListPage: undefined;
   EquipmentSearchPage: undefined;
@@ -743,6 +760,26 @@ export default function RootStack() {
       <Stack.Screen name="FavoritePage" component={FavoritePage} options={{ title: "我的收藏" }} />
       <Stack.Screen name="RecordPointsPage" component={RecordPointsPage} options={{ title: "积分记录" }} />
       <Stack.Screen name="MemberBenefitsPage" component={MemberBenefitsPage} options={{ title: '会员权益' }} />
+      <Stack.Screen
+        name="CommunityScreeningReportPage"
+        component={CommunityScreeningReportPage}
+        options={{ title: '社区初筛报告' }}
+      />
+      <Stack.Screen
+        name="CommunityScreeningReportFallDetail"
+        component={CommunityScreeningReportFallDetailPage}
+        options={{ title: '跌倒风险评估初筛报告' }}
+      />
+      <Stack.Screen
+        name="CommunityScreeningReportPilatesDetail"
+        component={CommunityScreeningReportPilatesDetailPage}
+        options={{ title: '普拉提功能画像初筛报告' }}
+      />
+      <Stack.Screen
+        name="CommunityScreeningReportHistory"
+        component={CommunityScreeningReportHistoryPage}
+        options={{ title: '初筛报告历史' }}
+      />
       <Stack.Screen name="EquipmentListPage" component={EquipmentListPage} options={{ title: "我的设备" }} />
       <Stack.Screen name="EquipmentSearchPage" component={EquipmentSearchPage} options={{ title: "搜索设备" }} />
       <Stack.Screen name="EquipmentDetailPage" component={EquipmentDetailPage} options={{ title: "设备详情" }} />

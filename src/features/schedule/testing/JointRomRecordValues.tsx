@@ -7,8 +7,9 @@ import {
   JOINT_ROM_FIELDS,
   parseJointRomObjValue,
   resolveRecordTrendTone,
-  type JointRomFieldKey,
 } from './testingHelpers';
+
+type ObjField = { key: string; label: string };
 
 type Props = {
   /** 大卡片标题，默认「关节活动度测量」 */
@@ -18,6 +19,8 @@ type Props = {
   previousObjValue?: Record<string, number | string | null> | null;
   unit?: string;
   improveDirection?: number | null;
+  /** 分项字段（来自 keyMap.objValueDes）；不传回退关节活动度固定项 */
+  fields?: ReadonlyArray<ObjField>;
   style?: object | object[] | null;
   /**
    * 测试详情页预览：不显示左侧标题、时间居左、六项无外边框底。
@@ -28,9 +31,10 @@ type Props = {
 
 function readFieldValue(
   objValue: Record<string, number | string | null> | null | undefined,
-  key: JointRomFieldKey,
+  key: string,
+  fields: ReadonlyArray<ObjField>,
 ) {
-  const parsed = parseJointRomObjValue(objValue);
+  const parsed = parseJointRomObjValue(objValue, fields);
   const value = parsed[key];
   return value != null && Number.isFinite(Number(value)) ? Number(value) : null;
 }
@@ -59,9 +63,11 @@ export default function JointRomRecordValues({
   previousObjValue,
   unit = '°',
   improveDirection,
+  fields = JOINT_ROM_FIELDS,
   style,
   compact = false,
 }: Props) {
+  const fieldList = fields.length > 0 ? fields : JOINT_ROM_FIELDS;
   return (
     <View style={[styles.jointRomRecordCard, compact && styles.jointRomRecordCardCompact, style]}>
       {compact ? (
@@ -76,9 +82,9 @@ export default function JointRomRecordValues({
       )}
 
       <View style={styles.jointRomRecordInnerList}>
-        {JOINT_ROM_FIELDS.map((field, index) => {
-          const currentValue = readFieldValue(objValue, field.key);
-          const previousValue = readFieldValue(previousObjValue, field.key);
+        {fieldList.map((field, index) => {
+          const currentValue = readFieldValue(objValue, field.key, fieldList);
+          const previousValue = readFieldValue(previousObjValue, field.key, fieldList);
           const tone = resolveRecordTrendTone({
             currentValue,
             previousValue,

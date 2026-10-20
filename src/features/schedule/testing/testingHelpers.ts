@@ -374,10 +374,11 @@ export function formatImproveTargetAmount(options: {
 
 export function parseJointRomObjValue(
   objValue?: Record<string, number | string | null> | null,
-): Partial<JointRomObjValue> {
+  fields: ReadonlyArray<{ key: string; label: string }> = JOINT_ROM_FIELDS,
+): Record<string, number> {
   if (!objValue || typeof objValue !== 'object') return {};
-  const result: Partial<JointRomObjValue> = {};
-  for (const field of JOINT_ROM_FIELDS) {
+  const result: Record<string, number> = {};
+  for (const field of fields) {
     const raw = objValue[field.key];
     if (raw == null || raw === '') continue;
     const num = Number(raw);
@@ -390,13 +391,14 @@ export function parseJointRomObjValue(
 /** 记录是否带有关节活动度分项数据 */
 export function hasJointRomObjValue(
   objValue?: Record<string, number | string | null> | null,
+  fields: ReadonlyArray<{ key: string; label: string }> = JOINT_ROM_FIELDS,
 ) {
-  const parsed = parseJointRomObjValue(objValue);
-  return JOINT_ROM_FIELDS.some(field => parsed[field.key] != null);
+  const parsed = parseJointRomObjValue(objValue, fields);
+  return fields.some(field => parsed[field.key] != null);
 }
 
 export type JointRomDisplayItem = {
-  key: JointRomFieldKey;
+  key: string;
   label: string;
   statusText: string;
   statusTone: 'good' | 'warn' | 'muted';
@@ -471,16 +473,11 @@ export function formatChangeVsPrevious(options: {
   };
 }
 
-/** 关节活动度 6 项：初始 / 当前 / 目标 + 状态 */
+/** 多值测试分项：初始 / 当前 / 目标 + 状态（字段由 keyMap.objValueDes 驱动） */
 export function buildJointRomDisplayItems(options: {
-  jointRomTarget?: {
-    shoulderFlexion?: { baseline?: number; target?: number };
-    shoulderAbduction?: { baseline?: number; target?: number };
-    elbowFlexion?: { baseline?: number; target?: number };
-    hipFlexion?: { baseline?: number; target?: number };
-    kneeFlexion?: { baseline?: number; target?: number };
-    ankleDorsiflexion?: { baseline?: number; target?: number };
-  } | null;
+  /** 分项字段；不传则回退关节活动度固定 6 项 */
+  fields?: ReadonlyArray<{ key: string; label: string }>;
+  jointRomTarget?: Record<string, { baseline?: number; target?: number } | undefined> | null;
   firstObjValue?: Record<string, number | string | null> | null;
   latestObjValue?: Record<string, number | string | null> | null;
   /** 倒数第二次记录，用于相对上次升降 */
@@ -490,13 +487,14 @@ export function buildJointRomDisplayItems(options: {
   /** 是否已有至少两次测试记录 */
   hasMultipleRecords?: boolean;
 }): JointRomDisplayItem[] {
-  const firstValues = parseJointRomObjValue(options.firstObjValue);
-  const latestValues = parseJointRomObjValue(options.latestObjValue);
-  const previousValues = parseJointRomObjValue(options.previousObjValue);
+  const fields = options.fields?.length ? options.fields : JOINT_ROM_FIELDS;
+  const firstValues = parseJointRomObjValue(options.firstObjValue, fields);
+  const latestValues = parseJointRomObjValue(options.latestObjValue, fields);
+  const previousValues = parseJointRomObjValue(options.previousObjValue, fields);
   const lowerBetter = options.improveDirection === -1;
   const hasMultipleRecords = Boolean(options.hasMultipleRecords);
 
-  return JOINT_ROM_FIELDS.map(field => {
+  return fields.map(field => {
     const pair = options.jointRomTarget?.[field.key];
     const configuredBaseline = pair?.baseline != null && Number.isFinite(Number(pair.baseline))
       ? Number(pair.baseline)

@@ -19,8 +19,6 @@ import { addExHealthTestRecord } from '@/api/exHealthTestRecord';
 import { isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
     calcGaugeProgress,
-    calcJointRomAverage,
-    createEmptyJointRomInputs,
     buildJointRomDisplayItems,
     formatGaugeValue,
     formatChangeVsPrevious,
@@ -30,16 +28,23 @@ import {
     hasTestTimer,
     isJointRomHealthTest,
     JOINT_ROM_FIELDS,
-    parseJointRomInputs,
     resolveHealthTestGaugeValues,
     resolveHealthTestUnit,
     resolveRecordTrendTone,
-    hasJointRomObjValue,
-    type JointRomInputMap,
-    type JointRomObjValue,
 } from './testingHelpers';
 import StepTimeline from '../components/StepTimeline';
 import JointRomRecordValues from './JointRomRecordValues';
+import { useHealthTestItemKeyMap } from './utils/useHealthTestItemKeyMap';
+import {
+    buildObjValueFields,
+    calcObjValueAverage,
+    createEmptyObjValueInputs,
+    findHealthTestItemKeyMap,
+    hasObjValueByFields,
+    parseObjValueInputs,
+    resolveObjValueFieldsKey,
+    type HealthTestObjField,
+} from './utils/healthTestItemKeyMapHelpers';
 
 const TESTING_HEADER_BG = require('@/assets/images/schedule/pageBack.png');
 const TREND_ICON = require('@/assets/images/schedule/icon_trend_up.png');
@@ -100,6 +105,7 @@ export default function TestingPage() {
         (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
     );
     const { detail, healthTestItemId, goalTarget } = useHealthTestDetailByGoalId(healthGoalId);
+    const { list: keyMapList } = useHealthTestItemKeyMap();
     const {
         records,
         recordTotal,
@@ -115,19 +121,48 @@ export default function TestingPage() {
         userId,
     });
     const [recordInput, setRecordInput] = useState('');
-    const [jointRomInputs, setJointRomInputs] = useState<JointRomInputMap>(createEmptyJointRomInputs);
+    const [objValueInputs, setObjValueInputs] = useState<Record<string, string>>({});
     const [recordModalVisible, setRecordModalVisible] = useState(false);
     const [recordInputSession, setRecordInputSession] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const recordInputRef = useRef<TextInput>(null);
-    const isJointRom = useMemo(
-        () => isJointRomHealthTest({
+    const keyMap = useMemo(
+        () => findHealthTestItemKeyMap(keyMapList, {
+            healthTestItemId,
+            itemKey: detail?.itemKey
+                ?? goalTarget?.healthGoalVo?.healthTestItemVo?.itemKey,
+        }),
+        [
+            detail?.itemKey,
+            goalTarget?.healthGoalVo?.healthTestItemVo?.itemKey,
+            healthTestItemId,
+            keyMapList,
+        ],
+    );
+    const objValueFields = useMemo((): HealthTestObjField[] => {
+        const fromMap = buildObjValueFields(keyMap?.objValueDes);
+        if (fromMap.length > 0) return fromMap;
+        // 映射未就绪时，关节活动度回退本地约定字段
+        if (isJointRomHealthTest({
             testName: detail?.testName,
             resultRecord: detail?.resultRecord,
             hasJointRomTarget: Boolean(goalTarget?.jointRom),
-        }),
-        [detail?.resultRecord, detail?.testName, goalTarget?.jointRom],
+        })) {
+            return JOINT_ROM_FIELDS.map(field => ({ key: field.key, label: field.label }));
+        }
+        return [];
+    }, [
+        detail?.resultRecord,
+        detail?.testName,
+        goalTarget?.jointRom,
+        keyMap?.objValueDes,
+    ]);
+    const objValueFieldsKey = useMemo(
+        () => resolveObjValueFieldsKey(objValueFields),
+        [objValueFields],
     );
+    /** 需填写多个分项值（由 keyMap.itemKey / objValueDes 判定） */
+    const isMultiValue = objValueFields.length > 0;
     const unit = resolveHealthTestUnit(detail);
     const firstRecord = records?.firstRecord;
     const latestRecord = records?.latestRecord;
@@ -154,9 +189,10 @@ export default function TestingPage() {
             improveDirectionVal,
         ],
     );
-    const jointRomItems = useMemo(
-        () => (isJointRom
+    const multiValueItems = useMemo(
+        () => (isMultiValue
             ? buildJointRomDisplayItems({
+                fields: objValueFields,
                 jointRomTarget: goalTarget?.jointRom,
                 firstObjValue: firstRecord?.objValue,
                 latestObjValue: latestRecord?.objValue,
@@ -172,9 +208,10 @@ export default function TestingPage() {
             goalTarget?.jointRom,
             hasMultipleRecords,
             improveDirectionVal,
-            isJointRom,
+            isMultiValue,
             latestRecord?.objValue,
             latestTwoRecords,
+            objValueFields,
         ],
     );
     const testName = detail?.testName?.trim() || '坐站测试';
@@ -186,33 +223,33 @@ export default function TestingPage() {
         () => splitMultilineText(detail?.precautions),
         [detail?.precautions],
     );
-    const firstJointRomItem = isJointRom ? jointRomItems[0] : undefined;
-    const restJointRomItems = isJointRom ? jointRomItems.slice(1) : [];
-    const cardTitle = firstJointRomItem?.label || testName;
-    const firstJointRomChange = useMemo(() => (
-        firstJointRomItem
+    const firstMultiValueItem = isMultiValue ? multiValueItems[0] : undefined;
+    const restMultiValueItems = isMultiValue ? multiValueItems.slice(1) : [];
+    const cardTitle = firstMultiValueItem?.label || testName;
+    const firstMultiValueChange = useMemo(() => (
+        firstMultiValueItem
             ? formatChangeVsPrevious({
-                current: firstJointRomItem.current,
-                previous: firstJointRomItem.previous,
+                current: firstMultiValueItem.current,
+                previous: firstMultiValueItem.previous,
                 unit,
             })
             : null
-    ), [firstJointRomItem, unit]);
+    ), [firstMultiValueItem, unit]);
     /** 普通测试：标题旁变化量相对「当前 vs 上次」评估值，无当前评估时不展示 */
     const healthTestChange = useMemo(() => {
-        if (isJointRom) return null;
+        if (isMultiValue) return null;
         return formatChangeVsPrevious({
             current: latestValue,
             previous: latestTwoRecords[1]?.testValue ?? null,
             unit,
         });
-    }, [isJointRom, latestTwoRecords, latestValue, unit]);
-    const titleChange = isJointRom ? firstJointRomChange : healthTestChange;
+    }, [isMultiValue, latestTwoRecords, latestValue, unit]);
+    const titleChange = isMultiValue ? firstMultiValueChange : healthTestChange;
     // 有相对当前值的变化数据时才展示方向徽标
     const showImproveBadge = Boolean(detail) && titleChange != null;
-    const gaugeFirstValue = firstJointRomItem?.baseline ?? firstValue;
-    const gaugeLatestValue = firstJointRomItem?.current ?? latestValue;
-    const gaugeTargetValue = firstJointRomItem?.target ?? targetValue;
+    const gaugeFirstValue = firstMultiValueItem?.baseline ?? firstValue;
+    const gaugeLatestValue = firstMultiValueItem?.current ?? latestValue;
+    const gaugeTargetValue = firstMultiValueItem?.target ?? targetValue;
     const gradientId = useId().replace(/:/g, '');
     const progress = useMemo(
         () => calcGaugeProgress(gaugeFirstValue, gaugeLatestValue, gaugeTargetValue),
@@ -267,39 +304,43 @@ export default function TestingPage() {
     }, [healthTestItemId, navigation]);
 
     const canSubmitRecord = useMemo(() => {
-        if (isJointRom) {
-            return parseJointRomInputs(jointRomInputs) != null;
+        if (isMultiValue) {
+            return parseObjValueInputs(objValueFields, objValueInputs) != null;
         }
         const testValue = Number(recordInput);
         return recordInput.trim() !== '' && !Number.isNaN(testValue) && testValue >= 0;
-    }, [isJointRom, jointRomInputs, recordInput]);
+    }, [isMultiValue, objValueFields, objValueInputs, recordInput]);
 
     const openRecordModal = useCallback(() => {
         Keyboard.dismiss();
         setRecordInput('');
-        setJointRomInputs(createEmptyJointRomInputs());
+        setObjValueInputs(createEmptyObjValueInputs(objValueFields));
         setRecordInputSession(prev => prev + 1);
         setRecordModalVisible(true);
-    }, []);
+    }, [objValueFields]);
 
     const closeRecordModal = useCallback(() => {
         Keyboard.dismiss();
         setRecordModalVisible(false);
         setRecordInput('');
-        setJointRomInputs(createEmptyJointRomInputs());
-    }, []);
+        setObjValueInputs(createEmptyObjValueInputs(objValueFields));
+    }, [objValueFields]);
 
     useEffect(() => {
-        if (!recordModalVisible || isJointRom) return;
+        setObjValueInputs(createEmptyObjValueInputs(objValueFields));
+    }, [objValueFieldsKey]);
+
+    useEffect(() => {
+        if (!recordModalVisible || isMultiValue) return;
         const timer = setTimeout(() => {
             recordInputRef.current?.focus();
         }, 320);
         return () => clearTimeout(timer);
-    }, [isJointRom, recordInputSession, recordModalVisible]);
+    }, [isMultiValue, recordInputSession, recordModalVisible]);
 
     const submitRecord = useCallback(async (payload: {
         testValue?: number;
-        objValue?: JointRomObjValue;
+        objValue?: Record<string, number>;
     }) => {
         if (!exPatientRuleId || healthTestItemId == null) {
             Toast.show('缺少处方信息，无法保存');
@@ -334,10 +375,10 @@ export default function TestingPage() {
 
     const handleConfirmRecord = useCallback(() => {
         if (!canSubmitRecord || submitting) return;
-        if (isJointRom) {
-            const objValue = parseJointRomInputs(jointRomInputs);
+        if (isMultiValue) {
+            const objValue = parseObjValueInputs(objValueFields, objValueInputs);
             if (!objValue) return;
-            const average = calcJointRomAverage(objValue);
+            const average = calcObjValueAverage(objValueFields, objValue);
             void submitRecord({
                 testValue: average ?? undefined,
                 objValue,
@@ -345,13 +386,21 @@ export default function TestingPage() {
             return;
         }
         void submitRecord({ testValue: Number(recordInput) });
-    }, [canSubmitRecord, isJointRom, jointRomInputs, recordInput, submitRecord, submitting]);
+    }, [
+        canSubmitRecord,
+        isMultiValue,
+        objValueFields,
+        objValueInputs,
+        recordInput,
+        submitRecord,
+        submitting,
+    ]);
 
-    const updateJointRomInput = useCallback((key: keyof JointRomInputMap, value: string) => {
-        setJointRomInputs(prev => ({ ...prev, [key]: value }));
+    const updateObjValueInput = useCallback((key: string, value: string) => {
+        setObjValueInputs(prev => ({ ...prev, [key]: value }));
     }, []);
 
-    const renderJointRomImproveBadge = useCallback((item: (typeof jointRomItems)[number]) => {
+    const renderMultiValueImproveBadge = useCallback((item: (typeof multiValueItems)[number]) => {
         const change = formatChangeVsPrevious({
             current: item.current,
             previous: item.previous,
@@ -374,12 +423,12 @@ export default function TestingPage() {
         );
     }, [unit]);
 
-    const renderJointRomItem = useCallback((item: (typeof jointRomItems)[number]) => (
+    const renderMultiValueItem = useCallback((item: (typeof multiValueItems)[number]) => (
         <>
             <Flex justify="between" align="center">
                 <Flex align="center" style={styles.jointRomTitleWrap}>
                     <Text style={styles.jointRomTitle} numberOfLines={1}>{item.label}</Text>
-                    {renderJointRomImproveBadge(item)}
+                    {renderMultiValueImproveBadge(item)}
                 </Flex>
                 <Flex align="center" style={[
                     styles.jointRomStatus,
@@ -423,7 +472,7 @@ export default function TestingPage() {
                 </View>
             </Flex>
         </>
-    ), [renderJointRomImproveBadge, unit]);
+    ), [renderMultiValueImproveBadge, unit]);
 
     return (
         <PageLayout
@@ -550,8 +599,8 @@ export default function TestingPage() {
                         <Flex style={styles.gaugeUpBox}>
                             <Image style={styles.gaugeUpImg} source={require('@/assets/images/schedule/icon_up.png')} />
                             <Text style={styles.gaugeUpText}>
-                                {firstJointRomItem
-                                    ? firstJointRomItem.statusText
+                                {firstMultiValueItem
+                                    ? firstMultiValueItem.statusText
                                     : getImproveLabel(latestRecord?.firstChangePercent, {
                                         firstRecord,
                                         latestRecord,
@@ -561,9 +610,9 @@ export default function TestingPage() {
                         </Flex>
                     </View>
 
-                    {restJointRomItems.map(item => (
+                    {restMultiValueItems.map(item => (
                         <View key={item.key} style={styles.jointRomCard}>
-                            {renderJointRomItem(item)}
+                            {renderMultiValueItem(item)}
                         </View>
                     ))}
 
@@ -609,8 +658,9 @@ export default function TestingPage() {
                             {latestTwoRecords.length > 0 ? (
                                 latestTwoRecords.map((record, index) => {
                                     const previousRecord = latestTwoRecords[index + 1];
-                                    const showJointRomValues = isJointRom && hasJointRomObjValue(record.objValue);
-                                    const tone = showJointRomValues
+                                    const showMultiValues = isMultiValue
+                                        && hasObjValueByFields(objValueFields, record.objValue);
+                                    const tone = showMultiValues
                                         ? null
                                         : resolveRecordTrendTone({
                                             currentValue: record.testValue,
@@ -618,16 +668,17 @@ export default function TestingPage() {
                                             improveDirection: detail?.improveDirection,
                                         });
 
-                                    if (showJointRomValues) {
+                                    if (showMultiValues) {
                                         return (
                                             <JointRomRecordValues
                                                 key={String(record.id ?? record.createTime ?? index)}
-                                                title={testName || '关节活动度测量'}
+                                                title={testName || keyMap?.des || '健康测试'}
                                                 dateText={formatRecordDate(record.createTime)}
                                                 objValue={record.objValue}
                                                 previousObjValue={previousRecord?.objValue}
                                                 unit={unit}
                                                 improveDirection={detail?.improveDirection}
+                                                fields={objValueFields}
                                                 compact
                                                 style={index > 0 ? { marginTop: 12 } : undefined}
                                             />
@@ -757,13 +808,13 @@ export default function TestingPage() {
                         </TouchableOpacity>
                     </View>
 
-                    {isJointRom ? (
+                    {isMultiValue ? (
                         <ScrollView
                             keyboardShouldPersistTaps="handled"
                             showsVerticalScrollIndicator={false}
                             style={{ maxHeight: 420 }}
                         >
-                            {JOINT_ROM_FIELDS.map(field => (
+                            {objValueFields.map(field => (
                                 <Flex
                                     key={field.key}
                                     align="center"
@@ -771,10 +822,10 @@ export default function TestingPage() {
                                 >
                                     <Text style={recordModalStyles.inputLabel}>{field.label}</Text>
                                     <TextInput
-                                        key={`joint-${field.key}-${recordInputSession}`}
+                                        key={`obj-${field.key}-${recordInputSession}`}
                                         style={recordModalStyles.recordModalInput}
-                                        value={jointRomInputs[field.key]}
-                                        onChangeText={text => updateJointRomInput(field.key, text)}
+                                        value={objValueInputs[field.key] ?? ''}
+                                        onChangeText={text => updateObjValueInput(field.key, text)}
                                         keyboardType="decimal-pad"
                                         placeholder="请输入测试成绩"
                                         placeholderTextColor="#CCCCCC"

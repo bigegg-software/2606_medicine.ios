@@ -69,6 +69,17 @@ import {
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import { formatMemberTitle, getStatusStyles } from './utils/familyHistoryHelpers';
 import familyHistoryStyles from '@/css/profile/familyHistory';
+import {
+    listCommunityScreenReport,
+    type CommunityScreenReport,
+} from '@/api/communityScreenReport';
+import { getCommunityScreenReportDetailRoute } from '@/src/features/profile/communityScreeningReport/utils/navigateHelpers';
+import {
+    formatCommunityScreenReportDate,
+    pickLatestCommunityScreenReportsByType,
+    resolveCommunityScreenReportIcon,
+    resolveCommunityScreenReportTitle,
+} from './utils/communityScreenReportHelpers';
 import moment from 'moment';
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -148,6 +159,7 @@ export default function HealthRecordPage() {
     const [profileExtraExpanded, setProfileExtraExpanded] = useState(false);
     const [fitnessLevelDictItems, setFitnessLevelDictItems] = useState<DictDataItem[]>([]);
     const [trainingGoalLabelMap, setTrainingGoalLabelMap] = useState<Record<string, string>>({});
+    const [screeningReports, setScreeningReports] = useState<CommunityScreenReport[]>([]);
 
     useEffect(() => {
         void (async () => {
@@ -256,6 +268,19 @@ export default function HealthRecordPage() {
         setFamilyUser(info);
     }, [patientUserId, readOnly]);
 
+    const loadScreeningReports = useCallback(async () => {
+        try {
+            const res = await listCommunityScreenReport(
+                { status: 1, pageNum: 1, pageSize: 20 },
+                patientOpts,
+            );
+            const rows = getResourceRows(res as { code?: number; rows?: CommunityScreenReport[] });
+            setScreeningReports(pickLatestCommunityScreenReportsByType(rows));
+        } catch {
+            setScreeningReports([]);
+        }
+    }, [patientOpts]);
+
     const loadRecordsRef = useRef(loadRecords);
     loadRecordsRef.current = loadRecords;
     const loadAllergiesRef = useRef(loadAllergies);
@@ -270,6 +295,8 @@ export default function HealthRecordPage() {
     loadQuestionnairesRef.current = loadQuestionnaires;
     const loadFamilyProfileRef = useRef(loadFamilyProfile);
     loadFamilyProfileRef.current = loadFamilyProfile;
+    const loadScreeningReportsRef = useRef(loadScreeningReports);
+    loadScreeningReportsRef.current = loadScreeningReports;
 
     const hasMountedRef = useRef(false);
 
@@ -299,6 +326,7 @@ export default function HealthRecordPage() {
         loadEmergencyRef.current();
         loadChronicDiseasesRef.current();
         loadQuestionnairesRef.current();
+        loadScreeningReportsRef.current();
     }, [patientUserId, canViewChronicDisease, canViewAssessment]);
 
     useFocusEffect(
@@ -314,6 +342,7 @@ export default function HealthRecordPage() {
             loadEmergencyRef.current();
             loadChronicDiseasesRef.current();
             loadQuestionnairesRef.current();
+            loadScreeningReportsRef.current();
         }, []),
     );
 
@@ -943,6 +972,73 @@ export default function HealthRecordPage() {
                         })}
                     </View>
                 ) : null}
+                <View style={styles.infoBox}>
+                    <Flex justify="between">
+                        <Text style={styles.sectionTitle}>初筛报告</Text>
+                        <TouchableOpacity
+                            onPress={() =>
+                                navigation.navigate('CommunityScreeningReportHistory', viewNavParams)
+                            }>
+                            <Flex>
+                                <Text style={styles.more}>历史记录</Text>
+                                <MaterialIcons name="chevron-right" size={24} color={AppTheme.textSecondary} />
+                            </Flex>
+                        </TouchableOpacity>
+                    </Flex>
+
+                    <View style={{ marginTop: 10 }}>
+                        {screeningReports.length === 0 ? (
+                            <Flex justify="between" style={[styles.familyItem, { borderBottomWidth: 0 }]}>
+                                <View>
+                                    <Text style={styles.familyItemName}>暂无初筛报告</Text>
+                                </View>
+                            </Flex>
+                        ) : (
+                            <View style={familyHistoryStyles.listBox}>
+                                {screeningReports.map((item, index) => (
+                                    <TouchableOpacity
+                                        key={String(item.reportId ?? `${item.reportType}-${index}`)}
+                                        activeOpacity={0.85}
+                                        onPress={() => {
+                                            const target = getCommunityScreenReportDetailRoute(
+                                                item.reportType,
+                                            );
+                                            navigation.navigate(target, {
+                                                reportId:
+                                                    item.reportId != null
+                                                        ? String(item.reportId)
+                                                        : undefined,
+                                                reportType: item.reportType,
+                                                ...(viewNavParams ?? {}),
+                                            });
+                                        }}>
+                                        <Flex align="center" style={familyHistoryStyles.infoBox}>
+                                            <View style={familyHistoryStyles.itemImgBox}>
+                                                <Image
+                                                    style={familyHistoryStyles.itemImg}
+                                                    source={resolveCommunityScreenReportIcon(item)}
+                                                />
+                                            </View>
+                                            <View style={familyHistoryStyles.itemContent}>
+                                                <Text
+                                                    style={familyHistoryStyles.itemName}
+                                                    numberOfLines={1}
+                                                    ellipsizeMode="tail">
+                                                    {resolveCommunityScreenReportTitle(item)}
+                                                </Text>
+                                                <Text
+                                                    style={familyHistoryStyles.itemSubtitle}
+                                                    numberOfLines={1}>
+                                                    {formatCommunityScreenReportDate(item)}
+                                                </Text>
+                                            </View>
+                                        </Flex>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                        )}
+                    </View>
+                </View>
             </ScrollView>
         </PageLayout>
     );

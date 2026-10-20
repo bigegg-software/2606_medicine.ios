@@ -2,6 +2,8 @@ import request from '@/utils/axios';
 
 export type HealthTestItemVo = {
   healthTestItemId?: number;
+  /** 测试项业务 key（与 healthTestItemKeyMap.itemKey 约定一致） */
+  itemKey?: string;
   testName?: string;
   referenceStandard?: string;
   estimatedTime?: string;

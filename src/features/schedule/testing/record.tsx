@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
     ScrollView,
     Image,
@@ -29,13 +29,20 @@ import {
     formatRecordDate,
     formatTestValue,
     getImproveLabel,
-    hasJointRomObjValue,
     isJointRomHealthTest,
+    JOINT_ROM_FIELDS,
     resolveHealthTestUnit,
     resolveRecordTrendTone,
 } from './testingHelpers';
 import JointRomRecordValues from './JointRomRecordValues';
 import EmptyRecord from '@/src/components/EmptyRecord';
+import { useHealthTestItemKeyMap } from './utils/useHealthTestItemKeyMap';
+import {
+    buildObjValueFields,
+    findHealthTestItemKeyMap,
+    hasObjValueByFields,
+    type HealthTestObjField,
+} from './utils/healthTestItemKeyMapHelpers';
 
 const PAGE_SIZE = 10;
 
@@ -54,12 +61,28 @@ export default function TestingRecordPage() {
         (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
     );
     const { detail } = useHealthTestDetailByItemId(healthTestItemId);
+    const { list: keyMapList } = useHealthTestItemKeyMap();
     const unit = resolveHealthTestUnit(detail);
     const testName = detail?.testName?.trim() || '';
-    const isJointRom = isJointRomHealthTest({
-        testName: detail?.testName,
-        resultRecord: detail?.resultRecord,
-    });
+    const keyMap = useMemo(
+        () => findHealthTestItemKeyMap(keyMapList, {
+            healthTestItemId,
+            itemKey: detail?.itemKey,
+        }),
+        [detail?.itemKey, healthTestItemId, keyMapList],
+    );
+    const objValueFields = useMemo((): HealthTestObjField[] => {
+        const fromMap = buildObjValueFields(keyMap?.objValueDes);
+        if (fromMap.length > 0) return fromMap;
+        if (isJointRomHealthTest({
+            testName: detail?.testName,
+            resultRecord: detail?.resultRecord,
+        })) {
+            return JOINT_ROM_FIELDS.map(field => ({ key: field.key, label: field.label }));
+        }
+        return [];
+    }, [detail?.resultRecord, detail?.testName, keyMap?.objValueDes]);
+    const isMultiValue = objValueFields.length > 0;
 
     const [records, setRecords] = useState<ExHealthTestRecord[]>([]);
     const [firstRecord, setFirstRecord] = useState<ExHealthTestRecord | null>(null);
@@ -236,8 +259,9 @@ export default function TestingRecordPage() {
                         ) : records.length > 0 ? (
                             records.map((record, index) => {
                                 const previousRecord = records[index + 1];
-                                const showJointRomValues = isJointRom && hasJointRomObjValue(record.objValue);
-                                const tone = showJointRomValues
+                                const showMultiValues = isMultiValue
+                                    && hasObjValueByFields(objValueFields, record.objValue);
+                                const tone = showMultiValues
                                     ? null
                                     : resolveRecordTrendTone({
                                         currentValue: record.testValue,
@@ -245,16 +269,17 @@ export default function TestingRecordPage() {
                                         improveDirection: detail?.improveDirection,
                                     });
 
-                                if (showJointRomValues) {
+                                if (showMultiValues) {
                                     return (
                                         <JointRomRecordValues
                                             key={String(record.id ?? record.createTime ?? index)}
-                                            title={testName || '关节活动度测量'}
+                                            title={testName || keyMap?.des || '健康测试'}
                                             dateText={formatRecordDate(record.createTime)}
                                             objValue={record.objValue}
                                             previousObjValue={previousRecord?.objValue}
                                             unit={unit}
                                             improveDirection={detail?.improveDirection}
+                                            fields={objValueFields}
                                             style={[
                                                 styles.infoRecordItemOnPage,
                                                 index > 0 ? { marginTop: 12 } : null,
