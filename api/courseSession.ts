@@ -64,6 +64,8 @@ export type CourseSessionItem = {
   coachRealName?: string;
   coachAvatarOssId?: number | string;
   coachAvatarUrl?: string;
+  /** 教练形象照（上传后优先展示） */
+  coachPortraitUrl?: string;
   /** 教练擅长方向 */
   coachSpecialtyDirection?: string;
   /** 教练资格证书 */
@@ -252,6 +254,37 @@ export const getCourseSessionInfo = (sessionId: string) =>
 export type CourseSessionRecommendInStoreResult = ApiResult & {
   data?: CourseSessionItem[];
 };
+
+/** 推荐健康陪伴教练（首页卡片） */
+export type CourseSessionCoachRecommendItem = {
+  coachUserId?: number | string;
+  /** 教练姓名（sys_user.realName） */
+  coachRealName?: string;
+  coachAvatarOssId?: number | string;
+  coachAvatarUrl?: string;
+  /** 教练形象照（与头像不同） */
+  coachPortraitOssId?: number | string;
+  coachPortraitUrl?: string;
+  /** 擅长方向（展示为绿色标签） */
+  specialtyDirection?: string;
+  /** 可约时段文案，如「可约：周二/周四/周六上午」 */
+  availableText?: string;
+  /** 是否命中约课推荐匹配（处方目标/方案总结 vs 擅长方向） */
+  matchedRecommend?: boolean;
+};
+
+export type CourseSessionCoachRecommendResult = ApiResult & {
+  data?: CourseSessionCoachRecommendItem[];
+};
+
+/**
+ * 推荐健康陪伴教练（首页卡片）：约课推荐匹配优先取最匹配 2 人，不足则随机补齐
+ * stationId 必填
+ */
+export const getRecommendHealthCompanionCoaches = (params: CourseSessionQueryParams) =>
+  request.get<CourseSessionCoachRecommendResult>('/patient/courseSession/coach/recommend', {
+    params: buildCourseSessionParams(params),
+  });
 
 /**
  * 推荐到店训练（首页卡片）：已预约未上课优先；再按处方匹配教练；不足则随机；最多 2 条

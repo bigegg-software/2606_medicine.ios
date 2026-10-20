@@ -122,6 +122,12 @@ const styles = StyleSheet.create({
     color: '#6D925E',
     lineHeight: 18,
   },
+  itemResultNum: {
+    fontWeight: '500',
+    fontSize: 16,
+    color: '#6D925E',
+    lineHeight: 18,
+  },
   itemWeightX: {
     fontWeight: '500',
     fontSize: 11,

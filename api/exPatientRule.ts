@@ -28,6 +28,8 @@ export type ExWeekTrainingItem = {
   groupVal?: number;
   numberVal?: number;
   keepSecondVal?: number;
+  /** 若课表项带出动作类型，可作 getInfo 失败时的回退 */
+  actionType?: string;
 };
 
 export type ExWeekTrainingMainBlock = {

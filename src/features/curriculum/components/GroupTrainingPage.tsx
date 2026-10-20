@@ -18,8 +18,6 @@ import moment from 'moment';
 import styles from '@/css/curriculum/groupTraining';
 import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
-import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
-import { buildDietWeekDays } from '@/src/features/exercise/utils/dietCalendarHelpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
 import CoachFilterPicker, { type CoachFilterValue } from './CoachFilterPicker';
@@ -35,11 +33,13 @@ import {
   showInsufficientBenefitAlert,
   tryShowInsufficientBenefitAlert,
 } from '../utils/bookingDialogHelpers';
+import { fetchCourseSessionDateHasSet } from '../utils/dateHasHelpers';
+import { buildBidirectionalAdjustDateItems } from '../utils/adjustTimeHelpers';
 import {
-  fetchCourseSessionDateHasMapByYear,
-  fetchCourseSessionDateHasSet,
-  resolveWeekDateRange,
-} from '../utils/dateHasHelpers';
+  TRAINING_DATE_FUTURE_COUNT,
+  TRAINING_DATE_PAST_COUNT,
+  resolveTrainingDateStripScrollX,
+} from '../utils/trainingCalendarHelpers';
 import {
   bookPrivateSession,
   cancelPrivateBooking,
@@ -80,7 +80,11 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
   const systemUser = useSelector((state: RootState) => state.user.systemUser);
   const groupRemainCount = resolveCourseBenefitRemainCount(systemUser, 'group');
   const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  /** 固定范围：今天前一周 ~ 往后两周，默认选中今天 */
+  const dateItems = useMemo(
+    () => buildBidirectionalAdjustDateItems(TRAINING_DATE_PAST_COUNT, TRAINING_DATE_FUTURE_COUNT),
+    [],
+  );
   const [selectedCoach, setSelectedCoach] = useState<CoachFilterValue | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<CourseCategoryFilterValue | null>(
     null,
@@ -95,21 +99,13 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
   const pageNumRef = useRef(1);
   const excludeSessionIdsRef = useRef('');
   const hasMoreRef = useRef(false);
-  const weekDays = useMemo(() => buildDietWeekDays(selectedDate), [selectedDate]);
-  const weekRange = useMemo(() => resolveWeekDateRange(selectedDate), [selectedDate]);
-
-  const sessionDayRecordMarker = useMemo(
-    () => ({
-      color: '#6D925E',
-      loadByYear: (year: number) =>
-        fetchCourseSessionDateHasMapByYear({
-          year,
-          courseType: 'group',
-          stationId,
-        }),
-    }),
-    [stationId],
-  );
+  const dateStripRef = useRef<ScrollView>(null);
+  const didScrollToTodayRef = useRef(false);
+  const dateRange = useMemo(() => {
+    const startDate = dateItems[0]?.key?.trim() || '';
+    const endDate = dateItems[dateItems.length - 1]?.key?.trim() || '';
+    return { startDate, endDate };
+  }, [dateItems]);
 
   const coachFilterLabel = selectedCoach?.coachRealName?.trim() || '全部老师';
   const categoryFilterLabel =
@@ -229,18 +225,37 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
   }, [stationId]);
 
   const loadDateHas = useCallback(async () => {
+    const startDate = dateRange.startDate;
+    const endDate = dateRange.endDate;
+    if (!startDate || !endDate) {
+      setDateHasSet(new Set());
+      return;
+    }
     try {
       const set = await fetchCourseSessionDateHasSet({
         courseType: 'group',
-        startDate: weekRange.startDate,
-        endDate: weekRange.endDate,
+        startDate,
+        endDate,
         stationId,
       });
       setDateHasSet(set);
     } catch {
       setDateHasSet(new Set());
     }
-  }, [stationId, weekRange.endDate, weekRange.startDate]);
+  }, [dateRange.endDate, dateRange.startDate, stationId]);
+
+  /** 首屏把「今天」滚到可视区左侧，便于左右滑动 */
+  useEffect(() => {
+    if (didScrollToTodayRef.current) return;
+    const todayIndex = dateItems.findIndex(item => item.isToday);
+    if (todayIndex < 0) return;
+    const timer = setTimeout(() => {
+      const x = resolveTrainingDateStripScrollX(todayIndex);
+      dateStripRef.current?.scrollTo({ x, animated: false });
+      didScrollToTodayRef.current = true;
+    }, 16);
+    return () => clearTimeout(timer);
+  }, [dateItems]);
 
   const refreshAfterBookingChange = useCallback(async () => {
     const id = stationId != null ? String(stationId).trim() : '';
@@ -391,54 +406,45 @@ export default function GroupTrainingPage({ stationId, isActive = true }: Props)
 
   return (
     <View style={styles.tabPage}>
-      <DietDatePickerModal
-        visible={datePickerVisible}
-        selectedDate={selectedDate}
-        onClose={() => setDatePickerVisible(false)}
-        onSelect={setSelectedDate}
-        dayRecordMarker={sessionDayRecordMarker}
-      />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
         onScroll={handleSessionScroll}
         scrollEventThrottle={16}
       >
-        <Flex justify="between" style={styles.calendarBox}>
-          {weekDays.map(item => {
-            const isActive = item.key === selectedDate;
-            const hasSession = dateHasSet.has(item.key);
-            return (
-              <TouchableOpacity
-                key={item.key}
-                activeOpacity={0.7}
-                style={[styles.calendarCol, isActive && styles.calendarColActive]}
-                onPress={() => setSelectedDate(item.key)}
-              >
-                <Text style={isActive ? styles.calendarTitleActive : styles.calendarTitle}>
-                  {item.label}
-                </Text>
-                <Text style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}>
-                  {item.day}
-                </Text>
-                <View style={styles.calendarDotWrap}>
-                  {hasSession ? <View style={styles.calendarDot} /> : null}
-                </View>
-              </TouchableOpacity>
-            );
-          })}
-          <TouchableOpacity
-            activeOpacity={0.7}
-            style={styles.calendarCol}
-            onPress={() => setDatePickerVisible(true)}
+        <View style={styles.calendarBox}>
+          <ScrollView
+            ref={dateStripRef}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.calendarScrollContent}
           >
-            <Text style={styles.calendarTitle}>日期</Text>
-            <Image
-              style={styles.calendarImage}
-              source={require('@/assets/images/nutrition/time.png')}
-            />
-          </TouchableOpacity>
-        </Flex>
+            {dateItems.map(item => {
+              const isActive = item.key === selectedDate;
+              const hasSession = dateHasSet.has(item.key);
+              return (
+                <TouchableOpacity
+                  key={item.key}
+                  activeOpacity={0.7}
+                  style={[styles.calendarCol, isActive && styles.calendarColActive]}
+                  onPress={() => setSelectedDate(item.key)}
+                >
+                  <Text style={isActive ? styles.calendarTitleActive : styles.calendarTitle}>
+                    {item.weekdayLabel}
+                  </Text>
+                  <Text
+                    style={isActive ? styles.calendarSubtitleActive : styles.calendarSubtitle}
+                  >
+                    {item.dayLabel}
+                  </Text>
+                  <View style={styles.calendarDotWrap}>
+                    {hasSession ? <View style={styles.calendarDot} /> : null}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
         <Flex justify="between" align="center" style={styles.filterRow}>
           <Flex style={styles.filterChipRow}>

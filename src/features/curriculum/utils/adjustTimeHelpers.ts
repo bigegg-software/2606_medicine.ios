@@ -114,6 +114,40 @@ export function appendAdjustDateItems(
 }
 
 /**
+ * 在现有日期条头部插入若干天（用于向左滑动加载更早日期）
+ */
+export function prependAdjustDateItems(
+  items: AdjustDateItem[],
+  prependCount = ADJUST_DATE_APPEND_COUNT,
+): AdjustDateItem[] {
+  if (prependCount <= 0) return items;
+  const today = moment().startOf('day');
+  const firstKey = items[0]?.key?.trim() || '';
+  const end = firstKey
+    ? moment(firstKey, 'YYYY-MM-DD').startOf('day').subtract(1, 'days')
+    : today.clone().subtract(1, 'days');
+  if (!end.isValid()) return items;
+  const extra: AdjustDateItem[] = [];
+  for (let i = prependCount - 1; i >= 0; i -= 1) {
+    extra.push(buildOneAdjustDateItem(end.clone().subtract(i, 'days'), today));
+  }
+  return [...extra, ...items];
+}
+
+/**
+ * 今天居中：左侧 pastCount 天 + 今天 + 右侧 futureCount 天
+ */
+export function buildBidirectionalAdjustDateItems(
+  pastCount = DEFAULT_DAY_COUNT,
+  futureCount = DEFAULT_DAY_COUNT,
+): AdjustDateItem[] {
+  const past = Math.max(0, pastCount);
+  const future = Math.max(0, futureCount);
+  const start = moment().startOf('day').subtract(past, 'days');
+  return buildAdjustDateItems(past + 1 + future, start.format('YYYY-MM-DD'));
+}
+
+/**
  * 保证选中日在条内：始终从今天起向后扩展，不改成以选中日为起点
  * （避免选 10.8 后条从 10.8 开始、滑不到今天）
  */

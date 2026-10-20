@@ -19,8 +19,6 @@ const REPORT_TYPE_META: Record<
   },
 };
 
-const PREVIEW_TYPE_ORDER = ['fall_prevention', 'pilates'] as const;
-
 export function resolveCommunityScreenReportTitle(report?: CommunityScreenReport | null) {
   const label = report?.reportTypeLabel?.trim();
   if (label) return label;
@@ -48,29 +46,22 @@ export function formatCommunityScreenReportDate(report?: CommunityScreenReport |
   return fallback.isValid() ? fallback.format('YYYY-MM-DD') : raw;
 }
 
-/** 预览区：每种 reportType 取最新一条，按约定顺序展示 */
+/**
+ * 预览区：每种 reportType 取第一条（接口已按时间排序时即为最新），
+ * 顺序与接口 rows 一致，不额外按类型重排。
+ */
 export function pickLatestCommunityScreenReportsByType(
   rows: CommunityScreenReport[] | null | undefined,
 ): CommunityScreenReport[] {
   const list = Array.isArray(rows) ? rows : [];
-  const latestByType = new Map<string, CommunityScreenReport>();
+  const seen = new Set<string>();
+  const result: CommunityScreenReport[] = [];
 
   for (const row of list) {
     const type = row.reportType?.trim();
-    if (!type) continue;
-    if (!latestByType.has(type)) {
-      latestByType.set(type, row);
-    }
+    if (!type || seen.has(type)) continue;
+    seen.add(type);
+    result.push(row);
   }
-
-  const ordered: CommunityScreenReport[] = [];
-  for (const type of PREVIEW_TYPE_ORDER) {
-    const item = latestByType.get(type);
-    if (item) {
-      ordered.push(item);
-      latestByType.delete(type);
-    }
-  }
-  latestByType.forEach(item => ordered.push(item));
-  return ordered;
+  return result;
 }

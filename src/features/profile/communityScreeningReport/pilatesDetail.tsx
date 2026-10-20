@@ -14,6 +14,7 @@ import {
   getCommunityScreenReportInfo,
   type CommunityScreenReportDetail,
 } from '@/api/communityScreenReport';
+import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/communityScreeningReport';
 import { apiResourceData } from '@/src/utils/apiHelpers';
@@ -39,21 +40,26 @@ export default function CommunityScreeningReportPilatesDetailPage({ route }: Pro
   const { patientUserId } = resolveFamilyReadOnlyView(route.params);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<CommunityScreenReportDetail | null>(null);
+  const [userInfo, setUserInfo] = useState<UserBaseInfo | null>(null);
 
   const loadDetail = useCallback(async () => {
     if (!reportId) {
       setDetail(null);
+      setUserInfo(null);
       setLoading(false);
       return;
     }
     try {
-      const res = await getCommunityScreenReportInfo(
-        reportId,
-        patientUserId ? { patientUserId } : undefined,
-      );
-      setDetail(apiResourceData(res) ?? null);
+      const patientOpts = patientUserId ? { patientUserId } : undefined;
+      const [reportRes, userRes] = await Promise.all([
+        getCommunityScreenReportInfo(reportId, patientOpts),
+        getUserBaseInfo(patientOpts).catch(() => null),
+      ]);
+      setDetail(apiResourceData(reportRes) ?? null);
+      setUserInfo(apiResourceData(userRes as { code?: number; data?: UserBaseInfo }) ?? null);
     } catch {
       setDetail(null);
+      setUserInfo(null);
     } finally {
       setLoading(false);
     }
@@ -75,6 +81,10 @@ export default function CommunityScreeningReportPilatesDetailPage({ route }: Pro
   const prescription = useMemo(() => formatPilatesPrescription(pilatesResult), [pilatesResult]);
   const nextStep = useMemo(() => formatPilatesNextStep(pilatesResult), [pilatesResult]);
   const remark = useMemo(() => formatPilatesRemark(detail), [detail]);
+  const avatarOssUrl = String(userInfo?.avatarOssUrl ?? '').trim();
+  const avatarSource = avatarOssUrl
+    ? { uri: avatarOssUrl }
+    : getDefaultAvatarByGender(userInfo?.gender);
 
   if (loading) {
     return (
@@ -112,7 +122,7 @@ export default function CommunityScreeningReportPilatesDetailPage({ route }: Pro
       >
         <View style={styles.topCard}>
           <Flex align="start">
-            <Image style={styles.avatar} source={getDefaultAvatarByGender()} />
+            <Image style={styles.avatar} source={avatarSource} />
             <View style={styles.topCardRight}>
               <Flex align="center">
                 <Text style={styles.nameText}>{profile.name}</Text>

@@ -30,8 +30,18 @@ export const DICT_TYPES = {
   strengthChildType: 'strength_child_type',
   flexibilityChildType: 'flexibility_child_type',
   balanceChildType: 'balance_child_type',
-  /** 运动部位 */
+  /** 运动部位（旧） */
   exerciseBodyPart: 'exercise_body_part',
+  /** 区域块/锻炼部位（新，对应视频 regionBlock） */
+  regionBlock: 'region_block',
+  /** 视频动作类型：home / in_store / cert_unlock */
+  exVideoActionType: 'ex_video_action_type',
+  /** 视频来源库 */
+  exVideoSourceLibrary: 'ex_video_source_library',
+  /** 视频器械/形式 */
+  exVideoEquipmentForm: 'ex_video_equipment_form',
+  /** 视频动作级别 */
+  exVideoActionLevel: 'ex_video_action_level',
   courseType: 'course_type',
   /** 课程分类 */
   courseCategory: 'course_category',

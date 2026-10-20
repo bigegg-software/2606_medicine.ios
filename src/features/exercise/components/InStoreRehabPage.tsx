@@ -33,6 +33,7 @@ import {
   countWeeklyInStoreDays,
   formatInStoreRehabLabels,
   formatWeeklyInStoreTip,
+  resolveInStoreDayRule,
 } from '../utils/inStoreRehabHelpers';
 import {
   loadInStoreRecommendCards,
@@ -85,8 +86,8 @@ export default function InStoreRehabPage({
   const canBook = !lockToRule && !readOnly;
   const isToday = moment(selectedDate).isSame(moment(), 'day');
   const showInStoreDoneTip = isToday && inStoreDone;
-  /** 无到店专项时仅保留日历 + 空状态 */
-  const showEmptyOnly = !loading && cards.length === 0;
+  /** 专项列表为空（仍展示顶部引导 / 推荐，避免整页被空状态替换） */
+  const specialtyEmpty = !loading && cards.length === 0;
   const exerciseDayRecordMarker = useMemo(() => ({
     color: EXERCISE_CHECK_IN_DOT_COLOR,
     loadByYear: (year: number) =>
@@ -110,10 +111,13 @@ export default function InStoreRehabPage({
     if (!hasLoadedRef.current) setLoading(true);
     void (async () => {
       try {
-        const rule = await loadExPatientRuleForDate(selectedDate, exerciseRule, {
+        // 与居家训练一致：快照优先，失败或无课表时回退进行中处方
+        const snapshot = await loadExPatientRuleForDate(selectedDate, exerciseRule, {
           patientUserId,
+          exPatientRuleId: exerciseRule?.exPatientRuleId,
         });
         if (cancelled) return;
+        const rule = resolveInStoreDayRule(snapshot, exerciseRule);
         setDayRule(rule);
         const exPatientRuleId = rule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId;
         const [result, inStoreDayCount, coachRecord] = await Promise.all([
@@ -195,11 +199,7 @@ export default function InStoreRehabPage({
       />
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={
-          showEmptyOnly
-            ? { flexGrow: 1, paddingBottom: 12 }
-            : { paddingBottom: 12 }
-        }
+        contentContainerStyle={{ paddingBottom: 12 }}
       >
         {/* <Flex justify="between" style={styles.calendarBox}>
           {weekDays.map(item => {
@@ -258,181 +258,177 @@ export default function InStoreRehabPage({
           </TouchableOpacity>
         </Flex> */}
 
-        {showEmptyOnly ? (
-          <View style={styles.trainingExerciseEmpty}>
-            <Image
-              source={require('@/assets/images/exercise/icon_empty_instore.png')}
-              style={styles.trainingExerciseEmptyIcon}
-            />
-            <Text style={styles.trainingExerciseEmptyText}>
-              {dayRule ? '今日暂无到店专项康复' : '暂无到店专项康复'}
-            </Text>
+        <View style={styles.autonomousTrainingBox}>
+          <View style={styles.autonomousTrainingItem}>
+            <Text style={styles.autonomousText}>关键训练，在专业陪伴中完成</Text>
+            <Text style={styles.autonomousText2}>这些训练需要老师指导、器械辅助或在安全范围内完成负荷进阶。</Text>
           </View>
-        ) : (
-          <>
-            <View style={styles.autonomousTrainingBox}>
-              <View style={styles.autonomousTrainingItem}>
-                <Text style={styles.autonomousText}>关键训练，在专业陪伴中完成</Text>
-                <Text style={styles.autonomousText2}>这些训练需要老师指导、器械辅助或在安全范围内完成负荷进阶。</Text>
-              </View>
-              <ImageBackground
-                source={require('@/assets/images/exercise/zzxl1.png')}
-                style={styles.autonomousTrainingBackground}
-                imageStyle={styles.autonomousTrainingBackgroundImage}
+          <ImageBackground
+            source={require('@/assets/images/exercise/zzxl1.png')}
+            style={styles.autonomousTrainingBackground}
+            imageStyle={styles.autonomousTrainingBackgroundImage}
+          >
+            <Text style={styles.autonomousContentTopText}>本阶段到店训练重点</Text>
+            <Text style={[styles.autonomousTrainingText2, { marginTop: 9 }]}>下肢稳定与核心控制</Text>
+            <Text style={styles.autonomousContentTopText2}>{weeklyInStoreTip}</Text>
+            <Text style={styles.autonomousTrainingText5}>由老师结合你的运动处方安排训练</Text>
+
+            {canBook ? (
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => { }}
+                style={styles.inStoreGuideBtn}
               >
-                <Text style={styles.autonomousContentTopText}>本阶段到店训练重点</Text>
-                <Text style={[styles.autonomousTrainingText2, { marginTop: 9 }]}>下肢稳定与核心控制</Text>
-                <Text style={styles.autonomousContentTopText2}>{weeklyInStoreTip}</Text>
-                <Text style={styles.autonomousTrainingText5}>由老师结合你的运动处方安排训练</Text>
-
-                {canBook ? (
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    onPress={() => { }}
-                    style={styles.inStoreGuideBtn}
-                  >
-                    <Image
-                      style={styles.inStoreGuideBtnIcon}
-                      source={require('@/assets/images/exercise/book.png')}
-                    />
-                    <Text style={styles.inStoreGuideBtnText}>需要老师指导</Text>
-                  </TouchableOpacity>
-                ) : null}
-
-              </ImageBackground>
-            </View>
-
-            {showInStoreDoneTip ? (
-              <Flex align="center" style={styles.inStoreDoneTip}>
                 <Image
-                  style={styles.inStoreDoneTipIcon}
-                  source={require('@/assets/images/exercise/fw.png')}
+                  style={styles.inStoreGuideBtnIcon}
+                  source={require('@/assets/images/exercise/book.png')}
                 />
-                <Text style={styles.inStoreDoneTipText}>
-                  今日训练已到店完成，训练进度已记录
-                </Text>
-              </Flex>
+                <Text style={styles.inStoreGuideBtnText}>需要老师指导</Text>
+              </TouchableOpacity>
             ) : null}
 
-            <View style={styles.trainingExerciseCard}>
-              <Flex align="center">
-                <Image
-                  style={styles.mainTrainingModuleIcon}
-                  tintColor="#333"
-                  source={require('@/assets/images/exercise/zx.png')}
-                />
-                <View style={styles.mainTrainingModuleTitleWrap}>
-                  <LinearGradient
-                    colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.mainTrainingModuleUnderline}
-                  />
-                  <Text style={styles.mainTrainingModuleTitle}>相关专项训练</Text>
-                </View>
-              </Flex>
-              {loading ? (
-                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                  <ActivityIndicator color="#6D925E" />
-                </View>
-              ) : (
-                cards.map(card => (
-                  <Flex key={card.key} align="center" style={styles.mainTrainingActionRow}>
-                    <Image style={styles.trainingExerciseThumb} source={card.coverSource} />
-                    <View style={styles.trainingExerciseInfo}>
-                      <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
-                        {card.title}
-                      </Text>
-                      <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                        {formatInStoreRehabLabels(card.labels)}
-                      </Text>
-                    </View>
-                    {!lockToRule ? (
-                      <View>
-                        <Flex align="center" style={styles.mainTrainingActionTimer}>
-                          <Image
-                            style={styles.mainTrainingActionTimerIcon}
-                            source={
-                              inStoreDone
-                                ? require('@/assets/images/exercise/icon_wc.png')
-                                : require('@/assets/images/exercise/sz.png')
-                            }
-                          />
-                          <Text style={styles.mainTrainingActionTimerText}>
-                            {inStoreDone ? '完成' : '到店'}
-                          </Text>
-                        </Flex>
-                      </View>
-                    ) : null}
-                  </Flex>
-                ))
-              )}
-            </View>
+          </ImageBackground>
+        </View>
 
-            {canBook && recommendCards.length > 0 ? (
-              <View style={styles.trainingExerciseCard}>
-                <Flex align="center">
-                  <Image
-                    style={styles.mainTrainingModuleIcon}
-                    tintColor="#333"
-                    source={require('@/assets/images/exercise/dd.png')}
-                  />
-                  <View style={styles.mainTrainingModuleTitleWrap}>
-                    <LinearGradient
-                      colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.mainTrainingModuleUnderline}
-                    />
-                    <Text style={styles.mainTrainingModuleTitle}>为你推荐的到店训练</Text>
+        {showInStoreDoneTip ? (
+          <Flex align="center" style={styles.inStoreDoneTip}>
+            <Image
+              style={styles.inStoreDoneTipIcon}
+              source={require('@/assets/images/exercise/fw.png')}
+            />
+            <Text style={styles.inStoreDoneTipText}>
+              今日训练已到店完成，训练进度已记录
+            </Text>
+          </Flex>
+        ) : null}
+
+        <View style={styles.trainingExerciseCard}>
+          <Flex align="center">
+            <Image
+              style={styles.mainTrainingModuleIcon}
+              tintColor="#333"
+              source={require('@/assets/images/exercise/zx.png')}
+            />
+            <View style={styles.mainTrainingModuleTitleWrap}>
+              <LinearGradient
+                colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.mainTrainingModuleUnderline}
+              />
+              <Text style={styles.mainTrainingModuleTitle}>相关专项训练</Text>
+            </View>
+          </Flex>
+          {loading ? (
+            <View style={{ paddingVertical: 24, alignItems: 'center' }}>
+              <ActivityIndicator color="#6D925E" />
+            </View>
+          ) : specialtyEmpty ? (
+            <View style={{ alignItems: 'center', paddingVertical: 28, paddingHorizontal: 16 }}>
+              <Image
+                source={require('@/assets/images/exercise/icon_empty_instore.png')}
+                style={{ width: 64, height: 64 }}
+              />
+              <Text style={[styles.trainingExerciseEmptyText, { marginTop: 12 }]}>
+                {dayRule ? '本周暂无到店专项康复' : '暂无到店专项康复'}
+              </Text>
+            </View>
+          ) : (
+            cards.map(card => (
+              <Flex key={card.key} align="center" style={styles.mainTrainingActionRow}>
+                <Image style={styles.inStoreSpecialtyThumb} source={card.coverSource} />
+                <View style={styles.trainingExerciseInfo}>
+                  <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
+                    {card.title}
+                  </Text>
+                  <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
+                    {formatInStoreRehabLabels(card.labels)}
+                  </Text>
+                </View>
+                {!lockToRule ? (
+                  <View>
+                    <Flex align="center" style={styles.mainTrainingActionTimer}>
+                      <Image
+                        style={styles.mainTrainingActionTimerIcon}
+                        source={
+                          inStoreDone
+                            ? require('@/assets/images/exercise/icon_wc.png')
+                            : require('@/assets/images/exercise/sz.png')
+                        }
+                      />
+                      <Text style={styles.mainTrainingActionTimerText}>
+                        {inStoreDone ? '完成' : '到店'}
+                      </Text>
+                    </Flex>
                   </View>
-                </Flex>
-                {recommendCards.map(card => (
-                  <Flex key={card.key} align="center" style={styles.mainTrainingActionRow}>
-                    <Image
-                      style={styles.trainingExerciseThumb}
-                      source={
-                        card.avatarUri?.trim()
-                          ? { uri: card.avatarUri.trim() }
-                          : DEFAULT_COACH_AVATAR
-                      }
-                    />
-                    <View style={styles.trainingExerciseInfo}>
-                      <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
-                        {card.title}
-                      </Text>
-                      <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
-                        {card.subtitle}
-                      </Text>
-                    </View>
-                    {card.bookedByMe ? (
-                      <TouchableOpacity onPress={() => openRecommendSession(card)} activeOpacity={0.7}>
-                        <Flex align="center" style={styles.mainTrainingActionTimer}>
-                          <Text style={styles.mainTrainingActionTimerText}>已预约</Text>
-                        </Flex>
-                      </TouchableOpacity>
-                    ) : (
-                      <TouchableOpacity onPress={() => openRecommendSession(card)} activeOpacity={0.7}>
-                        <Flex align="center" style={styles.inStoreBookBtn}>
-                          <Text style={styles.inStoreBookBtnText}>去约课</Text>
-                        </Flex>
-                      </TouchableOpacity>
-                    )}
-                  </Flex>
-                ))}
-              </View>
-            ) : null}
+                ) : null}
+              </Flex>
+            ))
+          )}
+        </View>
 
-            <Flex justify="center" align="center" style={styles.planListFooter}>
-              <View style={styles.planListFooterLine} />
-              <Text style={styles.planListFooterText}>在老师的陪伴下，稳稳走向下一阶段</Text>
-              <View style={styles.planListFooterLine} />
+        {canBook && recommendCards.length > 0 ? (
+          <View style={styles.trainingExerciseCard}>
+            <Flex align="center">
+              <Image
+                style={styles.mainTrainingModuleIcon}
+                tintColor="#333"
+                source={require('@/assets/images/exercise/dd.png')}
+              />
+              <View style={styles.mainTrainingModuleTitleWrap}>
+                <LinearGradient
+                  colors={['rgba(109,146,94,0.5)', 'rgba(109,146,94,0)']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.mainTrainingModuleUnderline}
+                />
+                <Text style={styles.mainTrainingModuleTitle}>为你推荐的到店训练</Text>
+              </View>
             </Flex>
-          </>
-        )}
+            {recommendCards.map(card => (
+              <Flex key={card.key} align="center" style={styles.mainTrainingActionRow}>
+                <Image
+                  style={styles.trainingExerciseThumb}
+                  source={
+                    card.avatarUri?.trim()
+                      ? { uri: card.avatarUri.trim() }
+                      : DEFAULT_COACH_AVATAR
+                  }
+                />
+                <View style={styles.trainingExerciseInfo}>
+                  <Text style={styles.trainingExerciseTitle} numberOfLines={1}>
+                    {card.title}
+                  </Text>
+                  <Text style={styles.trainingExerciseDuration} numberOfLines={1}>
+                    {card.subtitle}
+                  </Text>
+                </View>
+                {card.bookedByMe ? (
+                  <TouchableOpacity onPress={() => openRecommendSession(card)} activeOpacity={0.7}>
+                    <Flex align="center" style={styles.mainTrainingActionTimer}>
+                      <Text style={styles.mainTrainingActionTimerText}>已预约</Text>
+                    </Flex>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity onPress={() => openRecommendSession(card)} activeOpacity={0.7}>
+                    <Flex align="center" style={styles.inStoreBookBtn}>
+                      <Text style={styles.inStoreBookBtnText}>去约课</Text>
+                    </Flex>
+                  </TouchableOpacity>
+                )}
+              </Flex>
+            ))}
+          </View>
+        ) : null}
+
+        <Flex justify="center" align="center" style={styles.planListFooter}>
+          <View style={styles.planListFooterLine} />
+          <Text style={styles.planListFooterText}>在老师的陪伴下，稳稳走向下一阶段</Text>
+          <View style={styles.planListFooterLine} />
+        </Flex>
 
       </ScrollView>
-      {canBook && !showEmptyOnly ? (
+      {canBook ? (
         <Flex
           justify="between"
           align="center"

@@ -89,10 +89,31 @@ export const FALL_PRESCRIPTION_TIP =
   '说明：L1 为『方向 + 配比 + 剂量 + 模块级动作建议』；到店 D-Wall 后升级为 L2 精准方案（动作级·个体化剂量）。';
 
 const CIRCLE_NUMS = ['①', '②', '③', '④', '⑤', '⑥', '⑦', '⑧', '⑨', '⑩', '⑪'];
-
 function text(value: unknown, fallback = '') {
   const str = String(value ?? '').trim();
   return str || fallback;
+}
+
+/** 结果列：问卷按 choiceIndex 拆成「选项」+「2」，客观项直接展示 resultStr */
+function formatFallItemResultParts(item: {
+  source?: string;
+  choiceIndex?: number;
+  resultStr?: string;
+}) {
+  if (item.source === 'question') {
+    const choiceIndex = numOrNull(item.choiceIndex);
+    if (choiceIndex != null && choiceIndex >= 0) {
+      return {
+        resultLabel: '选项',
+        // choiceIndex 为 0 基，展示从 1 起：选项1 / 选项2
+        resultNum: String(choiceIndex + 1),
+      };
+    }
+  }
+  return {
+    resultLabel: '',
+    resultNum: text(item.resultStr, '--'),
+  };
 }
 
 function numOrNull(value: unknown) {
@@ -374,22 +395,25 @@ export function formatFallProfile(result: FallPreventionResult | null | undefine
 export function formatFallRiskResult(result: FallPreventionResult | null | undefined) {
   const grade = result?.riskGradeResult;
   const riskLevel = text(grade?.riskLevel);
-  const scoreLevel = text(grade?.scoreLevel, '--');
   const gateLevel = text(grade?.gateLevel);
   const items = Array.isArray(result?.items) ? result!.items! : [];
   const summed = sumFallWeightedBySource(items);
   const weighted = summed.total ?? numOrNull(grade?.weightedScore);
   const subjective = summed.subjective ?? numOrNull(grade?.subjectiveScore);
   const objective = summed.objective ?? numOrNull(grade?.objectiveScore);
-  const disposal = text(grade?.disposalContent?.prescriptionDirection);
   const scoreMax = resolveFallWeightedScoreMax(items);
+  const date = text(result?.objectiveDataDate);
+  let dateRangeText = '客观数据日期：--';
+  if (date) {
+    if (date.includes(' - ') || date.includes('~')) {
+      dateRangeText = `客观数据日期：${date}`;
+    } else {
+      dateRangeText = `客观数据日期：${date} - ${date}`;
+    }
+  }
   return {
     levelText: formatRiskLevel(riskLevel),
     rows: [
-      {
-        label: '得分级：',
-        value: scoreLevel,
-      },
       {
         label: '加权得分：',
         value: `S = ${weighted ?? '--'}（主观风险 ${subjective ?? '--'} + 客观测试 ${objective ?? '--'}）；`,
@@ -400,12 +424,8 @@ export function formatFallRiskResult(result: FallPreventionResult | null | undef
         value: formatGateLevel(gateLevel),
       },
     ],
-    summaryText: [
-      `最终分级 = max(门槛级, 得分级) = ${formatRiskLevel(riskLevel)}`,
-      disposal ? `处置：${disposal}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n'),
+    /** 风险分级结果底部：客观数据日期区间 */
+    summaryText: dateRangeText,
   };
 }
 
@@ -419,13 +439,13 @@ export function formatFallItemScoreRows(result: FallPreventionResult | null | un
     const weight = resolveFallItemWeight(item);
     const weighted = resolveFallItemWeightedScore(item);
     const maxScore = resolveFallItemScoreMax(item);
-    const resultStr = text(item.resultStr);
     const clampedScore = Math.min(maxScore, Math.max(0, rawScore ?? 0));
+    const resultParts = formatFallItemResultParts(item);
     return {
       key: `item-${item.no ?? index}-${item.itemKey || item.templateId || index}`,
       title: itemTitle(item),
-      /** 问卷项用 resultStr（选项文案翻译）；测试项为测量值 */
-      resultText: resultStr || '--',
+      resultLabel: resultParts.resultLabel,
+      resultNum: resultParts.resultNum,
       score: formatScore(rawScore),
       weight,
       weighted: formatScore(weighted),
@@ -438,7 +458,8 @@ export function formatFallItemScoreRows(result: FallPreventionResult | null | un
     key: 'total',
     title: '合计',
     subtitle: 'S = Σ 计分×权重',
-    resultText: '',
+    resultLabel: '',
+    resultNum: '',
     score: '--',
     weight: null,
     weighted: formatScore(summed.total),

@@ -309,6 +309,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   trainingExerciseThumb: { width: 54, height: 54, borderRadius: 6 },
+  /** 到店「相关专项训练」封面 */
+  inStoreSpecialtyThumb: { width: 80, height: 45, borderRadius: 6 },
   trainingExerciseInfo: { flex: 1, marginLeft: 13, justifyContent: 'center' },
   trainingExerciseTitle: { fontWeight: 'bold', fontSize: 15, color: '#333333' },
   trainingExerciseDuration: { marginTop: 6, fontWeight: '500', fontSize: 14, color: '#999999' },

@@ -406,10 +406,19 @@ function formatBodyPartText(parts?: string[], labelMap?: Record<string, string>)
     .join(' · ');
 }
 
-/** 加载运动部位字典 exercise_body_part → { dictValue: dictLabel } */
-export async function loadExerciseBodyPartLabelMap(): Promise<Record<string, string>> {
+/** 优先 regionBlock（逗号分割），兼容旧字段 exerciseBodyParts */
+export function resolveExVideoBodyPartKeys(video?: ExVideoInfo | null): string[] {
+  const block = String(video?.regionBlock ?? '').trim();
+  if (block) {
+    return block.split(/[,，]/).map(item => item.trim()).filter(Boolean);
+  }
+  if (!Array.isArray(video?.exerciseBodyParts)) return [];
+  return video.exerciseBodyParts.map(item => String(item).trim()).filter(Boolean);
+}
+
+async function loadDictLabelMap(dictType: string): Promise<Record<string, string>> {
   try {
-    const res = await getDictDataByType(DICT_TYPES.exerciseBodyPart);
+    const res = await getDictDataByType(dictType);
     if (!isResourceApiOk(res as unknown as { code?: number })) return {};
     return buildDictLabelMap(
       apiResourceData<DictDataItem[]>(
@@ -421,6 +430,15 @@ export async function loadExerciseBodyPartLabelMap(): Promise<Record<string, str
   }
 }
 
+/**
+ * 锻炼部位字典：优先 region_block，空则回落 exercise_body_part
+ */
+export async function loadExerciseBodyPartLabelMap(): Promise<Record<string, string>> {
+  const regionMap = await loadDictLabelMap(DICT_TYPES.regionBlock);
+  if (Object.keys(regionMap).length > 0) return regionMap;
+  return loadDictLabelMap(DICT_TYPES.exerciseBodyPart);
+}
+
 function resolveDurationMinutes(item: ExWeekTrainingItem) {
   const fromTimer = Number(item.durationMinVal);
   if (Number.isFinite(fromTimer) && fromTimer > 0) return Math.round(fromTimer);
@@ -429,23 +447,154 @@ function resolveDurationMinutes(item: ExWeekTrainingItem) {
   return 0;
 }
 
-async function fetchVideoInfo(exVideoId: string): Promise<ExVideoInfo | null> {
-  try {
-    const res = await getExVideoInfo(exVideoId);
-    if (!isResourceApiOk(res as unknown as { code?: number })) return null;
-    return (
-      apiResourceData<ExVideoInfo>(
-        res as unknown as { code?: number; data?: ExVideoInfo },
-      ) ?? null
-    );
-  } catch {
+/** getInfo 成功码：与教练端一致，兼容 0 / 1 / 200 */
+function isExVideoInfoResponseOk(res: { code?: number | string } | null | undefined) {
+  if (res == null || res.code == null || res.code === '') return false;
+  const code = Number(res.code);
+  return code === 0 || code === 1 || code === 200;
+}
+
+function isExVideoInfoLike(row: Record<string, unknown>) {
+  return (
+    row.exVideoId != null
+    || row.actionType != null
+    || row.title != null
+    || row.videoOssUrl != null
+    || row.coverOssUrl != null
+  );
+}
+
+/** 解析 getInfo 响应：兼容 {code,data} 或直接返回视频对象 */
+export function pickExVideoInfo(res: unknown): ExVideoInfo | null {
+  if (!res || typeof res !== 'object') return null;
+  const row = res as Record<string, unknown>;
+  if (row.data != null && typeof row.data === 'object' && !Array.isArray(row.data)) {
+    const data = row.data as Record<string, unknown>;
+    // 标准成功码，或 data 已是视频详情时兜底（避免 code 形态差异导致到店筛选全空）
+    if (isExVideoInfoResponseOk(res as { code?: number | string }) || isExVideoInfoLike(data)) {
+      return data as ExVideoInfo;
+    }
     return null;
+  }
+  // 已解包的视频详情
+  if (isExVideoInfoLike(row)) {
+    return res as ExVideoInfo;
+  }
+  return null;
+}
+
+const exVideoInfoCache = new Map<string, ExVideoInfo>();
+
+function hasUsableActionType(info?: ExVideoInfo | null) {
+  return Boolean(info?.actionType != null && String(info.actionType).trim());
+}
+
+async function fetchVideoInfo(exVideoId: string): Promise<ExVideoInfo | null> {
+  const id = String(exVideoId ?? '').trim();
+  if (!id) return null;
+  const cached = exVideoInfoCache.get(id);
+  // 无 actionType 的旧缓存会把到店视频误判为居家，需重拉
+  if (cached && hasUsableActionType(cached)) return cached;
+  try {
+    const res = await getExVideoInfo(id);
+    const info = pickExVideoInfo(res);
+    // 仅缓存成功结果，避免一次失败永久挡住到店筛选
+    if (info) exVideoInfoCache.set(id, info);
+    return info ?? cached ?? null;
+  } catch {
+    return cached ?? null;
   }
 }
 
-/** 未标注时按居家处理，兼容旧数据 */
+/**
+ * 根据视频 actionType 归类居家 / 到店：
+ * - in_store → 到店
+ * - home / cert_unlock（认证解锁组暂按居家）/ 空 / 未知 → 居家
+ */
 export function resolveExVideoActionType(actionType?: string | null): ExVideoActionType {
-  return String(actionType ?? '').trim() === 'in_store' ? 'in_store' : 'home';
+  const raw = String(actionType ?? '').trim().toLowerCase().replace(/-/g, '_');
+  if (raw === 'in_store' || raw === 'instore') return 'in_store';
+  return 'home';
+}
+
+/** 是否到店动作（actionType=in_store） */
+export function isExVideoInStore(actionType?: string | null) {
+  return resolveExVideoActionType(actionType) === 'in_store';
+}
+
+function mainBlockHasNestedLists(row: Record<string, unknown> | null | undefined) {
+  if (!row || typeof row !== 'object') return false;
+  return [
+    row.cardioList,
+    row.flexibilityList,
+    row.strengthList,
+    row.balanceList,
+    row.cardio,
+    row.flexibility,
+    row.strength,
+    row.balance,
+  ].some(list => Array.isArray(list) && list.length > 0);
+}
+
+function normalizeMainBlocks(mainList: unknown): ExWeekTrainingMainBlock[] {
+  if (!mainList) return [];
+  if (Array.isArray(mainList)) {
+    if (mainList.length === 0) return [];
+    const first = mainList[0] as Record<string, unknown> | null;
+    // 兼容 mainList 直接是动作数组（带 exVideoId；空数组字段不能误判成分块）
+    if (
+      first
+      && typeof first === 'object'
+      && first.exVideoId != null
+      && !mainBlockHasNestedLists(first)
+    ) {
+      return [{ flexibilityList: mainList as ExWeekTrainingItem[] }];
+    }
+    return mainList as ExWeekTrainingMainBlock[];
+  }
+  if (typeof mainList === 'object') {
+    return [mainList as ExWeekTrainingMainBlock];
+  }
+  return [];
+}
+
+function collectMainBlockItems(block: ExWeekTrainingMainBlock | null | undefined): ExWeekTrainingItem[] {
+  if (!block) return [];
+  const row = block as ExWeekTrainingMainBlock & {
+    cardio?: ExWeekTrainingItem[];
+    strength?: ExWeekTrainingItem[];
+    flexibility?: ExWeekTrainingItem[];
+    balance?: ExWeekTrainingItem[];
+  };
+  return [
+    ...(row.cardioList ?? row.cardio ?? []),
+    ...(row.strengthList ?? row.strength ?? []),
+    ...(row.flexibilityList ?? row.flexibility ?? []),
+    ...(row.balanceList ?? row.balance ?? []),
+  ];
+}
+
+/** 汇总某日课表全部动作（热身 + 主训 + 冷身） */
+export function collectDayScheduleTrainingItems(
+  rule: InUseExPatientRule | null | undefined,
+  customerLocalDate: string,
+): {
+  isRest: boolean;
+  isPostponedAway: boolean;
+  items: ExWeekTrainingItem[];
+} {
+  const { isRest, isPostponedAway, hotList } = getWarmupHotList(rule, customerLocalDate);
+  if (isRest || isPostponedAway) {
+    return { isRest, isPostponedAway, items: [] };
+  }
+  const schedule = getWeekScheduleForDate(rule?.weekTrainingScheduleList, customerLocalDate);
+  const { coldList } = getCooldownColdList(rule, customerLocalDate);
+  const mainItems = normalizeMainBlocks(schedule?.mainList).flatMap(collectMainBlockItems);
+  return {
+    isRest: false,
+    isPostponedAway: false,
+    items: [...hotList, ...mainItems, ...(coldList ?? [])],
+  };
 }
 
 export async function buildTrainingPhaseCards(
@@ -466,7 +615,7 @@ export async function buildTrainingPhaseCards(
   const [videos, labelMap] = await Promise.all([
     Promise.all(
       list.map(item => {
-        const id = item.exVideoId != null ? String(item.exVideoId) : '';
+        const id = item.exVideoId != null ? String(item.exVideoId).trim() : '';
         return id ? fetchVideoInfo(id) : Promise.resolve(null);
       }),
     ),
@@ -477,12 +626,19 @@ export async function buildTrainingPhaseCards(
 
   return list.flatMap((item, index) => {
     const video = videos[index];
-    if (actionFilter && resolveExVideoActionType(video?.actionType) !== actionFilter) {
+    // 优先详情 actionType；空字符串视为无效，回退课表项；仍无则按居家
+    const resolvedActionType = hasUsableActionType(video)
+      ? video?.actionType
+      : item.actionType;
+    if (
+      actionFilter
+      && resolveExVideoActionType(resolvedActionType) !== actionFilter
+    ) {
       return [];
     }
     const exVideoId = item.exVideoId != null ? String(item.exVideoId) : `idx-${index}`;
     const coverUrl = video?.coverOssUrl?.trim();
-    const bodyPartText = formatBodyPartText(video?.exerciseBodyParts, labelMap);
+    const bodyPartText = formatBodyPartText(resolveExVideoBodyPartKeys(video), labelMap);
     const ruleText = formatTrainingItemRuleText(item);
     return [{
       key: `${exVideoId}-${index}`,
@@ -688,18 +844,24 @@ export function getCooldownColdList(
   return { isRest: false, isPostponedAway: false, coldList: schedule?.coldList ?? [] };
 }
 
-function mergeMainBlocks(blocks: ExWeekTrainingMainBlock[] | undefined) {
+function mergeMainBlocks(blocks: ExWeekTrainingMainBlock[] | unknown) {
   const merged: Record<ExerciseTypeKey, ExWeekTrainingItem[]> = {
     cardio: [],
     strength: [],
     flexibility: [],
     balance: [],
   };
-  for (const block of blocks ?? []) {
-    merged.cardio.push(...(block.cardioList ?? []));
-    merged.strength.push(...(block.strengthList ?? []));
-    merged.flexibility.push(...(block.flexibilityList ?? []));
-    merged.balance.push(...(block.balanceList ?? []));
+  for (const block of normalizeMainBlocks(blocks)) {
+    const row = block as ExWeekTrainingMainBlock & {
+      cardio?: ExWeekTrainingItem[];
+      strength?: ExWeekTrainingItem[];
+      flexibility?: ExWeekTrainingItem[];
+      balance?: ExWeekTrainingItem[];
+    };
+    merged.cardio.push(...(row.cardioList ?? row.cardio ?? []));
+    merged.strength.push(...(row.strengthList ?? row.strength ?? []));
+    merged.flexibility.push(...(row.flexibilityList ?? row.flexibility ?? []));
+    merged.balance.push(...(row.balanceList ?? row.balance ?? []));
   }
   return merged;
 }

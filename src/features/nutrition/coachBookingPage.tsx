@@ -21,10 +21,6 @@ import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import { getSpecialPlanInfo, type SpecialPlanItem } from '@/api/specialPlan';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
-import {
-  loadInStoreRecommendCards,
-  type InStoreRecommendCardView,
-} from '@/src/features/exercise/utils/inStoreRecommendHelpers';
 import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import {
   buildSpecialPlanIntroItems,
@@ -34,20 +30,16 @@ import {
   formatSpecialPlanSubtitle,
   getSpecialPlanTopCoverSource,
 } from './components/utils/healthPlanHelpers';
+import {
+  loadHealthCompanionCoachCards,
+  type HealthCompanionCoachCardView,
+} from './utils/coachRecommendHelpers';
 
 type Route = RouteProp<RootStackParamList, 'CoachBookingPage'>;
 type Nav = NativeStackNavigationProp<RootStackParamList, 'CoachBookingPage'>;
 
 /** 无教练头像时与「我的」页一致的默认头像 */
 const DEFAULT_COACH_AVATAR = getDefaultAvatarByGender();
-
-function resolveRecommendDetailRoute(
-  courseType?: string,
-): 'PrivateCourseDetail' | 'GroupCourseDetail' | 'OnlineCourseDetail' {
-  if (courseType === 'group') return 'GroupCourseDetail';
-  if (courseType === 'online') return 'OnlineCourseDetail';
-  return 'PrivateCourseDetail';
-}
 
 /** 预约教练 / 专项计划详情 */
 export default function CoachBookingPage() {
@@ -62,7 +54,7 @@ export default function CoachBookingPage() {
   const [plan, setPlan] = useState<SpecialPlanItem | null>(null);
   const [loading, setLoading] = useState(Boolean(planId));
   const [expandedMap, setExpandedMap] = useState<Record<number, boolean>>({});
-  const [recommendCards, setRecommendCards] = useState<InStoreRecommendCardView[]>([]);
+  const [recommendCards, setRecommendCards] = useState<HealthCompanionCoachCardView[]>([]);
 
   const loadPlan = useCallback(async () => {
     if (!planId) {
@@ -91,7 +83,7 @@ export default function CoachBookingPage() {
       return;
     }
     try {
-      const list = await loadInStoreRecommendCards({ stationId });
+      const list = await loadHealthCompanionCoachCards({ stationId });
       setRecommendCards(list);
     } catch {
       setRecommendCards([]);
@@ -364,15 +356,12 @@ export default function CoachBookingPage() {
                     return (
                       <TouchableOpacity
                         key={item.key}
-                        disabled
                         activeOpacity={0.7}
                         style={styles.coachRecommendItem}
                         onPress={() => {
-                          const id = item.sessionId?.trim() || '';
+                          const id = item.coachUserId?.trim() || '';
                           if (!id) return;
-                          navigation.navigate(resolveRecommendDetailRoute(item.courseType), {
-                            sessionId: id,
-                          });
+                          navigation.navigate('CoachDetail', { coachUserId: id });
                         }}
                       >
                         <Flex align="start">
@@ -395,7 +384,7 @@ export default function CoachBookingPage() {
                             ) : null}
                             {timeText ? (
                               <Text style={styles.coachRecommendTime} numberOfLines={1}>
-                                {`可约：${timeText}`}
+                                {timeText}
                               </Text>
                             ) : null}
                           </View>

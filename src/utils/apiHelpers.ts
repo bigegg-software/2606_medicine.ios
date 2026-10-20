@@ -4,9 +4,11 @@ export function isApiOk(res: ApiResult | null | undefined): boolean {
   return res != null && res.code === 0;
 }
 
-/** 资源/认证类接口（短信、登录等）成功时 code 为 1 或 200 */
+/** 资源/认证类接口（短信、登录等）成功时 code 为 1 或 200（兼容字符串 code） */
 export function isResourceApiOk(res: ApiResult | null | undefined): boolean {
-  return res != null && (res.code === 1 || res.code === 200);
+  if (res == null) return false;
+  const code = Number(res.code);
+  return code === 1 || code === 200;
 }
 
 export type LoginData = {

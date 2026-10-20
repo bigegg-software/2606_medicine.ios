@@ -283,7 +283,7 @@ export default function PrivateCourseDetailPage() {
         >
           <View style={styles.privateHeroWrap}>
             <CachedRemoteImage
-              uri={detail.coverUri}
+              uri={detail.hasLinkedCourse ? detail.coverUri : undefined}
               fallback={DEFAULT_COVER}
               style={styles.privateHeroImage}
               resizeMode="cover"

@@ -124,7 +124,7 @@ export type PrivateSessionCardView = {
   benefitText: string;
   time: string;
   topic: string;
-  /** 课程封面优先；无封面时用教练头像 */
+  /** 展示图：有形象照优先，否则课程封面 / 教练头像 */
   coverUri?: string;
   avatarUri?: string;
   /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
@@ -275,8 +275,10 @@ export function mapPrivateSessionToCard(
   const specialty = item.coachSpecialtyDirection?.trim() || '';
   const courseName = item.template?.courseName?.trim() || '';
   const courseTags = formatSessionTags(item.template?.courseTags);
-  const coverUri = item.template?.coverOssUrl?.trim() || undefined;
-  const avatarUri = item.coachAvatarUrl?.trim() || undefined;
+  const portraitUri = item.coachPortraitUrl?.trim() || undefined;
+  const coverUri =
+    portraitUri || item.template?.coverOssUrl?.trim() || undefined;
+  const avatarUri = portraitUri || item.coachAvatarUrl?.trim() || undefined;
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
   return {
     key: sessionId,
@@ -745,7 +747,7 @@ export type OnlineCourseDetailView = {
   certificateText: string;
   /** 擅长方向 */
   specialtyText: string;
-  /** 是否关联课程模板（无私教关联课程时不展示介绍区） */
+  /** 是否关联课程模板（有则详情展示课程介绍；无则展示默认/教练信息） */
   hasLinkedCourse: boolean;
   /** 教练用户 id */
   coachUserId?: string;
@@ -763,13 +765,14 @@ export type OnlineCourseDetailView = {
   bookingStatus?: number;
 };
 
-/** 场次是否关联课程模板 */
+/** 场次是否关联有效课程模板（占位名「课程」视为未关联） */
 export function hasLinkedCourseTemplate(item: CourseSessionItem) {
   if (item.templateId != null && String(item.templateId).trim()) return true;
   if (item.template?.templateId != null && String(item.template.templateId).trim()) {
     return true;
   }
-  return Boolean(item.template?.courseName?.trim());
+  const name = item.template?.courseName?.trim() || '';
+  return Boolean(name) && name !== '课程';
 }
 
 /** 详情信息栏时间：今天/明天/M月D日 + HH:mm-HH:mm */
@@ -844,14 +847,22 @@ export function mapPrivateCourseDetail(item: CourseSessionItem): OnlineCourseDet
     titleFallback: '一对一私教训练',
   });
   if (!base) return null;
+  const linked = hasLinkedCourseTemplate(item);
   const specialty = item.coachSpecialtyDirection?.trim() || '';
   const certificate = item.coachCertificate?.trim() || '';
+  const portraitUri = item.coachPortraitUrl?.trim() || undefined;
+  const courseCover = resolveTemplateCoverUri(item);
+  const rawTitle = base.title?.trim() || '';
   return {
     ...base,
+    // 未关联或占位名时统一默认标题
+    title: linked && rawTitle && rawTitle !== '课程' ? rawTitle : '一对一私教训练',
+    hasLinkedCourse: linked,
     certificateText: certificate,
     specialtyText: specialty,
-    // 仅用课程封面；无封面时由详情页默认图兜底
-    coverUri: item.template?.coverOssUrl?.trim() || undefined,
+    // 关联课程：仅用课程封面；未关联或无封面：详情页默认图（sj.png）
+    coverUri: linked ? courseCover : undefined,
+    avatarUri: portraitUri || base.avatarUri,
   };
 }
 
@@ -864,7 +875,8 @@ export function applyCoachUserToDetail(
   const certificate = coach.qualificationCert?.trim() || '';
   const specialty = coach.specialtyDirection?.trim() || '';
   const realName = coach.realName?.trim() || '';
-  const avatarUri = coach.avatarOssUrl?.trim() || '';
+  const avatarUri =
+    coach.portraitOssUrl?.trim() || coach.avatarOssUrl?.trim() || '';
   const coachUserId =
     coach.userId != null && String(coach.userId).trim()
       ? String(coach.userId).trim()

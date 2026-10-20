@@ -152,6 +152,17 @@ const styles = StyleSheet.create({
     },
     familyItemContent1: { marginLeft: 6 },
     familyItemName: { fontWeight: "bold", fontSize: 14, color: AppTheme.textPrimary },
+    screeningReportTitle: {
+        fontWeight: '500',
+        fontSize: 16,
+        color: '#333333',
+    },
+    screeningReportDate: {
+        marginTop: 6,
+        fontWeight: '400',
+        fontSize: 13,
+        color: '#999999',
+    },
     familyItemRelation: { marginTop: 4, height: 19, fontWeight: 400, fontSize: 12, color: "#999" },
     familyItemRelation1: { marginTop: 2, height: 19, fontWeight: 400, fontSize: 14, color: "#999" },
     addBtn: { height: 45, backgroundColor: AppTheme.primaryColor, marginHorizontal: 18, borderRadius: 8, marginTop: 12 },

@@ -6,6 +6,10 @@ export type CoachUserInfo = {
   userId?: number | string;
   avatarOssId?: number | string;
   avatarOssUrl?: string;
+  /** 形象照 ossId */
+  portraitOssId?: number | string;
+  /** 形象照地址 */
+  portraitOssUrl?: string;
   coachRole?: string;
   realName?: string;
   sex?: string;

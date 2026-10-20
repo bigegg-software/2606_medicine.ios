@@ -7,23 +7,25 @@ import {
   ActivityIndicator,
   ScrollView,
   RefreshControl,
+  type ImageSourcePropType,
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import PageLayout from '@/src/components/PageLayout';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
+  COMMUNITY_SCREEN_REPORT_TYPE,
   listCommunityScreenReport,
   type CommunityScreenReport,
 } from '@/api/communityScreenReport';
 import { AppTheme } from '@/common/theme';
 import styles from '@/css/profile/familyHistory';
+import healthRecordStyles from '@/css/profile/healthRecord';
 import { getResourceRows, isResourceApiOk } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import { resolveFamilyReadOnlyView } from '@/src/familyPage/utils/familyReadOnlyView';
 import {
   formatCommunityScreenReportDate,
-  resolveCommunityScreenReportIcon,
   resolveCommunityScreenReportTitle,
 } from '../healthRecord/utils/communityScreenReportHelpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
@@ -33,6 +35,17 @@ type Nav = NativeStackNavigationProp<RootStackParamList>;
 type Route = RouteProp<RootStackParamList, 'CommunityScreeningReportHistory'>;
 
 const PAGE_SIZE = 20;
+
+/** 仅历史列表页图标，不与健康档案预览共用 */
+const HISTORY_FALL_ICON = require('@/assets/images/profile/icon_screening_history_fall.png');
+const HISTORY_PILATES_ICON = require('@/assets/images/profile/icon_screening_history_pilates.png');
+
+function resolveHistoryReportIcon(item: CommunityScreenReport): ImageSourcePropType {
+  if (item.reportType === COMMUNITY_SCREEN_REPORT_TYPE.pilates) {
+    return HISTORY_PILATES_ICON;
+  }
+  return HISTORY_FALL_ICON;
+}
 
 export default function CommunityScreeningReportHistoryPage() {
   const navigation = useNavigation<Nav>();
@@ -118,14 +131,14 @@ export default function CommunityScreeningReportHistoryPage() {
                     <View style={styles.itemImgBox}>
                       <Image
                         style={styles.itemImg}
-                        source={resolveCommunityScreenReportIcon(item)}
+                        source={resolveHistoryReportIcon(item)}
                       />
                     </View>
                     <View style={styles.itemContent}>
-                      <Text style={styles.itemName} numberOfLines={1}>
+                      <Text style={healthRecordStyles.screeningReportTitle} numberOfLines={1}>
                         {resolveCommunityScreenReportTitle(item)}
                       </Text>
-                      <Text style={styles.itemSubtitle} numberOfLines={1}>
+                      <Text style={healthRecordStyles.screeningReportDate} numberOfLines={1}>
                         {formatCommunityScreenReportDate(item)}
                       </Text>
                     </View>

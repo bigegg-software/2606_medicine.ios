@@ -271,7 +271,7 @@ export default function HealthRecordPage() {
     const loadScreeningReports = useCallback(async () => {
         try {
             const res = await listCommunityScreenReport(
-                { status: 1, pageNum: 1, pageSize: 20 },
+                { status: 1, pageNum: 1, pageSize: 2 },
                 patientOpts,
             );
             const rows = getResourceRows(res as { code?: number; rows?: CommunityScreenReport[] });
@@ -1021,13 +1021,13 @@ export default function HealthRecordPage() {
                                             </View>
                                             <View style={familyHistoryStyles.itemContent}>
                                                 <Text
-                                                    style={familyHistoryStyles.itemName}
+                                                    style={styles.screeningReportTitle}
                                                     numberOfLines={1}
                                                     ellipsizeMode="tail">
                                                     {resolveCommunityScreenReportTitle(item)}
                                                 </Text>
                                                 <Text
-                                                    style={familyHistoryStyles.itemSubtitle}
+                                                    style={styles.screeningReportDate}
                                                     numberOfLines={1}>
                                                     {formatCommunityScreenReportDate(item)}
                                                 </Text>

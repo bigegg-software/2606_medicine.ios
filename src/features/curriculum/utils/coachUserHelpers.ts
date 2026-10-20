@@ -34,7 +34,7 @@ export function mapCoachDetailView(coach: CoachUserInfo): CoachDetailView | null
   return {
     coachUserId,
     name: coach.realName?.trim() || '教练',
-    avatarUri: coach.avatarOssUrl?.trim() || undefined,
+    avatarUri: coach.portraitOssUrl?.trim() || coach.avatarOssUrl?.trim() || undefined,
     certificateText: coach.qualificationCert?.trim() || '',
     specialtyText: coach.specialtyDirection?.trim() || '',
     introText: coach.introduction?.trim() || '',

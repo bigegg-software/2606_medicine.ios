@@ -22,8 +22,8 @@ const styles = StyleSheet.create({
   navItem: { flex: 1, height: "100%", borderRadius: 25, paddingHorizontal: 4 },
   activeNavItem: { backgroundColor: "#FFF" },
   navIcon: { width: 13, height: 13, marginRight: 4 },
-  navText: { fontWeight: 'bold', fontSize: 12, color: AppTheme.textPrimary },
-  activeNavText: { fontWeight: "bold" },
+  navText: { fontWeight: 500, fontSize: 15, color: AppTheme.textPrimary },
+  activeNavText: { fontWeight: 'bold' },
   emptyPrescription: {
     flex: 1,
     alignItems: 'center',

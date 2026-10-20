@@ -15,13 +15,19 @@ const styles = StyleSheet.create({
   calendarBox: {
     marginTop: 18,
     height: 72,
-    paddingHorizontal: 13,
+  },
+  calendarScrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 4,
   },
   calendarCol: {
     width: 38,
-    height: '100%',
+    height: 72,
     borderRadius: 25,
     backgroundColor: 'transparent',
+    alignItems: 'center',
   },
   calendarColActive: {
     backgroundColor: 'rgba(109,146,94,0.12)',
@@ -65,12 +71,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 2.5,
     backgroundColor: '#6D925E',
-  },
-  calendarImage: {
-    width: 22,
-    height: 22,
-    marginTop: 5,
-    alignSelf: 'center',
   },
   filterRow: {
     marginTop: 19,
