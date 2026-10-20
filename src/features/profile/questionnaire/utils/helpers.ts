@@ -1,6 +1,7 @@
 import moment from 'moment';
 import type { ImageSourcePropType } from 'react-native';
 import type {
+    QuestionDiagnosisResult,
     QuestionnaireType,
     QuestionOptionItem,
     UserQuestionAnswerItem,
@@ -31,6 +32,7 @@ export const QUESTIONNAIRE_TITLES: Record<QuestionnaireType, string> = {
     1: '日常生活能力评估',
     2: '营养风险评估',
     3: 'EQ-5D生活质量评估',
+    4: '用户健康信息问卷',
 };
 
 // 问卷列表配置，用于显示问卷列表和计算下次评估时间
@@ -42,6 +44,7 @@ export const QUESTIONNAIRE_CONFIG: ReadonlyArray<{
         { type: 1, duration: '2-3分钟' },
         { type: 2, duration: '3-5分钟' },
         // { type: 3, duration: '1-2分钟' },
+        { type: 4, duration: '3-5分钟' },
     ];
 
 const ASSESSMENT_INTERVAL_MONTHS: Partial<Record<QuestionnaireType, number>> = {
@@ -124,6 +127,12 @@ export function getScoreLevel(type: QuestionnaireType, score: number): ScoreLeve
             if (normalized >= 0.5) return { result: '需重点关注', statusStyle: 'rowStatusOrange' };
             return { result: '建议及时评估', statusStyle: 'rowStatusError' };
         }
+        case 4:
+            // score>0：命中红旗；0：无红旗
+            if (num > 0) {
+                return { result: '有红旗', statusStyle: 'rowStatusError' };
+            }
+            return { result: '无红旗', statusStyle: 'rowStatus' };
         default:
             return { result: `${num}分`, statusStyle: 'rowStatus' };
     }
@@ -135,6 +144,7 @@ export const SCORE_TIER_LABELS: Record<QuestionnaireType, readonly string[]> = {
     1: ['重度依赖', '中度依赖', '轻度依赖', '完全独立'],
     2: ['高风险', '中度风险', '轻度风险', '低风险'],
     3: ['建议及时评估', '需重点关注', '一般', '良好', '优秀'],
+    4: ['有红旗', '无红旗'],
 };
 
 /** 按当前状态档位计算进度：第 n 档 / 总档数 × 100，如 EQ-5D 良好为第 4/5 档 = 80% */
@@ -143,6 +153,7 @@ export function getScoreLevelProgressPercent(type: QuestionnaireType, score: num
     if (!Number.isFinite(num)) return 0;
     const { result } = getScoreLevel(type, num);
     const tiers = SCORE_TIER_LABELS[type];
+    if (!tiers?.length) return 0;
     const index = tiers.indexOf(result);
     if (index < 0) return 0;
     return Math.round(((index + 1) / tiers.length) * 100);
@@ -155,6 +166,50 @@ export function formatAssessmentDate(record: UserQuestionRecord) {
     return parsed.isValid() ? parsed.format('YYYY-MM-DD') : raw.split(' ')[0];
 }
 
+/** 用户健康信息问卷（红旗筛查） */
+export function isUserHealthInfoQuestionnaire(type?: QuestionnaireType | null) {
+    return type === 4;
+}
+
+export function hasQuestionRedFlag(
+    score?: number | null,
+    diagnosis?: QuestionDiagnosisResult | null,
+) {
+    if (diagnosis && typeof diagnosis.hasRedFlag === 'boolean') {
+        return diagnosis.hasRedFlag;
+    }
+    const num = Number(score);
+    return Number.isFinite(num) && num > 0;
+}
+
+/** type=4 状态文案：有红旗 / 可开运动处方 */
+export function formatHealthPrescriptionStatus(
+    diagnosis?: QuestionDiagnosisResult | null,
+    score?: number | null,
+) {
+    if (diagnosis?.hasRedFlag) return '有红旗';
+    const advice = String(diagnosis?.advice || '').trim();
+    if (advice.includes('转介') || advice.includes('不可') || advice.includes('红旗')) {
+        return '有红旗';
+    }
+    if (advice.includes('处方') || advice.includes('跟练') || advice.includes('可开')) {
+        return '可开运动处方';
+    }
+    if (hasQuestionRedFlag(score, diagnosis)) return '有红旗';
+    return '可开运动处方';
+}
+
+/** type=4 建议摘要：疼痛部位；红旗筛查；诊断结果 */
+export function formatHealthDiagnosisTip(diagnosis?: QuestionDiagnosisResult | null) {
+    const join = (list?: string[] | null) => {
+        const items = (Array.isArray(list) ? list : [])
+            .map(item => String(item || '').trim())
+            .filter(Boolean);
+        return items.length ? items.join('、') : '无';
+    };
+    return `疼痛部位：${join(diagnosis?.painSites)}；红旗筛查：${join(diagnosis?.redFlags)}；诊断结果：${join(diagnosis?.diagnoses)}`;
+}
+
 export function getRiskPercent(type: QuestionnaireType, score: number) {
     const num = Number(score);
     if (!Number.isFinite(num)) return 0;
@@ -162,8 +217,32 @@ export function getRiskPercent(type: QuestionnaireType, score: number) {
         const normalized = normalizeEq5dScore(num);
         return Math.min(100, Math.round(normalized * 100));
     }
+    // 有红旗 → 100%；无红旗 → 0%
+    if (type === 4) {
+        return num > 0 ? 100 : 0;
+    }
     const maxScore = MAX_SCORE_BY_TYPE[type] ?? 100;
     return Math.min(100, Math.round((num / maxScore) * 100));
+}
+
+/** 详情/结果页评分文案：EQ-5D 特殊格式，健康信息问卷展示红旗状态 */
+export function formatQuestionnaireScoreDisplay(
+    type: QuestionnaireType,
+    score?: number | null,
+    diagnosis?: QuestionDiagnosisResult | null,
+) {
+    if (type === 4) {
+        if (score == null || Number.isNaN(Number(score))) {
+            if (diagnosis && typeof diagnosis.hasRedFlag === 'boolean') {
+                return hasQuestionRedFlag(score, diagnosis) ? '有红旗' : '无红旗';
+            }
+            return '--';
+        }
+        return hasQuestionRedFlag(score, diagnosis) ? '有红旗' : '无红旗';
+    }
+    if (score == null || Number.isNaN(Number(score))) return '--';
+    if (type === 3) return formatEq5dScore(Number(score));
+    return String(Number(score));
 }
 
 export function sortOptions(options: QuestionOptionItem[] = []) {
@@ -268,6 +347,18 @@ export function getScoreTip(
     return {
       summary: `您的 EQ-5D 得分处于${key}区间。`,
       advice: '建议关注生活质量相关指标，必要时咨询专业医生。',
+    };
+  }
+  if (type === 4) {
+    if (key.includes('有红旗')) {
+      return {
+        summary: '命中红旗症状，存在需优先关注的健康风险。',
+        advice: '建议转介医疗机构评估，暂不自行加练或进阶训练。',
+      };
+    }
+    return {
+      summary: '未命中红旗症状。',
+      advice: '可在专业指导下按处方继续训练，如出现新发不适请及时就医。',
     };
   }
   return null;

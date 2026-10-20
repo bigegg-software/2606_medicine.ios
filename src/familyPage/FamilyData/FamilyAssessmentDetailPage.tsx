@@ -16,9 +16,11 @@ import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import {
   formatAssessmentDate,
-  formatEq5dScore,
+  formatQuestionnaireScoreDisplay,
   getRiskPercent,
   getScoreLevel,
+  getScoreTip,
+  isUserHealthInfoQuestionnaire,
   QUESTIONNAIRE_TITLES,
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
@@ -82,16 +84,19 @@ export default function FamilyAssessmentDetailPage() {
 
   const resultText = scoreLevel?.result?.trim() || '--';
   const gaugeIcon = getFamilyRiskGaugeIcon(scoreLevel?.statusStyle);
+  const isHealthInfo = isUserHealthInfoQuestionnaire(detail?.type);
   const riskPercent =
     detail?.type != null && detail.score != null
       ? getRiskPercent(detail.type, detail.score)
       : 0;
   const scoreText =
-    detail?.score != null
-      ? detail.type === 3
-        ? formatEq5dScore(detail.score)
-        : String(detail.score)
+    detail?.type != null
+      ? formatQuestionnaireScoreDisplay(detail.type, detail.score)
       : '--';
+  const scoreTip =
+    detail?.type != null && scoreLevel
+      ? getScoreTip(detail.type, scoreLevel)
+      : null;
   const title =
     detail?.type != null ? QUESTIONNAIRE_TITLES[detail.type] : '评估问卷';
   const assessmentDate = detail ? formatAssessmentDate(detail) : '';
@@ -133,16 +138,43 @@ export default function FamilyAssessmentDetailPage() {
             <Text style={resultStyles.resultTime}>评估时间：{assessmentDate}</Text>
           ) : null}
           <View style={resultStyles.resultDivider} />
-          <Flex style={resultStyles.resultStatsRow}>
-            <View style={resultStyles.resultStatItem}>
-              <Text style={resultStyles.resultStatValue}>{riskPercent}</Text>
-              <Text style={resultStyles.resultStatLabel}>风险评分(%）</Text>
+          {isHealthInfo ? (
+            <Flex style={resultStyles.resultStatsRow}>
+              <View style={resultStyles.resultStatItem}>
+                <Text style={resultStyles.resultStatValue}>{scoreText}</Text>
+                <Text style={resultStyles.resultStatLabel}>红旗判定</Text>
+              </View>
+              <View style={resultStyles.resultStatItem}>
+                <Text style={resultStyles.resultStatValue}>
+                  {Number(detail.score) > 0 ? '有红旗' : '可跟练'}
+                </Text>
+                <Text style={resultStyles.resultStatLabel}>处置建议</Text>
+              </View>
+            </Flex>
+          ) : (
+            <Flex style={resultStyles.resultStatsRow}>
+              <View style={resultStyles.resultStatItem}>
+                <Text style={resultStyles.resultStatValue}>{riskPercent}</Text>
+                <Text style={resultStyles.resultStatLabel}>风险评分(%）</Text>
+              </View>
+              <View style={resultStyles.resultStatItem}>
+                <Text style={resultStyles.resultStatValue}>{scoreText}</Text>
+                <Text style={resultStyles.resultStatLabel}>总分(分)</Text>
+              </View>
+            </Flex>
+          )}
+          {isHealthInfo && scoreTip ? (
+            <View style={resultStyles.resultTipBox}>
+              <View style={resultStyles.resultTipRow}>
+                <View style={resultStyles.resultTipDot} />
+                <Text style={resultStyles.resultTipText}>{scoreTip.summary}</Text>
+              </View>
+              <View style={[resultStyles.resultTipRow, resultStyles.resultTipAdvice]}>
+                <View style={resultStyles.resultTipDot} />
+                <Text style={resultStyles.resultTipText}>{scoreTip.advice}</Text>
+              </View>
             </View>
-            <View style={resultStyles.resultStatItem}>
-              <Text style={resultStyles.resultStatValue}>{scoreText}</Text>
-              <Text style={resultStyles.resultStatLabel}>总分(分)</Text>
-            </View>
-          </Flex>
+          ) : null}
         </View>
         <View style={resultStyles.answerCard}>
           <Text style={resultStyles.answerCardTitle}>作答详情</Text>

@@ -26,7 +26,18 @@ import KeyboardDoneAccessory, { KEYBOARD_DONE_ACCESSORY_ID } from '@/src/compone
 import type { RootStackParamList } from '@/route/router';
 import type { RootState } from '@/store/store';
 import QuestionnairePercentRulerSlider from './components/QuestionnairePercentRulerSlider';
-import { isPercentRulerQuestion } from './utils/helpers';
+import { isPercentRulerQuestion, isUserHealthInfoQuestionnaire, QUESTIONNAIRE_TITLES } from './utils/helpers';
+import {
+    clearHealthInfoSkippedAnswers,
+    fromHealthInfoAnswerMap,
+    groupOptionsByCategory,
+    isHealthInfoRequiredAnswered,
+    isNrsPainSliderQuestion,
+    resolveHealthInfoC2Index,
+    resolveHealthInfoNextIndex,
+    resolveHealthInfoPrevIndex,
+    toHealthInfoAnswerMap,
+} from './utils/healthInfoQuestionnaireHelpers';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'QuestionnairePage'>;
 
@@ -132,7 +143,10 @@ function buildQuestionsAnswer(
         const key = getTemplateKey(template);
         const questionType = template.questionOption?.questions?.[0]?.type;
         const rawAnswer = answers[key] ?? '';
-        const answer = questionType === 3 && questionnaireType !== 3
+        const isNrs = isNrsPainSliderQuestion(key, questionType, questionnaireType);
+        const isHeightWeight =
+            questionType === 3 && questionnaireType !== 3 && !isNrs;
+        const answer = isHeightWeight
             ? normalizeHeightWeightAnswer(rawAnswer)
             : rawAnswer.trim();
         return {
@@ -216,6 +230,7 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         return unsubscribe;
     }, [navigation]);
 
+    const isHealthInfo = isUserHealthInfoQuestionnaire(type);
     const currentTemplate = templates[currentIndex];
     const currentQuestion = currentTemplate?.questionOption?.questions?.[0];
     const currentOptions = useMemo(
@@ -223,17 +238,47 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         [currentTemplate],
     );
     const total = templates.length;
-    const isLast = currentIndex >= total - 1;
     const templateKey = currentTemplate ? getTemplateKey(currentTemplate) : 0;
     const currentAnswer = answers[templateKey] ?? '';
     const progressPercent = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
+    const answerMap = useMemo(() => toHealthInfoAnswerMap(answers), [answers]);
 
     const isPercentRuler = isPercentRulerQuestion(templateKey, currentQuestion?.type);
-    const isHeightWeightQuestion = Boolean(currentQuestion?.type === 3 && type !== 3);
+    const isNrsPainSlider = isNrsPainSliderQuestion(templateKey, currentQuestion?.type, type);
+    const isHeightWeightQuestion = Boolean(
+        currentQuestion?.type === 3 && type !== 3 && !isNrsPainSlider,
+    );
+    const c2Index = useMemo(
+        () => (isHealthInfo ? resolveHealthInfoC2Index(templates) : -1),
+        [isHealthInfo, templates],
+    );
+    const isHealthInfoLastQuestion = isHealthInfo && (
+        c2Index >= 0 ? currentIndex === c2Index : currentIndex === total - 1
+    );
+    const healthInfoOptionGroups = useMemo(() => {
+        if (!isHealthInfoLastQuestion) return [];
+        return groupOptionsByCategory(currentOptions);
+    }, [currentOptions, isHealthInfoLastQuestion]);
+    const showHealthInfoOptionGroups = isHealthInfoLastQuestion
+        && healthInfoOptionGroups.some(group => group.category);
+
+    const isFirst = useMemo(() => {
+        if (!isHealthInfo) return currentIndex === 0;
+        return resolveHealthInfoPrevIndex(currentIndex, templates, answerMap) < 0;
+    }, [answerMap, currentIndex, isHealthInfo, templates]);
+
+    const isLast = useMemo(() => {
+        if (!isHealthInfo) return currentIndex >= total - 1;
+        return resolveHealthInfoNextIndex(currentIndex, templates, answerMap) >= total;
+    }, [answerMap, currentIndex, isHealthInfo, templates, total]);
 
     const hasCurrentAnswer = useMemo(() => {
         if (!currentQuestion) return false;
         if (currentQuestion.type === 3) {
+            if (isNrsPainSlider) {
+                const num = Number(currentAnswer);
+                return Number.isFinite(num) && num >= 0 && num <= 10;
+            }
             if (type === 3) {
                 if (isPercentRuler) {
                     const num = Number(currentAnswer);
@@ -253,16 +298,27 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
             return currentAnswer.split(',').filter(Boolean).length > 0;
         }
         return Boolean(currentAnswer.trim());
-    }, [currentAnswer, currentQuestion, isPercentRuler, type]);
+    }, [currentAnswer, currentQuestion, isNrsPainSlider, isPercentRuler, type]);
 
     const setSingleAnswer = (value: string) => {
-        setAnswers(prev => ({ ...prev, [templateKey]: value }));
+        setAnswers(prev => {
+            const next = { ...prev, [templateKey]: value };
+            if (!isHealthInfo) return next;
+            return fromHealthInfoAnswerMap(
+                clearHealthInfoSkippedAnswers(templates, toHealthInfoAnswerMap(next)),
+            );
+        });
     };
 
     useEffect(() => {
         if (!isPercentRuler || currentAnswer) return;
         setSingleAnswer('50');
     }, [templateKey, isPercentRuler, currentAnswer]);
+
+    useEffect(() => {
+        if (!isNrsPainSlider || currentAnswer) return;
+        setSingleAnswer('0');
+    }, [templateKey, isNrsPainSlider, currentAnswer]);
 
     useEffect(() => {
         if (!isHeightWeightQuestion || currentAnswer) return;
@@ -283,25 +339,59 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
         setSingleAnswer(next.join(','));
     };
 
+    const handlePrev = () => {
+        if (isFirst || submitting) return;
+        if (isHealthInfo) {
+            const prev = resolveHealthInfoPrevIndex(currentIndex, templates, answerMap);
+            if (prev >= 0) setCurrentIndex(prev);
+            return;
+        }
+        setCurrentIndex(prev => Math.max(0, prev - 1));
+    };
+
     const handleNext = async () => {
         if (!hasCurrentAnswer) {
             Alert.alert('提示', '请先完成当前题目');
             return;
         }
+        let submitAnswers = answers;
+        if (isHealthInfo) {
+            submitAnswers = fromHealthInfoAnswerMap(
+                clearHealthInfoSkippedAnswers(templates, toHealthInfoAnswerMap(answers)),
+            );
+            setAnswers(submitAnswers);
+        }
         if (!isLast) {
+            if (isHealthInfo) {
+                const next = resolveHealthInfoNextIndex(
+                    currentIndex,
+                    templates,
+                    toHealthInfoAnswerMap(submitAnswers),
+                );
+                if (next < templates.length) setCurrentIndex(next);
+                return;
+            }
             setCurrentIndex(prev => prev + 1);
+            return;
+        }
+
+        if (isHealthInfo && !isHealthInfoRequiredAnswered(
+            templates,
+            toHealthInfoAnswerMap(submitAnswers),
+        )) {
+            Alert.alert('提示', '请先完成必填题目');
             return;
         }
 
         setSubmitting(true);
         const loadingKey = Toast.loading('提交中', 0);
         try {
-            const questionsAnswer = buildQuestionsAnswer(type, templates, answers);
+            const questionsAnswer = buildQuestionsAnswer(type, templates, submitAnswers);
             const res = (await addUserQuestion({
                 type,
                 questionsAnswer,
                 comments: '',
-                score: calculateScore(type, templates, answers),
+                score: calculateScore(type, templates, submitAnswers),
             })) as unknown as AddUserQuestionResult;
             if (!isResourceApiOk(res)) {
                 Alert.alert('提交失败', res?.msg || '请稍后重试');
@@ -324,14 +414,32 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
 
     useEffect(() => {
         navigation.setOptions({
-            title: type === 0 ? '跌倒风险评估问卷' : type === 1 ? '日常生活能力评估' : type === 2 ? '营养风险评估' : "评估问卷",
+            title: QUESTIONNAIRE_TITLES[type] || '评估问卷',
         });
-    }, []);
+    }, [navigation, type]);
 
     const renderOptions = () => {
         if (!currentQuestion) return null;
 
         if (currentQuestion.type === 3) {
+            if (isNrsPainSlider) {
+                const initialValue = currentAnswer ? Number(currentAnswer) : 0;
+                return (
+                    <View>
+                        <Text style={styles.nrsHint}>0 完全不痛 · 10 最严重疼痛</Text>
+                        <QuestionnairePercentRulerSlider
+                            key={`${templateKey}-nrs`}
+                            min={0}
+                            max={10}
+                            step={1}
+                            majorStep={5}
+                            unit="分"
+                            initialValue={Number.isFinite(initialValue) ? initialValue : 0}
+                            onValueChange={value => setSingleAnswer(String(Math.round(value)))}
+                        />
+                    </View>
+                );
+            }
             if (type === 3) {
                 if (isPercentRulerQuestion(templateKey, currentQuestion.type)) {
                     const initialValue = currentAnswer ? Number(currentAnswer) : 50;
@@ -448,13 +556,60 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
 
         if (currentQuestion.type === 4) {
             const selected = currentAnswer ? currentAnswer.split(',').filter(Boolean) : [];
+            if (showHealthInfoOptionGroups) {
+                return (
+                    <View style={styles.optionGroupBox}>
+                        {healthInfoOptionGroups.map(group => (
+                            <View key={`${templateKey}-${group.category || 'other'}`}>
+                                {group.category ? (
+                                    <Text style={styles.optionGroupCategory}>{group.category}</Text>
+                                ) : null}
+                                <View style={styles.optionGroupWrap}>
+                                    {group.items.map(entry => {
+                                        const active = selected.includes(String(entry.index));
+                                        return (
+                                            <View
+                                                key={`${templateKey}-${entry.index}`}
+                                                style={styles.optionGroupItem}
+                                            >
+                                                <TouchableOpacity
+                                                    activeOpacity={0.7}
+                                                    style={[
+                                                        styles.mapItem,
+                                                        styles.mapItemCompact,
+                                                        active && styles.mapItemActive,
+                                                    ]}
+                                                    onPress={() => toggleMultiAnswer(entry.index)}
+                                                >
+                                                    <Text
+                                                        style={[
+                                                            styles.mapItemText,
+                                                            active && styles.mapItemTextActive,
+                                                        ]}
+                                                    >
+                                                        {entry.option.desc ?? ''}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        );
+                                    })}
+                                </View>
+                            </View>
+                        ))}
+                    </View>
+                );
+            }
             return currentOptions.map((option, index) => {
                 const active = selected.includes(String(index));
                 return (
                     <TouchableOpacity
                         key={`${templateKey}-${index}`}
                         activeOpacity={0.7}
-                        style={[styles.mapItem, active && styles.mapItemActive]}
+                        style={[
+                            styles.mapItem,
+                            isHealthInfoLastQuestion && styles.mapItemCompact,
+                            active && styles.mapItemActive,
+                        ]}
                         onPress={() => toggleMultiAnswer(index)}>
                         <Text style={[styles.mapItemText, active && styles.mapItemTextActive]}>
                             {option.desc ?? ''}
@@ -562,8 +717,20 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                 >
                     <TouchableOpacity
                         style={[
-                            styles.bottomBarButtonLeft,
-                            { flex: 1 },
+                            styles.bottomBarButtonCancel,
+                            (isFirst || submitting) && { opacity: 0.5 },
+                        ]}
+                        disabled={isFirst || submitting}
+                        onPress={handlePrev}
+                        activeOpacity={0.8}
+                    >
+                        <Flex justify="center" style={{ flex: 1 }}>
+                            <Text style={styles.bottomBarButtonTextCancel}>上一题</Text>
+                        </Flex>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[
+                            styles.bottomBarButtonConfirm,
                             (!hasCurrentAnswer || submitting) && { opacity: 0.5 },
                         ]}
                         disabled={!hasCurrentAnswer || submitting}
@@ -571,7 +738,9 @@ export default function QuestionnairePage({ route }: { route: { params: { type: 
                         activeOpacity={0.8}
                     >
                         <Flex justify="center" style={{ flex: 1 }}>
-                            <Text style={styles.bottomBarButtonTextLeft}>{isLast ? '提交' : '下一题'}</Text>
+                            <Text style={styles.bottomBarButtonTextConfirm}>
+                                {isLast ? (submitting ? '提交中...' : '提交') : '下一题'}
+                            </Text>
                         </Flex>
                     </TouchableOpacity>
                 </Flex>

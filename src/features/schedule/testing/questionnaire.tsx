@@ -17,6 +17,8 @@ import {
 } from './testingHelpers';
 import {
     formatEq5dSelfHealthScore,
+    formatHealthInfoRecordTag,
+    formatQuestionnaireGaugeLevel,
     formatQuestionnaireScoreLevel,
     getQuestionnaireBestTarget,
     getQuestionnaireImproveLabel,
@@ -25,8 +27,12 @@ import {
     getQuestionnaireTierProgress,
     hasQuestionnaireScoreImproved,
     parseEq5dSelfHealthScore,
+    resolveQuestionnaireGaugeCenterLabel,
+    resolveQuestionnaireRecordScore,
+    resolveQuestionnaireRecordTitle,
     QUESTIONNAIRE_CONFIG,
 } from './questionnaireHelpers';
+import { isUserHealthInfoQuestionnaire } from '@/src/features/profile/questionnaire/utils/helpers';
 
 const TESTING_HEADER_BG = require('@/assets/images/schedule/pageBack.png');
 const GAUGE_WIDTH = 150;
@@ -135,6 +141,14 @@ export default function QuestionnaireTestingPage() {
     }, [questionnaireType]);
     const firstRecord = records?.firstRecord;
     const latestRecord = records?.latestRecord;
+    const firstScore = useMemo(
+        () => resolveQuestionnaireRecordScore(firstRecord),
+        [firstRecord],
+    );
+    const latestScore = useMemo(
+        () => resolveQuestionnaireRecordScore(latestRecord),
+        [latestRecord],
+    );
     const bestTarget = useMemo(
         () => (questionnaireType != null ? getQuestionnaireBestTarget(questionnaireType) : null),
         [questionnaireType],
@@ -144,23 +158,33 @@ export default function QuestionnaireTestingPage() {
         if (questionnaireType !== 3) return null;
         return clampScore(parseEq5dSelfHealthScore(latestRecord));
     }, [latestRecord, questionnaireType]);
+    const isHealthInfo = isUserHealthInfoQuestionnaire(questionnaireType);
     const improveLabel = useMemo(
         () => (questionnaireType != null
             ? getQuestionnaireImproveLabel(questionnaireType, latestRecord, firstRecord)
             : '等待评估'),
         [firstRecord, latestRecord, questionnaireType],
     );
+    /** 仪表盘：健康信息问卷用短文案有红旗 / 无红旗 */
     const initialLevel = questionnaireType != null
-        ? formatQuestionnaireScoreLevel(questionnaireType, firstRecord?.score)
+        ? formatQuestionnaireGaugeLevel(questionnaireType, firstScore)
         : '--';
     const currentLevel = questionnaireType != null
-        ? formatQuestionnaireScoreLevel(questionnaireType, latestRecord?.score)
+        ? formatQuestionnaireGaugeLevel(questionnaireType, latestScore)
+        : '--';
+    const currentStatusFull = questionnaireType != null
+        ? formatQuestionnaireScoreLevel(questionnaireType, latestScore)
         : '--';
     const tierProgress = useMemo(() => {
         if (questionnaireType == null) return null;
-        return getQuestionnaireTierProgress(questionnaireType, latestRecord?.score);
-    }, [latestRecord?.score, questionnaireType]);
-    const targetLevel = bestTarget?.label ?? '--';
+        return getQuestionnaireTierProgress(questionnaireType, latestScore);
+    }, [latestScore, questionnaireType]);
+    const targetLevel = questionnaireType === 4
+        ? '无红旗'
+        : (bestTarget?.label ?? '--');
+    const gaugeCenterLabel = resolveQuestionnaireGaugeCenterLabel(questionnaireType);
+    const recordListTitle = resolveQuestionnaireRecordTitle(questionnaireType);
+    const hasRedFlag = isHealthInfo && latestScore != null && latestScore > 0;
     const gradientId = useId().replace(/:/g, '');
     const progress = tierProgress ?? 0;
 
@@ -244,7 +268,15 @@ export default function QuestionnaireTestingPage() {
 
                         <Flex align="end" style={styles.gaugeBox}>
                             <Flex direction="column" style={styles.gaugeTitleBox}>
-                                <Text style={styles.gaugeValue}>{initialLevel}</Text>
+                                <Text
+                                    style={[
+                                        styles.gaugeValue,
+                                        isHealthInfo ? { fontSize: 14, lineHeight: 18 } : null,
+                                    ]}
+                                    numberOfLines={2}
+                                >
+                                    {initialLevel}
+                                </Text>
                                 <Text style={styles.gaugeText}>初始</Text>
                             </Flex>
 
@@ -310,46 +342,92 @@ export default function QuestionnaireTestingPage() {
                                         source={require('@/assets/images/schedule/topCenter.png')}
                                     />
                                     <View style={styles.gaugeTopCenterBox}>
-                                        <Text style={styles.gaugeTopCenterValue}>{currentLevel}</Text>
-                                        <Text style={styles.gaugeTopCenterText}>当前健康指数测评</Text>
+                                        <Text
+                                            style={[
+                                                styles.gaugeTopCenterValue,
+                                                isHealthInfo ? { fontSize: 16, lineHeight: 20 } : null,
+                                                hasRedFlag ? { color: '#D80010' } : null,
+                                            ]}
+                                            numberOfLines={2}
+                                        >
+                                            {currentLevel}
+                                        </Text>
+                                        <Text style={styles.gaugeTopCenterText}>{gaugeCenterLabel}</Text>
                                     </View>
                                 </View>
                             </View>
                             <Flex direction="column" style={styles.gaugeTitleBox}>
-                                <Text style={styles.gaugeValue}>{targetLevel}</Text>
+                                <Text
+                                    style={[
+                                        styles.gaugeValue,
+                                        isHealthInfo ? { fontSize: 14, lineHeight: 18 } : null,
+                                    ]}
+                                    numberOfLines={2}
+                                >
+                                    {targetLevel}
+                                </Text>
                                 <Text style={styles.gaugeText}>目标</Text>
                             </Flex>
                         </Flex>
                         {questionnaireType === 3 ? (
-                        <Flex align="start" style={styles.pgBox}>
-                            <Text style={styles.pgText}>自我健康评分</Text>
+                            <Flex align="start" style={styles.pgBox}>
+                                <Text style={styles.pgText}>自我健康评分</Text>
 
-                            <View
-                                style={styles.pgColorBarContainer}
-                                onLayout={event => setColorBarWidth(event.nativeEvent.layout.width)}>
-                                <View style={styles.pgIndicatorArea}>
-                                    {selfHealthScore != null && colorBarWidth > 0 ? (
-                                        <SelfHealthScoreIndicator score={selfHealthScore} barWidth={colorBarWidth} />
-                                    ) : null}
+                                <View
+                                    style={styles.pgColorBarContainer}
+                                    onLayout={event => setColorBarWidth(event.nativeEvent.layout.width)}>
+                                    <View style={styles.pgIndicatorArea}>
+                                        {selfHealthScore != null && colorBarWidth > 0 ? (
+                                            <SelfHealthScoreIndicator score={selfHealthScore} barWidth={colorBarWidth} />
+                                        ) : null}
+                                    </View>
+                                    <Flex style={styles.pgColorBarRow}>
+                                        <View style={styles.pgColorBarSegment}>
+                                            <View style={styles.pgColorBarFirst} />
+                                        </View>
+                                        <View style={styles.pgColorBarSegment}>
+                                            <View style={styles.pgColorBarSecond} />
+                                        </View>
+                                        <View style={styles.pgColorBarSegment}>
+                                            <View style={styles.pgColorBarThird} />
+                                        </View>
+                                    </Flex>
+                                    <Flex style={styles.pgBarLabelsRow}>
+                                        <Text style={[styles.pgBarText, styles.pgColorBarSegment]}>0</Text>
+                                        <Text style={[styles.pgBarText, styles.pgColorBarSegment]}>50</Text>
+                                        <Text style={[styles.pgBarText, styles.pgColorBarSegment]}>100</Text>
+                                    </Flex>
                                 </View>
-                                <Flex style={styles.pgColorBarRow}>
-                                    <View style={styles.pgColorBarSegment}>
-                                        <View style={styles.pgColorBarFirst} />
-                                    </View>
-                                    <View style={styles.pgColorBarSegment}>
-                                        <View style={styles.pgColorBarSecond} />
-                                    </View>
-                                    <View style={styles.pgColorBarSegment}>
-                                        <View style={styles.pgColorBarThird} />
-                                    </View>
-                                </Flex>
-                                <Flex style={styles.pgBarLabelsRow}>
-                                    <Text style={[styles.pgBarText, styles.pgColorBarSegment]}>0</Text>
-                                    <Text style={[styles.pgBarText, styles.pgColorBarSegment]}>50</Text>
-                                    <Text style={[styles.pgBarText, styles.pgColorBarSegment]}>100</Text>
-                                </Flex>
-                            </View>
-                        </Flex>
+                            </Flex>
+                        ) : null}
+                        {isHealthInfo && latestRecord?.score != null ? (
+                            <Flex
+                                align="center"
+                                style={[
+                                    styles.pgBox,
+                                    {
+                                        marginTop: 12,
+                                        paddingVertical: 10,
+                                        paddingHorizontal: 12,
+                                        borderRadius: 8,
+                                        backgroundColor: hasRedFlag
+                                            ? 'rgba(216,0,16,0.06)'
+                                            : 'rgba(109,146,94,0.08)',
+                                    },
+                                ]}>
+                                <Text
+                                    style={[
+                                        styles.pgText,
+                                        {
+                                            flex: 1,
+                                            color: hasRedFlag ? '#D80010' : '#6D925E',
+                                        },
+                                    ]}>
+                                    {hasRedFlag
+                                        ? `${currentStatusFull}，请优先转介医疗机构评估`
+                                        : '无红旗，可在专业指导下继续训练'}
+                                </Text>
+                            </Flex>
                         ) : null}
                     </View>
                     <View style={styles.infoBox}>
@@ -364,53 +442,66 @@ export default function QuestionnaireTestingPage() {
                         <View style={styles.infoRecordBox}>
                             {latestTwoRecords.length > 0 && questionnaireType != null ? (
                                 latestTwoRecords.map((record, index) => {
-                                    const scoreLevel = getQuestionnaireScoreLevel(questionnaireType, record.score);
+                                    const score = resolveQuestionnaireRecordScore(record);
+                                    const effectiveScore = isHealthInfo ? (score ?? 0) : score;
+                                    const scoreLevel = getQuestionnaireScoreLevel(questionnaireType, effectiveScore);
                                     const statusColors = getQuestionnaireStatusColors(scoreLevel);
+                                    const statusLabel = isHealthInfo
+                                        ? formatHealthInfoRecordTag(effectiveScore)
+                                        : (scoreLevel?.result ?? '--');
                                     return (
                                         <TouchableOpacity
                                             key={String(record.id ?? record.createTime ?? index)}
                                             activeOpacity={0.7}
                                             disabled={record.id == null}
                                             onPress={() => navigateToDetail(record)}>
-                                        <Flex
-                                            justify='between'
-                                            align='start'
-                                            style={[
-                                                styles.infoRecordItem,
-                                                { paddingVertical: 12 },
-                                                index > 0 ? { marginTop: 12 } : null,
-                                            ]}>
-                                            <Flex>
-                                                <Image
-                                                    style={styles.infoRecordImg}
-                                                    source={require('@/assets/images/schedule/order.png')}
-                                                />
-                                                <View>
-                                                    <Text style={styles.infoRecordText}>健康指数测评</Text>
-                                                    {questionnaireType === 3 ? (
-                                                        <Text style={[styles.infoRecordTime, { marginTop: 6 }]}>
-                                                            自我健康评分:{formatEq5dSelfHealthScore(record)}
+                                            <Flex
+                                                justify='between'
+                                                align='center'
+                                                style={[
+                                                    styles.infoRecordItem,
+                                                    index > 0 ? { marginTop: 12 } : null,
+                                                ]}>
+                                                <Flex align="center" style={{ flex: 1, marginRight: 8 }}>
+                                                    <Image
+                                                        style={styles.infoRecordImg}
+                                                        source={require('@/assets/images/schedule/order1.png')}
+                                                    />
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={styles.infoRecordText}>
+                                                            {recordListTitle}
+                                                        </Text>
+                                                        {questionnaireType === 3 ? (
+                                                            <Text style={[styles.infoRecordTime, { marginTop: 6 }]}>
+                                                                自我健康评分:{formatEq5dSelfHealthScore(record)}
+                                                            </Text>
+                                                        ) : null}
+                                                        {isHealthInfo ? (
+                                                            <Text style={[styles.infoRecordTime, { marginTop: 6 }]}>
+                                                                {formatRecordDate(record.createTime)}
+                                                            </Text>
+                                                        ) : null}
+                                                    </View>
+                                                </Flex>
+                                                <Flex direction="column" align="end">
+                                                    <Flex style={[
+                                                        styles.infoRecordStatus,
+                                                        { borderColor: statusColors.text, alignSelf: 'flex-end' },
+                                                    ]}>
+                                                        <Text style={[
+                                                            styles.infoRecordStatusText,
+                                                            { color: statusColors.text },
+                                                        ]}>
+                                                            {statusLabel}
+                                                        </Text>
+                                                    </Flex>
+                                                    {!isHealthInfo ? (
+                                                        <Text style={[styles.infoRecordTime, { marginTop: 6, textAlign: 'right' }]}>
+                                                            {formatRecordDate(record.createTime)}
                                                         </Text>
                                                     ) : null}
-                                                </View>
-                                            </Flex>
-                                            <Flex direction="column" align="end">
-                                                <Flex style={[
-                                                    styles.infoRecordStatus,
-                                                    { borderColor: statusColors.text, alignSelf: 'flex-end' },
-                                                ]}>
-                                                    <Text style={[
-                                                        styles.infoRecordStatusText,
-                                                        { color: statusColors.text },
-                                                    ]}>
-                                                        {scoreLevel?.result ?? '--'}
-                                                    </Text>
                                                 </Flex>
-                                                <Text style={[styles.infoRecordTime, { marginTop: 6, textAlign: 'right' }]}>
-                                                    {formatRecordDate(record.createTime)}
-                                                </Text>
                                             </Flex>
-                                        </Flex>
                                         </TouchableOpacity>
                                     );
                                 })

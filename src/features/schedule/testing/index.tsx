@@ -690,7 +690,6 @@ export default function TestingPage() {
                                             key={String(record.id ?? record.createTime ?? index)}
                                             style={[
                                                 styles.infoRecordItem,
-                                                { paddingVertical: 12 },
                                                 index > 0 ? { marginTop: 12 } : null,
                                             ]}>
                                             <Flex justify="between" align="center">

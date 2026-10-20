@@ -22,9 +22,10 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import {
-  formatEq5dScore,
+  formatQuestionnaireScoreDisplay,
   getScoreLevel,
   getScoreTip,
+  isUserHealthInfoQuestionnaire,
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
@@ -100,12 +101,11 @@ export default function FamilyAssessmentResultPage() {
       : null;
   const resultText = scoreLevel?.result?.trim() || '--';
   const gaugeIcon = getFamilyRiskGaugeIcon(scoreLevel?.statusStyle);
+  const isHealthInfo = isUserHealthInfoQuestionnaire(questionnaireType);
   const questionCount = detail?.questionsAnswer?.length ?? 0;
   const scoreText =
-    detail?.score != null
-      ? questionnaireType === 3
-        ? formatEq5dScore(detail.score)
-        : String(detail.score)
+    questionnaireType != null
+      ? formatQuestionnaireScoreDisplay(questionnaireType, detail?.score)
       : '--';
 
   if (loading) {
@@ -133,7 +133,7 @@ export default function FamilyAssessmentResultPage() {
       <View style={styles.pageContent}>
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>风险评分</Text>
+            <Text style={styles.resultTitle}>{isHealthInfo ? '红旗筛查' : '风险评分'}</Text>
             <View style={styles.resultGaugeOuter}>
               <View style={styles.resultGaugeInner}>
                 <Image source={gaugeIcon} style={styles.resultGauge} resizeMode="contain" />
@@ -148,7 +148,9 @@ export default function FamilyAssessmentResultPage() {
               </View>
               <View style={styles.resultStatItem}>
                 <Text style={styles.resultStatValue}>{scoreText}</Text>
-                <Text style={styles.resultStatLabel}>评分(分)</Text>
+                <Text style={styles.resultStatLabel}>
+                  {isHealthInfo ? '红旗判定' : '评分(分)'}
+                </Text>
               </View>
             </Flex>
             {scoreTip ? (

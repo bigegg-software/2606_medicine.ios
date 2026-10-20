@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
         marginTop: 6,
         backgroundColor: "#F6F8FB",
         borderRadius: 8,
-        paddingHorizontal: 15,
+        paddingHorizontal: 16,
         paddingVertical: 18
     },
     /** 测试记录列表页数据卡片背景（仅 record 使用） */
@@ -208,8 +208,9 @@ const styles = StyleSheet.create({
         color: "#666666",
     },
     infoRecordImg: {
-        width: 50,
-        height: 50,
+        width: 39,
+        height: 39,
+        borderRadius: 20,
         marginRight: 12
     },
     jointRomRecordCard: {

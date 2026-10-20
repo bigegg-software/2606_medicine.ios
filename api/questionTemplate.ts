@@ -1,13 +1,23 @@
 import request from '@/utils/axios';
 import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
-/** 0 跌倒风险评估 1 日常生活能力评估 2 营养风险评估 3 EQ-5D生活质量评估 */
-export type QuestionnaireType = 0 | 1 | 2 | 3;
+/**
+ * 0 跌倒风险评估
+ * 1 日常生活能力评估
+ * 2 营养风险评估
+ * 3 EQ-5D生活质量评估
+ * 4 用户健康信息问卷（红旗筛查）
+ */
+export type QuestionnaireType = 0 | 1 | 2 | 3 | 4;
 
 export type QuestionOptionItem = {
     desc?: string;
     sort?: number;
     score?: number;
+    /** 选项分类（如 C2 诊断按区域块分组） */
+    category?: string;
+    /** 诊断编码（如 DIAG-*） */
+    code?: string;
 };
 
 export type QuestionItem = {
@@ -51,6 +61,20 @@ export type UserQuestionAnswerItem = {
     questions?: QuestionItem[];
 };
 
+/** 用户健康信息问卷诊断结果（type=4） */
+export type QuestionDiagnosisResult = {
+    /** 是否有红旗症状 */
+    hasRedFlag?: boolean;
+    /** 处置建议：有红旗 / 可开运动处方 */
+    advice?: string;
+    /** 疼痛部位展示名 */
+    painSites?: string[];
+    /** 命中的红旗筛查项文案 */
+    redFlags?: string[];
+    /** 诊断名称 */
+    diagnoses?: string[];
+};
+
 export type UserQuestionRecord = {
     id?: number;
     userId?: number;
@@ -59,6 +83,8 @@ export type UserQuestionRecord = {
     customerLocalDate?: string;
     comments?: string;
     score?: number;
+    /** 用户健康信息问卷诊断结果 */
+    diagnosisResult?: QuestionDiagnosisResult | null;
     delFlag?: string;
     createTime?: string;
     updateTime?: string;

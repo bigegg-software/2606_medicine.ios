@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { QuestionnaireType, UserQuestionRecord } from '@/api/questionTemplate';
 import {
   listExUserQuestions,
+  pickFirstAndLatestUserQuestionRecords,
   queryFirstAndLatestExUserQuestion,
   type FirstAndLatestUserQuestionRecord,
 } from '@/api/exUserQuestion';
@@ -19,7 +20,7 @@ function sortQuestionnaireRecordsByTime(records: UserQuestionRecord[]) {
 export function useQuestionnaireRecords(options: {
   healthGoalId?: string;
   questionnaireType?: QuestionnaireType;
-  userId?: number;
+  userId?: number | string;
 }) {
   const { healthGoalId, questionnaireType, userId } = options;
   const [records, setRecords] = useState<FirstAndLatestUserQuestionRecord | null>(null);
@@ -73,27 +74,34 @@ export function useQuestionnaireRecords(options: {
       }
 
       const queryParams = {
-        exPatientRuleId: ruleId,
+        exPatientRuleId: String(ruleId),
         type: questionnaireType,
-        userId,
+        ...(userId != null ? { userId: String(userId) } : {}),
       };
 
       const [firstLatestRes, listRes] = await Promise.all([
         queryFirstAndLatestExUserQuestion(queryParams),
-        listExUserQuestions({ ...queryParams, pageNum: 1, pageSize: 2 }),
+        listExUserQuestions({ ...queryParams, pageNum: 1, pageSize: 500 }),
       ]);
 
-      if (isResourceApiOk(firstLatestRes)) {
-        setRecords(apiResourceData<FirstAndLatestUserQuestionRecord>(firstLatestRes as any) ?? null);
-      } else {
-        setRecords(null);
-      }
+      const rows = isResourceApiOk(listRes as any)
+        ? sortQuestionnaireRecordsByTime(getResourceRows(listRes as any))
+        : [];
+      const fromList = pickFirstAndLatestUserQuestionRecords(rows);
+      const fromApi = isResourceApiOk(firstLatestRes)
+        ? (apiResourceData<FirstAndLatestUserQuestionRecord>(firstLatestRes as any) ?? null)
+        : null;
 
-      if (isResourceApiOk(listRes)) {
+      // 优先接口首次/最新；缺失时用 list 最早/最晚补齐（保证仪表盘「初始」有值）
+      setRecords({
+        firstRecord: fromApi?.firstRecord ?? fromList.firstRecord ?? null,
+        latestRecord: fromApi?.latestRecord ?? fromList.latestRecord ?? null,
+      });
+
+      if (rows.length > 0) {
         const total = Number((listRes as { total?: number }).total ?? 0);
-        const rows = sortQuestionnaireRecordsByTime(getResourceRows(listRes as any)).slice(0, 2);
-        setRecordTotal(Number.isFinite(total) ? total : rows.length);
-        setLatestTwoRecords(rows);
+        setRecordTotal(Number.isFinite(total) && total > 0 ? total : rows.length);
+        setLatestTwoRecords(rows.slice(0, 2));
       } else {
         setRecordTotal(0);
         setLatestTwoRecords([]);

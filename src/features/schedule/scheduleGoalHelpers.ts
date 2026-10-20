@@ -16,6 +16,8 @@ import {
   pickFirstAndLatestHealthTestRecords,
 } from '@/api/exHealthTestRecord';
 import {
+  listExUserQuestions,
+  pickFirstAndLatestUserQuestionRecords,
   queryFirstAndLatestExUserQuestion,
   type FirstAndLatestUserQuestionRecord,
 } from '@/api/exUserQuestion';
@@ -27,9 +29,11 @@ import {
 import type { QuestionnaireType } from '@/api/questionTemplate';
 import { calcTargetFromInitial } from '@/src/features/schedule/testing/testingHelpers';
 import {
+  formatQuestionnaireGaugeLevel,
   formatQuestionnaireScoreLevel,
   getQuestionnaireBestTarget,
   getQuestionnaireTierProgress,
+  resolveQuestionnaireRecordScore,
 } from '@/src/features/schedule/testing/questionnaireHelpers';
 import { flattenMeasureItems } from '@/src/features/profile/vitals/vitalsHelpers';
 import { parseMeasureNumber } from '@/src/features/profile/vitals/detail/helpers/shared';
@@ -307,7 +311,8 @@ export function resolveQuestionnaireTypeFromTarget(
   const raw = target.healthGoalVo?.assessmentValue?.trim() ?? '';
   if (!raw) return undefined;
   const parsed = Number(raw);
-  if (![0, 1, 2, 3].includes(parsed)) return undefined;
+  // 与问卷配置一致：0–3；后续新增类型仍按数字透传，避免新问卷无法走问卷逻辑
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
   return parsed as QuestionnaireType;
 }
 
@@ -665,7 +670,8 @@ export function toScheduleGoalProgressItem(
     ? JOINT_ROM_META.find(item => item.key === options.jointRomKey)
     : undefined;
   const questionnaireType = resolveQuestionnaireTypeFromTarget(target);
-  const isQuestionnaire = questionnaireType != null;
+  /** 以 assessmentType=question_type 判定，不依赖 assessmentValue 是否已在本地配置档位 */
+  const isQuestionnaire = isQuestionnaireGoal(target);
   const isExImpRate = isExImpRateGoal(target);
   const isWeight = !lipidMeta && !bpMeta && !jointRomMeta && isWeightGoal(target);
   const isBloodGlucose = !lipidMeta && !bpMeta && !jointRomMeta && isBloodGlucoseGoal(target);
@@ -796,11 +802,21 @@ export function toScheduleGoalProgressItem(
       ? toFiniteNumber(options?.baselineQuestionnaireByGoalId?.[goalId])
       : null;
     current = latestScore;
-    valueText = formatQuestionnaireScoreLevel(questionnaireType, latestScore);
-    const bestTarget = getQuestionnaireBestTarget(questionnaireType);
-    targetText = `目标：${bestTarget.label}`;
+    // 健康信息问卷用短文案（有红旗/无红旗）；其余用完整档位
+    valueText = questionnaireType != null
+      ? (questionnaireType === 4
+        ? formatQuestionnaireGaugeLevel(questionnaireType, latestScore)
+        : formatQuestionnaireScoreLevel(questionnaireType, latestScore))
+      : (latestScore != null ? String(latestScore) : '--');
+    const bestTarget = questionnaireType != null
+      ? getQuestionnaireBestTarget(questionnaireType)
+      : null;
+    const targetLabel = questionnaireType === 4
+      ? '无红旗'
+      : bestTarget?.label;
+    targetText = targetLabel ? `目标：${targetLabel}` : '目标：完成评估';
     unitText = '';
-    progress = latestScore != null
+    progress = questionnaireType != null && latestScore != null
       ? (getQuestionnaireTierProgress(questionnaireType, latestScore) ?? 0)
       : 0;
     improveDelta = null;
@@ -980,7 +996,13 @@ export function toScheduleGoalProgressItem(
   const baselineValueText = isExImpRate
     ? '--'
     : isQuestionnaire
-      ? formatQuestionnaireScoreLevel(questionnaireType, questionnaireBaselineScore)
+      ? (
+        questionnaireType != null
+          ? (questionnaireType === 4
+            ? formatQuestionnaireGaugeLevel(questionnaireType, questionnaireBaselineScore)
+            : formatQuestionnaireScoreLevel(questionnaireType, questionnaireBaselineScore))
+          : (questionnaireBaselineScore != null ? String(questionnaireBaselineScore) : '--')
+      )
       : (metric.baselineText
         || (metric.baseline != null ? formatMetricNumber(metric.baseline) : '--'));
   const baselineUnit = isQuestionnaire || isExImpRate ? '' : (unitText || '');
@@ -1423,25 +1445,39 @@ export async function loadQuestionnaireFirstAndLatestByGoalId(
       const questionnaireType = resolveQuestionnaireTypeFromTarget(target);
       if (questionnaireType == null) return null;
 
+      const goalId = String(target.healthGoalId);
+      const queryParams = {
+        exPatientRuleId: String(exPatientRuleId),
+        type: questionnaireType,
+        ...(userId != null ? { userId: String(userId) } : {}),
+      };
+
       try {
-        const res = await queryFirstAndLatestExUserQuestion({
-          exPatientRuleId: String(exPatientRuleId),
-          type: questionnaireType,
-          userId: userId != null ? String(userId) : undefined,
-        });
-        if (!isResourceApiOk(res as unknown as { code?: number })) {
-          return [String(target.healthGoalId), null, null] as const;
-        }
-        const data = apiResourceData<FirstAndLatestUserQuestionRecord>(
-          res as unknown as { code?: number; data?: FirstAndLatestUserQuestionRecord },
-        );
+        const [firstLatestRes, listRes] = await Promise.all([
+          queryFirstAndLatestExUserQuestion(queryParams),
+          listExUserQuestions({ ...queryParams, pageNum: 1, pageSize: 500 }),
+        ]);
+
+        const fromApi = isResourceApiOk(firstLatestRes as unknown as { code?: number })
+          ? (apiResourceData<FirstAndLatestUserQuestionRecord>(
+            firstLatestRes as unknown as { code?: number; data?: FirstAndLatestUserQuestionRecord },
+          ) ?? null)
+          : null;
+        const rows = isResourceApiOk(listRes as unknown as { code?: number })
+          ? getResourceRows(listRes as any)
+          : [];
+        const fromList = pickFirstAndLatestUserQuestionRecords(rows);
+
+        const firstRecord = fromApi?.firstRecord ?? fromList.firstRecord ?? null;
+        const latestRecord = fromApi?.latestRecord ?? fromList.latestRecord ?? null;
+
         return [
-          String(target.healthGoalId),
-          toFiniteNumber(data?.latestRecord?.score),
-          toFiniteNumber(data?.firstRecord?.score),
+          goalId,
+          resolveQuestionnaireRecordScore(latestRecord),
+          resolveQuestionnaireRecordScore(firstRecord),
         ] as const;
       } catch {
-        return [String(target.healthGoalId), null, null] as const;
+        return [goalId, null, null] as const;
       }
     }),
   );

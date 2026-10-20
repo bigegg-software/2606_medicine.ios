@@ -7,7 +7,8 @@ import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 function resolveQuestionnaireType(goalInfo?: HealthGoalInfo | null): QuestionnaireType | undefined {
   if (goalInfo?.assessmentType?.trim() !== 'question_type') return undefined;
   const parsed = Number(goalInfo.assessmentValue);
-  if (!Number.isFinite(parsed) || parsed < 0 || parsed > 3) return undefined;
+  // 与日程目标一致：合法数字即可；未知类型由详情页按通用分值展示
+  if (!Number.isFinite(parsed) || parsed < 0) return undefined;
   return parsed as QuestionnaireType;
 }
 

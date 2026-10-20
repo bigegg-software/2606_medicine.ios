@@ -848,7 +848,22 @@ export async function enrichHealthGoalTargets(
 
       const hasName = Boolean(merged.healthGoalVo?.goalName?.trim());
       const hasCategory = Boolean(merged.healthGoalVo?.targetCategory?.trim());
-      if ((hasName && hasCategory) || merged.healthGoalId == null) {
+      const assessmentType = merged.healthGoalVo?.assessmentType?.trim() ?? '';
+      const hasAssessmentType = Boolean(assessmentType);
+      // 问卷 / 健康测试 / 指标类必须带 assessmentValue，否则跳转会落到错误分支
+      const needsAssessmentValue = assessmentType === 'question_type'
+        || assessmentType === 'sys_health_test_item'
+        || assessmentType === 'health_indicator_type';
+      const hasAssessmentValue = Boolean(merged.healthGoalVo?.assessmentValue?.trim());
+      if (
+        (
+          hasName
+          && hasCategory
+          && hasAssessmentType
+          && (!needsAssessmentValue || hasAssessmentValue)
+        )
+        || merged.healthGoalId == null
+      ) {
         return merged;
       }
 

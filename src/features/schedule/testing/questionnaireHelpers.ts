@@ -50,6 +50,63 @@ export function formatQuestionnaireScoreLevel(
   return getScoreLevel(type, Number(score)).result;
 }
 
+/**
+ * 仪表盘用短文案：有红旗 / 无红旗
+ */
+export function formatQuestionnaireGaugeLevel(
+  type: QuestionnaireType,
+  score?: number | null,
+) {
+  if (score == null || Number.isNaN(Number(score))) return '--';
+  if (type === 4) {
+    return Number(score) > 0 ? '有红旗' : '无红旗';
+  }
+  return formatQuestionnaireScoreLevel(type, score);
+}
+
+export function resolveQuestionnaireGaugeCenterLabel(type?: QuestionnaireType | null) {
+  if (type === 4) return '当前红旗筛查';
+  return '当前健康指数测评';
+}
+
+export function resolveQuestionnaireRecordTitle(type?: QuestionnaireType | null) {
+  if (type === 4) return '健康信息评估';
+  return '健康指数测评';
+}
+
+/** 从记录取分值；缺省时按选项分回算（避免列表未回填 score 时标签变成 --） */
+export function resolveQuestionnaireRecordScore(record?: UserQuestionRecord | null): number | null {
+  if (!record) return null;
+  if (record.score != null && Number.isFinite(Number(record.score))) {
+    return Number(record.score);
+  }
+  const items = record.questionsAnswer;
+  if (!items?.length) return null;
+  let total = 0;
+  let counted = false;
+  for (const item of items) {
+    const options = item.options ?? [];
+    for (const ans of item.answers ?? []) {
+      const raw = ans.answer?.trim();
+      if (!raw) continue;
+      const parts = raw.includes(',') ? raw.split(',') : [raw];
+      for (const part of parts) {
+        const index = Number(part);
+        if (!Number.isFinite(index)) continue;
+        counted = true;
+        total += Number(options[index]?.score ?? 0);
+      }
+    }
+  }
+  return counted ? total : null;
+}
+
+/** 健康信息评估记录右侧标签：有红旗 / 无红旗 */
+export function formatHealthInfoRecordTag(score?: number | null) {
+  if (score == null || Number.isNaN(Number(score))) return '--';
+  return Number(score) > 0 ? '有红旗' : '无红旗';
+}
+
 export function getQuestionnaireScoreLevel(
   type: QuestionnaireType,
   score?: number | null,
@@ -76,10 +133,12 @@ const BEST_SCORE_BY_TYPE: Record<QuestionnaireType, number> = {
   1: 0,
   2: 0,
   3: 1,
+  /** 用户健康信息：无红旗 */
+  4: 0,
 };
 
 export function getQuestionnaireBestTarget(type: QuestionnaireType) {
-  const bestScore = BEST_SCORE_BY_TYPE[type];
+  const bestScore = BEST_SCORE_BY_TYPE[type] ?? 0;
   const scoreLevel = getScoreLevel(type, bestScore);
   return {
     label: scoreLevel.result,
@@ -96,13 +155,13 @@ export function getQuestionnaireImproveLabel(
   if (!record) return '等待评估';
   if (!firstRecord || record.id === firstRecord.id) return '首次评估';
 
-  const firstScore = firstRecord.score;
-  const score = record.score;
-  if (firstScore == null || score == null || Number.isNaN(Number(firstScore)) || Number.isNaN(Number(score))) {
+  const firstScore = resolveQuestionnaireRecordScore(firstRecord);
+  const score = resolveQuestionnaireRecordScore(record);
+  if (firstScore == null || score == null) {
     return '等待评估';
   }
 
-  const delta = Number(score) - Number(firstScore);
+  const delta = score - firstScore;
   const improved = type === 3 ? delta > 0 : delta < 0;
   const worsened = type === 3 ? delta < 0 : delta > 0;
   if (improved) return '持续改善中';
@@ -116,9 +175,9 @@ export function hasQuestionnaireScoreImproved(
   firstRecord?: UserQuestionRecord | null,
 ) {
   if (!record || !firstRecord || record.id === firstRecord.id) return false;
-  const firstScore = firstRecord.score;
-  const score = record.score;
+  const firstScore = resolveQuestionnaireRecordScore(firstRecord);
+  const score = resolveQuestionnaireRecordScore(record);
   if (firstScore == null || score == null) return false;
-  if (type === 3) return Number(score) > Number(firstScore);
-  return Number(score) < Number(firstScore);
+  if (type === 3) return score > firstScore;
+  return score < firstScore;
 }

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,6 @@ const EDGE_FADE_TRANSPARENT = 'rgba(255, 255, 255, 0)';
 const TICK_TRACK_HEIGHT = 24;
 const LABEL_ROW_HEIGHT = 24;
 const VISUAL_TICK_WIDTH = 10;
-const VISUAL_TICKS_PER_SNAP = 1;
 const MAJOR_TICK_HEIGHT = 24;
 const MINOR_TICK_HEIGHT = 18;
 const CENTER_LINE_WIDTH = 3;
@@ -26,6 +25,8 @@ const CENTER_TRIANGLE_WIDTH = 10;
 const CENTER_TRIANGLE_HEIGHT = 6;
 const TRIANGLE_TO_TICK_GAP = 8;
 const LABEL_WIDTH = 40;
+/** 小量程（如 0–10）刻度间距 */
+const SMALL_RANGE_TICK_WIDTH = 44;
 
 type TickKind = 'major' | 'minor';
 
@@ -39,6 +40,8 @@ export type QuestionnaireRulerSliderProps = {
   tickWidth?: number;
   initialValue?: number;
   unit?: string;
+  /** 是否展示顶部数值，默认 true */
+  showValue?: boolean;
   onValueChange?: (value: number) => void;
 };
 
@@ -79,10 +82,6 @@ function formatDisplayValue(value: number, step: number) {
   return decimals > 0 ? value.toFixed(decimals) : String(Math.round(value));
 }
 
-function getSnapScrollX(snapIndex: number, tickWidth: number) {
-  return snapIndex * VISUAL_TICKS_PER_SNAP * tickWidth;
-}
-
 function TickMark({ kind }: { kind: TickKind }) {
   return (
     <View
@@ -109,79 +108,130 @@ export default function QuestionnairePercentRulerSlider({
   max = 100,
   step = 1,
   majorStep,
-  tickWidth = VISUAL_TICK_WIDTH,
+  tickWidth: tickWidthProp,
   initialValue = 50,
   unit,
+  showValue = true,
   onValueChange,
 }: QuestionnaireRulerSliderProps) {
   const scrollRef = useRef<ScrollView | null>(null);
-  const ticking = useRef(false);
-  const centerOffset = RULER_WIDTH / 2 - tickWidth / 2;
+  const valueRef = useRef(0);
+  const onValueChangeRef = useRef(onValueChange);
+  onValueChangeRef.current = onValueChange;
+
   const totalSnapSteps = Math.round((max - min) / step);
-  const totalVisualSteps = totalSnapSteps;
-  const maxScrollX = getSnapScrollX(totalSnapSteps, tickWidth);
-  const snapPixelWidth = VISUAL_TICKS_PER_SNAP * tickWidth;
+  const tickCount = totalSnapSteps + 1;
+  const lastTickIndex = totalSnapSteps;
+  const isSmallRange = totalSnapSteps <= 20;
+  const tickWidth = tickWidthProp
+    ?? (isSmallRange ? SMALL_RANGE_TICK_WIDTH : VISUAL_TICK_WIDTH);
+  const centerOffset = RULER_WIDTH / 2 - tickWidth / 2;
+  const maxScrollX = totalSnapSteps * tickWidth;
   const decimals = getDecimalPlaces(step);
 
-  const snapToStepValue = (val: number) => snapToStep(val, min, max, step);
-  const [value, setValue] = useState<number>(() => snapToStepValue(initialValue));
+  const snapToStepValue = useCallback(
+    (val: number) => snapToStep(val, min, max, step),
+    [min, max, step],
+  );
 
-  const calculateValueFromX = (x: number) => {
+  const [value, setValue] = useState<number>(() => snapToStepValue(initialValue));
+  valueRef.current = value;
+
+  /** 大量程窗口中心；小量程直接渲染全部刻度 */
+  const [windowCenter, setWindowCenter] = useState(() =>
+    Math.round((snapToStepValue(initialValue) - min) / step),
+  );
+
+  const valueFromX = useCallback((x: number) => {
     const bounded = Math.max(0, Math.min(x, maxScrollX));
-    const snapIndex = Math.round(bounded / snapPixelWidth);
-    const nextValue = min + snapIndex * step;
-    return parseFloat(nextValue.toFixed(decimals));
-  };
+    const snapIndex = Math.round(bounded / tickWidth);
+    return parseFloat((min + snapIndex * step).toFixed(decimals));
+  }, [decimals, maxScrollX, min, step, tickWidth]);
+
+  const scrollXFromValue = useCallback((val: number) => {
+    const snapIndex = Math.round((snapToStepValue(val) - min) / step);
+    return Math.max(0, Math.min(snapIndex * tickWidth, maxScrollX));
+  }, [maxScrollX, min, snapToStepValue, step, tickWidth]);
+
+  const commitValue = useCallback((next: number) => {
+    const snapped = snapToStepValue(next);
+    setValue(snapped);
+    valueRef.current = snapped;
+    onValueChangeRef.current?.(snapped);
+  }, [snapToStepValue]);
+
+  const alignToNearest = useCallback((x: number) => {
+    const next = valueFromX(x);
+    const alignedX = scrollXFromValue(next);
+    commitValue(next);
+    if (!isSmallRange) {
+      setWindowCenter(Math.round((next - min) / step));
+    }
+    if (Math.abs(alignedX - x) > 0.5) {
+      scrollRef.current?.scrollTo({ x: alignedX, animated: true });
+    }
+  }, [commitValue, isSmallRange, min, scrollXFromValue, step, valueFromX]);
 
   const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const x = event.nativeEvent.contentOffset.x;
-    if (ticking.current) return;
-    ticking.current = true;
-    requestAnimationFrame(() => {
-      const newValue = calculateValueFromX(x);
-      setValue(prev => {
-        if (Math.abs(newValue - prev) > 1e-9) {
-          onValueChange?.(newValue);
-          return newValue;
-        }
-        return prev;
-      });
-      ticking.current = false;
-    });
-  };
-
-  const handleScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    let x = event.nativeEvent.contentOffset.x;
-    x = Math.max(0, Math.min(x, maxScrollX));
-    const snapIndex = Math.round(x / snapPixelWidth);
-    const alignedX = getSnapScrollX(snapIndex, tickWidth);
-    if (Math.abs(alignedX - x) > 1) {
-      scrollRef.current?.scrollTo({ x: alignedX, animated: true });
+    const next = valueFromX(x);
+    if (Math.abs(next - valueRef.current) > 1e-9) {
+      valueRef.current = next;
+      setValue(next);
+    }
+    if (!isSmallRange) {
+      const centerIdx = Math.round(Math.max(0, Math.min(x, maxScrollX)) / tickWidth);
+      setWindowCenter(prev => (Math.abs(centerIdx - prev) >= 8 ? centerIdx : prev));
     }
   };
 
+  const handleScrollEndDrag = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const velocityX = event.nativeEvent.velocity?.x ?? 0;
+    // 有惯性时交给 onMomentumScrollEnd，避免打断滑动
+    if (Math.abs(velocityX) > 0.05) return;
+    alignToNearest(event.nativeEvent.contentOffset.x);
+  };
+
+  const handleMomentumScrollEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    alignToNearest(event.nativeEvent.contentOffset.x);
+  };
+
   useEffect(() => {
-    const snapIndex = Math.round((snapToStepValue(initialValue) - min) / step);
-    const x = getSnapScrollX(snapIndex, tickWidth);
+    const x = scrollXFromValue(initialValue);
     const rafId = requestAnimationFrame(() => {
       scrollRef.current?.scrollTo({ x, animated: false });
     });
     return () => cancelAnimationFrame(rafId);
+    // 仅挂载时定位
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const visibleCount = Math.ceil(RULER_WIDTH / tickWidth) + 10;
-  const centerSnapIndex = Math.round((value - min) / step);
-  const centerVisualIndex = centerSnapIndex * VISUAL_TICKS_PER_SNAP;
-  const half = Math.ceil(visibleCount / 2);
-  const startIndex = Math.max(0, centerVisualIndex - half);
-  const endIndex = Math.min(totalVisualSteps, centerVisualIndex + half);
-  const leftSpacerWidth = startIndex * tickWidth;
-  const rightSpacerWidth = (totalVisualSteps - endIndex) * tickWidth;
+  const { startIndex, endIndex, leftSpacerWidth, rightSpacerWidth } = useMemo(() => {
+    if (isSmallRange) {
+      return {
+        startIndex: 0,
+        endIndex: lastTickIndex,
+        leftSpacerWidth: 0,
+        rightSpacerWidth: 0,
+      };
+    }
+    const visibleCount = Math.ceil(RULER_WIDTH / tickWidth) + 24;
+    const half = Math.ceil(visibleCount / 2);
+    const start = Math.max(0, windowCenter - half);
+    const end = Math.min(lastTickIndex, windowCenter + half);
+    return {
+      startIndex: start,
+      endIndex: end,
+      leftSpacerWidth: start * tickWidth,
+      rightSpacerWidth: (lastTickIndex - end) * tickWidth,
+    };
+  }, [isSmallRange, lastTickIndex, tickWidth, windowCenter]);
 
-  const renderIndices: number[] = [];
-  for (let i = startIndex; i <= endIndex; i += 1) {
-    renderIndices.push(i);
-  }
+  const renderIndices = useMemo(() => {
+    const list: number[] = [];
+    for (let i = startIndex; i <= endIndex; i += 1) list.push(i);
+    return list;
+  }, [endIndex, startIndex]);
 
   const renderTickColumn = (visualIndex: number) => {
     const tickValue = parseFloat((min + visualIndex * step).toFixed(decimals));
@@ -204,25 +254,30 @@ export default function QuestionnairePercentRulerSlider({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.valueText}>
-        {displayValue}
-        {unit ? <Text style={styles.unitText}> {unit}</Text> : null}
-      </Text>
-      <View style={styles.triangleRow}>
+      {showValue ? (
+        <Text style={styles.valueText}>
+          {displayValue}
+          {unit ? <Text style={styles.unitText}> {unit}</Text> : null}
+        </Text>
+      ) : null}
+      <View style={[styles.triangleRow, !showValue ? { marginTop: 8 } : null]}>
         <View style={styles.centerTriangle} />
       </View>
       <View style={styles.rulerContainer}>
         <ScrollView
           ref={scrollRef}
           horizontal
+          nestedScrollEnabled
+          disableIntervalMomentum
           showsHorizontalScrollIndicator={false}
           onScroll={handleScroll}
-          onMomentumScrollEnd={handleScrollEnd}
+          onScrollEndDrag={handleScrollEndDrag}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
           scrollEventThrottle={16}
           style={styles.scrollView}
           contentContainerStyle={[styles.scrollContent, { paddingHorizontal: centerOffset }]}
         >
-          <View style={styles.ticksTrack}>
+          <View style={[styles.ticksTrack, { width: tickCount * tickWidth }]}>
             {leftSpacerWidth > 0 ? <View style={{ width: leftSpacerWidth }} /> : null}
             {renderIndices.map(renderTickColumn)}
             {rightSpacerWidth > 0 ? <View style={{ width: rightSpacerWidth }} /> : null}
@@ -291,7 +346,6 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     width: RULER_WIDTH,
-    overflow: 'visible',
   },
   leftEdgeFade: {
     position: 'absolute',
@@ -316,17 +370,14 @@ const styles = StyleSheet.create({
   ticksTrack: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    overflow: 'visible',
     minHeight: TICK_TRACK_HEIGHT + LABEL_ROW_HEIGHT + 8,
   },
   tickColumn: {
-    width: VISUAL_TICK_WIDTH,
     overflow: 'visible',
     alignItems: 'center',
     zIndex: 1,
   },
   tickSlot: {
-    width: VISUAL_TICK_WIDTH,
     height: TICK_TRACK_HEIGHT,
     alignItems: 'center',
     justifyContent: 'flex-start',

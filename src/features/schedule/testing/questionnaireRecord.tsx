@@ -28,10 +28,17 @@ import styles from '@/css/schedule/testingPage';
 import { formatRecordDate, getRecordCountText } from './testingHelpers';
 import {
     formatEq5dSelfHealthScore,
+    formatHealthInfoRecordTag,
     getQuestionnaireScoreLevel,
     getQuestionnaireStatusColors,
+    resolveQuestionnaireRecordScore,
+    resolveQuestionnaireRecordTitle,
 } from './questionnaireHelpers';
-import { QUESTIONNAIRE_TITLES } from '@/src/features/profile/questionnaire/utils/helpers';
+import {
+    QUESTIONNAIRE_TITLES,
+    isUserHealthInfoQuestionnaire,
+    normalizeQuestionnaireType,
+} from '@/src/features/profile/questionnaire/utils/helpers';
 
 const PAGE_SIZE = 10;
 
@@ -46,12 +53,13 @@ function sortQuestionnaireRecordsByTime(records: UserQuestionRecord[]) {
 export default function QuestionnaireTestingRecordPage() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const route = useRoute<RouteProp<RootStackParamList, 'QuestionnaireTestingRecordPage'>>();
-    const questionnaireType = route.params?.questionnaireType;
+    const questionnaireType = normalizeQuestionnaireType(route.params?.questionnaireType);
     const userId = useSelector(
         (state: RootState) => state.user.info?.userId ?? state.user.userExtr?.userId,
     );
     const testName = route.params?.title?.trim()
         || (questionnaireType != null ? QUESTIONNAIRE_TITLES[questionnaireType] : '评估记录');
+    const isHealthInfo = isUserHealthInfoQuestionnaire(questionnaireType);
 
     const [records, setRecords] = useState<UserQuestionRecord[]>([]);
     const [recordTotal, setRecordTotal] = useState(0);
@@ -113,9 +121,9 @@ export default function QuestionnaireTestingRecordPage() {
             if (ruleId == null) return;
 
             const queryParams = {
-                exPatientRuleId: ruleId,
+                exPatientRuleId: String(ruleId),
                 type: questionnaireType,
-                userId,
+                ...(userId != null ? { userId: String(userId) } : {}),
             };
 
             const listRes = await listExUserQuestions({
@@ -214,8 +222,13 @@ export default function QuestionnaireTestingRecordPage() {
                                 </Flex>
                             ) : records.length > 0 && questionnaireType != null ? (
                                 records.map((record, index) => {
-                                    const scoreLevel = getQuestionnaireScoreLevel(questionnaireType, record.score);
+                                    const score = resolveQuestionnaireRecordScore(record);
+                                    const effectiveScore = isHealthInfo ? (score ?? 0) : score;
+                                    const scoreLevel = getQuestionnaireScoreLevel(questionnaireType, effectiveScore);
                                     const statusColors = getQuestionnaireStatusColors(scoreLevel);
+                                    const statusLabel = isHealthInfo
+                                        ? formatHealthInfoRecordTag(effectiveScore)
+                                        : (scoreLevel?.result ?? '--');
                                     return (
                                         <TouchableOpacity
                                             key={String(record.id ?? record.createTime ?? index)}
@@ -224,22 +237,28 @@ export default function QuestionnaireTestingRecordPage() {
                                             onPress={() => navigateToDetail(record)}>
                                             <Flex
                                                 justify='between'
-                                                align='start'
+                                                align='center'
                                                 style={[
                                                     styles.infoRecordItem,
-                                                    { paddingVertical: 12 },
                                                     index > 0 ? { marginTop: 12 } : null,
                                                 ]}>
-                                                <Flex>
+                                                <Flex align="center" style={{ flex: 1, marginRight: 8 }}>
                                                     <Image
                                                         style={styles.infoRecordImg}
-                                                        source={require('@/assets/images/schedule/order.png')}
+                                                        source={require('@/assets/images/schedule/order1.png')}
                                                     />
-                                                    <View>
-                                                        <Text style={styles.infoRecordText}>健康指数测评</Text>
+                                                    <View style={{ flex: 1 }}>
+                                                        <Text style={styles.infoRecordText}>
+                                                            {resolveQuestionnaireRecordTitle(questionnaireType)}
+                                                        </Text>
                                                         {questionnaireType === 3 ? (
                                                             <Text style={[styles.infoRecordTime, { marginTop: 6 }]}>
                                                                 自我健康评分:{formatEq5dSelfHealthScore(record)}
+                                                            </Text>
+                                                        ) : null}
+                                                        {isHealthInfo ? (
+                                                            <Text style={[styles.infoRecordTime, { marginTop: 6 }]}>
+                                                                {formatRecordDate(record.createTime)}
                                                             </Text>
                                                         ) : null}
                                                     </View>
@@ -253,12 +272,14 @@ export default function QuestionnaireTestingRecordPage() {
                                                             styles.infoRecordStatusText,
                                                             { color: statusColors.text },
                                                         ]}>
-                                                            {scoreLevel?.result ?? '--'}
+                                                            {statusLabel}
                                                         </Text>
                                                     </Flex>
-                                                    <Text style={[styles.infoRecordTime, { marginTop: 6, textAlign: 'right' }]}>
-                                                        {formatRecordDate(record.createTime)}
-                                                    </Text>
+                                                    {!isHealthInfo ? (
+                                                        <Text style={[styles.infoRecordTime, { marginTop: 6, textAlign: 'right' }]}>
+                                                            {formatRecordDate(record.createTime)}
+                                                        </Text>
+                                                    ) : null}
                                                 </Flex>
                                             </Flex>
                                         </TouchableOpacity>
