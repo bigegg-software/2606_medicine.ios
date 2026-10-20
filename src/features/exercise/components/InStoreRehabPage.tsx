@@ -201,7 +201,7 @@ export default function InStoreRehabPage({
             : { paddingBottom: 12 }
         }
       >
-        <Flex justify="between" style={styles.calendarBox}>
+        {/* <Flex justify="between" style={styles.calendarBox}>
           {weekDays.map(item => {
             const isActive = item.key === selectedDate;
             const selectable = isCalendarDateInPrescriptionRange(
@@ -256,7 +256,7 @@ export default function InStoreRehabPage({
               source={require('@/assets/images/nutrition/time.png')}
             />
           </TouchableOpacity>
-        </Flex>
+        </Flex> */}
 
         {showEmptyOnly ? (
           <View style={styles.trainingExerciseEmpty}>

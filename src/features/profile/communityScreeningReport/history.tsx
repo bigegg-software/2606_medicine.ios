@@ -114,7 +114,7 @@ export default function CommunityScreeningReportHistoryPage() {
                       ...(viewNavParams ?? {}),
                     });
                   }}>
-                  <Flex align="center" style={styles.infoBox}>
+                  <Flex align="center" style={[styles.infoBox, { backgroundColor: '#FFFFFF' }]}>
                     <View style={styles.itemImgBox}>
                       <Image
                         style={styles.itemImg}

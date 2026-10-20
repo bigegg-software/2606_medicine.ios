@@ -66,24 +66,30 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   itemColName: {
-    width: '40%',
+    width: '32%',
     minWidth: 0,
     paddingRight: 4,
+    overflow: 'hidden',
   },
   itemColResult: {
-    width: '30%',
+    width: '20%',
     minWidth: 0,
     paddingRight: 4,
   },
   itemColScore: {
-    width: '15%',
+    width: '14%',
     textAlign: 'center',
     flexShrink: 0,
   },
   itemColWeight: {
-    width: '15%',
+    width: '14%',
     flexShrink: 0,
     alignItems: 'center',
+  },
+  itemColWeighted: {
+    width: '20%',
+    textAlign: 'center',
+    flexShrink: 0,
   },
   itemTitle: {
     fontWeight: 'bold',
@@ -98,7 +104,8 @@ const styles = StyleSheet.create({
   },
   itemBarTrack: {
     marginTop: 6,
-    width: 130,
+    width: '100%',
+    maxWidth: '100%',
     height: 4,
     backgroundColor: '#F5F5F5',
     borderRadius: 535,
@@ -142,14 +149,20 @@ const styles = StyleSheet.create({
   refColLevel: {
     width: 36,
     flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   refColCriteria: {
     width: 100,
     flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   refColAction: {
     flex: 1,
     minWidth: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   refColActionTitle: {
     textAlign: 'center',
@@ -158,18 +171,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 13,
     color: '#333333',
+    textAlign: 'center',
+    width: '100%',
   },
   refCriteriaText: {
     fontWeight: '500',
     fontSize: 12,
     color: '#666666',
     lineHeight: 18,
+    textAlign: 'center',
+    width: '100%',
   },
   refActionText: {
     fontWeight: '500',
     fontSize: 12,
     color: '#666666',
     lineHeight: 18,
+    textAlign: 'center',
+    width: '100%',
   },
   bannerTag: {
     alignSelf: 'flex-start',

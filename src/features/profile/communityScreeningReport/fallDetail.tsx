@@ -191,6 +191,9 @@ export default function CommunityScreeningReportFallDetailPage({ route }: Props)
               <Text style={[fallStyles.itemTableHeaderText, fallStyles.itemColWeight]}>
                 权重
               </Text>
+              <Text style={[fallStyles.itemTableHeaderText, fallStyles.itemColWeighted]}>
+                加权
+              </Text>
             </Flex>
             <View style={styles.scoreTableDivider} />
 
@@ -229,6 +232,9 @@ export default function CommunityScreeningReportFallDetailPage({ route }: Props)
                       <Text style={fallStyles.itemScoreText}>--</Text>
                     )}
                   </View>
+                  <Text style={[fallStyles.itemScoreText, fallStyles.itemColWeighted]}>
+                    {item.weighted}
+                  </Text>
                 </Flex>
               </View>
             ))}
@@ -403,10 +409,22 @@ export default function CommunityScreeningReportFallDetailPage({ route }: Props)
           </LinearGradient>
           <View style={[styles.scoreModuleContent,{paddingBottom:0}]}>
             <Flex align="center" style={fallStyles.refTableHeader}>
-              <Text style={[fallStyles.itemTableHeaderText, fallStyles.refColLevel]}>
+              <Text
+                style={[
+                  fallStyles.itemTableHeaderText,
+                  fallStyles.refColLevel,
+                  fallStyles.refColActionTitle,
+                ]}
+              >
                 分级
               </Text>
-              <Text style={[fallStyles.itemTableHeaderText, fallStyles.refColCriteria]}>
+              <Text
+                style={[
+                  fallStyles.itemTableHeaderText,
+                  fallStyles.refColCriteria,
+                  fallStyles.refColActionTitle,
+                ]}
+              >
                 判定
               </Text>
               <Text

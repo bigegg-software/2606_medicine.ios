@@ -195,6 +195,19 @@ export function formatTrainingPhaseSubtitle(card: TrainingPhaseExerciseCard) {
 /** 列表右侧操作文案：计时类型显示进度分钟，其它按组完成态 */
 export type TrainingActionDateMode = 'today' | 'past' | 'future';
 
+/** 下一个未完成组号（1-based）；全部完成返回 null */
+export function resolveNextIncompleteGroupNo(card: TrainingPhaseExerciseCard) {
+  const scheduleGroupVal = resolveScheduleGroupVal(card);
+  if (scheduleGroupVal <= 0) return null;
+  const target = resolveGroupTargetCount(card);
+  for (let index = 0; index < scheduleGroupVal; index += 1) {
+    if (!isGroupDisplayDone(index, card.groupCounts, target, card.completedGroups)) {
+      return index + 1;
+    }
+  }
+  return null;
+}
+
 export function formatTrainingActionButtonText(
   card: TrainingPhaseExerciseCard,
   options?: { dateMode?: TrainingActionDateMode },
@@ -220,9 +233,15 @@ export function formatTrainingActionButtonText(
   const allDone = Array.from({ length: scheduleGroupVal }, (_, index) =>
     isGroupDisplayDone(index, card.groupCounts, target, card.completedGroups),
   ).every(Boolean);
+  if (allDone) return '完成';
   // 过去未全部完成：统一展示「开始」（列表侧置灰不可点）
-  if (dateMode === 'past' && !allDone) return '开始';
-  return allDone ? '完成' : '开始';
+  if (dateMode === 'past') return '开始';
+  const nextGroupNo = resolveNextIncompleteGroupNo(card);
+  // 有进度（含半完成组）：显示第 X/总数 组
+  if (isTrainingActionProgressStarted(card) && nextGroupNo != null) {
+    return `第${nextGroupNo}/${scheduleGroupVal}组`;
+  }
+  return '开始';
 }
 
 /** 非今日：仅「全部完成」可点进只读详情；未来与未完成均不可点（显示置灰开始）
@@ -347,7 +366,7 @@ export function flattenMainTrainingPlayCards(
   );
 }
 
-/** 计时进度（如 1/2分钟、0/12分钟）不显示 icon，开始/完成才显示 */
+/** 计时/组别进度文案不显示 icon，开始/完成才显示 */
 export function shouldShowTrainingActionIcon(
   card: TrainingPhaseExerciseCard,
   options?: { dateMode?: TrainingActionDateMode },
@@ -363,8 +382,9 @@ export function shouldShowTrainingActionIcon(
     return done <= 0;
   }
 
-  // 组别：过去未完成也显示「开始」icon（置灰）
-  return true;
+  // 组别：进行中显示「第X/Y组」不带 icon；未开始/过去置灰「开始」带 icon
+  if (dateMode === 'past') return true;
+  return !isTrainingActionProgressStarted(card);
 }
 
 /** 组序号文案：第1组、第2组… */

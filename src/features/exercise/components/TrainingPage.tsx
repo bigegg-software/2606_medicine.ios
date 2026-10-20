@@ -6,7 +6,7 @@ import React, {
     useMemo,
     useState,
 } from 'react';
-import { View, Text, TouchableOpacity, Image, ImageBackground, ScrollView, type ImageSourcePropType } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ImageBackground, ScrollView } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
@@ -66,18 +66,13 @@ import {
     type MainTrainingPlayCard,
     type TrainingPhaseExerciseCard,
 } from '../utils/trainingPhaseHelpers';
-import { consumePendingTrainingPhaseTab } from '../utils/trainingPhaseTabSync';
 import { loadCoachTrainingRecordByRuleAndDate } from '../utils/coachTrainingRecordHelpers';
-import WarmupPhase from './training/WarmupPhase';
-import MainTrainingPhase from './training/MainTrainingPhase';
-import CooldownPhase from './training/CooldownPhase';
+import TodayActionsList, { type TodayActionListItem } from './training/TodayActionsList';
 
 const SIGN_CHECK_ICON = require('@/assets/images/nutrition/wc.png');
 const PHASE_NEXT_ICON = require('@/assets/images/exercise/icon_next.png');
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-
-export type TrainingPhaseKey = 'warmup' | 'main' | 'cooldown';
 
 export type TrainingPageRef = {
     openDatePicker: () => void;
@@ -91,28 +86,6 @@ function resolveMainTaskIndex(
     const matched = list.findIndex(item => item.exerciseType?.trim() === exerciseType);
     return matched >= 0 ? matched : undefined;
 }
-
-const TRAINING_PHASE_TABS: ReadonlyArray<{
-    key: TrainingPhaseKey;
-    label: string;
-    icon: ImageSourcePropType;
-}> = [
-        {
-            key: 'warmup',
-            label: '热身',
-            icon: require('@/assets/images/exercise/icon_rs.png'),
-        },
-        {
-            key: 'main',
-            label: '主训练',
-            icon: require('@/assets/images/exercise/icon_zxl.png'),
-        },
-        {
-            key: 'cooldown',
-            label: '冷身',
-            icon: require('@/assets/images/exercise/icon_ls.png'),
-        },
-    ];
 
 type Props = {
     exerciseRule?: InUseExPatientRule | null;
@@ -136,7 +109,6 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
     );
     const [dayRule, setDayRule] = useState<InUseExPatientRule | null>(exerciseRule);
     const [datePickerVisible, setDatePickerVisible] = useState(false);
-    const [activePhase, setActivePhase] = useState<TrainingPhaseKey>('warmup');
     const [checkInMap, setCheckInMap] = useState<ExerciseCheckInMap>({});
     const [dayStat, setDayStat] = useState<ExerciseDayStatView>(emptyExerciseDayStatView);
     const [signInfo, setSignInfo] = useState<ExUserSignInfo | null>(null);
@@ -353,11 +325,6 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
 
     useFocusEffect(
         useCallback(() => {
-            const pendingTab = consumePendingTrainingPhaseTab();
-            if (pendingTab) {
-                setActivePhase(pendingTab);
-            }
-
             let cancelled = false;
             void (async () => {
                 const rule = await loadDayRule(selectedDate, exerciseRule);
@@ -389,6 +356,18 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             selectedDate,
         ]),
     );
+
+    const todayActionsEmptyMeta = useMemo(() => {
+        const warmup = getWarmupHotList(dayRule, selectedDate);
+        const cooldown = getCooldownColdList(dayRule, selectedDate);
+        if (warmup.isPostponedAway || cooldown.isPostponedAway) {
+            return { isRestOrEmpty: true, emptyText: '今日训练已顺延，暂无训练安排' };
+        }
+        if (warmup.isRest || cooldown.isRest) {
+            return { isRestOrEmpty: true, emptyText: '今日为休息日，暂无训练安排' };
+        }
+        return { isRestOrEmpty: false, emptyText: '今日暂无训练安排' };
+    }, [dayRule, selectedDate]);
 
     // 右侧「戳我打卡」成功后同步底部打卡状态与日历点
     useEffect(() => {
@@ -515,71 +494,39 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
         });
     }, [disablePlayer, navigation, readOnly, selectedDate]);
 
+    const onPressTodayAction = useCallback((item: TodayActionListItem) => {
+        if (item.trainingPhase === 'hot') {
+            openWarmupPlayer(item);
+            return;
+        }
+        if (item.trainingPhase === 'cold') {
+            openCooldownPlayer(item);
+            return;
+        }
+        openMainPlayer({
+            ...item,
+            exerciseType: item.exerciseType || 'cardio',
+        });
+    }, [openCooldownPlayer, openMainPlayer, openWarmupPlayer]);
+
     const onPressBottomAction = useCallback(() => {
-        if (!isToday) {
-            if (activePhase === 'warmup') {
-                setActivePhase('main');
-                return;
-            }
-            if (activePhase === 'main') {
-                setActivePhase('cooldown');
-                return;
-            }
+        if (!isToday) return;
+
+        // 按热身 → 主训练 → 冷身顺序找下一个未完成动作
+        if (!warmupAllPlayed) {
+            if (nextWarmupCard) openWarmupPlayer(nextWarmupCard);
             return;
         }
-
-        // 今日：按阶段完成进度决定动作，开始* 均直接进播放页
-        if (activePhase === 'warmup') {
-            if (!warmupAllPlayed) {
-                if (nextWarmupCard) openWarmupPlayer(nextWarmupCard);
-                return;
-            }
-            if (!mainAllPlayed) {
-                if (nextMainCard) {
-                    openMainPlayer(nextMainCard);
-                } else {
-                    setActivePhase('main');
-                }
-                return;
-            }
-            if (!cooldownAllPlayed) {
-                if (nextCooldownCard) {
-                    openCooldownPlayer(nextCooldownCard);
-                } else {
-                    setActivePhase('cooldown');
-                }
-                return;
-            }
-            void onFinishSign();
+        if (!mainAllPlayed) {
+            if (nextMainCard) openMainPlayer(nextMainCard);
             return;
         }
-
-        if (activePhase === 'main') {
-            if (!mainAllPlayed) {
-                if (nextMainCard) openMainPlayer(nextMainCard);
-                return;
-            }
-            if (!cooldownAllPlayed) {
-                if (nextCooldownCard) {
-                    openCooldownPlayer(nextCooldownCard);
-                } else {
-                    setActivePhase('cooldown');
-                }
-                return;
-            }
-            void onFinishSign();
+        if (!cooldownAllPlayed) {
+            if (nextCooldownCard) openCooldownPlayer(nextCooldownCard);
             return;
         }
-
-        if (activePhase === 'cooldown') {
-            if (!cooldownAllPlayed) {
-                if (nextCooldownCard) openCooldownPlayer(nextCooldownCard);
-                return;
-            }
-            void onFinishSign();
-        }
+        void onFinishSign();
     }, [
-        activePhase,
         cooldownAllPlayed,
         isToday,
         mainAllPlayed,
@@ -605,63 +552,9 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             dimmed: !canFinishSign && !signInfo?.signedToday,
         };
 
-        if (activePhase === 'warmup') {
-            if (!warmupAllPlayed) {
-                return {
-                    label: '开始热身',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            if (!mainAllPlayed) {
-                return {
-                    label: '开始主训练',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            if (!cooldownAllPlayed) {
-                return {
-                    label: '开始冷身',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            return signAction;
-        }
-
-        if (activePhase === 'main') {
-            if (!mainAllPlayed) {
-                return {
-                    label: '开始主训练',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            if (!cooldownAllPlayed) {
-                return {
-                    label: '开始冷身',
-                    showIcon: true,
-                    icon: PHASE_NEXT_ICON,
-                    disabled: false,
-                    dimmed: false,
-                };
-            }
-            return signAction;
-        }
-
-        // cooldown
-        if (!cooldownAllPlayed) {
+        if (!warmupAllPlayed || !mainAllPlayed || !cooldownAllPlayed) {
             return {
-                label: '开始冷身',
+                label: '开始跟练',
                 showIcon: true,
                 icon: PHASE_NEXT_ICON,
                 disabled: false,
@@ -670,7 +563,6 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
         }
         return signAction;
     }, [
-        activePhase,
         canFinishSign,
         cooldownAllPlayed,
         forceReadOnly,
@@ -693,7 +585,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                 selectableEndDate={prescriptionEndDate || null}
             />
             <ScrollView style={styles.scroll} contentContainerStyle={{ paddingBottom: 60 }}>
-                <Flex justify="between" style={styles.calendarBox}>
+                {/* <Flex justify="between" style={styles.calendarBox}>
                     {weekDays.map(item => {
                         const isActive = item.key === selectedDate;
                         const selectable = isCalendarDateInPrescriptionRange(
@@ -800,7 +692,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                             },
                         ]}
                     />
-                </View>
+                </View> */}
 
                 <View style={styles.autonomousTrainingBox}>
                     <View style={styles.autonomousTrainingItem}>
@@ -869,59 +761,17 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                     </Flex>
                 ) : null}
 
-                <View style={styles.trainingPhaseTabBox}>
-                    {TRAINING_PHASE_TABS.map(tab => {
-                        const isActive = activePhase === tab.key;
-                        return (
-                            <TouchableOpacity
-                                key={tab.key}
-                                activeOpacity={0.8}
-                                style={[
-                                    styles.trainingPhaseTabItem,
-                                    isActive && styles.trainingPhaseTabItemActive,
-                                ]}
-                                onPress={() => setActivePhase(tab.key)}>
-                                <Image style={styles.trainingPhaseTabIcon} source={tab.icon} />
-                                <Text style={styles.trainingPhaseTabText}>{tab.label}</Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </View>
-
-
-                {activePhase === 'warmup' ? (
-                    <WarmupPhase
-                        key={`warmup-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}-${patientUserId ?? 'self'}`}
-                        dayRule={dayRule}
-                        selectedDate={selectedDate}
-                        readOnly={readOnly}
-                        disablePlayer={disablePlayer}
-                        dateMode={dateMode}
-                        patientUserId={patientUserId}
-                    />
-                ) : null}
-                {activePhase === 'main' ? (
-                    <MainTrainingPhase
-                        key={`main-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}-${patientUserId ?? 'self'}`}
-                        dayRule={dayRule}
-                        selectedDate={selectedDate}
-                        readOnly={readOnly}
-                        disablePlayer={disablePlayer}
-                        dateMode={dateMode}
-                        patientUserId={patientUserId}
-                    />
-                ) : null}
-                {activePhase === 'cooldown' ? (
-                    <CooldownPhase
-                        key={`cooldown-${selectedDate}-${dayRule?.exPatientRuleId ?? 'none'}-${patientUserId ?? 'self'}`}
-                        dayRule={dayRule}
-                        selectedDate={selectedDate}
-                        readOnly={readOnly}
-                        disablePlayer={disablePlayer}
-                        dateMode={dateMode}
-                        patientUserId={patientUserId}
-                    />
-                ) : null}
+                <TodayActionsList
+                    warmupCards={warmupCards}
+                    mainPlayCards={mainPlayCards}
+                    cooldownCards={cooldownCards}
+                    readOnly={readOnly}
+                    disablePlayer={disablePlayer}
+                    dateMode={dateMode}
+                    isRestOrEmpty={todayActionsEmptyMeta.isRestOrEmpty}
+                    emptyText={todayActionsEmptyMeta.emptyText}
+                    onPressItem={onPressTodayAction}
+                />
             </ScrollView>
 
             {bottomAction ? (
@@ -950,7 +800,11 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                                 />
                             ) : null}
                             <Text style={styles.bottomBarButtonTextLeft}>
-                                {signing && activePhase === 'cooldown' && isToday
+                                {signing
+                                    && isToday
+                                    && warmupAllPlayed
+                                    && mainAllPlayed
+                                    && cooldownAllPlayed
                                     ? '打卡中...'
                                     : bottomAction.label}
                             </Text>

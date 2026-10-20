@@ -55,7 +55,7 @@ export function getExerciseSignBlockedMessage(
 ) {
   if (info?.signedToday) return '今日已打卡';
   if (options?.mainProgressed || isExerciseMainTrainingCompleted(info)) return null;
-  return '请先参与今日全部主训练后再打卡';
+  return '请先参与今日全部训练后再打卡';
 }
 
 /** 是否允许完成今日打卡：今日主训练每项至少半完成（有进度）即可 */
@@ -155,7 +155,7 @@ export async function performExerciseDailySign(params: {
   if (!canFinish) {
     Toast.info(
       getExerciseSignBlockedMessage(signInfo, { mainProgressed: mainAllProgressed })
-      || '请先参与今日全部主训练后再打卡',
+      || '请先参与今日全部训练后再打卡',
     );
     return { ok: false, signInfo };
   }
