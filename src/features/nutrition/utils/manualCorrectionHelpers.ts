@@ -81,10 +81,10 @@ export function buildManualCorrectionForm(
         servingAmount: state.amount,
         servingUnit: state.unitValue,
         recordTime,
-        calorie: toNumber(item.calorie) ? String(toNumber(item.calorie)) : '',
-        protein: toNumber(item.protein) ? String(toNumber(item.protein)) : '',
-        fat: toNumber(item.fat) ? String(toNumber(item.fat)) : '',
-        carbs: toNumber(item.carbs) ? String(toNumber(item.carbs)) : '',
+        calorie: formatMainMacroValue(item.calorie),
+        protein: formatMainMacroValue(item.protein),
+        fat: formatMainMacroValue(item.fat),
+        carbs: formatMainMacroValue(item.carbs),
         visibleNutrients,
         extraNutrition,
         customNutrients,
@@ -167,11 +167,16 @@ export function adjustServingAmount(amount: number, unitValue: FoodUnitValue, de
     return isGramUnit(unitValue) ? Math.round(clamped) : parseFloat(clamped.toFixed(1));
 }
 
-function formatScaledNutrient(raw: number | string | undefined | null): string {
+/** 主要营养素：0 显示为「0」，不展示空字符串 */
+function formatMainMacroValue(raw: unknown): string {
     const n = toNumber(raw);
-    if (!Number.isFinite(n) || n === 0) return '';
+    if (!Number.isFinite(n) || n === 0) return '0';
     if (Number.isInteger(n)) return String(n);
     return String(parseFloat(n.toFixed(2)));
+}
+
+function formatScaledNutrient(raw: number | string | undefined | null): string {
+    return formatMainMacroValue(raw);
 }
 
 /** 将缩放后的食物营养写回手动更正表单（保留可见项与自定义项结构） */

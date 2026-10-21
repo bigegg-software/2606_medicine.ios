@@ -95,6 +95,8 @@ import {
   isDietRulePaused,
   type DietHistoryTip,
 } from '@/src/features/nutrition/components/utils/dietPauseTipHelpers';
+import { resolveMealFoodDisplayNames } from '@/src/features/nutrition/components/utils/dietMealHelpers';
+import { overlayMealDayForDate } from '@/src/features/nutrition/components/utils/dietRuleDateHelpers';
 
 type Nav = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -136,14 +138,6 @@ function getCurrentMealKey(date = new Date()): HomeMealKey {
   if (hour >= 3 && hour < 11) return 'breakfast';
   if (hour >= 11 && hour < 16) return 'lunch';
   return 'dinner';
-}
-
-function parseFoodNames(foods?: string): string[] {
-  if (!foods?.trim()) return [];
-  return foods
-    .split(/[,，、]/)
-    .map(item => item.trim())
-    .filter(Boolean);
 }
 
 const HOME_FOOD_DISPLAY_MAX_CHARS = 8;
@@ -188,16 +182,12 @@ function splitFoodsForHomeDisplay(
   return { visible, hasMore: false, truncateLast: false };
 }
 
+/** 从当日 listMealDay 餐次中取当前时段推荐（不再用周模板按星期过滤） */
 function getSuggestedMealItem(
   mealList: DietMealItem[] | undefined,
   category: number,
 ): DietMealItem | null {
-  const today = moment().isoWeekday();
-  return mealList?.find(item => {
-    const day = Number(item.day);
-    const matchDay = !Number.isFinite(day) || day <= 0 || day === today;
-    return matchDay && Number(item.mealCategory) === category;
-  }) ?? null;
+  return mealList?.find(item => Number(item.mealCategory) === category) ?? null;
 }
 
 function sumMealCalories(records: MealDetailItem[]): number {
@@ -363,7 +353,7 @@ export default function HomeTab() {
   const hasLoggedCurrentMeal = currentMealRecords.length > 0;
   const displayFoods = hasLoggedCurrentMeal
     ? currentMealRecords.map(item => item.mealName || '--').filter(Boolean)
-    : parseFoodNames(suggestedMeal?.foods);
+    : resolveMealFoodDisplayNames(suggestedMeal);
   const displayCalories = hasLoggedCurrentMeal
     ? sumMealCalories(currentMealRecords)
     : Number(suggestedMeal?.calories ?? 0);
@@ -422,6 +412,7 @@ export default function HomeTab() {
 
   const loadMealData = useCallback(async () => {
     try {
+      const todayKey = moment().format('YYYY-MM-DD');
       const [ruleRes, todayRes] = await Promise.all([
         getInUseDietPatientRuleInfo(),
         getTodayMealDetailList(),
@@ -429,11 +420,15 @@ export default function HomeTab() {
       const rule = apiResourceData<DietPatientRuleInfo>(
         ruleRes as unknown as ApiResult<DietPatientRuleInfo>,
       ) ?? null;
-      setDietRule(rule);
+      // 与营养页一致：推荐餐次用当日 listMealDay，不用周模板 mealList
+      const ruleWithTodayMeals = rule
+        ? await overlayMealDayForDate(rule, todayKey)
+        : null;
+      setDietRule(ruleWithTodayMeals);
       setTodayMealList(
         apiResourceData<MealDetailItem[]>(todayRes as unknown as ApiResult<MealDetailItem[]>) ?? [],
       );
-      if (!rule) {
+      if (!ruleWithTodayMeals) {
         setDietHistoryTip(await fetchLatestHistoryDietTip());
       } else {
         setDietHistoryTip(null);
@@ -649,7 +644,7 @@ export default function HomeTab() {
                 </Flex>
               </TouchableOpacity>
             </View>
-            <Flex justify='between' style={styles.blurCardContentListBox}>
+            <Flex justify="between" align="stretch" style={styles.blurCardContentListBox}>
               {blurVitalCards.map(card => (
                 <View key={card.key} style={styles.blurCardContentList}>
                   <View style={styles.blurCardListRow}>
@@ -668,7 +663,10 @@ export default function HomeTab() {
                       </Flex>
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => navigation.navigate(card.route)}>
+                  <TouchableOpacity
+                    style={styles.blurCardBody}
+                    onPress={() => navigation.navigate(card.route)}
+                  >
                     <Flex align="end" style={styles.blurCardValueCol}>
                       <Text
                         style={[

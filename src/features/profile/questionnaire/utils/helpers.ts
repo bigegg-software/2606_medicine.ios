@@ -182,21 +182,12 @@ export function hasQuestionRedFlag(
     return Number.isFinite(num) && num > 0;
 }
 
-/** type=4 状态文案：有红旗 / 可开运动处方 */
+/** type=4 状态文案：有红旗 / 无红旗（历史列表、作答结果页统一） */
 export function formatHealthPrescriptionStatus(
     diagnosis?: QuestionDiagnosisResult | null,
     score?: number | null,
 ) {
-    if (diagnosis?.hasRedFlag) return '有红旗';
-    const advice = String(diagnosis?.advice || '').trim();
-    if (advice.includes('转介') || advice.includes('不可') || advice.includes('红旗')) {
-        return '有红旗';
-    }
-    if (advice.includes('处方') || advice.includes('跟练') || advice.includes('可开')) {
-        return '可开运动处方';
-    }
-    if (hasQuestionRedFlag(score, diagnosis)) return '有红旗';
-    return '可开运动处方';
+    return hasQuestionRedFlag(score, diagnosis) ? '有红旗' : '无红旗';
 }
 
 /** type=4 建议摘要：疼痛部位；红旗筛查；诊断结果 */
@@ -446,6 +437,24 @@ function isHistoryQuestionnaireType(type?: QuestionnaireType | string | number):
 export function formatAssessmentResult(record: UserQuestionRecord): ScoreLevel | undefined {
     const type = normalizeQuestionnaireType(record.type);
     if (type == null || !isHistoryQuestionnaireType(type)) return undefined;
+
+    // 健康信息问卷：优先 diagnosisResult.hasRedFlag，展示有红旗/无红旗
+    if (type === 4) {
+        const diagnosis = record.diagnosisResult;
+        const hasDiagFlag = Boolean(diagnosis && typeof diagnosis.hasRedFlag === 'boolean');
+        if (record.score != null || hasDiagFlag) {
+            const flagged = hasQuestionRedFlag(record.score, diagnosis);
+            return {
+                result: flagged ? '有红旗' : '无红旗',
+                statusStyle: flagged ? 'rowStatusError' : 'rowStatus',
+            };
+        }
+        if (record.comments?.trim()) {
+            return { result: record.comments.trim(), statusStyle: 'rowStatus' };
+        }
+        return undefined;
+    }
+
     if (record.score != null) return getScoreLevel(type, record.score);
     if (record.comments?.trim()) {
         return { result: record.comments.trim(), statusStyle: 'rowStatus' };

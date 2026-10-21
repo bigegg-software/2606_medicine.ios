@@ -64,7 +64,7 @@ export const FALL_RISK_REF_ROWS = [
   {
     level: '中',
     criteria: '4 ≤ S ≤ 9\n（或门槛=至少中）',
-    action: '强化平衡 + 渐进抗阻 + 步态训练（到店 D-Wall）',
+    action: '强化平衡 + 渐进抗阻 + 步态训练（建议到店 D-Wall 精细评估）',
   },
   {
     level: '高',
@@ -75,8 +75,8 @@ export const FALL_RISK_REF_ROWS = [
 
 /** 下一步与到店权益（接口未返回，前端固定） */
 export const FALL_NEXT_STEP = {
-  text: '到店完成『全套 8 维功能评估（D-Wall 客观量化）』，据此定制方案并由专业教练带练。',
-  benefit: '到店权益: 99 元到店测评（全 8 维/D-Wall） + 赠1节私教康复体验课',
+  text: '本方案为初筛版（L1）。到店完成『D-Wall 精细评估 F1–F6』→ 定位缺陷域与动作质量 → 升级为『精准方案（L2）』：动作清单 + 个体化剂量 + 难度 + APP 可执行。',
+  benefit: '到店权益：99 元到店测评（D-Wall 全套） + 赠 1 节私教康复体验课',
   highRiskText: '属高度跌倒风险，建议转介医疗机构评估，暂不在店内跟练。',
 };
 
@@ -143,6 +143,29 @@ function formatGateLevel(gateLevel: string) {
     return '无';
   }
   return raw;
+}
+
+/** 按最终风险级取处置文案（与风险分级参照表一致） */
+function resolveFallDisposalAction(result: FallPreventionResult | null | undefined) {
+  const riskLevel = text(result?.riskGradeResult?.riskLevel);
+  const key = riskLevel.includes('高')
+    ? '高'
+    : riskLevel.includes('中')
+      ? '中'
+      : riskLevel.includes('低')
+        ? '低'
+        : '';
+  return FALL_RISK_REF_ROWS.find(row => row.level === key)?.action || '--';
+}
+
+/**
+ * 风险分级结果底部：
+ * 最终分级 = max(门槛级, 得分级) = 中风险 ｜ 处置：…
+ */
+export function formatFallRiskSummaryText(result: FallPreventionResult | null | undefined) {
+  const levelText = formatRiskLevel(text(result?.riskGradeResult?.riskLevel));
+  const action = resolveFallDisposalAction(result);
+  return `最终分级 = max(门槛级, 得分级) = ${levelText} ｜ 处置：${action}`;
 }
 
 function exerciseLabel(type?: string) {
@@ -378,18 +401,24 @@ export function formatFallProfile(result: FallPreventionResult | null | undefine
     ageText,
     tag,
     reportLabel,
-    dateRangeText: (() => {
-      const date = text(result?.objectiveDataDate)
-      if (!date) {
-        return '客观数据日期：--'
-      }
-      // 展示为区间：开始 - 结束（当前接口仅返回单日时两端同日）
-      if (date.includes(' - ') || date.includes('~')) {
-        return `客观数据日期：${date}`
-      }
-      return `客观数据日期：${date} - ${date}`
-    })(),
+    dateRangeText: formatObjectiveDataDateRange(result?.objectiveDataDate),
   };
+}
+
+/** 客观数据日期：展示为「开始 - 结束」（接口已带前缀时不再重复拼接） */
+export function formatObjectiveDataDateRange(value?: string | null) {
+  let date = text(value);
+  // 接口可能已是「客观数据日期：…」，循环剥掉前缀避免重复
+  while (/^客观数据日期[：:]/.test(date)) {
+    date = date.replace(/^客观数据日期[：:]\s*/, '').trim();
+  }
+  if (!date || date === '--') {
+    return '客观数据日期：--';
+  }
+  if (date.includes(' - ') || date.includes('~') || date.includes('至')) {
+    return `客观数据日期：${date}`;
+  }
+  return `客观数据日期：${date} - ${date}`;
 }
 
 export function formatFallRiskResult(result: FallPreventionResult | null | undefined) {
@@ -402,15 +431,6 @@ export function formatFallRiskResult(result: FallPreventionResult | null | undef
   const subjective = summed.subjective ?? numOrNull(grade?.subjectiveScore);
   const objective = summed.objective ?? numOrNull(grade?.objectiveScore);
   const scoreMax = resolveFallWeightedScoreMax(items);
-  const date = text(result?.objectiveDataDate);
-  let dateRangeText = '客观数据日期：--';
-  if (date) {
-    if (date.includes(' - ') || date.includes('~')) {
-      dateRangeText = `客观数据日期：${date}`;
-    } else {
-      dateRangeText = `客观数据日期：${date} - ${date}`;
-    }
-  }
   return {
     levelText: formatRiskLevel(riskLevel),
     rows: [
@@ -424,8 +444,8 @@ export function formatFallRiskResult(result: FallPreventionResult | null | undef
         value: formatGateLevel(gateLevel),
       },
     ],
-    /** 风险分级结果底部：客观数据日期区间 */
-    summaryText: dateRangeText,
+    /** 风险分级结果底部：最终分级 + 处置 */
+    summaryText: formatFallRiskSummaryText(result),
   };
 }
 

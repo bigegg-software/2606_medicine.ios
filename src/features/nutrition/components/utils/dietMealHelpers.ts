@@ -188,6 +188,14 @@ function buildFoodsFromMeal(meal: DietMealItem): RecommendedFoodItem[] {
   }));
 }
 
+/** 首页等摘要：与营养页推荐餐一致，优先 foodList，否则解析 foods */
+export function resolveMealFoodDisplayNames(meal: DietMealItem | null | undefined): string[] {
+  if (!meal) return [];
+  return buildFoodsFromMeal(meal)
+    .map(food => food.foodName.trim())
+    .filter(name => name && name !== '--');
+}
+
 /** 用新生成的某一天餐次替换 mealList 中对应星期的项 */
 export function mergeOneDayMeals(
   mealList: DietMealItem[] | undefined,

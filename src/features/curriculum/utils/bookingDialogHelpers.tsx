@@ -127,15 +127,29 @@ export function buildBookConfirmContent(
   return [...buildSessionSummaryLines(info, courseType), footer].join('\n');
 }
 
+/** 距开课不足 24 小时（含已到开课时间）：取消不退还已使用权益 */
+export function isWithinCancelNoRefundWindow(
+  sessionDate?: string,
+  startTime?: string,
+): boolean {
+  const date = sessionDate?.trim() || '';
+  if (!date) return false;
+  const hm = formatHm(startTime) || '00:00';
+  const startAt = moment(`${date} ${hm}`, ['YYYY-MM-DD HH:mm', 'YYYY-MM-DD HH:mm:ss'], true);
+  if (!startAt.isValid()) return false;
+  return startAt.diff(moment(), 'milliseconds') <= 24 * 60 * 60 * 1000;
+}
+
 export function buildCancelConfirmContent(
   info: BookingDialogInfo,
   courseType: CourseSessionType | string,
 ) {
   const typeLabel = courseTypeBenefitLabel(courseType);
-  return [
-    ...buildSessionSummaryLines(info, courseType),
-    `确定要取消本次课程预约吗？取消预约后将会自动退还 1次${typeLabel}次数`,
-  ].join('\n');
+  const noRefund = isWithinCancelNoRefundWindow(info.sessionDate, info.startTime);
+  const footer = noRefund
+    ? '确定要取消本次课程预约吗？距开课不足24小时，取消预约后已经使用的权益将不会退还'
+    : `确定要取消本次课程预约吗？取消预约后将会自动退还 1次${typeLabel}次数`;
+  return [...buildSessionSummaryLines(info, courseType), footer].join('\n');
 }
 
 export function buildInsufficientBenefitContent(

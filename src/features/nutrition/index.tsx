@@ -292,10 +292,10 @@ export default function NutritionPage() {
     navigation.setOptions({
       title: pageTitle,
       headerTitle: undefined,
-      // 历史处方只读：不显示右上角家人切换 / 日历入口
-      headerRight: dietPatientRuleId
+      // 处方详情：无日历；完成情况 / 进行中：右上角日历；家人本人视图：关系角标
+      headerRight: prescriptionOnly
         ? () => null
-        : isFamilyView
+        : isFamilyView && !dietPatientRuleId
           ? () => <FamilyRelationHeaderBadge label={relationLabel} />
           : () => (
             <TouchableOpacity
@@ -314,6 +314,7 @@ export default function NutritionPage() {
     navigation,
     openDietDatePicker,
     pageTitle,
+    prescriptionOnly,
     relationLabel,
   ]);
 

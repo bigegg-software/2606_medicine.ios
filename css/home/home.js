@@ -109,13 +109,19 @@ const styles = StyleSheet.create({
         marginRight: 4
     },
     blurCardContentListBox: {
-        marginTop: 10
+        marginTop: 10,
+        alignItems: 'stretch',
     },
     blurCardContentList: {
         padding: 11,
         width: "31%",
         backgroundColor: "#FFFFFF",
         borderRadius: 8,
+        alignSelf: 'stretch',
+    },
+    blurCardBody: {
+        flex: 1,
+        justifyContent: 'space-between',
     },
     blurCardListRow: {
         width: '100%',
@@ -144,15 +150,18 @@ const styles = StyleSheet.create({
         marginLeft: 6,
     },
     blurCardValueCol: {
-        marginTop: 8
+        marginTop: 8,
+        minHeight: 28,
     },
     blurCardValue: {
         fontWeight: "bold",
         fontSize: 20,
-        color: "#333333"
+        color: "#333333",
+        lineHeight: 28,
     },
     blurCardValueBp: {
         fontSize: 14,
+        lineHeight: 28,
     },
     blurCardUnit: {
         fontWeight: 400,

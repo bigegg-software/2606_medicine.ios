@@ -23,8 +23,8 @@ export const PILATES_DIMENSION_TITLE: Record<string, string> = {
 
 /** 下一步与到店权益（接口未返回） */
 export const PILATES_NEXT_STEP = {
-  text: '本方案为初筛版（L1）。到店完成『D-Wall 精细评估 F1–F6』→ 定位缺陷域与动作质量 → 升级为『精准方案（L2）』：动作清单 + 个体化剂量 + 难度 + APP 可执行。',
-  benefit: '到店权益：99 元到店测评（D-Wall 全套） + 赠 1 节私教康复体验课',
+  text: '到店完成『全套 8 维功能评估（D-Wall 客观量化）』，据此定制方案并由专业教练带练。',
+  benefit: '到店权益: 99 元到店测评（全 8 维/D-Wall） + 赠1节私教康复体验课',
   redFlagText: '命中红旗症状，建议转介医疗机构评估，暂不生成店内运动处方。',
 };
 
