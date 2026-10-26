@@ -62,6 +62,8 @@ export type CourseSessionItem = {
   courseType?: string;
   coachUserId?: number | string;
   coachRealName?: string;
+  /** 教练性别（sys_user.sex；0/2男 1女；列表回填时用于默认封面） */
+  coachSex?: string;
   coachAvatarOssId?: number | string;
   coachAvatarUrl?: string;
   /** 教练形象照（上传后优先展示） */

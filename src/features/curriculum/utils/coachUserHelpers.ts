@@ -1,6 +1,23 @@
+import type { ImageSourcePropType } from 'react-native';
 import type { CoachUserInfo } from '@/api/coachUser';
 import { getCoachUserInfo } from '@/api/coachUser';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { isFemaleGender, isMaleGender } from '@/src/utils/userHelpers';
+
+/** 私教列表教练封面默认图（女） */
+export const DEFAULT_COACH_COVER_F = require('@/assets/images/curriculum/coach_default_f.png');
+/** 私教列表教练封面默认图（男） */
+export const DEFAULT_COACH_COVER_M = require('@/assets/images/curriculum/coach_default_m.png');
+
+/** 按教练性别取列表默认封面（女→F，男/未知→M） */
+export function getDefaultCoachCoverByGender(
+  gender?: string | null,
+): ImageSourcePropType {
+  if (isFemaleGender(gender)) return DEFAULT_COACH_COVER_F;
+  if (isMaleGender(gender)) return DEFAULT_COACH_COVER_M;
+  return DEFAULT_COACH_COVER_M;
+}
+
 
 /** 拉取教练详细信息 */
 export async function fetchCoachUserDetail(

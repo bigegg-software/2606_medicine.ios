@@ -206,20 +206,12 @@ const styles = StyleSheet.create({
     borderRadius: 25,
     gap: 4,
   },
-  todayActionBtnCertPending: {
-    borderRadius: 27,
-  },
   todayActionBtnIcon: {
     width: 15,
     height: 15,
   },
   todayActionBtnText: {
     fontWeight: 'bold',
-    fontSize: 13,
-    color: '#6D925E',
-  },
-  todayActionBtnTextCertPending: {
-    fontWeight: '400',
     fontSize: 13,
     color: '#6D925E',
   },
@@ -391,10 +383,8 @@ const styles = StyleSheet.create({
   mainTrainingActionTitle: { fontWeight: 'bold', fontSize: 14, color: '#333333' },
   mainTrainingActionDesc: { marginTop: 6, fontWeight: '500', fontSize: 13, color: '#999999' },
   mainTrainingActionTimer: { flexShrink: 0, marginLeft: 8, paddingHorizontal: 18, paddingVertical: 9, backgroundColor: 'rgba(109,146,94,0.2)', borderRadius: 25, gap: 4 },
-  mainTrainingActionTimerCertPending: { borderRadius: 27 },
   mainTrainingActionTimerIcon: { width: 15, height: 15 },
   mainTrainingActionTimerText: { fontWeight: 'bold', fontSize: 13, color: '#6D925E' },
-  mainTrainingActionTimerTextCertPending: { fontWeight: '400', fontSize: 13, color: '#6D925E' },
   mainTrainingSetProgress: { fontWeight: 'bold', fontSize: 14, color: '#333333' },
   mainTrainingSetProgressTotal: { fontWeight: 'bold', fontSize: 14, color: '#999999' },
   mainTrainingSetRow: { marginTop: 12 },

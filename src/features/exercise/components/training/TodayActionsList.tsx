@@ -103,7 +103,6 @@ function ActionRow({
             align="center"
             style={[
               styles.todayActionBtn,
-              certPending ? styles.todayActionBtnCertPending : null,
               muteAction ? { opacity: 0.45 } : null,
             ]}>
             {showActionIcon ? (
@@ -112,12 +111,7 @@ function ActionRow({
                 source={resolveTrainingActionButtonIconSource(item, actionCompleted)}
               />
             ) : null}
-            <Text
-              style={[
-                styles.todayActionBtnText,
-                certPending ? styles.todayActionBtnTextCertPending : null,
-              ]}
-            >
+            <Text style={styles.todayActionBtnText}>
               {actionText}
             </Text>
           </Flex>

@@ -261,7 +261,6 @@ export default function PrivateCourseDetailPage() {
         bookingId={detail.bookingId}
         stationId={detail.stationId}
         coachUserId={detail.coachUserId}
-        courseType="private"
         excludeSessionId={detail.sessionId}
         initialDate={detail.sessionDate}
         initialStartTime={adjustInitialStartTime}

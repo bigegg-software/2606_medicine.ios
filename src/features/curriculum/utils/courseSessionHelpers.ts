@@ -118,15 +118,19 @@ async function fetchCourseSessionPageRows(
 export type PrivateSessionCardView = {
   key: string;
   sessionId: string;
+  /** 教练用户 id（补性别 / 默认封面） */
+  coachUserId?: string;
   name: string;
   tag: string;
   desc: string;
   benefitText: string;
   time: string;
   topic: string;
-  /** 展示图：有形象照优先，否则课程封面 / 教练头像 */
+  /** 展示图：仅教练形象照 / 头像；无则用性别默认图 */
   coverUri?: string;
   avatarUri?: string;
+  /** 教练性别 sys_user.sex：0/2男 1女 */
+  coachSex?: string;
   /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
   status?: number;
   bookedByMe: boolean;
@@ -266,6 +270,15 @@ export function formatPrivateBenefitRemainParts(remain?: number | null): {
   return { prefix: '私教权益 剩余 ', highlight: String(n), suffix: ' 节' };
 }
 
+/** 场次上的教练性别（优先 coachSex，兼容 sex） */
+function resolveSessionCoachSex(item: CourseSessionItem): string {
+  const raw =
+    item.coachSex != null && String(item.coachSex).trim()
+      ? item.coachSex
+      : (item as { sex?: string | number }).sex;
+  return raw != null ? String(raw).trim() : '';
+}
+
 export function mapPrivateSessionToCard(
   item: CourseSessionItem,
   options?: { privateRemainCount?: number | null; isRecommend?: boolean },
@@ -275,14 +288,20 @@ export function mapPrivateSessionToCard(
   const specialty = item.coachSpecialtyDirection?.trim() || '';
   const courseName = item.template?.courseName?.trim() || '';
   const courseTags = formatSessionTags(item.template?.courseTags);
+  // 列表左图只用教练照；无图时按教练性别走默认封面（不用课程封面顶替）
   const portraitUri = item.coachPortraitUrl?.trim() || undefined;
-  const coverUri =
-    portraitUri || item.template?.coverOssUrl?.trim() || undefined;
-  const avatarUri = portraitUri || item.coachAvatarUrl?.trim() || undefined;
+  const avatarUri = item.coachAvatarUrl?.trim() || undefined;
+  const coverUri = portraitUri || avatarUri || undefined;
+  const coachUserId =
+    item.coachUserId != null && String(item.coachUserId).trim()
+      ? String(item.coachUserId).trim()
+      : '';
+  const coachSex = resolveSessionCoachSex(item);
   const bookingId = item.bookingId != null ? String(item.bookingId).trim() : '';
   return {
     key: sessionId,
     sessionId,
+    ...(coachUserId ? { coachUserId } : {}),
     name: item.coachRealName?.trim() || '教练',
     tag: options?.isRecommend ? '处方推荐' : '',
     // 优先课程标签；无则显示教练擅长方向
@@ -291,7 +310,8 @@ export function mapPrivateSessionToCard(
     time: formatSessionTime(item.startTime, item.endTime),
     topic: courseName || '一对一私教训练',
     coverUri,
-    avatarUri,
+    avatarUri: coverUri,
+    ...(coachSex ? { coachSex } : {}),
     status: item.status,
     bookedByMe: Boolean(item.bookedByMe),
     bookingInfo: mapBookingDialogInfo(item),
@@ -306,6 +326,41 @@ function mapPrivateCards(
   return rows
     .map(item => mapPrivateSessionToCard(item, options))
     .filter((item): item is PrivateSessionCardView => item != null);
+}
+
+/** 无教练照且缺性别时，按教练详情 sex 补齐（用于默认封面） */
+async function enrichPrivateCardsCoachSex(
+  cards: PrivateSessionCardView[],
+): Promise<PrivateSessionCardView[]> {
+  const needIds = Array.from(
+    new Set(
+      cards
+        .filter(card => {
+          const hasCover = Boolean(card.coverUri?.trim() || card.avatarUri?.trim());
+          return !hasCover && !card.coachSex?.trim() && Boolean(card.coachUserId?.trim());
+        })
+        .map(card => card.coachUserId!.trim()),
+    ),
+  );
+  if (needIds.length === 0) return cards;
+
+  const pairs = await Promise.all(
+    needIds.map(async id => {
+      const coach = await fetchCoachUserDetail(id);
+      const sex = coach?.sex != null ? String(coach.sex).trim() : '';
+      return [id, sex] as const;
+    }),
+  );
+  const sexMap = new Map(pairs.filter(([, sex]) => Boolean(sex)));
+  if (sexMap.size === 0) return cards;
+
+  return cards.map(card => {
+    if (card.coachSex?.trim() || card.coverUri?.trim() || card.avatarUri?.trim()) {
+      return card;
+    }
+    const sex = card.coachUserId ? sexMap.get(card.coachUserId) : undefined;
+    return sex ? { ...card, coachSex: sex } : card;
+  });
 }
 
 /**
@@ -326,8 +381,11 @@ export async function fetchRecommendPrivateSessions(
       pageSize,
       excludeSessionIds,
     });
+    const cards = await enrichPrivateCardsCoachSex(
+      mapPrivateCards(rows, { privateRemainCount: options.privateRemainCount }),
+    );
     return {
-      cards: mapPrivateCards(rows, { privateRemainCount: options.privateRemainCount }),
+      cards,
       excludeSessionIds,
       pageNum,
       hasMore,
@@ -348,11 +406,12 @@ export async function fetchRecommendPrivateSessions(
   });
   const listCards = mapPrivateCards(rows, { privateRemainCount: options.privateRemainCount });
   const seen = new Set(recommendCards.map(card => card.sessionId));
+  const cards = await enrichPrivateCardsCoachSex([
+    ...recommendCards,
+    ...listCards.filter(card => !seen.has(card.sessionId)),
+  ]);
   return {
-    cards: [
-      ...recommendCards,
-      ...listCards.filter(card => !seen.has(card.sessionId)),
-    ],
+    cards,
     excludeSessionIds,
     pageNum: 1,
     hasMore,

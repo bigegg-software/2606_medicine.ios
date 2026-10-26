@@ -21,7 +21,7 @@ import store from '@/store/store';
 import { fetchUserInfo } from '@/store/actions/user';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
-import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
+import { getDefaultCoachCoverByGender } from '../utils/coachUserHelpers';
 import CoachFilterPicker, { type CoachFilterValue } from './CoachFilterPicker';
 import TimeSlotFilterPicker from './TimeSlotFilterPicker';
 import type { TimeSlotValue } from '../utils/timeSlotHelpers';
@@ -53,9 +53,6 @@ type Props = {
   stationId?: string;
   isActive?: boolean;
 };
-
-/** 无教练头像时与预约教练页一致的默认头像 */
-const DEFAULT_COACH_AVATAR = getDefaultAvatarByGender();
 
 function getCoachActionStyles(tone: ReturnType<typeof resolveSessionAction>['tone']) {
   switch (tone) {
@@ -520,7 +517,11 @@ export default function PrivateTrainingPage({ stationId, isActive = true }: Prop
                 <View style={styles.coachCoverWrap}>
                   <Image
                     style={styles.coachCover}
-                    source={coverUri ? { uri: coverUri } : DEFAULT_COACH_AVATAR}
+                    source={
+                      coverUri
+                        ? { uri: coverUri }
+                        : getDefaultCoachCoverByGender(card.coachSex)
+                    }
                     resizeMode="cover"
                   />
                 </View>

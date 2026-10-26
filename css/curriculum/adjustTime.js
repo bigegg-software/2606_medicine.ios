@@ -33,7 +33,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 9,
-    paddingRight: 56,
   },
   dateCell: {
     width: 58,
@@ -163,7 +162,6 @@ const styles = StyleSheet.create({
   },
   slotCell: {
     flex: 1,
-    paddingHorizontal: 12,
     paddingVertical: 13,
     backgroundColor: '#F6F8FB',
     borderRadius: 6,
@@ -200,7 +198,7 @@ const styles = StyleSheet.create({
   },
   slotCellPlaceholder: {
     flex: 1,
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingVertical: 13,
     opacity: 0,
   },

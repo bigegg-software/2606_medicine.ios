@@ -151,7 +151,7 @@ const styles = StyleSheet.create({
   },
   coachCard: {
     flexDirection: 'row',
-    alignItems: 'stretch',
+    alignItems: 'flex-start',
     backgroundColor: '#FFFFFF',
     borderRadius: 13,
     overflow: 'hidden',
@@ -162,20 +162,16 @@ const styles = StyleSheet.create({
   coachCardRest: {
     marginTop: 13,
   },
+  /** 与默认封面素材 280×390 同比例 */
   coachCoverWrap: {
     width: 150,
-    minHeight: 209,
-    alignSelf: 'stretch',
+    aspectRatio: 280 / 390,
     flexShrink: 0,
     overflow: 'hidden',
-    position: 'relative',
   },
   coachCover: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
+    width: '100%',
+    height: '100%',
   },
   coachInfo: {
     flex: 1,

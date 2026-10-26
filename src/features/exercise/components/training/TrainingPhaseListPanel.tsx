@@ -257,7 +257,6 @@ export default function TrainingPhaseListPanel({
                     align="center"
                     style={[
                       styles.mainTrainingActionTimer,
-                      certPending ? styles.mainTrainingActionTimerCertPending : null,
                       muteAction ? { opacity: 0.45 } : null,
                     ]}>
                     {showActionIcon ? (
@@ -266,12 +265,7 @@ export default function TrainingPhaseListPanel({
                         source={resolveTrainingActionButtonIconSource(item, actionCompleted)}
                       />
                     ) : null}
-                    <Text
-                      style={[
-                        styles.mainTrainingActionTimerText,
-                        certPending ? styles.mainTrainingActionTimerTextCertPending : null,
-                      ]}
-                    >
+                    <Text style={styles.mainTrainingActionTimerText}>
                       {actionText}
                     </Text>
                   </Flex>

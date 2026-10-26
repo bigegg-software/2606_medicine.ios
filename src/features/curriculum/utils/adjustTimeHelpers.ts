@@ -1,5 +1,5 @@
 import moment from 'moment';
-import type { CourseSessionItem, CourseSessionType } from '@/api/courseSession';
+import type { CourseSessionItem } from '@/api/courseSession';
 import { getCourseSessionPage } from '@/api/courseSession';
 import { getResourceRows } from '@/src/utils/apiHelpers';
 
@@ -15,8 +15,10 @@ export type AdjustDateItem = {
   isToday: boolean;
 };
 
-const DEFAULT_DAY_COUNT = 14;
-/** 滑到末尾时每次追加天数 */
+/** 调整时间日期条：今天起共 14 天（含今天） */
+export const ADJUST_DATE_DAY_COUNT = 14;
+const DEFAULT_DAY_COUNT = ADJUST_DATE_DAY_COUNT;
+/** 滑到末尾时每次追加天数（训练日历等仍可用） */
 export const ADJUST_DATE_APPEND_COUNT = 14;
 
 /** 日期条单元格宽度 / 间距（与 css/curriculum/adjustTime 一致） */
@@ -29,10 +31,7 @@ export function resolveAdjustDateStripScrollX(index: number) {
   return index * (ADJUST_DATE_CELL_WIDTH + ADJUST_DATE_CELL_GAP);
 }
 
-/** 右侧「全部」按钮占用宽度（与 dateScrollContent.paddingRight 一致） */
-export const ADJUST_DATE_STRIP_RIGHT_OVERLAY = 56;
-
-/** 指定下标日期是否已在横向可视区内（不含右侧遮挡） */
+/** 指定下标日期是否已在横向可视区内 */
 export function isAdjustDateStripItemVisible(options: {
   index: number;
   scrollX: number;
@@ -43,7 +42,7 @@ export function isAdjustDateStripItemVisible(options: {
     index,
     scrollX,
     viewportWidth,
-    rightOverlay = ADJUST_DATE_STRIP_RIGHT_OVERLAY,
+    rightOverlay = 0,
   } = options;
   if (index < 0 || viewportWidth <= 0) return false;
   const itemLeft = resolveAdjustDateStripScrollX(index);
@@ -51,6 +50,18 @@ export function isAdjustDateStripItemVisible(options: {
   const visibleLeft = Math.max(0, scrollX);
   const visibleRight = scrollX + Math.max(0, viewportWidth - rightOverlay);
   return itemLeft >= visibleLeft - 1 && itemRight <= visibleRight + 1;
+}
+
+/** 将选中日钳到「今天起 14 天」窗口内 */
+export function clampAdjustDateToWindow(date?: string, dayCount = ADJUST_DATE_DAY_COUNT): string {
+  const today = moment().startOf('day');
+  const last = today.clone().add(Math.max(0, dayCount - 1), 'days');
+  const key = date?.trim() || '';
+  const selected = key ? moment(key, 'YYYY-MM-DD').startOf('day') : null;
+  if (!selected?.isValid()) return today.format('YYYY-MM-DD');
+  if (selected.isBefore(today, 'day')) return today.format('YYYY-MM-DD');
+  if (selected.isAfter(last, 'day')) return last.format('YYYY-MM-DD');
+  return selected.format('YYYY-MM-DD');
 }
 
 function buildOneAdjustDateItem(m: moment.Moment, today: moment.Moment): AdjustDateItem {
@@ -266,32 +277,63 @@ export function mapSessionsToAdjustSlots(
 }
 
 /**
- * 拉取本服务站、指定课程类型、某日可改约场次（含当前已预约置灰项）
- * 传入 coachUserId 时仅返回该教练场次
+ * 私教调整时间：拉取当前教练在日期范围内有场次的日期（走未来 14 天排期分页）
+ */
+export async function fetchAdjustPrivateDateHasSet(options: {
+  stationId: string;
+  coachUserId: string;
+  startDate: string;
+  endDate: string;
+}): Promise<Set<string>> {
+  const stationId = String(options.stationId ?? '').trim();
+  const coachUserId = String(options.coachUserId ?? '').trim();
+  const startDate = String(options.startDate ?? '').trim();
+  const endDate = String(options.endDate ?? '').trim();
+  if (!stationId || !coachUserId || !startDate || !endDate) return new Set();
+
+  const res = await getCourseSessionPage({
+    stationId,
+    courseType: 'private',
+    coachUserId,
+    startDate,
+    endDate,
+    pageNum: 1,
+    pageSize: 100,
+  });
+
+  const set = new Set<string>();
+  for (const item of getResourceRows<CourseSessionItem>(res)) {
+    const date = String(item.sessionDate ?? '').trim();
+    if (date) set.add(date);
+  }
+  return filterDateHasSetFromToday(set);
+}
+
+/**
+ * 私教调整时间：拉取当前教练某日可改约场次（含当前已预约置灰项）
+ * 固定 courseType=private，coachUserId 必填
  */
 export async function fetchAdjustableSessions(options: {
   stationId: string;
-  courseType: CourseSessionType | string;
   sessionDate: string;
   /** 当前教练：仅展示该教练可约时间 */
-  coachUserId?: string;
+  coachUserId: string;
   /** 当前已预约场次：列表中保留并置灰 */
   currentSessionId?: string;
 }): Promise<AdjustTimeSlotItem[]> {
   const stationId = String(options.stationId ?? '').trim();
-  const courseType = String(options.courseType ?? '').trim();
   const sessionDate = String(options.sessionDate ?? '').trim();
   const coachUserId = String(options.coachUserId ?? '').trim();
-  if (!stationId || !courseType || !sessionDate) return [];
+  if (!stationId || !sessionDate || !coachUserId) return [];
 
   const res = await getCourseSessionPage({
     stationId,
-    courseType,
+    courseType: 'private',
+    coachUserId,
     startDate: sessionDate,
     endDate: sessionDate,
     pageNum: 1,
     pageSize: 50,
-    ...(coachUserId ? { coachUserId } : {}),
   });
 
   return mapSessionsToAdjustSlots(getResourceRows<CourseSessionItem>(res), {

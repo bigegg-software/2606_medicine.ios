@@ -448,13 +448,14 @@ export function formatChineseGroupLabel(index: number) {
   return `第${n}组`;
 }
 
+/** 部位/区域标签：仅展示字典命中项；匹配不上不回落原始 code */
 function formatBodyPartText(parts?: string[], labelMap?: Record<string, string>) {
   if (!Array.isArray(parts) || parts.length === 0) return '';
   return parts
     .map(item => {
       const key = String(item).trim();
       if (!key) return '';
-      return labelMap?.[key] ?? key;
+      return labelMap?.[key]?.trim() || '';
     })
     .filter(Boolean)
     .join(' · ');
@@ -696,7 +697,9 @@ export async function buildTrainingPhaseCards(
     const actionTypeRaw = String(resolvedActionType ?? '').trim();
     const exVideoId = item.exVideoId != null ? String(item.exVideoId) : `idx-${index}`;
     const coverUrl = video?.coverOssUrl?.trim();
-    const bodyPartText = formatBodyPartText(resolveExVideoBodyPartKeys(video), labelMap);
+    const bodyPartKeys = resolveExVideoBodyPartKeys(video);
+    // 仅展示字典已翻译的标签；匹配不上的不显示，动作本身仍正常展示
+    const bodyPartText = formatBodyPartText(bodyPartKeys, labelMap);
     const ruleText = formatTrainingItemRuleText(item);
     return [{
       key: `${exVideoId}-${index}`,

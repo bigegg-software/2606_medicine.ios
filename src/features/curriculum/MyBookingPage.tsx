@@ -13,10 +13,10 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import PageLayout from '@/src/components/PageLayout';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import { AppTheme } from '@/common/theme';
-import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import styles from '@/css/curriculum/myBooking';
 import type { RootStackParamList } from '@/route/router';
 import AdjustTimeModal from './components/AdjustTimeModal';
+import { getDefaultCoachCoverByGender } from './utils/coachUserHelpers';
 import BookingStatusFilterPicker, {
   bookingStatusFilterLabel,
   type BookingStatusFilterValue,
@@ -43,9 +43,6 @@ const TAB_LIST = [
 ] as const;
 
 type TabKey = (typeof TAB_LIST)[number]['key'];
-
-/** 无教练头像时默认占位（与预约教练页一致） */
-const DEFAULT_AVATAR = getDefaultAvatarByGender();
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
@@ -80,6 +77,8 @@ export default function MyBookingPage() {
 
   const openAdjustTime = useCallback(() => {
     if (!nextBooking) return;
+    // 集体课 / 线上课：按钮禁用，不响应
+    if (nextBooking.courseType !== 'private') return;
     if (!nextBooking.canAdjustTime) {
       Toast.show(
         nextBooking.sessionStatus === 4 ? '课程进行中，暂无法调整时间' : '暂无法调整时间',
@@ -91,7 +90,7 @@ export default function MyBookingPage() {
       Toast.show('暂无法调整时间', 1.5);
       return;
     }
-    if (!nextBooking.stationId?.trim()) {
+    if (!nextBooking.stationId?.trim() || !nextBooking.coachUserId?.trim()) {
       Toast.show('暂无法调整时间', 1.5);
       return;
     }
@@ -161,7 +160,6 @@ export default function MyBookingPage() {
           bookingId={nextBooking.bookingId}
           stationId={nextBooking.stationId}
           coachUserId={nextBooking.coachUserId}
-          courseType={nextBooking.courseType || 'private'}
           excludeSessionId={nextBooking.sessionId}
           initialDate={nextBooking.sessionDate}
           initialStartTime={nextBooking.startTime}
@@ -215,7 +213,7 @@ export default function MyBookingPage() {
                       source={
                         nextBooking.avatarUri
                           ? { uri: nextBooking.avatarUri }
-                          : DEFAULT_AVATAR
+                          : getDefaultCoachCoverByGender(nextBooking.coachSex)
                       }
                     />
                     <View style={styles.bookingCoachInfo}>
@@ -242,6 +240,7 @@ export default function MyBookingPage() {
                   <Flex style={styles.bookingActionRow}>
                     <TouchableOpacity
                       activeOpacity={nextBooking.canAdjustTime ? 0.7 : 1}
+                      disabled={nextBooking.courseType !== 'private'}
                       style={[
                         styles.bookingAdjustBtn,
                         !nextBooking.canAdjustTime && styles.bookingAdjustBtnDisabled,
@@ -300,7 +299,11 @@ export default function MyBookingPage() {
                         <Flex align="start">
                           <Image
                             style={styles.followCover}
-                            source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
+                            source={
+                              item.coverUri
+                                ? { uri: item.coverUri }
+                                : getDefaultCoachCoverByGender(item.coachSex)
+                            }
                           />
                           <View style={styles.followInfo}>
                             <Flex justify="between" align="center">
@@ -439,7 +442,11 @@ export default function MyBookingPage() {
                     />
                     <Image
                       style={styles.doneCover}
-                      source={item.coverUri ? { uri: item.coverUri } : DEFAULT_AVATAR}
+                      source={
+                        item.coverUri
+                          ? { uri: item.coverUri }
+                          : getDefaultCoachCoverByGender(item.coachSex)
+                      }
                     />
                     <View style={styles.doneInfo}>
                       <Flex justify="between" align="center" style={styles.doneDateRow}>

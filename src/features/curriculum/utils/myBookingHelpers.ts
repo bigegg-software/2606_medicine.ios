@@ -204,10 +204,21 @@ function resolveStationId(item: CourseSessionBookingItem) {
   return '';
 }
 
-/** 统一优先教练头像（含后续安排 / 已完成） */
+/** 统一优先教练形象照 / 头像（含后续安排 / 已完成） */
 function resolveCoverUri(item: CourseSessionBookingItem) {
   const session = resolveSession(item);
-  return session?.coachAvatarUrl?.trim() || session?.template?.coverOssUrl?.trim() || undefined;
+  return (
+    session?.coachPortraitUrl?.trim() ||
+    session?.coachAvatarUrl?.trim() ||
+    session?.template?.coverOssUrl?.trim() ||
+    undefined
+  );
+}
+
+function resolveCoachSex(item: CourseSessionBookingItem) {
+  const session = resolveSession(item);
+  const sex = session?.coachSex;
+  return sex != null ? String(sex).trim() : '';
 }
 
 function formatCapacityMeta(item: CourseSessionBookingItem) {
@@ -309,6 +320,8 @@ export type MyBookingNextCardView = {
   stationName: string;
   tipText: string;
   avatarUri?: string;
+  /** 教练性别：默认封面按性别区分 */
+  coachSex?: string;
 };
 
 export type MyBookingFollowCardView = {
@@ -321,6 +334,7 @@ export type MyBookingFollowCardView = {
   title: string;
   coachMeta: string;
   coverUri?: string;
+  coachSex?: string;
 };
 
 function courseTypeShortLabel(courseType: string) {
@@ -345,6 +359,7 @@ export type MyBookingCompletedCardView = {
   /** 康复普拉提 · 李教练（最近完成单行，不含课程类型） */
   briefTitle: string;
   coverUri?: string;
+  coachSex?: string;
 };
 
 export function mapCompletedBookingCard(
@@ -358,6 +373,7 @@ export function mapCompletedBookingCard(
   const courseName = resolveCourseName(item);
   const status = Number(item.status ?? 3);
   const isAbsent = isBookingAbsent(status);
+  const coachSex = resolveCoachSex(item);
   return {
     key: bookingId,
     bookingId,
@@ -372,6 +388,7 @@ export function mapCompletedBookingCard(
     title: `${courseName} · ${courseTypeShortLabel(courseType)} · ${coach}`,
     briefTitle: `${courseName} · ${coach}`,
     coverUri: resolveCoverUri(item),
+    ...(coachSex ? { coachSex } : {}),
   };
 }
 
@@ -382,8 +399,10 @@ export function mapNextBookingCard(
   const bookingId = resolveBookingId(item);
   const sessionId = resolveSessionId(item);
   if (!bookingId || !sessionId) return null;
-  const courseType = String(resolveCourseType(item) || 'private');
+  const resolvedType = String(resolveCourseType(item) || '').trim();
+  const courseType = resolvedType || 'private';
   const sessionStatus = resolveSessionStatus(item);
+  const coachSex = resolveCoachSex(item);
   return {
     key: bookingId,
     bookingId,
@@ -394,7 +413,9 @@ export function mapNextBookingCard(
     sessionDate: resolveSessionDate(item),
     startTime: resolveStartTime(item),
     sessionStatus,
-    canAdjustTime: canCancelOrAdjustSession(sessionStatus),
+    // 仅明确为私教且场次可改约时可调整时间（集体/线上不可点）
+    canAdjustTime:
+      resolvedType === 'private' && canCancelOrAdjustSession(sessionStatus),
     statusLabel: resolveBookingStatusLabel(item),
     timeText: formatNextBookingTimeText(item),
     title: resolveCourseName(item),
@@ -402,6 +423,7 @@ export function mapNextBookingCard(
     stationName: resolveStationName(item) || '服务站',
     tipText: courseType === 'online' ? '请提前进入直播间' : '请提前10分钟到店',
     avatarUri: resolveCoverUri(item),
+    ...(coachSex ? { coachSex } : {}),
   };
 }
 
@@ -412,6 +434,7 @@ export function mapFollowBookingCard(
   const sessionId = resolveSessionId(item);
   if (!bookingId || !sessionId) return null;
   const courseType = String(resolveCourseType(item) || 'private');
+  const coachSex = resolveCoachSex(item);
   return {
     key: bookingId,
     bookingId,
@@ -422,6 +445,7 @@ export function mapFollowBookingCard(
     title: resolveCourseName(item),
     coachMeta: formatCoachMeta(item),
     coverUri: resolveCoverUri(item),
+    ...(coachSex ? { coachSex } : {}),
   };
 }
 
