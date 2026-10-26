@@ -7,7 +7,9 @@ import {
   canPressTrainingAction,
   formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
+  isCertUnlockPending,
   isTrainingActionCompleted,
+  resolveTrainingActionButtonIconSource,
   shouldShowTrainingActionIcon,
   type MainTrainingPlayCard,
   type TrainingActionDateMode,
@@ -75,6 +77,11 @@ function ActionRow({
   const actionText = formatTrainingActionButtonText(item, { dateMode });
   const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
   const actionPressable = canPressTrainingAction(item, dateMode, { readOnly, disablePlayer });
+  const certPending = isCertUnlockPending(item);
+  // 待认证：家属/历史只读、非今日（含过往）置灰；本人今日不置灰
+  const muteAction = !actionPressable && (
+    !certPending || readOnly || disablePlayer || dateMode !== 'today'
+  );
 
   return (
     <View style={[styles.todayActionCard, isFirst ? styles.todayActionCardFirst : null]}>
@@ -96,19 +103,23 @@ function ActionRow({
             align="center"
             style={[
               styles.todayActionBtn,
-              !actionPressable ? { opacity: 0.45 } : null,
+              certPending ? styles.todayActionBtnCertPending : null,
+              muteAction ? { opacity: 0.45 } : null,
             ]}>
             {showActionIcon ? (
               <Image
                 style={styles.todayActionBtnIcon}
-                source={
-                  actionCompleted
-                    ? require('@/assets/images/exercise/icon_wc.png')
-                    : require('@/assets/images/exercise/icon_jsq.png')
-                }
+                source={resolveTrainingActionButtonIconSource(item, actionCompleted)}
               />
             ) : null}
-            <Text style={styles.todayActionBtnText}>{actionText}</Text>
+            <Text
+              style={[
+                styles.todayActionBtnText,
+                certPending ? styles.todayActionBtnTextCertPending : null,
+              ]}
+            >
+              {actionText}
+            </Text>
           </Flex>
         </TouchableOpacity>
       </Flex>

@@ -12,8 +12,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import moment from 'moment';
 import styles from '@/css/exercise';
+import type { RootState } from '@/store/store';
 import {
     getExUserSignInfo,
     type ExUserSignInfo,
@@ -61,6 +63,7 @@ import {
     formatTrainingPhaseSubtitle,
     getCooldownColdList,
     getWarmupHotList,
+    isCertUnlockActionUnlocked,
     isMainTrainingAllProgressStarted,
     isTrainingPhaseAllPlayed,
     type MainTrainingPlayCard,
@@ -94,6 +97,11 @@ type Props = {
     patientUserId?: string;
     /** 历史计划：锁定当前处方，不可进播放页 */
     lockToRule?: boolean;
+    /**
+     * 认证解锁状态覆盖（家属视角传家人的 getInfo.user.certUnlockActionUnlocked）
+     * 不传则用登录人 systemUser
+     */
+    certUnlockActionUnlocked?: number | null;
 };
 
 const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
@@ -101,9 +109,20 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
     forceReadOnly = false,
     patientUserId,
     lockToRule = false,
+    certUnlockActionUnlocked: certUnlockOverride,
 }, ref) {
     const navigation = useNavigation<Nav>();
     const insets = useSafeAreaInsets();
+    /** 本人：systemUser；家属视角：用传入的家人状态 */
+    const selfCertUnlockRaw = useSelector(
+        (s: RootState) => s.user.systemUser?.certUnlockActionUnlocked,
+    );
+    const certUnlockActionUnlocked = isCertUnlockActionUnlocked(
+        patientUserId
+            ? (certUnlockOverride ?? 0)
+            : selfCertUnlockRaw,
+    );
+    const showCertUnlockTip = !certUnlockActionUnlocked;
     const [selectedDate, setSelectedDate] = useState(() =>
         lockToRule ? resolveLockedExerciseViewDate(exerciseRule) : moment().format('YYYY-MM-DD'),
     );
@@ -227,7 +246,11 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
         rule?: InUseExPatientRule | null,
     ) => {
         try {
-            const result = await buildMainTrainingModules(rule, date, patientUserId);
+            const result = await buildMainTrainingModules(rule, date, patientUserId, {
+                certUnlockActionUnlocked: patientUserId
+                    ? (certUnlockOverride ?? 0)
+                    : selfCertUnlockRaw,
+            });
             if (result.isRest || result.isPostponedAway) {
                 setMainAllProgressed(false);
                 setMainPlayCards([]);
@@ -239,7 +262,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             setMainAllProgressed(false);
             setMainPlayCards([]);
         }
-    }, [patientUserId]);
+    }, [certUnlockOverride, patientUserId, selfCertUnlockRaw]);
 
     const loadWarmupProgress = useCallback(async (
         date: string,
@@ -254,6 +277,9 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             const cards = await buildTrainingPhaseCards(hotList, undefined, {
                 defaultThumbKey: 'hot',
                 actionType: 'home',
+                certUnlockActionUnlocked: patientUserId
+                    ? (certUnlockOverride ?? 0)
+                    : selfCertUnlockRaw,
             });
             const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
                 exPatientRuleId: rule?.exPatientRuleId,
@@ -265,7 +291,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
         } catch {
             setWarmupCards([]);
         }
-    }, [patientUserId]);
+    }, [certUnlockOverride, patientUserId, selfCertUnlockRaw]);
 
     const loadCooldownProgress = useCallback(async (
         date: string,
@@ -280,6 +306,9 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             const cards = await buildTrainingPhaseCards(coldList, undefined, {
                 defaultThumbKey: 'cold',
                 actionType: 'home',
+                certUnlockActionUnlocked: patientUserId
+                    ? (certUnlockOverride ?? 0)
+                    : selfCertUnlockRaw,
             });
             const withInfo = await attachTrainingPhaseCompleteInfo(cards, {
                 exPatientRuleId: rule?.exPatientRuleId,
@@ -291,7 +320,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
         } catch {
             setCooldownCards([]);
         }
-    }, [patientUserId]);
+    }, [certUnlockOverride, patientUserId, selfCertUnlockRaw]);
 
     const loadSignInfo = useCallback(async () => {
         try {
@@ -343,6 +372,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                 cancelled = true;
             };
         }, [
+            certUnlockActionUnlocked,
             exerciseRule,
             loadDayRule,
             loadDayStat,
@@ -772,6 +802,12 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                     emptyText={todayActionsEmptyMeta.emptyText}
                     onPressItem={onPressTodayAction}
                 />
+
+                <Flex justify="center" align="center" style={[styles.planListFooter, { marginTop: 30 }]}>
+                    {/* <View style={styles.planListFooterLine} /> */}
+                    <Text style={styles.planListFooterText}>到店练习后可解锁待认证动作</Text>
+                    {/* <View style={styles.planListFooterLine} /> */}
+                </Flex>
             </ScrollView>
 
             {bottomAction ? (

@@ -120,19 +120,44 @@ export function formatPilatesProfile(result: PilatesResult | null | undefined) {
   };
 }
 
+/**
+ * 结果列：只展示冒号后的值
+ * - 「姿势与排列评估：3」→ 3
+ * - 「NRS：9 已有诊断：是」→ 9、是
+ */
+function formatPilatesScoreResultValue(item: PilatesDimensionScore) {
+  const raw = text(item.result);
+  if (!raw) {
+    return '--';
+  }
+  const parts = [...raw.matchAll(/[^：:\s]+[：:]\s*([^：:\s]+)/g)]
+    .map(match => text(match[1]))
+    .filter(Boolean);
+  if (parts.length) {
+    return parts.join('、');
+  }
+  return raw;
+}
+
 export function formatPilatesScoreRows(result: PilatesResult | null | undefined) {
   const rows = Array.isArray(result?.dimensionScores) ? result!.dimensionScores! : [];
   return rows.map((item: PilatesDimensionScore, index) => {
     const score = numOrNull(item.score);
     const visual = score == null ? 0 : Math.min(SCORE_MAX, Math.max(0, score));
+    const resultFull = text(item.result);
+    const resultValue = formatPilatesScoreResultValue(item);
     return {
       key: text(item.dimension) || `dim-${index}`,
       title: dimensionTitle(item.dimension),
       subtitle: text(item.tip),
       visual,
-      result: score == null ? '--' : String(score),
+      /** 列表缩略：3 / 9、是 */
+      result: resultValue,
+      /** 弹窗全文：姿势与排列评估：3 / NRS：9 已有诊断：是 */
+      resultFull: resultFull || resultValue,
+      /** 有标签全文时，点击结果列可看完整内容 */
+      resultClickable: Boolean(resultFull) && resultFull !== resultValue,
       score: score == null ? '--' : String(score),
-      resultDetail: text(item.result),
       defect: Boolean(item.defect),
     };
   });
@@ -262,7 +287,7 @@ export function formatPilatesRemark(detail: CommunityScreenReportDetail | null |
   };
 }
 
-export function resolvePilatesScoreVisualWidth(visual: number, barWidth = 86) {
+export function resolvePilatesScoreVisualWidth(visual: number, barWidth = 64) {
   const ratio = Math.min(SCORE_MAX, Math.max(0, visual)) / SCORE_MAX;
   return Math.round(barWidth * ratio);
 }

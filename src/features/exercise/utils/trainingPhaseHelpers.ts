@@ -15,6 +15,7 @@ import type {
   ExWeekTrainingSchedule,
 } from '@/api/exPatientRule';
 import type { InUseExPatientRule } from '@/api/schedule';
+import store from '@/store/store';
 import { EXERCISE_TYPE_META, getPrescribedExerciseTypeKeys, type ExerciseTypeKey } from './prescriptionHelpers';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
 import {
@@ -74,6 +75,10 @@ export type TrainingPhaseExerciseCard = {
   groupCounts: number[];
   /** 当日该视频累计锻炼分钟 */
   completedMinutes: number;
+  /** 接口原始 actionType（home / in_store / cert_unlock） */
+  actionType?: string;
+  /** 认证解锁组且未解锁：列表展示锁 +「待认证」，不可练习 */
+  certPending?: boolean;
 };
 
 export type MainTrainingTypeModule = {
@@ -208,10 +213,53 @@ export function resolveNextIncompleteGroupNo(card: TrainingPhaseExerciseCard) {
   return null;
 }
 
+/** 接口原始 actionType 是否为认证解锁组 */
+export function isExVideoCertUnlock(actionType?: string | null) {
+  const raw = String(actionType ?? '').trim().toLowerCase().replace(/-/g, '_');
+  return raw === 'cert_unlock' || raw === 'certunlock';
+}
+
+/** 用户详情：认证解锁动作是否已有权限练习（1=已解锁） */
+export function isCertUnlockActionUnlocked(value?: number | boolean | null) {
+  return Number(value) === 1 || value === true;
+}
+
+/** 优先入参，否则取 getInfo → systemUser.certUnlockActionUnlocked */
+export function resolveCertUnlockActionUnlocked(
+  override?: number | boolean | null,
+) {
+  if (override !== undefined && override !== null) {
+    return isCertUnlockActionUnlocked(override);
+  }
+  return isCertUnlockActionUnlocked(
+    store.getState().user.systemUser?.certUnlockActionUnlocked,
+  );
+}
+
+/** 列表项：认证解锁组且当前未解锁 */
+export function isCertUnlockPending(card: Pick<TrainingPhaseExerciseCard, 'certPending'>) {
+  return Boolean(card.certPending);
+}
+
+/** 右侧按钮图标：待认证用锁，否则完成/开始 */
+export function resolveTrainingActionButtonIconSource(
+  card: TrainingPhaseExerciseCard,
+  actionCompleted: boolean,
+): ImageSourcePropType {
+  if (isCertUnlockPending(card)) {
+    return require('@/assets/images/exercise/icon_lock.png');
+  }
+  return actionCompleted
+    ? require('@/assets/images/exercise/icon_wc.png')
+    : require('@/assets/images/exercise/icon_jsq.png');
+}
+
 export function formatTrainingActionButtonText(
   card: TrainingPhaseExerciseCard,
   options?: { dateMode?: TrainingActionDateMode },
 ) {
+  if (isCertUnlockPending(card)) return '待认证';
+
   const dateMode = options?.dateMode ?? 'today';
 
   // 未来：展示「开始」，由列表侧禁用点击
@@ -253,6 +301,7 @@ export function canPressTrainingAction(
   dateMode: TrainingActionDateMode = 'today',
   options?: { readOnly?: boolean; disablePlayer?: boolean },
 ) {
+  if (isCertUnlockPending(card)) return false;
   if (options?.disablePlayer) return false;
   if (options?.readOnly && dateMode === 'today') {
     return isTrainingActionCompleted(card);
@@ -293,9 +342,11 @@ export function isTrainingActionProgressStarted(card: TrainingPhaseExerciseCard)
   return (card.completedGroups ?? []).length > 0;
 }
 
-/** 主训练全部项目均至少有进度（半完成即可参与今日打卡） */
+/** 主训练全部项目均至少有进度（半完成即可参与今日打卡；待认证项不计入） */
 export function isMainTrainingAllProgressStarted(modules: MainTrainingTypeModule[]) {
-  const cards = (modules ?? []).flatMap(module => module.cards ?? []);
+  const cards = (modules ?? [])
+    .flatMap(module => module.cards ?? [])
+    .filter(card => !isCertUnlockPending(card));
   if (cards.length === 0) return false;
   return cards.every(isTrainingActionProgressStarted);
 }
@@ -306,6 +357,8 @@ export function isMainTrainingAllProgressStarted(modules: MainTrainingTypeModule
  * - 组别：每一组都提交过（次数>0 或已标记完成）→ 跳过；否则进入该项继续未完成组
  */
 export function isTrainingPhaseItemSkipable(card: TrainingPhaseExerciseCard) {
+  // 未解锁认证动作：自动连播时跳过
+  if (isCertUnlockPending(card)) return true;
   if (card.timerType === 'duration_min') {
     return Math.max(0, Math.round(Number(card.completedMinutes) || 0)) > 0;
   }
@@ -366,11 +419,12 @@ export function flattenMainTrainingPlayCards(
   );
 }
 
-/** 计时/组别进度文案不显示 icon，开始/完成才显示 */
+/** 计时/组别进度文案不显示 icon，开始/完成/待认证才显示 */
 export function shouldShowTrainingActionIcon(
   card: TrainingPhaseExerciseCard,
   options?: { dateMode?: TrainingActionDateMode },
 ) {
+  if (isCertUnlockPending(card)) return true;
   const dateMode = options?.dateMode ?? 'today';
   if (dateMode === 'future') return true;
   if (isTrainingActionCompleted(card)) return true;
@@ -509,7 +563,7 @@ async function fetchVideoInfo(exVideoId: string): Promise<ExVideoInfo | null> {
 /**
  * 根据视频 actionType 归类居家 / 到店：
  * - in_store → 到店
- * - home / cert_unlock（认证解锁组暂按居家）/ 空 / 未知 → 居家
+ * - home / cert_unlock（认证解锁组归居家）/ 空 / 未知 → 居家
  */
 export function resolveExVideoActionType(actionType?: string | null): ExVideoActionType {
   const raw = String(actionType ?? '').trim().toLowerCase().replace(/-/g, '_');
@@ -604,6 +658,8 @@ export async function buildTrainingPhaseCards(
     defaultThumbKey?: string | null;
     /** 按视频 actionType 过滤；默认不过滤 */
     actionType?: ExVideoActionType;
+    /** 覆盖用户详情中的认证解锁状态（默认读 systemUser） */
+    certUnlockActionUnlocked?: number | boolean | null;
   },
 ): Promise<TrainingPhaseExerciseCard[]> {
   const list = items ?? [];
@@ -611,6 +667,7 @@ export async function buildTrainingPhaseCards(
 
   const defaultThumb = resolveDefaultTrainingThumb(options?.defaultThumbKey);
   const actionFilter = options?.actionType;
+  const certUnlocked = resolveCertUnlockActionUnlocked(options?.certUnlockActionUnlocked);
 
   const [videos, labelMap] = await Promise.all([
     Promise.all(
@@ -636,6 +693,7 @@ export async function buildTrainingPhaseCards(
     ) {
       return [];
     }
+    const actionTypeRaw = String(resolvedActionType ?? '').trim();
     const exVideoId = item.exVideoId != null ? String(item.exVideoId) : `idx-${index}`;
     const coverUrl = video?.coverOssUrl?.trim();
     const bodyPartText = formatBodyPartText(resolveExVideoBodyPartKeys(video), labelMap);
@@ -665,6 +723,8 @@ export async function buildTrainingPhaseCards(
       completedGroups: [],
       groupCounts: [],
       completedMinutes: 0,
+      actionType: actionTypeRaw || undefined,
+      certPending: isExVideoCertUnlock(actionTypeRaw) && !certUnlocked,
     }];
   });
 }
@@ -870,6 +930,7 @@ export async function buildMainTrainingModules(
   rule: InUseExPatientRule | null | undefined,
   customerLocalDate: string,
   patientUserId?: string | number | null,
+  options?: { certUnlockActionUnlocked?: number | boolean | null },
 ): Promise<{ isRest: boolean; isPostponedAway: boolean; modules: MainTrainingTypeModule[] }> {
   const { isRest, isPostponedAway, schedule } = getDaySchedulePhase(rule, customerLocalDate);
   if (isRest || isPostponedAway) return { isRest, isPostponedAway, modules: [] };
@@ -902,6 +963,7 @@ export async function buildMainTrainingModules(
     const baseCards = await buildTrainingPhaseCards(items, bodyPartLabelMap, {
       defaultThumbKey: typeKey,
       actionType: 'home',
+      certUnlockActionUnlocked: options?.certUnlockActionUnlocked,
     });
     if (!baseCards.length) continue;
     const cards = await attachTrainingPhaseCompleteInfo(baseCards, {

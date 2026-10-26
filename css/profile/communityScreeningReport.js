@@ -195,13 +195,13 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   scoreColVisual: {
-    width: 86,
+    width: 64,
     alignItems: 'flex-start',
     justifyContent: 'center',
     flexShrink: 0,
   },
   scoreColResult: {
-    width: 32,
+    width: 54,
     textAlign: 'left',
     flexShrink: 0,
   },
@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     color: '#999999',
   },
   scoreBarTrack: {
-    width: 86,
+    width: 64,
     height: 4,
     backgroundColor: '#F5F5F5',
     borderRadius: 535,

@@ -11,17 +11,21 @@ import {
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import type { ExRecordTrainingPhase } from '@/api/exRecord';
 import styles from '@/css/exercise';
 import type { InUseExPatientRule } from '@/api/schedule';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import {
   attachTrainingPhaseCompleteInfo,
   buildTrainingPhaseCards,
   canPressTrainingAction,
   formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
+  isCertUnlockPending,
   isTrainingActionCompleted,
+  resolveTrainingActionButtonIconSource,
   shouldShowTrainingActionIcon,
   sumTrainingPhaseMinutes,
   type TrainingActionDateMode,
@@ -74,6 +78,9 @@ export default function TrainingPhaseListPanel({
   patientUserId,
 }: Props) {
   const navigation = useNavigation<Nav>();
+  const certUnlockActionUnlocked = useSelector(
+    (s: RootState) => s.user.systemUser?.certUnlockActionUnlocked,
+  );
   const [bannerWidth, setBannerWidth] = useState(0);
   const [cards, setCards] = useState<TrainingPhaseExerciseCard[]>([]);
   const [loading, setLoading] = useState(true);
@@ -132,7 +139,7 @@ export default function TrainingPhaseListPanel({
       return () => {
         cancelled = true;
       };
-    }, [config, dayRule, patientUserId, selectedDate]),
+    }, [certUnlockActionUnlocked, config, dayRule, patientUserId, selectedDate]),
   );
 
   const handleLayout = (event: LayoutChangeEvent) => {
@@ -226,6 +233,10 @@ export default function TrainingPhaseListPanel({
           const actionText = formatTrainingActionButtonText(item, { dateMode });
           const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
           const actionPressable = canPressTrainingAction(item, dateMode, { readOnly, disablePlayer });
+          const certPending = isCertUnlockPending(item);
+          const muteAction = !actionPressable && (
+            !certPending || readOnly || disablePlayer || dateMode !== 'today'
+          );
           return (
             <View key={item.key} style={styles.trainingExerciseCard}>
               <Flex align="center">
@@ -246,19 +257,23 @@ export default function TrainingPhaseListPanel({
                     align="center"
                     style={[
                       styles.mainTrainingActionTimer,
-                      !actionPressable ? { opacity: 0.45 } : null,
+                      certPending ? styles.mainTrainingActionTimerCertPending : null,
+                      muteAction ? { opacity: 0.45 } : null,
                     ]}>
                     {showActionIcon ? (
                       <Image
                         style={styles.mainTrainingActionTimerIcon}
-                        source={
-                          actionCompleted
-                            ? require('@/assets/images/exercise/icon_wc.png')
-                            : require('@/assets/images/exercise/icon_jsq.png')
-                        }
+                        source={resolveTrainingActionButtonIconSource(item, actionCompleted)}
                       />
                     ) : null}
-                    <Text style={styles.mainTrainingActionTimerText}>{actionText}</Text>
+                    <Text
+                      style={[
+                        styles.mainTrainingActionTimerText,
+                        certPending ? styles.mainTrainingActionTimerTextCertPending : null,
+                      ]}
+                    >
+                      {actionText}
+                    </Text>
                   </Flex>
                 </TouchableOpacity>
               </Flex>

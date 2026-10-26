@@ -1,4 +1,5 @@
 import request from '@/utils/axios';
+import { withPatientUserIdHeaders } from '@/src/utils/apiHelpers';
 
 export type SystemUserRole = {
   roleId?: number;
@@ -75,6 +76,13 @@ export type SystemUser = {
   onlineClassWeeklyLimit?: number;
   /** 权益备注（如计划名称、体验内容） */
   benefitRemark?: string;
+  /** 是否允许开运动处方 0.不允许 1.允许（默认 0） */
+  allowExPrescription?: number;
+  /**
+   * 认证解锁动作是否有权限练习
+   * 0.未解锁 1.已解锁（默认 0）
+   */
+  certUnlockActionUnlocked?: number;
 };
 
 export type UserExtr = {
@@ -121,7 +129,10 @@ type UserInfoResponse = {
   data?: UserInfoData;
 };
 
-export const getUserInfo = () => request.get<UserInfoResponse>('/system/user/getInfo');
+export const getUserInfo = (options?: { patientUserId?: string | number | null }) =>
+  request.get<UserInfoResponse>('/system/user/getInfo', {
+    headers: withPatientUserIdHeaders(options?.patientUserId),
+  });
 
 export type UpdateExtrInfoPayload = {
   language?: string;

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -11,17 +11,19 @@ import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSelector } from 'react-redux';
 import BottomSheetModal from '@/src/components/BottomSheetModal';
 import type { ServiceStationItem } from '@/api/serviceStation';
 import { AppTheme } from '@/common/theme';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import styles from '@/css/curriculum/serviceStation';
 import {
   fetchEnabledServiceStations,
   formatServiceStationName,
-  loadSelectedServiceStation,
+  getSessionSelectedServiceStation,
   resolveInitialServiceStation,
-  saveSelectedServiceStation,
+  setSessionSelectedServiceStation,
   toServiceStationId,
   type SelectedServiceStation,
 } from '../utils/serviceStationHelpers';
@@ -34,16 +36,30 @@ type Props = {
 export default function ServiceStationHeader({ onStationChange }: Props) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
+  // 所属服务站在 systemUser 上（非 userExtr）
+  const belongingStationId = useSelector(
+    (state: RootState) => state.user.systemUser?.stationId,
+  );
+  const belongingStationName = useSelector(
+    (state: RootState) => state.user.systemUser?.stationName,
+  );
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(true);
   const [listLoading, setListLoading] = useState(false);
   const [stations, setStations] = useState<ServiceStationItem[]>([]);
   const [selected, setSelected] = useState<SelectedServiceStation | null>(null);
+  const stationsRef = useRef<ServiceStationItem[]>([]);
+  const selectedRef = useRef<SelectedServiceStation | null>(null);
+  const belongingStationIdRef = useRef(belongingStationId);
+  const belongingStationNameRef = useRef(belongingStationName);
+  belongingStationIdRef.current = belongingStationId;
+  belongingStationNameRef.current = belongingStationName;
 
   const applyStation = useCallback(
-    async (item: ServiceStationItem | null) => {
+    (item: ServiceStationItem | null, options?: { rememberSession?: boolean }) => {
       if (!item) {
         setSelected(null);
+        selectedRef.current = null;
         onStationChange?.(null);
         return;
       }
@@ -53,8 +69,11 @@ export default function ServiceStationHeader({ onStationChange }: Props) {
       };
       if (!next.stationId) return;
       setSelected(next);
+      selectedRef.current = next;
       onStationChange?.(next);
-      await saveSelectedServiceStation(next);
+      if (options?.rememberSession) {
+        setSessionSelectedServiceStation(next);
+      }
     },
     [onStationChange],
   );
@@ -62,14 +81,17 @@ export default function ServiceStationHeader({ onStationChange }: Props) {
   const loadStations = useCallback(async () => {
     setListLoading(true);
     try {
-      const [saved, list] = await Promise.all([
-        loadSelectedServiceStation(),
-        fetchEnabledServiceStations(),
-      ]);
+      const list = await fetchEnabledServiceStations();
+      stationsRef.current = list;
       setStations(list);
-      const initial = resolveInitialServiceStation(list, saved);
-      await applyStation(initial);
+      const initial = resolveInitialServiceStation(list, {
+        belongingStationId: belongingStationIdRef.current,
+        belongingStationName: belongingStationNameRef.current,
+        session: getSessionSelectedServiceStation(),
+      });
+      applyStation(initial);
     } catch {
+      stationsRef.current = [];
       setStations([]);
     } finally {
       setLoading(false);
@@ -77,9 +99,28 @@ export default function ServiceStationHeader({ onStationChange }: Props) {
     }
   }, [applyStation]);
 
+  // 仅挂载时拉列表；切 Tab 不重新初始化选中站
   useEffect(() => {
     void loadStations();
   }, [loadStations]);
+
+  // 所属站异步到达且用户未手动切换时，补齐为所属站（不覆盖会话内切换）
+  useEffect(() => {
+    const belongingId =
+      belongingStationId != null ? String(belongingStationId).trim() : '';
+    if (!belongingId) return;
+    if (getSessionSelectedServiceStation()) return;
+    if (selectedRef.current?.stationId === belongingId) return;
+    const matched = stationsRef.current.find(
+      item => toServiceStationId(item) === belongingId,
+    );
+    applyStation(
+      matched ?? {
+        stationId: belongingId,
+        stationName: belongingStationName?.trim() || '选择服务站',
+      },
+    );
+  }, [applyStation, belongingStationId, belongingStationName]);
 
   const openPicker = useCallback(() => {
     setVisible(true);
@@ -94,7 +135,7 @@ export default function ServiceStationHeader({ onStationChange }: Props) {
 
   const onSelect = useCallback(
     (item: ServiceStationItem) => {
-      void applyStation(item);
+      applyStation(item, { rememberSession: true });
       setVisible(false);
     },
     [applyStation],

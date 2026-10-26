@@ -7,7 +7,7 @@ import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import styles from '@/css/exercise';
 import type { AppDispatch, RootState } from '@/store/store';
-import { fetchUserBaseInfo } from '@/store/actions/user';
+import { fetchUserBaseInfo, fetchUserInfo } from '@/store/actions/user';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { formatExerciseUserInfoText, normalizeExPatientRuleInfo } from './utils/exerciseHelpers';
 import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
@@ -17,7 +17,9 @@ import InStoreRehabPage from './components/InStoreRehabPage';
 import type { InUseExPatientRule } from '@/api/schedule';
 import { getExPatientRuleInfo, getInUseExPatientRuleInfo, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
+import { getUserInfo } from '@/api/user';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { isCertUnlockActionUnlocked } from './utils/trainingPhaseHelpers';
 import { AppTheme } from '@/common/theme';
 import { isUserBaseInfoComplete } from '@/src/features/profile/healthRecord/utils/profileCompletenessHelpers';
 import CompleteProfileLink from '@/src/features/profile/healthRecord/components/CompleteProfileLink';
@@ -43,7 +45,6 @@ import {
   isExerciseRulePaused,
   type ExerciseHistoryTip,
 } from './utils/exercisePauseTipHelpers';
-
 type ExerciseNavKey = 'homeTraining' | 'prescription' | 'inStoreRehab';
 
 type Route = RouteProp<RootStackParamList, 'ExercisePage'>;
@@ -66,6 +67,8 @@ export default function ExercisePage() {
   const userExtr = useSelector((s: RootState) => s.user.userExtr);
   const familyList = useSelector((s: RootState) => s.family.list);
   const [familyUser, setFamilyUser] = useState<UserBaseInfo | null>(null);
+  /** 家属视角：家人 getInfo.user.certUnlockActionUnlocked */
+  const [familyCertUnlockActionUnlocked, setFamilyCertUnlockActionUnlocked] = useState<number | null>(null);
   const [trainingGoalLabelMap, setTrainingGoalLabelMap] = useState<Record<string, string>>({});
   const familyFromStore = useMemo(() => {
     if (!patientUserId) return null;
@@ -214,13 +217,41 @@ export default function ExercisePage() {
     }
   }, [exPatientRuleId, isFamilyView, patientUserId]);
 
+  /** 家属视角拉取家人认证解锁状态（勿用登录人 systemUser） */
+  const loadFamilyCertUnlock = useCallback(async () => {
+    if (!isFamilyView || !patientUserId) {
+      setFamilyCertUnlockActionUnlocked(null);
+      return;
+    }
+    try {
+      const res = await getUserInfo({ patientUserId });
+      if (!isResourceApiOk(res as unknown as { code?: number })) {
+        setFamilyCertUnlockActionUnlocked(0);
+        return;
+      }
+      const data = apiResourceData<{ user?: { certUnlockActionUnlocked?: number } }>(
+        res as unknown as never,
+      );
+      setFamilyCertUnlockActionUnlocked(
+        isCertUnlockActionUnlocked(data?.user?.certUnlockActionUnlocked) ? 1 : 0,
+      );
+    } catch {
+      setFamilyCertUnlockActionUnlocked(0);
+    }
+  }, [isFamilyView, patientUserId]);
+
   useFocusEffect(
     useCallback(() => {
       if (!isFamilyView) {
+        // getInfo 含 certUnlockActionUnlocked，与处方一并刷新
+        void dispatch(fetchUserInfo());
         void dispatch(fetchUserBaseInfo());
+        setFamilyCertUnlockActionUnlocked(null);
+      } else {
+        void loadFamilyCertUnlock();
       }
       void loadExerciseRule({ silent: hasLoadedRef.current });
-    }, [dispatch, loadExerciseRule, isFamilyView]),
+    }, [dispatch, loadExerciseRule, isFamilyView, loadFamilyCertUnlock]),
   );
 
   useEffect(() => {
@@ -303,7 +334,13 @@ export default function ExercisePage() {
   const onPressNav = useCallback((key: ExerciseNavKey) => {
     setActiveNav(key);
     setMountedTabs(prev => (prev[key] ? prev : { ...prev, [key]: true }));
-  }, []);
+    // 切换 tab 刷新认证解锁（教练端解锁后无需退出再进）
+    if (!isFamilyView) {
+      void dispatch(fetchUserInfo());
+    } else {
+      void loadFamilyCertUnlock();
+    }
+  }, [dispatch, isFamilyView, loadFamilyCertUnlock]);
 
   const openExerciseDatePicker = useCallback(() => {
     if (!exerciseRule) {
@@ -500,6 +537,9 @@ export default function ExercisePage() {
                     forceReadOnly={readOnly}
                     lockToRule={Boolean(exPatientRuleId)}
                     patientUserId={patientUserId}
+                    certUnlockActionUnlocked={
+                      patientUserId ? familyCertUnlockActionUnlocked : undefined
+                    }
                   />
                 </View>
               ) : null}

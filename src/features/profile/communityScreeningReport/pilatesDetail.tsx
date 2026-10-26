@@ -5,6 +5,8 @@ import {
   Image,
   ScrollView,
   ActivityIndicator,
+  TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -186,9 +188,19 @@ export default function CommunityScreeningReportPilatesDetailPage({ route }: Pro
                         <View style={[styles.scoreBarFill, { width: fillWidth }]} />
                       </View>
                     </View>
-                    <Text style={[styles.scoreResultText, styles.scoreColResult]}>
-                      {row.result}
-                    </Text>
+                    <TouchableOpacity
+                      style={styles.scoreColResult}
+                      activeOpacity={row.resultClickable ? 0.7 : 1}
+                      disabled={!row.resultClickable}
+                      onPress={() => {
+                        if (!row.resultClickable || !row.resultFull) return;
+                        Alert.alert(row.title || '结果', row.resultFull, [
+                          { text: '知道了' },
+                        ]);
+                      }}
+                    >
+                      <Text style={styles.scoreResultText}>{row.result}</Text>
+                    </TouchableOpacity>
                     <Text style={[styles.scoreValueText, styles.scoreColScore]}>
                       {row.score}
                     </Text>

@@ -4,9 +4,11 @@ import { Flex } from '@ant-design/react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
 import styles from '@/css/exercise';
 import type { InUseExPatientRule } from '@/api/schedule';
 import type { RootStackParamList } from '@/route/router';
+import type { RootState } from '@/store/store';
 import GroupCountTags from './GroupCountTags';
 import {
   buildMainTrainingModules,
@@ -14,7 +16,9 @@ import {
   formatMainTrainingFittTipLines,
   formatTrainingActionButtonText,
   formatTrainingPhaseSubtitle,
+  isCertUnlockPending,
   isTrainingActionCompleted,
+  resolveTrainingActionButtonIconSource,
   shouldShowTrainingActionIcon,
   type MainTrainingTypeModule,
   type TrainingActionDateMode,
@@ -65,6 +69,10 @@ function ActionCardRow({
   const actionText = formatTrainingActionButtonText(card, { dateMode });
   const showActionIcon = shouldShowTrainingActionIcon(card, { dateMode });
   const actionPressable = canPressTrainingAction(card, dateMode, { readOnly, disablePlayer });
+  const certPending = isCertUnlockPending(card);
+  const muteAction = !actionPressable && (
+    !certPending || readOnly || disablePlayer || dateMode !== 'today'
+  );
 
   return (
     <View style={styles.mainTrainingActionRow}>
@@ -86,19 +94,23 @@ function ActionCardRow({
             align="center"
             style={[
               styles.mainTrainingActionTimer,
-              !actionPressable ? { opacity: 0.45 } : null,
+              certPending ? styles.mainTrainingActionTimerCertPending : null,
+              muteAction ? { opacity: 0.45 } : null,
             ]}>
             {showActionIcon ? (
               <Image
                 style={styles.mainTrainingActionTimerIcon}
-                source={
-                  actionCompleted
-                    ? require('@/assets/images/exercise/icon_wc.png')
-                    : require('@/assets/images/exercise/icon_jsq.png')
-                }
+                source={resolveTrainingActionButtonIconSource(card, actionCompleted)}
               />
             ) : null}
-            <Text style={styles.mainTrainingActionTimerText}>{actionText}</Text>
+            <Text
+              style={[
+                styles.mainTrainingActionTimerText,
+                certPending ? styles.mainTrainingActionTimerTextCertPending : null,
+              ]}
+            >
+              {actionText}
+            </Text>
           </Flex>
         </TouchableOpacity>
       </Flex>
@@ -183,6 +195,9 @@ export default function MainTrainingPhase({
   patientUserId,
 }: Props) {
   const navigation = useNavigation<Nav>();
+  const certUnlockActionUnlocked = useSelector(
+    (s: RootState) => s.user.systemUser?.certUnlockActionUnlocked,
+  );
   const [loading, setLoading] = useState(true);
   const [isRest, setIsRest] = useState(false);
   const [isPostponedAway, setIsPostponedAway] = useState(false);
@@ -215,7 +230,7 @@ export default function MainTrainingPhase({
       return () => {
         cancelled = true;
       };
-    }, [dayRule, patientUserId, selectedDate]),
+    }, [certUnlockActionUnlocked, dayRule, patientUserId, selectedDate]),
   );
 
   const openPlayer = (exerciseType: string, card?: TrainingPhaseExerciseCard) => {

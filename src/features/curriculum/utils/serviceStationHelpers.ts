@@ -12,6 +12,17 @@ export type SelectedServiceStation = {
   stationName: string;
 };
 
+/** 登录会话内手动切换的服务站（切 Tab 保留；退出登录清除） */
+let sessionSelectedStation: SelectedServiceStation | null = null;
+
+export function getSessionSelectedServiceStation(): SelectedServiceStation | null {
+  return sessionSelectedStation;
+}
+
+export function setSessionSelectedServiceStation(station: SelectedServiceStation | null) {
+  sessionSelectedStation = station;
+}
+
 export function formatServiceStationName(item?: ServiceStationItem | null) {
   const name = item?.stationName?.trim();
   return name || '选择服务站';
@@ -49,6 +60,16 @@ export async function saveSelectedServiceStation(station: SelectedServiceStation
   );
 }
 
+/** 退出登录时清除会话与本地缓存，重登后回到所属站 */
+export async function clearSelectedServiceStation() {
+  sessionSelectedStation = null;
+  try {
+    await AsyncStorage.removeItem(SELECTED_STATION_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 /** 拉取启用中的服务站列表（默认拉一页足够切换使用） */
 export async function fetchEnabledServiceStations(options?: {
   searchWords?: string;
@@ -64,15 +85,43 @@ export async function fetchEnabledServiceStations(options?: {
   return getResourceRows(res);
 }
 
+/**
+ * 初始化选中服务站：
+ * 1. 会话内手动切换（切 Tab 不丢）
+ * 2. 用户所属站（首次进入 / 退出重登）
+ * 3. 列表第一项
+ */
 export function resolveInitialServiceStation(
   list: ServiceStationItem[],
-  saved?: SelectedServiceStation | null,
+  options?: {
+    belongingStationId?: string | number | null;
+    belongingStationName?: string | null;
+    session?: SelectedServiceStation | null;
+  },
 ): ServiceStationItem | null {
-  if (list.length === 0) return null;
-  const savedId = saved?.stationId?.trim();
-  if (savedId) {
-    const matched = list.find(item => toServiceStationId(item) === savedId);
+  const sessionId = options?.session?.stationId?.trim();
+  if (sessionId) {
+    const matched = list.find(item => toServiceStationId(item) === sessionId);
     if (matched) return matched;
+    return {
+      stationId: sessionId,
+      stationName: options?.session?.stationName?.trim() || '选择服务站',
+    };
   }
+
+  const belongingId =
+    options?.belongingStationId != null
+      ? String(options.belongingStationId).trim()
+      : '';
+  if (belongingId) {
+    const matched = list.find(item => toServiceStationId(item) === belongingId);
+    if (matched) return matched;
+    return {
+      stationId: belongingId,
+      stationName: options?.belongingStationName?.trim() || '选择服务站',
+    };
+  }
+
+  if (list.length === 0) return null;
   return list[0] ?? null;
 }

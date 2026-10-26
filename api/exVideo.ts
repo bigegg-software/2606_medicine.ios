@@ -2,7 +2,7 @@ import request from '@/utils/axios';
 
 /**
  * 业务侧动作分类（用于居家 / 到店 tab 过滤）
- * - home：居家（含接口 cert_unlock，暂按居家）
+ * - home：居家（含接口 cert_unlock 认证解锁组）
  * - in_store：到店
  */
 export type ExVideoActionType = 'home' | 'in_store';
