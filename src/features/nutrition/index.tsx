@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Image, ActivityIndicator, Dimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
@@ -289,9 +289,22 @@ export default function NutritionPage() {
   ]);
 
   useEffect(() => {
+    // 长处方名时限制标题宽度，避免挤变形右侧家人切换按钮
+    const titleMaxWidth = Math.floor(Dimensions.get('window').width * (isFamilyView ? 0.48 : 0.62));
     navigation.setOptions({
       title: pageTitle,
-      headerTitle: undefined,
+      headerTitleAlign: 'center',
+      headerRightContainerStyle: { flexShrink: 0 },
+      headerTitleContainerStyle: { flexShrink: 1, maxWidth: titleMaxWidth },
+      headerTitle: () => (
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{ fontWeight: 'bold', fontSize: 17, color: '#333333', maxWidth: titleMaxWidth }}
+        >
+          {pageTitle}
+        </Text>
+      ),
       // 处方详情：无日历；完成情况 / 进行中：右上角日历；家人本人视图：关系角标
       headerRight: prescriptionOnly
         ? () => null

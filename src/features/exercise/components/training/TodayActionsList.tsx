@@ -10,6 +10,8 @@ import {
   isCertUnlockPending,
   isTrainingActionCompleted,
   resolveTrainingActionButtonIconSource,
+  shouldBypassCertUnlockPending,
+  shouldShowCertUnlockAsCompleted,
   shouldShowTrainingActionIcon,
   type MainTrainingPlayCard,
   type TrainingActionDateMode,
@@ -73,11 +75,13 @@ function ActionRow({
   dateMode: TrainingActionDateMode;
   onPress: (item: TodayActionListItem) => void;
 }) {
-  const actionCompleted = isTrainingActionCompleted(item);
+  const certAsCompleted = shouldShowCertUnlockAsCompleted(item);
+  const actionCompleted = isTrainingActionCompleted(item) || certAsCompleted;
   const actionText = formatTrainingActionButtonText(item, { dateMode });
   const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
   const actionPressable = canPressTrainingAction(item, dateMode, { readOnly, disablePlayer });
-  const certPending = isCertUnlockPending(item);
+  const certPending =
+    isCertUnlockPending(item) && !shouldBypassCertUnlockPending(item);
   // 待认证：家属/历史只读、非今日（含过往）置灰；本人今日不置灰
   const muteAction = !actionPressable && (
     !certPending || readOnly || disablePlayer || dateMode !== 'today'

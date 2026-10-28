@@ -68,3 +68,27 @@ export async function loadExPatientRuleForDate(
     exPatientRuleId: options?.exPatientRuleId ?? inUseRule?.exPatientRuleId,
   });
 }
+
+/**
+ * 日课表规则：快照优先；快照无 weekTrainingScheduleList 时回退进行中处方周课表。
+ * 避免休息日（如周三 isRest）因空快照丢失，居家/到店都读不到休息标记。
+ */
+export function resolveExerciseDayRule(
+  snapshot: InUseExPatientRule | null | undefined,
+  inUseRule: InUseExPatientRule | null | undefined,
+): InUseExPatientRule | null {
+  const snap = snapshot ?? null;
+  const inUse = inUseRule ?? null;
+  const snapHasSchedule = (snap?.weekTrainingScheduleList?.length ?? 0) > 0;
+  if (snapHasSchedule) return snap;
+  const inUseHasSchedule = (inUse?.weekTrainingScheduleList?.length ?? 0) > 0;
+  if (inUseHasSchedule) {
+    if (!snap) return inUse;
+    return {
+      ...inUse,
+      ...snap,
+      weekTrainingScheduleList: inUse.weekTrainingScheduleList,
+    };
+  }
+  return snap ?? inUse;
+}

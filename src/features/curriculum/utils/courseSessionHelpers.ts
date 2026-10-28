@@ -812,6 +812,8 @@ export type OnlineCourseDetailView = {
   coachUserId?: string;
   /** 教练头像 */
   avatarUri?: string;
+  /** 教练性别 sys_user.sex：无头像时默认图 */
+  coachSex?: string;
   coverUri?: string;
   liveLink?: string;
   /** 场次状态：0.草稿 1.已发布 2.已满员 3.截止报名 4.进行中 5.已结束 6.已取消 */
@@ -940,6 +942,7 @@ export function applyCoachUserToDetail(
     coach.userId != null && String(coach.userId).trim()
       ? String(coach.userId).trim()
       : detail.coachUserId;
+  const coachSex = coach.sex != null ? String(coach.sex).trim() : '';
   return {
     ...detail,
     certificateText: certificate || detail.certificateText,
@@ -947,6 +950,7 @@ export function applyCoachUserToDetail(
     coachName: realName || detail.coachName,
     avatarUri: avatarUri || detail.avatarUri,
     ...(coachUserId ? { coachUserId } : {}),
+    ...(coachSex ? { coachSex } : detail.coachSex ? { coachSex: detail.coachSex } : {}),
   };
 }
 
@@ -1060,6 +1064,7 @@ function mapCourseSessionDetail(
     typeof item.bookedCount === 'number' && Number.isFinite(item.bookedCount)
       ? item.bookedCount
       : 0;
+  const coachSex = resolveSessionCoachSex(item);
   return {
     sessionId,
     stationId,
@@ -1092,5 +1097,6 @@ function mapCourseSessionDetail(
     ...(coachUserId ? { coachUserId } : {}),
     ...(bookingId ? { bookingId } : {}),
     ...(bookingStatus != null ? { bookingStatus } : {}),
+    ...(coachSex ? { coachSex } : {}),
   };
 }

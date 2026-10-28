@@ -27,10 +27,7 @@ import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePic
 import {
     buildDietWeekDays,
 } from '../utils/dietCalendarHelpers';
-import {
-    clampDateToPrescriptionRange,
-    isCalendarDateInPrescriptionRange,
-} from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
+import { isCalendarDateInPrescriptionRange } from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
 import {
     EXERCISE_CHECK_IN_DOT_COLOR,
     loadExerciseCheckInMapByDateRange,
@@ -46,7 +43,10 @@ import {
     resolveExerciseStatProgressPercent,
     type ExerciseDayStatView,
 } from '../utils/exerciseDayStatHelpers';
-import { loadExPatientRuleForDate, resolveLockedExerciseViewDate } from '../utils/exerciseRuleDateHelpers';
+import {
+    loadExPatientRuleForDate,
+    resolveExerciseDayRule,
+} from '../utils/exerciseRuleDateHelpers';
 import {
     getExerciseSignButtonLabel,
     performExerciseDailySign,
@@ -97,6 +97,9 @@ type Props = {
     patientUserId?: string;
     /** 历史计划：锁定当前处方，不可进播放页 */
     lockToRule?: boolean;
+    /** 与到店 Tab 共用的选中日（由 ExercisePage 托管） */
+    selectedDate: string;
+    onSelectedDateChange: (date: string) => void;
     /**
      * 认证解锁状态覆盖（家属视角传家人的 getInfo.user.certUnlockActionUnlocked）
      * 不传则用登录人 systemUser
@@ -109,6 +112,8 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
     forceReadOnly = false,
     patientUserId,
     lockToRule = false,
+    selectedDate,
+    onSelectedDateChange,
     certUnlockActionUnlocked: certUnlockOverride,
 }, ref) {
     const navigation = useNavigation<Nav>();
@@ -123,9 +128,6 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             : selfCertUnlockRaw,
     );
     const showCertUnlockTip = !certUnlockActionUnlocked;
-    const [selectedDate, setSelectedDate] = useState(() =>
-        lockToRule ? resolveLockedExerciseViewDate(exerciseRule) : moment().format('YYYY-MM-DD'),
-    );
     const [dayRule, setDayRule] = useState<InUseExPatientRule | null>(exerciseRule);
     const [datePickerVisible, setDatePickerVisible] = useState(false);
     const [checkInMap, setCheckInMap] = useState<ExerciseCheckInMap>({});
@@ -181,8 +183,20 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
         [cooldownCards],
     );
     const mainTrainingSummaryText = useMemo(
-        () => formatMainTrainingSummaryText(mainPlayCards),
-        [mainPlayCards],
+        () => formatMainTrainingSummaryText([
+            ...warmupCards,
+            ...mainPlayCards,
+            ...cooldownCards,
+        ]),
+        [cooldownCards, mainPlayCards, warmupCards],
+    );
+    /** 居家训练重点（接口 homeTrainingFocus） */
+    const homeTrainingFocusText = useMemo(
+        () =>
+            dayRule?.homeTrainingFocus?.trim()
+            || exerciseRule?.homeTrainingFocus?.trim()
+            || '',
+        [dayRule?.homeTrainingFocus, exerciseRule?.homeTrainingFocus],
     );
 
     const exerciseDayRecordMarker = useMemo(() => ({
@@ -191,27 +205,19 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
             loadExerciseCheckInMapByYear(year, patientUserId, exerciseRule?.exPatientRuleId),
     }), [exerciseRule?.exPatientRuleId, patientUserId]);
 
-    /** 历史处方 getInfo 返回后，将日期对齐到处方周期内 */
+    /** 历史处方 getInfo 返回后同步 dayRule（选中日由父级托管） */
     useEffect(() => {
         if (!lockToRule || !exerciseRule) return;
-        setSelectedDate(resolveLockedExerciseViewDate(exerciseRule));
         setDayRule(exerciseRule);
     }, [lockToRule, exerciseRule]);
-
-    /** 处方起止变化时，选中日钳到周期内 */
-    useEffect(() => {
-        if (!prescriptionStartDate && !prescriptionEndDate) return;
-        setSelectedDate(prev =>
-            clampDateToPrescriptionRange(prev, prescriptionStartDate, prescriptionEndDate),
-        );
-    }, [prescriptionEndDate, prescriptionStartDate]);
 
     const loadDayRule = useCallback(async (date: string, inUseRule: InUseExPatientRule | null) => {
         const rule = await loadExPatientRuleForDate(date, inUseRule, {
             ...patientOpts,
             exPatientRuleId: inUseRule?.exPatientRuleId ?? exerciseRule?.exPatientRuleId,
         });
-        const next = rule ?? inUseRule;
+        // 快照无周课表时回退进行中处方，避免休息日 isRest 丢失
+        const next = resolveExerciseDayRule(rule, inUseRule);
         setDayRule(next);
         return next;
     }, [exerciseRule?.exPatientRuleId, patientOpts]);
@@ -390,13 +396,26 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
     const todayActionsEmptyMeta = useMemo(() => {
         const warmup = getWarmupHotList(dayRule, selectedDate);
         const cooldown = getCooldownColdList(dayRule, selectedDate);
+        const isRestDay = Boolean(warmup.isRest || cooldown.isRest);
         if (warmup.isPostponedAway || cooldown.isPostponedAway) {
-            return { isRestOrEmpty: true, emptyText: '今日训练已顺延，暂无训练安排' };
+            return {
+                isRestOrEmpty: true,
+                isRestDay: false,
+                emptyText: '今日训练已顺延，暂无训练安排',
+            };
         }
-        if (warmup.isRest || cooldown.isRest) {
-            return { isRestOrEmpty: true, emptyText: '今日为休息日，暂无训练安排' };
+        if (isRestDay) {
+            return {
+                isRestOrEmpty: true,
+                isRestDay: true,
+                emptyText: '今日为休息日，暂无训练安排',
+            };
         }
-        return { isRestOrEmpty: false, emptyText: '今日暂无训练安排' };
+        return {
+            isRestOrEmpty: false,
+            isRestDay: false,
+            emptyText: '今日暂无训练安排',
+        };
     }, [dayRule, selectedDate]);
 
     // 右侧「戳我打卡」成功后同步底部打卡状态与日历点
@@ -415,6 +434,10 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
     useImperativeHandle(ref, () => ({
         openDatePicker: onPressDatePicker,
     }), [onPressDatePicker]);
+
+    const handleSelectDate = useCallback((date: string) => {
+        onSelectedDateChange(date);
+    }, [onSelectedDateChange]);
 
     /** 主训练每项有进度（半完成）即可打卡 */
     const canFinishSign = useMemo(
@@ -609,7 +632,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                 visible={datePickerVisible}
                 selectedDate={selectedDate}
                 onClose={() => setDatePickerVisible(false)}
-                onSelect={setSelectedDate}
+                onSelect={handleSelectDate}
                 dayRecordMarker={exerciseDayRecordMarker}
                 selectableStartDate={prescriptionStartDate || null}
                 selectableEndDate={prescriptionEndDate || null}
@@ -635,7 +658,7 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                                 ]}
                                 onPress={() => {
                                     if (!selectable) return;
-                                    setSelectedDate(item.key);
+                                    onSelectedDateChange(item.key);
                                 }}>
                                 <Text
                                     style={[
@@ -741,7 +764,11 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                                 <Text style={styles.autonomousHomeTagText}>可独立完成</Text>
                             </View>
                         </Flex>
-                        <Text style={styles.autonomousHomeSubtitle}>舒展与核心激活</Text>
+                        {homeTrainingFocusText ? (
+                            <Text style={styles.autonomousHomeSubtitle} numberOfLines={1}>
+                                {homeTrainingFocusText}
+                            </Text>
+                        ) : null}
                         <Text style={styles.autonomousHomeSummary}>{mainTrainingSummaryText}</Text>
                         <Text style={styles.autonomousHomeTip}>已为你选择可在家安全完成的训练。</Text>
                         {!forceReadOnly ? (
@@ -803,11 +830,11 @@ const TrainingPage = forwardRef<TrainingPageRef, Props>(function TrainingPage({
                     onPressItem={onPressTodayAction}
                 />
 
-                <Flex justify="center" align="center" style={[styles.planListFooter, { marginTop: 30 }]}>
-                    {/* <View style={styles.planListFooterLine} /> */}
-                    <Text style={styles.planListFooterText}>到店练习后可解锁待认证动作</Text>
-                    {/* <View style={styles.planListFooterLine} /> */}
-                </Flex>
+                {!todayActionsEmptyMeta.isRestDay ? (
+                    <Flex justify="center" align="center" style={[styles.planListFooter, { marginTop: 30 }]}>
+                        <Text style={styles.planListFooterText}>到店练习后可解锁待认证动作</Text>
+                    </Flex>
+                ) : null}
             </ScrollView>
 
             {bottomAction ? (

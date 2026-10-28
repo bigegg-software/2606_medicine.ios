@@ -115,7 +115,9 @@ export default function FamilyRelationHeaderBadge({ label, style }: Props) {
         disabled={familyList.length === 0}
         style={[styles.badge, style]}
       >
-        <Text style={styles.text}>{text}</Text>
+        <Text style={styles.text} numberOfLines={1} ellipsizeMode="tail">
+          {text}
+        </Text>
         <Image
           source={require('@/assets/family/data/icon_relation_caret.png')}
           style={styles.icon}
@@ -184,16 +186,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
+    maxWidth: 120,
   },
   text: {
     fontWeight: 'bold',
     fontSize: 14,
     color: '#333333',
+    flexShrink: 1,
   },
   icon: {
     width: 12,
     height: 12,
     marginLeft: 4,
+    flexShrink: 0,
   },
   sheet: {
     backgroundColor: '#FFFFFF',

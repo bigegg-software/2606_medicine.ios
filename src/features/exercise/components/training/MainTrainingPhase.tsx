@@ -19,6 +19,8 @@ import {
   isCertUnlockPending,
   isTrainingActionCompleted,
   resolveTrainingActionButtonIconSource,
+  shouldBypassCertUnlockPending,
+  shouldShowCertUnlockAsCompleted,
   shouldShowTrainingActionIcon,
   type MainTrainingTypeModule,
   type TrainingActionDateMode,
@@ -65,11 +67,13 @@ function ActionCardRow({
     ? scheduleGroupVal > 1
     : scheduleGroupVal > 0;
   const targetCount = card.timerType === 'duration_min' ? 0 : resolveGroupTargetCount(card);
-  const actionCompleted = isTrainingActionCompleted(card);
+  const certAsCompleted = shouldShowCertUnlockAsCompleted(card);
+  const actionCompleted = isTrainingActionCompleted(card) || certAsCompleted;
   const actionText = formatTrainingActionButtonText(card, { dateMode });
   const showActionIcon = shouldShowTrainingActionIcon(card, { dateMode });
   const actionPressable = canPressTrainingAction(card, dateMode, { readOnly, disablePlayer });
-  const certPending = isCertUnlockPending(card);
+  const certPending =
+    isCertUnlockPending(card) && !shouldBypassCertUnlockPending(card);
   const muteAction = !actionPressable && (
     !certPending || readOnly || disablePlayer || dateMode !== 'today'
   );

@@ -1,8 +1,10 @@
 import { getExVideoInfo } from '@/api/exVideo';
 import type { ExWeekTrainingItem, ExWeekTrainingSchedule } from '@/api/exPatientRule';
 import type { InUseExPatientRule } from '@/api/schedule';
+import { resolveExerciseDayRule } from './exerciseRuleDateHelpers';
 import {
   buildTrainingPhaseCards,
+  collectDayScheduleTrainingItems,
   isExVideoInStore,
   pickExVideoInfo,
   type TrainingPhaseExerciseCard,
@@ -18,31 +20,21 @@ export function formatInStoreRehabLabels(labels?: string | null): string {
 }
 
 /**
- * 到店日课表：快照优先；快照为空或无 weekTrainingScheduleList 时回退进行中处方
- *（与居家 TrainingPage `rule ?? inUseRule` 对齐，并补课表缺失场景）
+ * 到店日课表：与居家一致（快照优先，无周课表时回退进行中处方，保证休息日 isRest 不丢）。
+ * 列表仍按选中日过滤，不会把其它天的到店动作汇总进来。
  */
 export function resolveInStoreDayRule(
   snapshot: InUseExPatientRule | null | undefined,
   inUseRule: InUseExPatientRule | null | undefined,
 ): InUseExPatientRule | null {
-  const snap = snapshot ?? null;
-  const inUse = inUseRule ?? null;
-  const snapHasSchedule = (snap?.weekTrainingScheduleList?.length ?? 0) > 0;
-  if (snapHasSchedule) return snap;
-  const inUseHasSchedule = (inUse?.weekTrainingScheduleList?.length ?? 0) > 0;
-  if (inUseHasSchedule) {
-    if (!snap) return inUse;
-    return {
-      ...inUse,
-      ...snap,
-      weekTrainingScheduleList: inUse.weekTrainingScheduleList,
-    };
-  }
-  return snap ?? inUse;
+  return resolveExerciseDayRule(snapshot, inUseRule);
 }
 
-function isScheduleFlagOn(value?: number | boolean | null) {
-  return value === true || Number(value) === 1;
+function isScheduleFlagOn(value?: number | boolean | string | null) {
+  if (value === true || value === 1 || value === '1') return true;
+  if (value === false || value === 0 || value === '0' || value == null || value === '') return false;
+  const num = Number(value);
+  return Number.isFinite(num) ? num === 1 : false;
 }
 
 function scheduleBlockHasNestedLists(row: Record<string, unknown> | null | undefined) {
@@ -65,7 +57,6 @@ function collectMainListsFromSchedule(schedule: ExWeekTrainingSchedule): ExWeekT
   if (Array.isArray(mainList)) {
     if (mainList.length === 0) return [];
     const first = mainList[0] as Record<string, unknown> | null;
-    // mainList 直接是动作数组（空数组字段不能误判成分块）
     if (
       first
       && typeof first === 'object'
@@ -142,7 +133,7 @@ export async function countWeeklyInStoreDays(
 
   for (let day = 1; day <= 7; day += 1) {
     const schedule = list.find(item => Number(item.day) === day) ?? null;
-    if (!schedule || schedule.isRest || isScheduleFlagOn(schedule.isPostponedAway)) {
+    if (!schedule || isScheduleFlagOn(schedule.isRest) || isScheduleFlagOn(schedule.isPostponedAway)) {
       dayVideoIds.push([]);
       continue;
     }
@@ -177,43 +168,21 @@ export function formatWeeklyInStoreTip(count: number): string {
 }
 
 /**
- * 汇总周课表全部动作（跳过休息日 / 被顺延腾空日），按 exVideoId 去重。
- * 到店 Tab 日历收起后仍按「本周专项」展示，避免只取当天导致列表一直为空。
+ * 当日到店专项视频列表（actionType=in_store；休息日 / 顺延日 / 当日无到店为空）。
+ * 与右上角日历选中日联动，不跨天汇总。
  */
-export function collectWeekScheduleTrainingItems(
-  rule: InUseExPatientRule | null | undefined,
-): ExWeekTrainingItem[] {
-  const list = rule?.weekTrainingScheduleList ?? [];
-  const seen = new Set<string>();
-  const items: ExWeekTrainingItem[] = [];
-
-  for (let day = 1; day <= 7; day += 1) {
-    const schedule = list.find(item => Number(item.day) === day) ?? null;
-    if (!schedule || schedule.isRest || isScheduleFlagOn(schedule.isPostponedAway)) {
-      continue;
-    }
-    for (const row of collectScheduleItems(schedule)) {
-      const id = row.exVideoId != null ? String(row.exVideoId).trim() : '';
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      items.push(row);
-    }
-  }
-  return items;
-}
-
-/** 本周到店专项视频列表（actionType=in_store；按周去重） */
 export async function buildInStoreRehabCards(
   rule: InUseExPatientRule | null | undefined,
-  _customerLocalDate?: string,
+  customerLocalDate?: string,
 ): Promise<{
   isRest: boolean;
   isPostponedAway: boolean;
   cards: TrainingPhaseExerciseCard[];
 }> {
-  const items = collectWeekScheduleTrainingItems(rule);
-  if (items.length === 0) {
-    return { isRest: false, isPostponedAway: false, cards: [] };
+  const date = String(customerLocalDate ?? '').trim();
+  const { isRest, isPostponedAway, items } = collectDayScheduleTrainingItems(rule, date);
+  if (isRest || isPostponedAway || items.length === 0) {
+    return { isRest, isPostponedAway, cards: [] };
   }
   const cards = await buildTrainingPhaseCards(items, undefined, {
     defaultThumbKey: 'main',

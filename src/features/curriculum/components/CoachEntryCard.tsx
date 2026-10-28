@@ -7,18 +7,23 @@ import { getDefaultAvatarByGender } from '@/src/utils/userHelpers';
 import styles from '@/css/curriculum/onlineCourseDetail';
 import type { RootStackParamList } from '@/route/router';
 
-const DEFAULT_AVATAR = getDefaultAvatarByGender();
-
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 type Props = {
   coachName: string;
   coachUserId?: string;
   avatarUri?: string;
+  /** 教练性别：无头像时按性别渲染默认图 */
+  coachSex?: string;
 };
 
 /** 课程详情：教练入口卡片 */
-export default function CoachEntryCard({ coachName, coachUserId, avatarUri }: Props) {
+export default function CoachEntryCard({
+  coachName,
+  coachUserId,
+  avatarUri,
+  coachSex,
+}: Props) {
   const navigation = useNavigation<Nav>();
   const id = coachUserId?.trim() || '';
   const name = coachName?.trim() || '教练';
@@ -37,7 +42,7 @@ export default function CoachEntryCard({ coachName, coachUserId, avatarUri }: Pr
       <Flex align="center">
         <Image
           style={styles.coachEntryAvatar}
-          source={uri ? { uri } : DEFAULT_AVATAR}
+          source={uri ? { uri } : getDefaultAvatarByGender(coachSex)}
         />
         <Text style={styles.coachEntryName} numberOfLines={1}>
           {name}

@@ -213,6 +213,20 @@ export function resolveNextIncompleteGroupNo(card: TrainingPhaseExerciseCard) {
   return null;
 }
 
+/** 已完成组数（1-based 展示用，如完成第 1 组 → 1） */
+export function resolveCompletedGroupCount(card: TrainingPhaseExerciseCard) {
+  const scheduleGroupVal = resolveScheduleGroupVal(card);
+  if (scheduleGroupVal <= 0) return 0;
+  const target = resolveGroupTargetCount(card);
+  let count = 0;
+  for (let index = 0; index < scheduleGroupVal; index += 1) {
+    if (isGroupDisplayDone(index, card.groupCounts, target, card.completedGroups)) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 /** 接口原始 actionType 是否为认证解锁组 */
 export function isExVideoCertUnlock(actionType?: string | null) {
   const raw = String(actionType ?? '').trim().toLowerCase().replace(/-/g, '_');
@@ -241,12 +255,30 @@ export function isCertUnlockPending(card: Pick<TrainingPhaseExerciseCard, 'certP
   return Boolean(card.certPending);
 }
 
+/**
+ * 待认证项：教练端已全部完成 → 显示完成图标/文案
+ * 仅有部分进度（如第1/2组）不走完成，走下方普通进度文案
+ */
+export function shouldShowCertUnlockAsCompleted(card: TrainingPhaseExerciseCard) {
+  if (!isCertUnlockPending(card)) return false;
+  return isTrainingActionCompleted(card);
+}
+
+/** 待认证但已有进度：不再显示锁/待认证，按普通进度（第1/2组）或完成展示 */
+export function shouldBypassCertUnlockPending(card: TrainingPhaseExerciseCard) {
+  if (!isCertUnlockPending(card)) return false;
+  return isTrainingActionProgressStarted(card);
+}
+
 /** 右侧按钮图标：待认证用锁，否则完成/开始 */
 export function resolveTrainingActionButtonIconSource(
   card: TrainingPhaseExerciseCard,
   actionCompleted: boolean,
 ): ImageSourcePropType {
-  if (isCertUnlockPending(card)) {
+  if (shouldShowCertUnlockAsCompleted(card)) {
+    return require('@/assets/images/exercise/icon_wc.png');
+  }
+  if (isCertUnlockPending(card) && !shouldBypassCertUnlockPending(card)) {
     return require('@/assets/images/exercise/icon_lock.png');
   }
   return actionCompleted
@@ -258,7 +290,10 @@ export function formatTrainingActionButtonText(
   card: TrainingPhaseExerciseCard,
   options?: { dateMode?: TrainingActionDateMode },
 ) {
-  if (isCertUnlockPending(card)) return '待认证';
+  // 无进度才显示待认证；有进度（含第1/2组）走普通进度/完成文案
+  if (isCertUnlockPending(card) && !shouldBypassCertUnlockPending(card)) {
+    return '待认证';
+  }
 
   const dateMode = options?.dateMode ?? 'today';
 
@@ -284,10 +319,16 @@ export function formatTrainingActionButtonText(
   if (allDone) return '完成';
   // 过去未全部完成：统一展示「开始」（列表侧置灰不可点）
   if (dateMode === 'past') return '开始';
-  const nextGroupNo = resolveNextIncompleteGroupNo(card);
-  // 有进度（含半完成组）：显示第 X/总数 组
-  if (isTrainingActionProgressStarted(card) && nextGroupNo != null) {
-    return `第${nextGroupNo}/${scheduleGroupVal}组`;
+  // 有进度：显示已完成组数 / 总组数（完成第1组 → 第1/2组，不是下一组第2/2组）
+  if (isTrainingActionProgressStarted(card)) {
+    const completedCount = resolveCompletedGroupCount(card);
+    const nextGroupNo = resolveNextIncompleteGroupNo(card);
+    // 半完成当前组（尚未整组完成）时用当前组号；整组完成后用已完成数
+    const displayNo =
+      completedCount > 0 ? completedCount : (nextGroupNo ?? 0);
+    if (displayNo > 0) {
+      return `第${displayNo}/${scheduleGroupVal}组`;
+    }
   }
   return '开始';
 }
@@ -424,7 +465,8 @@ export function shouldShowTrainingActionIcon(
   card: TrainingPhaseExerciseCard,
   options?: { dateMode?: TrainingActionDateMode },
 ) {
-  if (isCertUnlockPending(card)) return true;
+  if (shouldShowCertUnlockAsCompleted(card)) return true;
+  if (isCertUnlockPending(card) && !shouldBypassCertUnlockPending(card)) return true;
   const dateMode = options?.dateMode ?? 'today';
   if (dateMode === 'future') return true;
   if (isTrainingActionCompleted(card)) return true;
@@ -841,7 +883,7 @@ export function sumTrainingPhaseMinutes(cards: TrainingPhaseExerciseCard[]) {
   return Math.max(0, Math.round(total));
 }
 
-/** 居家自主训练摘要：主训练时长 + 动作数（一视频一动作） */
+/** 居家自主训练摘要：热身 + 主训 + 冷身总时长与动作数（一视频一动作） */
 export function formatMainTrainingSummaryText(cards: TrainingPhaseExerciseCard[]) {
   const count = cards.length;
   if (count <= 0) return '暂无训练动作';
@@ -859,8 +901,12 @@ export function formatCooldownBannerTitle(totalMinutes: number) {
   return '冷身放松·5–10 分钟';
 }
 
-function isScheduleFlagOn(value?: number | boolean | null) {
-  return value === true || Number(value) === 1;
+/** 课表开关：兼容 true / 1 / "1"（接口偶发数字或字符串） */
+function isScheduleFlagOn(value?: number | boolean | string | null) {
+  if (value === true || value === 1 || value === '1') return true;
+  if (value === false || value === 0 || value === '0' || value == null || value === '') return false;
+  const num = Number(value);
+  return Number.isFinite(num) ? num === 1 : false;
 }
 
 function getDaySchedulePhase(
@@ -877,7 +923,9 @@ function getDaySchedulePhase(
   if (isScheduleFlagOn(schedule.isPostponedAway)) {
     return { isRest: false, isPostponedAway: true, schedule };
   }
-  if (schedule.isRest) return { isRest: true, isPostponedAway: false, schedule };
+  if (isScheduleFlagOn(schedule.isRest as number | boolean | string | null | undefined)) {
+    return { isRest: true, isPostponedAway: false, schedule };
+  }
   return { isRest: false, isPostponedAway: false, schedule };
 }
 

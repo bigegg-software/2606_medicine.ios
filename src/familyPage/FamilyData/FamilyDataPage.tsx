@@ -783,7 +783,7 @@ export default function FamilyDataPage() {
             <View>
               {assessmentItems.length === 0 ? (
                 <View style={styles.sectionEmpty}>
-                  <EmptyRecord text="暂无评估记录" compact />
+                  <EmptyRecord text="暂无评估结果" compact />
                 </View>
               ) : (
                 assessmentItems.map((item, index) => (
@@ -817,7 +817,7 @@ export default function FamilyDataPage() {
                           });
                         }}
                       >
-                        <Text style={styles.assessmentReportBtnText}>查看报告</Text>
+                        <Text style={styles.assessmentReportBtnText}>查看详情</Text>
                       </TouchableOpacity>
                     </Flex>
                   </View>

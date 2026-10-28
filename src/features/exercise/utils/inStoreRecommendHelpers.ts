@@ -6,6 +6,7 @@ import {
 } from '@/api/courseSession';
 import { getUserInfo } from '@/api/user';
 import { apiResourceData, isResourceApiOk } from '@/src/utils/apiHelpers';
+import { fetchCoachUserDetail } from '@/src/features/curriculum/utils/coachUserHelpers';
 
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 
@@ -29,6 +30,8 @@ export type InStoreRecommendCardView = {
   sessionDate?: string;
   startTime?: string;
   avatarUri?: string;
+  /** 教练性别：无头像时按性别默认图 */
+  coachSex?: string;
   bookedByMe: boolean;
 };
 
@@ -174,6 +177,11 @@ export function mapInStoreRecommendCard(item: CourseSessionItem): InStoreRecomme
   const coachName = item.coachRealName?.trim() || '教练';
   const coachUserId =
     item.coachUserId != null ? String(item.coachUserId).trim() : undefined;
+  const coachSexRaw =
+    item.coachSex != null && String(item.coachSex).trim()
+      ? item.coachSex
+      : (item as { sex?: string | number }).sex;
+  const coachSex = coachSexRaw != null ? String(coachSexRaw).trim() : '';
   const tag =
     item.coachSpecialtyDirection?.trim() ||
     item.template?.courseCategoryLabel?.trim() ||
@@ -192,7 +200,9 @@ export function mapInStoreRecommendCard(item: CourseSessionItem): InStoreRecomme
     sessionDate: item.sessionDate?.trim() || undefined,
     startTime: formatTimePart(item.startTime) || undefined,
     availableText: weekdayPeriod || title,
-    avatarUri: item.coachAvatarUrl?.trim() || undefined,
+    avatarUri:
+      item.coachPortraitUrl?.trim() || item.coachAvatarUrl?.trim() || undefined,
+    ...(coachSex ? { coachSex } : {}),
     bookedByMe: Boolean(item.bookedByMe),
   };
 }
@@ -211,6 +221,45 @@ export async function loadUserStationId(): Promise<string> {
     console.error('loadUserStationId failed:', error);
     return '';
   }
+}
+
+/** 无性别时按教练详情 sex 补齐（与课程详情 CoachEntryCard 一致） */
+async function enrichInStoreRecommendCoachSex(
+  cards: InStoreRecommendCardView[],
+): Promise<InStoreRecommendCardView[]> {
+  const needIds = Array.from(
+    new Set(
+      cards
+        .filter(card => !card.coachSex?.trim() && Boolean(card.coachUserId?.trim()))
+        .map(card => card.coachUserId!.trim()),
+    ),
+  );
+  if (needIds.length === 0) return cards;
+
+  const pairs = await Promise.all(
+    needIds.map(async id => {
+      const coach = await fetchCoachUserDetail(id);
+      const sex = coach?.sex != null ? String(coach.sex).trim() : '';
+      const avatarUri =
+        coach?.portraitOssUrl?.trim() || coach?.avatarOssUrl?.trim() || '';
+      return [id, { sex, avatarUri }] as const;
+    }),
+  );
+  const map = new Map(pairs.filter(([, info]) => Boolean(info.sex || info.avatarUri)));
+  if (map.size === 0) return cards;
+
+  return cards.map(card => {
+    const id = card.coachUserId?.trim() || '';
+    const info = id ? map.get(id) : undefined;
+    if (!info) return card;
+    return {
+      ...card,
+      ...(info.sex && !card.coachSex?.trim() ? { coachSex: info.sex } : {}),
+      ...(info.avatarUri && !card.avatarUri?.trim()
+        ? { avatarUri: info.avatarUri }
+        : {}),
+    };
+  });
 }
 
 /** 推荐到店训练列表（最多 2 条）；优先用传入 stationId，否则再拉 getInfo */
@@ -232,7 +281,8 @@ export async function loadInStoreRecommendCards(options?: {
       .map(mapInStoreRecommendCard)
       .filter((card): card is InStoreRecommendCardView => card != null);
     // 先按全部场次汇总时段，再按教练去重（避免同一教练两条重复）
-    return dedupeInStoreRecommendByCoach(cards, 2);
+    const deduped = dedupeInStoreRecommendByCoach(cards, 2);
+    return enrichInStoreRecommendCoachSex(deduped);
   } catch (error) {
     console.error('loadInStoreRecommendCards failed:', error);
     return [];

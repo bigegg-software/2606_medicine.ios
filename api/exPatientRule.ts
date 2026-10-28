@@ -96,6 +96,10 @@ export type ExPatientRuleInfo = {
   adjustTime?: string;
   /** 完成处方的总结（完成时填写） */
   completeSummary?: string;
+  /** 居家训练重点（非必填） */
+  homeTrainingFocus?: string;
+  /** 到店训练重点（非必填） */
+  inStoreTrainingFocus?: string;
   aiAnalysis?: ExPatientRuleAiAnalysis;
   weekTrainingScheduleList?: ExWeekTrainingSchedule[];
   status?: number;

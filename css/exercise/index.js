@@ -253,12 +253,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   autonomousHomeTagText: { fontWeight: '500', fontSize: 11, color: '#FFFFFF' },
-  autonomousHomeSubtitle: { marginTop: 10, fontWeight: 'bold', fontSize: 15, color: '#333333' },
+  autonomousHomeSubtitle: { marginTop: 10, fontWeight: 'bold', fontSize: 15, color: '#333333', width: "60%" },
   autonomousHomeSummary: { marginTop: 6, fontWeight: '500', fontSize: 13, color: '#333333' },
   autonomousHomeTip: { marginTop: 9, fontWeight: '500', fontSize: 13, color: '#999999' },
   autonomousTrainingText1: { marginTop: 14, fontWeight: 'bold', fontSize: 21, color: '#333333' },
   autonomousTrainingText5: { fontWeight: 500, fontSize: 13, color: "#666666", marginTop: 6 },
-  autonomousTrainingText2: { marginTop: 10, fontWeight: 'bold', fontSize: 17, color: '#333333' },
+  autonomousTrainingText2: { marginTop: 10, fontWeight: 'bold', fontSize: 17, color: '#333333', width: "60%" },
   autonomousTrainingText3: { marginTop: 6, fontWeight: '500', fontSize: 14, color: '#333333' },
   autonomousTrainingText4: { fontWeight: 'bold', fontSize: 13, color: '#6D925E', marginRight: 4 },
   autonomousTrainingIcon: { width: 6, height: 12 },
@@ -318,6 +318,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   trainingExerciseThumb: { width: 54, height: 54, borderRadius: 6 },
+  /** 到店推荐教练头像（与课程详情 CoachEntryCard 同圆形逻辑） */
+  inStoreRecommendAvatar: { width: 54, height: 54, borderRadius: 27, flexShrink: 0 },
   /** 到店「相关专项训练」封面 */
   inStoreSpecialtyThumb: { width: 80, height: 45, borderRadius: 6 },
   trainingExerciseInfo: { flex: 1, marginLeft: 13, justifyContent: 'center' },

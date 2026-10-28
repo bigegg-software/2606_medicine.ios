@@ -22,10 +22,14 @@ import { AppTheme } from '@/common/theme';
 import { apiResourceData } from '@/src/utils/apiHelpers';
 import type { RootStackParamList } from '@/route/router';
 import {
+  formatAssessmentDate,
+  formatHealthDiagnosisTip,
+  formatHealthPrescriptionStatus,
   formatQuestionnaireScoreDisplay,
   getScoreLevel,
   getScoreTip,
   isUserHealthInfoQuestionnaire,
+  QUESTIONNAIRE_TITLES,
 } from '@/src/features/profile/questionnaire/utils/helpers';
 import EmptyRecord from '@/src/components/EmptyRecord';
 import FamilyRelationHeaderBadge from '@/src/familyPage/components/FamilyRelationHeaderBadge';
@@ -38,6 +42,7 @@ const DISCLAIMER_ICON = require('@/assets/family/data/icon_warn.png');
 type Route = RouteProp<RootStackParamList, 'FamilyAssessmentResult'>;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
+/** 家人评估结果页：文案与结构对齐本人端 QuestionnaireResult */
 export default function FamilyAssessmentResultPage() {
   const navigation = useNavigation<Nav>();
   const route = useRoute<Route>();
@@ -90,22 +95,34 @@ export default function FamilyAssessmentResultPage() {
   }, [loadDetail]);
 
   const questionnaireType = (detail?.type ?? type) as QuestionnaireType | undefined;
+  const isHealthInfo = isUserHealthInfoQuestionnaire(questionnaireType);
+  const diagnosisResult = detail?.diagnosisResult ?? null;
+
   const scoreLevel = useMemo(() => {
     if (questionnaireType == null || detail?.score == null) return undefined;
     return getScoreLevel(questionnaireType, detail.score);
   }, [detail?.score, questionnaireType]);
 
+  const levelText = isHealthInfo
+    ? formatHealthPrescriptionStatus(diagnosisResult, detail?.score)
+    : (scoreLevel?.result?.trim() || '--');
+
   const scoreTip =
-    questionnaireType != null && scoreLevel
+    !isHealthInfo && questionnaireType != null && scoreLevel
       ? getScoreTip(questionnaireType, scoreLevel)
       : null;
-  const resultText = scoreLevel?.result?.trim() || '--';
-  const gaugeIcon = getFamilyRiskGaugeIcon(scoreLevel?.statusStyle);
-  const isHealthInfo = isUserHealthInfoQuestionnaire(questionnaireType);
-  const questionCount = detail?.questionsAnswer?.length ?? 0;
+  const healthTipText = isHealthInfo ? formatHealthDiagnosisTip(diagnosisResult) : '';
+  const gaugeIcon = getFamilyRiskGaugeIcon(
+    isHealthInfo
+      ? (levelText.includes('有红旗') ? 'rowStatusError' : 'rowStatus')
+      : scoreLevel?.statusStyle,
+  );
+  const typeTitle =
+    questionnaireType != null ? QUESTIONNAIRE_TITLES[questionnaireType] : '评估问卷';
+  const assessmentDate = detail ? formatAssessmentDate(detail) : '';
   const scoreText =
     questionnaireType != null
-      ? formatQuestionnaireScoreDisplay(questionnaireType, detail?.score)
+      ? formatQuestionnaireScoreDisplay(questionnaireType, detail?.score, diagnosisResult)
       : '--';
 
   if (loading) {
@@ -133,38 +150,52 @@ export default function FamilyAssessmentResultPage() {
       <View style={styles.pageContent}>
         <ScrollView contentContainerStyle={styles.body}>
           <View style={styles.resultCard}>
-            <Text style={styles.resultTitle}>{isHealthInfo ? '红旗筛查' : '风险评分'}</Text>
+            <Flex justify="between" align="start" style={{ alignSelf: 'stretch' }}>
+              <Text style={[styles.resultTitle, { flex: 1, marginRight: 12 }]}>
+                {typeTitle}
+              </Text>
+              {assessmentDate ? (
+                <Text style={[styles.resultTime, { marginTop: 0, textAlign: 'right' }]}>
+                  测评时间：{assessmentDate}
+                </Text>
+              ) : null}
+            </Flex>
             <View style={styles.resultGaugeOuter}>
               <View style={styles.resultGaugeInner}>
                 <Image source={gaugeIcon} style={styles.resultGauge} resizeMode="contain" />
               </View>
             </View>
-            <Text style={styles.resultLevel}>{resultText}</Text>
-            <View style={styles.resultDivider} />
-            <Flex style={styles.resultStatsRow}>
-              <View style={styles.resultStatItem}>
-                <Text style={styles.resultStatValue}>{questionCount}</Text>
-                <Text style={styles.resultStatLabel}>题数(题）</Text>
-              </View>
-              <View style={styles.resultStatItem}>
-                <Text style={styles.resultStatValue}>{scoreText}</Text>
-                <Text style={styles.resultStatLabel}>
-                  {isHealthInfo ? '红旗判定' : '评分(分)'}
-                </Text>
-              </View>
-            </Flex>
-            {scoreTip ? (
+            <Text style={styles.resultLevel}>{levelText}</Text>
+            {isHealthInfo ? (
               <View style={styles.resultTipBox}>
                 <View style={styles.resultTipRow}>
                   <View style={styles.resultTipDot} />
-                  <Text style={styles.resultTipText}>{scoreTip.summary}</Text>
-                </View>
-                <View style={[styles.resultTipRow, styles.resultTipAdvice]}>
-                  <View style={styles.resultTipDot} />
-                  <Text style={styles.resultTipText}>{scoreTip.advice}</Text>
+                  <Text style={styles.resultTipText}>{healthTipText}</Text>
                 </View>
               </View>
-            ) : null}
+            ) : (
+              <>
+                <View style={styles.resultDivider} />
+                <Flex style={styles.resultStatsRow}>
+                  <View style={styles.resultStatItem}>
+                    <Text style={styles.resultStatValue}>{scoreText}</Text>
+                    <Text style={styles.resultStatLabel}>评分(分)</Text>
+                  </View>
+                </Flex>
+                {scoreTip ? (
+                  <View style={styles.resultTipBox}>
+                    <View style={styles.resultTipRow}>
+                      <View style={styles.resultTipDot} />
+                      <Text style={styles.resultTipText}>{scoreTip.summary}</Text>
+                    </View>
+                    <View style={[styles.resultTipRow, styles.resultTipAdvice]}>
+                      <View style={styles.resultTipDot} />
+                      <Text style={styles.resultTipText}>{scoreTip.advice}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </>
+            )}
           </View>
           <View style={styles.resultDisclaimer}>
             <Image

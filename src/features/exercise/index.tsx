@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, Image, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, Image, ActivityIndicator, TouchableOpacity, Dimensions } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
+import moment from 'moment';
 import PageLayout from '@/src/components/PageLayout';
 import { Flex } from '@ant-design/react-native';
 import { useFocusEffect, useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -11,9 +12,16 @@ import { fetchUserBaseInfo, fetchUserInfo } from '@/store/actions/user';
 import { getDisplayUserName } from '@/src/utils/userHelpers';
 import { formatExerciseUserInfoText, normalizeExPatientRuleInfo } from './utils/exerciseHelpers';
 import { onPressExerciseCheckInFab } from './utils/exerciseCheckInFabHelpers';
+import {
+  EXERCISE_CHECK_IN_DOT_COLOR,
+  loadExerciseCheckInMapByYear,
+} from './utils/exerciseCheckInHelpers';
+import { resolveLockedExerciseViewDate } from './utils/exerciseRuleDateHelpers';
 import TrainingPage, { type TrainingPageRef } from './components/TrainingPage';
 import PrescriptionPage from './components/PrescriptionPage';
 import InStoreRehabPage from './components/InStoreRehabPage';
+import DietDatePickerModal from '@/src/features/nutrition/components/DietDatePickerModal';
+import { clampDateToPrescriptionRange } from '@/src/features/nutrition/components/utils/dietCalendarHelpers';
 import type { InUseExPatientRule } from '@/api/schedule';
 import { getExPatientRuleInfo, getInUseExPatientRuleInfo, getPostponeThisWeekInfo, type ExPatientRuleInfo, type PostponeThisWeekInfo } from '@/api/exPatientRule';
 import { getUserBaseInfo, type UserBaseInfo } from '@/api/patient';
@@ -60,6 +68,7 @@ export default function ExercisePage() {
     ? String(route.params.exPatientRuleId).trim()
     : '';
   const prescriptionOnly = Boolean(route.params?.prescriptionOnly);
+  const lockToRule = Boolean(exPatientRuleId);
   const isFamilyView = Boolean(patientUserId);
   const readOnly = familyReadOnly || Boolean(exPatientRuleId);
   const user = useSelector((s: RootState) => s.user.info);
@@ -103,6 +112,28 @@ export default function ExercisePage() {
   /** 首屏后再次 focus（详情/播放器返回等）静默刷新，避免整页 loading */
   const hasLoadedRef = useRef(false);
   const trainingPageRef = useRef<TrainingPageRef>(null);
+  /** 居家 / 到店共用选中日，保证休息日两侧一致 */
+  const [selectedDate, setSelectedDate] = useState(() => moment().format('YYYY-MM-DD'));
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const prescriptionStartDate = exerciseRule?.startDate?.trim() || '';
+  const prescriptionEndDate = exerciseRule?.endDate?.trim() || '';
+  const exerciseDayRecordMarker = useMemo(() => ({
+    color: EXERCISE_CHECK_IN_DOT_COLOR,
+    loadByYear: (year: number) =>
+      loadExerciseCheckInMapByYear(year, patientUserId, exerciseRule?.exPatientRuleId),
+  }), [exerciseRule?.exPatientRuleId, patientUserId]);
+
+  useEffect(() => {
+    if (!lockToRule || !exerciseRule) return;
+    setSelectedDate(resolveLockedExerciseViewDate(exerciseRule));
+  }, [exerciseRule, lockToRule]);
+
+  useEffect(() => {
+    if (!prescriptionStartDate && !prescriptionEndDate) return;
+    setSelectedDate(prev =>
+      clampDateToPrescriptionRange(prev, prescriptionStartDate, prescriptionEndDate),
+    );
+  }, [prescriptionEndDate, prescriptionStartDate]);
   const infoText = formatExerciseUserInfoText(
     profileUser,
     readOnly && isFamilyView ? null : userExtr,
@@ -351,18 +382,26 @@ export default function ExercisePage() {
       }
       return;
     }
-    if (activeNav !== 'homeTraining') {
-      onPressNav('homeTraining');
-    }
-    requestAnimationFrame(() => {
-      trainingPageRef.current?.openDatePicker();
-    });
-  }, [activeNav, exerciseRule, navigation, onPressNav, statusTipRuleId, tipKind]);
+    setDatePickerVisible(true);
+  }, [exerciseRule, navigation, statusTipRuleId, tipKind]);
 
   useEffect(() => {
+    // 长处方名时限制标题宽度，避免挤变形右侧家人切换按钮
+    const titleMaxWidth = Math.floor(Dimensions.get('window').width * (isFamilyView ? 0.48 : 0.62));
     navigation.setOptions({
       title: pageTitle,
-      headerTitle: undefined,
+      headerTitleAlign: 'center',
+      headerRightContainerStyle: { flexShrink: 0 },
+      headerTitleContainerStyle: { flexShrink: 1, maxWidth: titleMaxWidth },
+      headerTitle: () => (
+        <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={{ fontWeight: 'bold', fontSize: 17, color: '#333333', maxWidth: titleMaxWidth }}
+        >
+          {pageTitle}
+        </Text>
+      ),
       // 仅「处方详情」隐藏日历；「完成情况」历史只读仍可切换日期
       headerRight: prescriptionOnly
         ? () => null
@@ -535,8 +574,10 @@ export default function ExercisePage() {
                     ref={trainingPageRef}
                     exerciseRule={exerciseRule}
                     forceReadOnly={readOnly}
-                    lockToRule={Boolean(exPatientRuleId)}
+                    lockToRule={lockToRule}
                     patientUserId={patientUserId}
+                    selectedDate={selectedDate}
+                    onSelectedDateChange={setSelectedDate}
                     certUnlockActionUnlocked={
                       patientUserId ? familyCertUnlockActionUnlocked : undefined
                     }
@@ -552,9 +593,11 @@ export default function ExercisePage() {
                 <View style={{ flex: 1, display: activeNav === 'inStoreRehab' ? 'flex' : 'none' }}>
                   <InStoreRehabPage
                     exerciseRule={exerciseRule}
-                    lockToRule={Boolean(exPatientRuleId)}
+                    lockToRule={lockToRule}
                     readOnly={readOnly}
                     patientUserId={patientUserId}
+                    selectedDate={selectedDate}
+                    onSelectedDateChange={setSelectedDate}
                   />
                 </View>
               ) : null}
@@ -577,6 +620,16 @@ export default function ExercisePage() {
           </Flex>
         </TouchableOpacity>
       ) : null}
+
+      <DietDatePickerModal
+        visible={datePickerVisible}
+        selectedDate={selectedDate}
+        onClose={() => setDatePickerVisible(false)}
+        onSelect={setSelectedDate}
+        dayRecordMarker={exerciseDayRecordMarker}
+        selectableStartDate={prescriptionStartDate || null}
+        selectableEndDate={prescriptionEndDate || null}
+      />
     </PageLayout>
   );
 }

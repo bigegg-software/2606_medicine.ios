@@ -335,6 +335,7 @@ export default function PrivateCourseDetailPage() {
               coachName={detail.coachName}
               coachUserId={detail.coachUserId}
               avatarUri={detail.avatarUri}
+              coachSex={detail.coachSex}
             />
 
             {detail.hasLinkedCourse ? (

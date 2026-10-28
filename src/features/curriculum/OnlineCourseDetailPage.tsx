@@ -317,6 +317,7 @@ export default function OnlineCourseDetailPage() {
               coachName={detail.coachName}
               coachUserId={detail.coachUserId}
               avatarUri={detail.avatarUri}
+              coachSex={detail.coachSex}
             />
 
             <Flex align="center" style={styles.sectionTitleRow}>

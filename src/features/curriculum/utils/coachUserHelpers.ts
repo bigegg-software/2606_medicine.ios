@@ -38,6 +38,8 @@ export type CoachDetailView = {
   coachUserId: string;
   name: string;
   avatarUri?: string;
+  /** 教练性别 sys_user.sex：无头像时默认图 */
+  coachSex?: string;
   certificateText: string;
   specialtyText: string;
   introText: string;
@@ -48,10 +50,12 @@ export type CoachDetailView = {
 export function mapCoachDetailView(coach: CoachUserInfo): CoachDetailView | null {
   const coachUserId = coach.userId != null ? String(coach.userId).trim() : '';
   if (!coachUserId) return null;
+  const coachSex = coach.sex != null ? String(coach.sex).trim() : '';
   return {
     coachUserId,
     name: coach.realName?.trim() || '教练',
     avatarUri: coach.portraitOssUrl?.trim() || coach.avatarOssUrl?.trim() || undefined,
+    ...(coachSex ? { coachSex } : {}),
     certificateText: coach.qualificationCert?.trim() || '',
     specialtyText: coach.specialtyDirection?.trim() || '',
     introText: coach.introduction?.trim() || '',

@@ -53,6 +53,10 @@ export type InUseExPatientRule = {
   remark?: string;
   adjustReason?: string;
   completeSummary?: string;
+  /** 居家训练重点（非必填） */
+  homeTrainingFocus?: string;
+  /** 到店训练重点（非必填） */
+  inStoreTrainingFocus?: string;
   aiAnalysis?: ExPatientRuleAiAnalysis;
   weekTrainingScheduleList?: ExWeekTrainingSchedule[];
   createTime?: string;

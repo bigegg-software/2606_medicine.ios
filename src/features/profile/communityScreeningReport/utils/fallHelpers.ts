@@ -82,7 +82,7 @@ export const FALL_NEXT_STEP = {
 
 /** 备注免责（接口未返回，前端固定） */
 export const FALL_REMARK_TEXT =
-  '备注：本报告为跌倒风险初筛参考，非医疗诊断；如出现红旗症状（夜间静息痛 / 进行性麻木无力 / 新发跌倒后受伤 / 意识障碍等）请及时就医，高风险者不自行训练。分级阈值均为建议初值·待校准。';
+  '本报告为跌倒风险初筛参考，非医疗诊断；如出现红旗症状（夜间静息痛 / 进行性麻木无力 / 新发跌倒后受伤 / 意识障碍等）请及时就医，高风险者不自行训练。分级阈值均为建议初值·待校准。';
 
 /** 周计划下方 tip（接口未返回） */
 export const FALL_PRESCRIPTION_TIP =
@@ -405,7 +405,7 @@ export function formatFallProfile(result: FallPreventionResult | null | undefine
   };
 }
 
-/** 客观数据日期：展示为「开始 - 结束」（接口已带前缀时不再重复拼接） */
+/** 客观数据日期：单日 → 起止同日；双日 → 起-止（中间无空格） */
 export function formatObjectiveDataDateRange(value?: string | null) {
   let date = text(value);
   // 接口可能已是「客观数据日期：…」，循环剥掉前缀避免重复
@@ -415,10 +415,14 @@ export function formatObjectiveDataDateRange(value?: string | null) {
   if (!date || date === '--') {
     return '客观数据日期：--';
   }
-  if (date.includes(' - ') || date.includes('~') || date.includes('至')) {
-    return `客观数据日期：${date}`;
+  const matches = date.match(/\d{4}-\d{2}-\d{2}/g) ?? [];
+  if (matches.length >= 2) {
+    return `客观数据日期：${matches[0]}-${matches[1]}`;
   }
-  return `客观数据日期：${date} - ${date}`;
+  if (matches.length === 1) {
+    return `客观数据日期：${matches[0]}-${matches[0]}`;
+  }
+  return `客观数据日期：${date}`;
 }
 
 export function formatFallRiskResult(result: FallPreventionResult | null | undefined) {

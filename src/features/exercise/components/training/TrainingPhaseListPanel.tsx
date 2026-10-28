@@ -26,6 +26,8 @@ import {
   isCertUnlockPending,
   isTrainingActionCompleted,
   resolveTrainingActionButtonIconSource,
+  shouldBypassCertUnlockPending,
+  shouldShowCertUnlockAsCompleted,
   shouldShowTrainingActionIcon,
   sumTrainingPhaseMinutes,
   type TrainingActionDateMode,
@@ -229,11 +231,13 @@ export default function TrainingPhaseListPanel({
           const showSets = item.timerType === 'duration_min'
             ? scheduleGroupVal > 1
             : scheduleGroupVal > 0;
-          const actionCompleted = isTrainingActionCompleted(item);
+          const certAsCompleted = shouldShowCertUnlockAsCompleted(item);
+          const actionCompleted = isTrainingActionCompleted(item) || certAsCompleted;
           const actionText = formatTrainingActionButtonText(item, { dateMode });
           const showActionIcon = shouldShowTrainingActionIcon(item, { dateMode });
           const actionPressable = canPressTrainingAction(item, dateMode, { readOnly, disablePlayer });
-          const certPending = isCertUnlockPending(item);
+          const certPending =
+            isCertUnlockPending(item) && !shouldBypassCertUnlockPending(item);
           const muteAction = !actionPressable && (
             !certPending || readOnly || disablePlayer || dateMode !== 'today'
           );

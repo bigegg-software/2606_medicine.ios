@@ -14,8 +14,6 @@ import {
 
 type Route = RouteProp<RootStackParamList, 'CoachDetail'>;
 
-const DEFAULT_AVATAR = getDefaultAvatarByGender();
-
 /** 教练详情 */
 export default function CoachDetailPage() {
   const { params } = useRoute<Route>();
@@ -60,7 +58,9 @@ export default function CoachDetailPage() {
     );
   }
 
-  const avatarSource = detail.avatarUri ? { uri: detail.avatarUri } : DEFAULT_AVATAR;
+  const avatarSource = detail.avatarUri
+    ? { uri: detail.avatarUri }
+    : getDefaultAvatarByGender(detail.coachSex);
   const certificateText = detail.certificateText.trim();
   const specialtyText = detail.specialtyText.trim();
   const introText = detail.introText.trim();
